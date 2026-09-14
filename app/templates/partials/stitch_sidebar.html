@@ -190,25 +190,50 @@
     const sb = document.getElementById('app-sidebar');
     if (!sb) return;
 
-    const groups = sb.querySelectorAll('details.nav-group');
+    const groups = Array.from(sb.querySelectorAll('details.nav-group'));
+    const STORAGE_KEY = 'sidebarOpenGroup';   // single-open (accordion) — remember the ONE open group
+    let suppressToggle = false;               // guard against cascading events when we close siblings
+
+    // ── 1. Compute the initial "open" group by priority ────────────────
+    //   a) the group that contains the active link on this page
+    //   b) the last group the user opened (localStorage)
+    //   c) none (all closed — the requested default)
+    const activeGroup = groups.find(g => g.querySelector('.is-active')) || null;
+    let openKey = null;
+    if (activeGroup) {
+      openKey = activeGroup.getAttribute('data-group');
+    } else {
+      try { openKey = localStorage.getItem(STORAGE_KEY); } catch (_) {}
+    }
+
+    // Apply the initial state: only the chosen group is open, everything else closed.
+    suppressToggle = true;
+    groups.forEach(g => { g.open = (g.getAttribute('data-group') === openKey); });
+    suppressToggle = false;
+
+    // ── 2. Accordion behavior on user toggle ───────────────────────────
     groups.forEach(g => {
-      const key = g.getAttribute('data-group');
-      const hasActive = !!g.querySelector('.is-active');
-
-      // 1. Auto-open the group containing the current active link.
-      if (hasActive){ g.open = true; return; }
-
-      // 2. Otherwise apply persisted state — default is CLOSED.
-      try {
-        const v = localStorage.getItem('sidebarGroup:' + key);
-        g.open = (v === 'open');
-      } catch (_) { g.open = false; }
-
-      // 3. Remember user toggles.
       g.addEventListener('toggle', () => {
-        try {
-          localStorage.setItem('sidebarGroup:' + key, g.open ? 'open' : 'closed');
-        } catch (_) {}
+        if (suppressToggle) return;
+
+        if (g.open) {
+          // Opening this group → close every other one.
+          suppressToggle = true;
+          const key = g.getAttribute('data-group');
+          groups.forEach(other => {
+            if (other !== g && other.open) other.open = false;
+          });
+          suppressToggle = false;
+          try { localStorage.setItem(STORAGE_KEY, key); } catch (_) {}
+        } else {
+          // User just closed this group — clear the memory so nothing
+          // reopens on refresh.
+          try {
+            if (localStorage.getItem(STORAGE_KEY) === g.getAttribute('data-group')) {
+              localStorage.removeItem(STORAGE_KEY);
+            }
+          } catch (_) {}
+        }
       });
     });
   })();
