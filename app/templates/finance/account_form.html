@@ -1,41 +1,51 @@
-{% extends "partials/base.html" %}
+{# New account form. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}حساب جديد{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>حساب فرعي جديد</h2></div>
-  <a href="{{ url_for('finance.accounts') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.accounts') }}" class="hover:text-primary">دليل الحسابات</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-3">
-      <div class="field"><label>الكود</label>
-        <input name="code" required placeholder="مثل: 1110">
+{% block page_content %}
+<div class="max-w-2xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">إضافة حساب جديد</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الرمز <span class="text-error">*</span></label>
+        <input name="code" required dir="ltr" placeholder="1101"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono">
       </div>
-      <div class="field"><label>الاسم</label>
-        <input name="name" required>
-      </div>
-      <div class="field"><label>التصنيف</label>
-        <select name="type" required>
-          <option value="asset">أصول</option>
-          <option value="liability">خصوم</option>
-          <option value="equity">حقوق ملكية</option>
-          <option value="revenue">إيرادات</option>
-          <option value="expense">مصروفات</option>
-        </select>
+      <div class="md:col-span-2 flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">اسم الحساب <span class="text-error">*</span></label>
+        <input name="name" required
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
-    <div class="field"><label>الحساب الأب (اختياري)</label>
-      <select name="parent_id">
-        <option value="">— لا يوجد —</option>
-        {% for p in parents %}<option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>{% endfor %}
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">النوع <span class="text-error">*</span></label>
+      <select name="type" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="asset">أصول</option>
+        <option value="liability">خصوم</option>
+        <option value="equity">حقوق ملكية</option>
+        <option value="revenue">إيرادات</option>
+        <option value="expense">مصروفات</option>
       </select>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('finance.accounts') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الحساب الأب (اختياري)</label>
+      <select name="parent_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— لا يوجد —</option>
+        {% for a in parents %}<option value="{{ a.id }}"><code>{{ a.code }}</code> — {{ a.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>إضافة الحساب</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

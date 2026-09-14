@@ -1,25 +1,47 @@
-{% extends "partials/base.html" %}
+{# Vendors — Stitch _48. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}الموردون{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>الموردون</h2><div class="sub">إدارة بيانات الموردين وربط المصروفات بهم (T-9.1)</div></div>
-  <a href="{{ url_for('finance.vendor_new') }}" class="btn btn-primary">+ مورد جديد</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الموردون</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>الاسم</th><th>الهاتف</th><th>البريد</th><th>العنوان</th><th>المصروفات</th></tr></thead>
-  <tbody>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">دليل الموردين</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ vendors|length }} مورد</p>
+    </div>
+    <a href="{{ url_for('finance.vendor_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">add_business</span><span>مورد جديد</span>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for v in vendors %}
-    <tr>
-      <td><strong>{{ v.name }}</strong></td>
-      <td class="text-muted">{{ v.phone or '—' }}</td>
-      <td class="text-muted">{{ v.email or '—' }}</td>
-      <td class="text-muted">{{ v.address or '—' }}</td>
-      <td>{{ v.expenses|length }}</td>
-    </tr>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm relative overflow-hidden">
+      <div class="absolute top-0 right-0 bottom-0 w-1.5 {% if v.is_active %}bg-secondary{% else %}bg-outline{% endif %}"></div>
+      <div class="flex items-start gap-space-sm">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined">storefront</span>
+        </div>
+        <div class="flex flex-col min-w-0 flex-1">
+          <span class="font-title-md text-title-md text-primary font-bold truncate">{{ v.name }}</span>
+          {% if v.phone %}<span class="font-label-md text-label-md text-outline" dir="ltr">{{ v.phone }}</span>{% endif %}
+          {% if v.email %}<span class="font-label-xs text-label-xs text-outline truncate" dir="ltr">{{ v.email }}</span>{% endif %}
+          {% if v.address %}<span class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ v.address }}</span>{% endif %}
+        </div>
+      </div>
+    </div>
     {% else %}
-    <tr><td colspan="5" class="text-muted" style="text-align:center;padding:18px">لا يوجد موردون.</td></tr>
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">storefront</span>
+      <p class="mt-3 text-on-surface-variant">لا موردون مضافون بعد.</p>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+</div>
 {% endblock %}

@@ -1,127 +1,202 @@
-{% extends "partials/base.html" %}
+{# Invoice detail + payment recording — Stitch _23. Two-column: invoice
+   preview on the right, payment entry on the left. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}فاتورة {{ inv.number }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>الفاتورة {{ inv.number }}</h2>
-    <div class="sub">
-      الطالب: <strong>{{ inv.enrollment.student.full_name }}</strong>
-      • {{ inv.enrollment.grade.name }} / {{ inv.enrollment.section.name }}
-      • {{ inv.enrollment.year.name }}
-    </div>
-  </div>
-  <div class="flex" style="gap:8px">
-    <a href="{{ url_for('finance.invoice_print', invoice_id=inv.id) }}" target="_blank" class="btn btn-primary">
-      🖨️ طباعة / PDF
-    </a>
-    <a href="{{ url_for('finance.invoices_list') }}" class="btn btn-ghost">رجوع</a>
-  </div>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.invoices_list') }}" class="hover:text-primary">الفواتير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold" dir="ltr">{{ inv.number }}</span>
+{% endblock %}
 
-<div class="grid grid-4">
-  <div class="stat navy"><div><div class="label">الإجمالي</div><div class="value">{{ "%.2f"|format(inv.total_amount) }}</div></div><div class="icon">∑</div></div>
-  <div class="stat green"><div><div class="label">المدفوع</div><div class="value">{{ "%.2f"|format(inv.paid_amount) }}</div></div><div class="icon">✓</div></div>
-  <div class="stat red"><div><div class="label">المتبقّي</div><div class="value">{{ "%.2f"|format(inv.remaining) }}</div></div><div class="icon">!</div></div>
-  <div class="stat">
-    <div>
-      <div class="label">الحالة</div>
-      <div class="value" style="font-size:20px">
-        {% if inv.status == 'paid' %}<span class="badge ok">مدفوعة</span>
-        {% elif inv.status == 'partial' %}<span class="badge warn">جزئية</span>
-        {% elif inv.status == 'refunded' %}<span class="badge muted">مستردة</span>
-        {% elif inv.status == 'overdue' %}<span class="badge danger">متأخرة</span>
-        {% elif inv.status == 'draft' %}<span class="badge muted">مسوّدة</span>
-        {% else %}<span class="badge navy">مرسلة</span>{% endif %}
+{% block page_content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg">
+  <!-- Invoice preview -->
+  <section class="lg:col-span-2 bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <div class="flex items-center gap-space-sm">
+          <img src="{{ url_for('static', filename='img/logo.svg') }}" class="h-10 w-10 bg-white rounded-md p-1">
+          <div class="flex flex-col">
+            <span class="font-headline-sm text-headline-sm text-primary font-bold">{{ app_name }}</span>
+            <span class="font-label-xs text-label-xs text-outline">{{ school_name }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="text-left">
+        <div class="font-label-md text-label-md text-on-surface-variant">فاتورة رقم</div>
+        <div class="font-headline-md text-headline-md text-primary font-bold" dir="ltr">{{ inv.number }}</div>
+        <div class="mt-1 font-label-md text-label-md text-outline">تاريخ: {{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '' }}</div>
+        {% if inv.due_date %}<div class="font-label-md text-label-md text-outline">استحقاق: {{ inv.due_date.strftime('%Y-%m-%d') }}</div>{% endif %}
       </div>
     </div>
-    <div class="icon">●</div>
-  </div>
-</div>
 
-<div class="grid grid-2 mt-2">
-  <div class="card">
-    <h3>البنود</h3>
-    <table class="data">
-      <thead><tr><th>الوصف</th><th style="text-align:left">المبلغ</th></tr></thead>
-      <tbody>
-        {% for l in inv.lines %}
-        <tr><td>{{ l.description }}</td><td style="text-align:left">{{ "%.2f"|format(l.amount) }}</td></tr>
+    <div class="mt-space-lg p-space-md rounded-xl bg-primary-container/10">
+      <div class="font-label-md text-label-md text-primary font-bold">الطالب</div>
+      <div class="mt-1 flex items-center justify-between flex-wrap gap-2">
+        <div>
+          <div class="font-title-md text-title-md text-primary font-bold">{{ inv.enrollment.student.full_name }}</div>
+          <div class="font-label-md text-label-md text-on-surface-variant">
+            {{ inv.enrollment.section.grade.name }} — {{ inv.enrollment.section.name }} ·
+            <code dir="ltr">{{ inv.enrollment.student.permanent_code }}</code>
+          </div>
+        </div>
+        {% if inv.status == 'paid' %}<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-md font-bold">مدفوعة بالكامل</span>
+        {% elif inv.status == 'partial' %}<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-md font-bold">مدفوعة جزئياً</span>
+        {% elif inv.status == 'overdue' %}<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-error-container text-on-error-container font-label-md font-bold">متأخرة</span>
+        {% elif inv.status == 'refunded' %}<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-surface-container text-on-surface-variant font-label-md font-bold">مستردة</span>
+        {% else %}<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-secondary-container/40 text-secondary font-label-md font-bold">مُرسلة</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="mt-space-lg overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-3 py-2 font-label-lg text-primary">البند</th>
+            <th class="px-3 py-2 font-label-lg text-primary text-left">المبلغ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in inv.lines %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-2 font-body-md">{{ line.description }}</td>
+            <td class="px-3 py-2 text-left font-label-lg font-bold text-primary tabular-nums">{{ line.amount|round(2) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot class="bg-surface-container-low">
+          <tr>
+            <td class="px-3 py-2 font-title-md text-primary font-bold">الإجمالي</td>
+            <td class="px-3 py-2 text-left font-title-md text-primary font-bold tabular-nums">{{ inv.total_amount|round(2) }}</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 font-label-md text-[#10B981] font-bold">المدفوع</td>
+            <td class="px-3 py-2 text-left font-label-lg text-[#10B981] font-bold tabular-nums">{{ inv.paid_amount|round(2) }}</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 font-label-md text-error font-bold">المتبقّي</td>
+            <td class="px-3 py-2 text-left font-headline-sm text-error font-bold tabular-nums">{{ (inv.total_amount - inv.paid_amount)|round(2) }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+
+    {% if inv.installments %}
+    <div class="mt-space-lg">
+      <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-2">
+        <span class="material-symbols-outlined">event_repeat</span>خطة الأقساط
+      </h3>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-space-sm">
+        {% for inst in inv.installments %}
+        <div class="p-space-sm rounded-lg
+                    {% if inst.status == 'paid' %}bg-[#ECFDF5] border border-[#10B981]/30
+                    {% elif inst.due_date and inst.due_date < today() %}bg-error-container/40 border border-error/30
+                    {% else %}bg-surface-container-low border border-outline-variant{% endif %}">
+          <div class="font-label-xs text-label-xs text-on-surface-variant">{{ inst.due_date.strftime('%Y-%m-%d') if inst.due_date else '' }}</div>
+          <div class="font-title-md text-title-md text-primary font-bold tabular-nums">{{ inst.amount|round(2) }}</div>
+          {% if inst.status == 'paid' %}<span class="font-label-xs text-label-xs text-[#065F46] font-bold">مدفوع</span>
+          {% elif inst.paid_amount > 0 %}<span class="font-label-xs text-label-xs text-secondary font-bold">جزئي · {{ inst.paid_amount|round(2) }}</span>
+          {% else %}<span class="font-label-xs text-label-xs text-outline">معلّق</span>{% endif %}
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <h3>الأقساط</h3>
-    <table class="data">
-      <thead><tr><th>التاريخ</th><th>المبلغ</th><th>المدفوع</th><th>المتبقّي</th></tr></thead>
-      <tbody>
-        {% for ins in inv.installments %}
-        <tr>
-          <td>{{ ins.due_date }}</td>
-          <td>{{ "%.2f"|format(ins.amount) }}</td>
-          <td>{{ "%.2f"|format(ins.paid_amount) }}</td>
-          <td><strong>{{ "%.2f"|format(ins.remaining) }}</strong></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+      </div>
+    </div>
+    {% endif %}
+  </section>
+
+  <!-- Payment entry / actions -->
+  <aside class="flex flex-col gap-space-md">
+    {% if inv.status != 'paid' or (inv.total_amount - inv.paid_amount) > 0 %}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">payments</span>تسجيل دفعة
+      </h3>
+      <form method="post" action="{{ url_for('finance.invoice_pay', invoice_id=inv.id) }}" class="flex flex-col gap-space-md">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">المبلغ</label>
+          <input name="amount" type="number" step="0.01" min="0.01" required
+                 value="{{ (inv.total_amount - inv.paid_amount)|round(2) }}"
+                 class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">طريقة الدفع</label>
+          <select name="method" class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="cash">نقدي</option>
+            <option value="bank_transfer">تحويل بنكي</option>
+            <option value="card">بطاقة</option>
+            <option value="cheque">شيك</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">الحساب النقدي</label>
+          <select name="cash_account_id" required class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            {% for a in cash_accounts %}
+            <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ الدفع</label>
+          <input name="payment_date" type="date"
+                 class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">مرجع (اختياري)</label>
+          <input name="reference" placeholder="رقم إيصال / تحويل" dir="ltr"
+                 class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">ملاحظات (اختياري)</label>
+          <textarea name="notes" rows="2"
+                    class="w-full px-4 py-2 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20"></textarea>
+        </div>
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all justify-center"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-xl">check_circle</span>
+          <span>تسجيل الدفعة وإصدار الإيصال</span>
+        </button>
+      </form>
+    </section>
+    {% endif %}
+
+    {% if inv.paid_amount > 0 %}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <details>
+        <summary class="font-title-md text-title-md text-error font-bold flex items-center gap-2 cursor-pointer">
+          <span class="material-symbols-outlined">undo</span>استرداد
+        </summary>
+        <form method="post" action="{{ url_for('finance.invoice_pay', invoice_id=inv.id) }}" class="mt-3 flex flex-col gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="is_refund" value="1">
+          <input name="amount" type="number" step="0.01" min="0.01" required
+                 placeholder="مبلغ الاسترداد" max="{{ inv.paid_amount }}"
+                 class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <select name="cash_account_id" required class="h-11 px-4 rounded-xl bg-surface-container-low">
+            {% for a in cash_accounts %}
+            <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="h-11 rounded-xl bg-error text-on-error font-title-md font-bold flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-xl">payments</span>
+            <span>استرداد الآن</span>
+          </button>
+        </form>
+      </details>
+    </section>
+    {% endif %}
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-center gap-space-sm">
+      <a href="{{ url_for('finance.invoice_print', invoice_id=inv.id) }}" target="_blank"
+         class="flex-1 h-10 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
+        <span class="material-symbols-outlined text-sm">print</span><span>طباعة</span>
+      </a>
+    </section>
+  </aside>
 </div>
 
-<div class="card mt-2">
-  <h3>تسجيل دفعة / استرداد</h3>
-  <form method="post" action="{{ url_for('finance.invoice_pay', invoice_id=inv.id) }}">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row cols-3">
-      <div class="field"><label>المبلغ</label>
-        <input name="amount" type="number" step="0.01" min="0.01" required>
-      </div>
-      <div class="field"><label>التاريخ</label>
-        <input name="payment_date" type="date" value="{{ inv.issue_date }}">
-      </div>
-      <div class="field"><label>الحساب النقدي</label>
-        <select name="cash_account_id" required>
-          {% for c in cash_accounts %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name }}</option>{% endfor %}
-        </select>
-      </div>
-    </div>
-    <div class="form-row cols-3">
-      <div class="field"><label>الطريقة</label>
-        <select name="method">
-          <option value="cash">نقدي</option>
-          <option value="bank">بنكي</option>
-          <option value="transfer">حوالة</option>
-        </select>
-      </div>
-      <div class="field"><label>مرجع</label>
-        <input name="reference">
-      </div>
-      <div class="field" style="align-self:end">
-        <label class="checkbox"><input type="checkbox" name="is_refund" value="1"> استرداد</label>
-      </div>
-    </div>
-    <div class="mt-2 flex">
-      <button class="btn btn-primary" type="submit">تنفيذ</button>
-    </div>
-  </form>
-</div>
-
-{% if inv.payments %}
-<div class="card mt-2">
-  <h3>سجلّ المدفوعات</h3>
-  <table class="data">
-    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>القيد</th></tr></thead>
-    <tbody>
-      {% for p in inv.payments %}
-      <tr>
-        <td>{{ p.payment_date }}</td>
-        <td>{% if p.is_refund %}<span class="badge muted">استرداد</span> {% endif %}{{ "%.2f"|format(p.amount) }}</td>
-        <td><span class="badge navy">{{ {'cash':'نقدي','bank':'بنكي','transfer':'حوالة'}.get(p.method, p.method) }}</span></td>
-        <td><a href="{{ url_for('finance.journal') }}?account_id=">قيد #{{ p.journal_entry_id }}</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
+<script>
+  function today(){ return new Date().toISOString().slice(0,10); }
+</script>
 {% endblock %}

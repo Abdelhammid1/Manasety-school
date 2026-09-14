@@ -1,44 +1,108 @@
-{% extends "partials/base.html" %}
-{% block title %}الفواتير{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>الفواتير</h2>
-    <div class="sub">{% if year %}السنة: <strong class="text-navy">{{ year.name }}</strong>{% endif %} — لكل سنة رسومها المستقلّة (T-8.3)</div>
-  </div>
-  <a href="{{ url_for('finance.invoice_new') }}" class="btn btn-primary">+ فاتورة جديدة</a>
-</div>
+{# Invoices list — Stitch _19. KPI strip + table with status pills. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الفواتير — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الفواتير</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr>
-    <th>الرقم</th><th>الطالب</th><th>التاريخ</th><th>الاستحقاق</th>
-    <th>الإجمالي</th><th>المدفوع</th><th>المتبقّي</th><th>الحالة</th><th></th>
-  </tr></thead>
-  <tbody>
-    {% for i in invoices %}
-    <tr>
-      <td><strong>{{ i.number }}</strong></td>
-      <td>{{ i.enrollment.student.full_name }}<div class="text-muted" style="font-size:12px">{{ i.enrollment.student.permanent_code }}</div></td>
-      <td>{{ i.issue_date }}</td>
-      <td>{{ i.due_date }}</td>
-      <td>{{ "%.2f"|format(i.total_amount) }}</td>
-      <td>{{ "%.2f"|format(i.paid_amount) }}</td>
-      <td><strong>{{ "%.2f"|format(i.remaining) }}</strong></td>
-      <td>
-        {% if i.status == 'paid' %}<span class="badge ok">مدفوعة</span>
-        {% elif i.status == 'partial' %}<span class="badge warn">جزئية</span>
-        {% elif i.status == 'overdue' %}<span class="badge danger">متأخرة</span>
-        {% elif i.status == 'refunded' %}<span class="badge muted">مستردة</span>
-        {% elif i.status == 'sent' %}<span class="badge navy">مرسلة</span>
-        {% else %}<span class="badge muted">{{ i.status }}</span>{% endif %}
-      </td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('finance.invoice_detail', invoice_id=i.id) }}">عرض</a>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="9" class="text-muted" style="text-align:center;padding:18px">لا توجد فواتير.</td></tr>
+{% block page_content %}
+{% set total_ = invoices|sum(attribute='total_amount') %}
+{% set paid_  = invoices|sum(attribute='paid_amount') %}
+{% set remaining_ = (total_|float - paid_|float) %}
+{% set overdue_ = invoices|selectattr('status','equalto','overdue')|list|length %}
+
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">إدارة الفواتير والرسوم</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {% if year %}السنة الحالية: <b>{{ year.name }}</b>{% endif %} · <b>{{ invoices|length }}</b> فاتورة
+      </p>
+    </div>
+    <a href="{{ url_for('finance.invoice_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">receipt_long</span>
+      <span>فاتورة جديدة</span>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+    {% for label, val, color, icon in [
+        ('إجمالي الفواتير', total_,     '#0C2461', 'receipt_long'),
+        ('المحصّل',         paid_,      '#10B981', 'payments'),
+        ('المتبقّي',        remaining_, '#F59E0B', 'pending'),
+        ('متأخرة',          overdue_,   '#EF4444', 'schedule')
+    ] %}
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-1.5" style="background: {{ color }}"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+        <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
+      </div>
+      <div class="font-headline-md text-headline-md text-primary font-bold mt-2 tabular-nums">
+        {% if val is number %}{{ val|round(2) }}{% else %}{{ val }}{% endif %}
+      </div>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">رقم</th>
+            <th class="px-4 py-3 font-label-lg text-primary">الطالب</th>
+            <th class="px-4 py-3 font-label-lg text-primary">التاريخ</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">الإجمالي</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">المدفوع</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">المتبقّي</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">فتح</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3"><code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ inv.number }}</code></td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">{{ inv.enrollment.student.full_name[:1] }}</div>
+                <div class="flex flex-col">
+                  <span class="font-label-lg text-label-lg text-primary font-bold">{{ inv.enrollment.student.full_name }}</span>
+                  <span class="font-label-xs text-label-xs text-outline">{{ inv.enrollment.section.grade.name }} — {{ inv.enrollment.section.name }}</span>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 font-label-md text-label-md text-on-surface-variant tabular-nums">{{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '' }}</td>
+            <td class="px-4 py-3 text-left font-label-lg font-bold text-primary tabular-nums">{{ inv.total_amount|round(2) }}</td>
+            <td class="px-4 py-3 text-left font-label-lg font-bold text-[#10B981] tabular-nums">{{ inv.paid_amount|round(2) }}</td>
+            <td class="px-4 py-3 text-left font-label-lg font-bold text-error tabular-nums">{{ (inv.total_amount - inv.paid_amount)|round(2) }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if inv.status == 'paid' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">مدفوعة</span>
+              {% elif inv.status == 'partial' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">جزئية</span>
+              {% elif inv.status == 'overdue' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">متأخرة</span>
+              {% elif inv.status == 'refunded' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs font-bold">مستردة</span>
+              {% else %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">مرسلة</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <a href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}"
+                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20">
+                <span class="material-symbols-outlined text-lg">chevron_left</span>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="8" class="px-6 py-8 text-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-4xl text-outline">receipt_long</span>
+            <p class="mt-2">لا فواتير بعد.</p>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

@@ -1,26 +1,64 @@
-{% extends "partials/base.html" %}
+{# Chart of accounts — Stitch _50. Grouped by type with running balance chip. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}دليل الحسابات{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>دليل الحسابات</h2><div class="sub">شجرة الحسابات. كل عملية مالية تولّد قيدًا متوازنًا تلقائيًا (T-8.1).</div></div>
-  <a href="{{ url_for('finance.account_new') }}" class="btn btn-primary">+ حساب فرعي</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">دليل الحسابات</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>الكود</th><th>الاسم</th><th>التصنيف</th><th>الأب</th><th>الرصيد</th><th></th></tr></thead>
-  <tbody>
-    {% for a in accounts %}
-    <tr>
-      <td><strong>{{ a.code }}</strong></td>
-      <td style="padding-right:{{ (a.code|length - 1) * 12 }}px">{{ a.name }} {% if a.is_system %}<span class="badge muted">نظامي</span>{% endif %}</td>
-      <td><span class="badge navy">{{ {'asset':'أصول','liability':'خصوم','equity':'حقوق ملكية','revenue':'إيرادات','expense':'مصروفات'}[a.type] }}</span></td>
-      <td class="text-muted">{{ a.parent.code if a.parent else '—' }}</td>
-      <td><strong>{{ "%.2f"|format(a.balance) }}</strong></td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('finance.journal', account_id=a.id) }}">دفتر اليومية</a>
-      </td>
-    </tr>
+{% block page_content %}
+{% set groups = {'asset':{'label':'الأصول','color':'#10B981','icon':'account_balance_wallet','items':[]},
+                 'liability':{'label':'الخصوم','color':'#EF4444','icon':'inventory_2','items':[]},
+                 'equity':{'label':'حقوق الملكية','color':'#0C2461','icon':'workspace_premium','items':[]},
+                 'revenue':{'label':'الإيرادات','color':'#0099CC','icon':'trending_up','items':[]},
+                 'expense':{'label':'المصروفات','color':'#F59E0B','icon':'trending_down','items':[]}} %}
+{% for a in accounts %}
+  {% if a.type in groups %}{% set _ = groups[a.type]['items'].append(a) %}{% endif %}
+{% endfor %}
+
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">شجرة دليل الحسابات</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ accounts|length }} حساب</p>
+    </div>
+    <a href="{{ url_for('finance.account_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">account_tree</span><span>حساب جديد</span>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    {% for key, grp in groups.items() %}
+    <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+      <header class="p-space-md flex items-center justify-between border-b border-outline-variant" style="background: {{ grp.color }}15">
+        <div class="flex items-center gap-2">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white" style="background: {{ grp.color }}">
+            <span class="material-symbols-outlined">{{ grp.icon }}</span>
+          </div>
+          <h2 class="font-title-md text-title-md text-primary font-bold">{{ grp.label }}</h2>
+        </div>
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/60 font-label-md text-label-md font-bold text-primary">{{ grp['items']|length }}</span>
+      </header>
+      <ul class="divide-y divide-outline-variant">
+        {% for a in grp['items'] %}
+        <li class="p-space-sm flex items-center justify-between hover:bg-surface-container-low">
+          <div class="flex items-center gap-2">
+            <code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ a.code }}</code>
+            <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ a.name }}</span>
+            {% if a.parent %}<span class="font-label-xs text-label-xs text-outline">↰ {{ a.parent.name }}</span>{% endif %}
+          </div>
+          <span class="font-label-md text-label-md tabular-nums font-bold" style="color: {{ grp.color }}">
+            {{ a.balance|round(2) }}
+          </span>
+        </li>
+        {% else %}
+        <li class="p-space-md text-center text-on-surface-variant font-label-md">لا حسابات في هذه الفئة.</li>
+        {% endfor %}
+      </ul>
+    </section>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+</div>
 {% endblock %}

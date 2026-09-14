@@ -1,53 +1,99 @@
-{% extends "partials/base.html" %}
+{# Journal entries — Stitch _20/_51. Grouped by entry with DR/CR splits. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}دفتر اليومية{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>دفتر اليومية</h2><div class="sub">قيود تلقائية متوازنة (مدين = دائن)</div></div>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">دفتر اليومية</span>
+{% endblock %}
 
-<form method="get" class="card" style="padding:14px;margin-bottom:16px">
-  <div class="form-row cols-4" style="margin-bottom:0">
-    <div class="field"><label>من</label><input name="start" type="date" value="{{ start }}"></div>
-    <div class="field"><label>إلى</label><input name="end" type="date" value="{{ end }}"></div>
-    <div class="field"><label>حساب</label>
-      <select name="account_id">
-        <option value="">كل الحسابات</option>
-        {% for a in accounts %}<option value="{{ a.id }}" {% if account_id == a.id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="field" style="align-self:end"><button class="btn btn-navy" type="submit">تحديث</button></div>
-  </div>
-</form>
-
-{% for e in entries %}
-<div class="card" style="margin-bottom:12px">
-  <div class="flex-between">
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
     <div>
-      <strong>{{ e.entry_date }}</strong>
-      <span class="badge muted">#{{ e.id }}</span>
-      {% if e.reference %}<span class="badge navy">{{ e.reference }}</span>{% endif %}
-      — {{ e.description }}
-    </div>
-    <div>
-      <span class="badge ok">مدين: {{ "%.2f"|format(e.total_debit) }}</span>
-      <span class="badge ok">دائن: {{ "%.2f"|format(e.total_credit) }}</span>
+      <h1 class="font-headline-lg text-headline-lg text-primary">دفتر قيود اليومية</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        الفترة {{ start.strftime('%Y-%m-%d') }} → {{ end.strftime('%Y-%m-%d') }} · {{ entries|length }} قيد
+      </p>
     </div>
   </div>
-  <table class="data mt-2" style="border:0">
-    <thead><tr><th>الحساب</th><th style="text-align:left">مدين</th><th style="text-align:left">دائن</th><th>وصف</th></tr></thead>
-    <tbody>
-      {% for l in e.lines %}
-      <tr>
-        <td>{{ l.account.code }} — {{ l.account.name }}</td>
-        <td style="text-align:left">{% if l.debit > 0 %}{{ "%.2f"|format(l.debit) }}{% endif %}</td>
-        <td style="text-align:left">{% if l.credit > 0 %}{{ "%.2f"|format(l.credit) }}{% endif %}</td>
-        <td class="text-muted">{{ l.description or '—' }}</td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+
+  <form method="get" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm grid grid-cols-1 md:grid-cols-[1fr_1fr_2fr_auto] gap-space-sm items-end">
+    <div class="flex flex-col gap-1"><label class="font-label-md text-label-md text-on-surface font-bold">من</label>
+      <input type="date" name="start" value="{{ start.strftime('%Y-%m-%d') }}" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+    <div class="flex flex-col gap-1"><label class="font-label-md text-label-md text-on-surface font-bold">إلى</label>
+      <input type="date" name="end" value="{{ end.strftime('%Y-%m-%d') }}" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+    <div class="flex flex-col gap-1"><label class="font-label-md text-label-md text-on-surface font-bold">الحساب (اختياري)</label>
+      <select name="account_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+        <option value="">— كل الحسابات —</option>
+        {% for a in accounts %}
+        <option value="{{ a.id }}" {% if account_id == a.id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+        {% endfor %}
+      </select></div>
+    <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">فلترة</button>
+  </form>
+
+  <div class="flex flex-col gap-space-md">
+    {% for je in entries %}
+    {% set dr_sum = je.lines|sum(attribute='debit') %}
+    {% set cr_sum = je.lines|sum(attribute='credit') %}
+    {% set balanced = (dr_sum|float - cr_sum|float)|abs < 0.005 %}
+    <article class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+      <header class="p-space-md flex items-center justify-between border-b border-outline-variant flex-wrap gap-2">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-10 h-10 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined">receipt_long</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-title-md text-title-md text-primary font-bold">{{ je.description }}</span>
+            <span class="font-label-xs text-label-xs text-outline">
+              {{ je.entry_date.strftime('%Y-%m-%d') if je.entry_date else '' }}
+              {% if je.reference %} · مرجع: <code dir="ltr">{{ je.reference }}</code>{% endif %}
+              {% if je.related_kind %} · {{ je.related_kind }}#{{ je.related_id }}{% endif %}
+            </span>
+          </div>
+        </div>
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
+          {% if balanced %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-error-container text-on-error-container{% endif %}">
+          <span class="material-symbols-outlined text-sm">{% if balanced %}check_circle{% else %}error{% endif %}</span>
+          {{ 'متوازن' if balanced else 'غير متوازن!' }}
+        </span>
+      </header>
+      <div class="overflow-x-auto">
+        <table class="min-w-full">
+          <thead class="bg-surface-container-low">
+            <tr class="text-right">
+              <th class="px-4 py-2 font-label-md text-label-md text-on-surface-variant">الحساب</th>
+              <th class="px-4 py-2 font-label-md text-label-md text-on-surface-variant">البيان</th>
+              <th class="px-4 py-2 font-label-md text-label-md text-on-surface-variant text-left">مدين</th>
+              <th class="px-4 py-2 font-label-md text-label-md text-on-surface-variant text-left">دائن</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ln in je.lines %}
+            <tr class="border-t border-outline-variant">
+              <td class="px-4 py-2"><code class="font-mono text-label-md text-primary" dir="ltr">{{ ln.account.code }}</code> · {{ ln.account.name }}</td>
+              <td class="px-4 py-2 text-on-surface-variant">{{ ln.memo or '' }}</td>
+              <td class="px-4 py-2 text-left tabular-nums font-bold text-primary">{{ ln.debit|round(2) if ln.debit else '' }}</td>
+              <td class="px-4 py-2 text-left tabular-nums font-bold text-secondary">{{ ln.credit|round(2) if ln.credit else '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot class="bg-surface-container-low">
+            <tr>
+              <td colspan="2" class="px-4 py-2 font-label-lg text-on-surface font-bold text-left">الإجماليات</td>
+              <td class="px-4 py-2 text-left tabular-nums font-bold text-primary">{{ dr_sum|round(2) }}</td>
+              <td class="px-4 py-2 text-left tabular-nums font-bold text-secondary">{{ cr_sum|round(2) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </article>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center text-on-surface-variant">
+      <span class="material-symbols-outlined text-5xl text-outline">receipt_long</span>
+      <p class="mt-3">لا قيود في هذه الفترة.</p>
+    </div>
+    {% endfor %}
+  </div>
 </div>
-{% else %}
-<div class="alert info">لا توجد قيود في هذه الفترة.</div>
-{% endfor %}
 {% endblock %}

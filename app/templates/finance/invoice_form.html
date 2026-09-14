@@ -1,59 +1,129 @@
-{% extends "partials/base.html" %}
+{# New invoice — multi-line composer with fee-type picker + installments. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}فاتورة جديدة{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>فاتورة جديدة — السنة {{ year.name }}</h2><div class="sub">يُولّد قيد محاسبي تلقائي عند الإصدار</div></div>
-  <a href="{{ url_for('finance.invoices_list') }}" class="btn btn-ghost">رجوع</a>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.invoices_list') }}" class="hover:text-primary">الفواتير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">جديدة</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="max-w-5xl mx-auto flex flex-col gap-space-md">
+  <div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">إصدار فاتورة جديدة</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">السنة: <b>{{ year.name }}</b></p>
+  </div>
+
+  <form method="post" class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">school</span>بيانات الفاتورة
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="font-label-md text-label-md text-on-surface font-bold">الطالب (قيد نشط)</label>
+          <select name="enrollment_id" required
+                  class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— اختر —</option>
+            {% for e in enrollments %}
+            <option value="{{ e.id }}">{{ e.student.full_name }} — {{ e.section.grade.name }} / {{ e.section.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ الإصدار</label>
+          <input name="issue_date" type="date"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ الاستحقاق</label>
+          <input name="due_date" type="date"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">عدد الأقساط</label>
+          <input name="installments_count" type="number" min="1" max="12" value="1"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center justify-between mb-space-md">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">receipt_long</span>بنود الفاتورة
+        </h2>
+        <button type="button" onclick="addLine()"
+                class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center gap-1 hover:bg-surface-container">
+          <span class="material-symbols-outlined text-sm">add</span><span>بند جديد</span>
+        </button>
+      </div>
+      <div id="lines" class="flex flex-col gap-2"></div>
+      <div class="mt-space-md flex items-center justify-end gap-space-sm p-space-md rounded-xl bg-surface-container-low">
+        <span class="font-label-lg text-label-lg text-on-surface-variant">الإجمالي المتوقّع:</span>
+        <span id="grandTotal" class="font-headline-md text-headline-md text-primary font-bold tabular-nums">0.00</span>
+        <span class="font-label-md text-label-md text-on-surface-variant">ر.س</span>
+      </div>
+    </section>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('finance.invoices_list') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">check_circle</span>
+        <span>إصدار الفاتورة</span>
+      </button>
+    </div>
+  </form>
 </div>
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <h3>بيانات الفاتورة</h3>
-    <div class="form-row cols-2">
-      <div class="field"><label>الطالب (القيد للسنة الحالية)</label>
-        <select name="enrollment_id" required>
-          {% for e in enrollments %}
-          <option value="{{ e.id }}">{{ e.student.full_name }} — {{ e.grade.name }} / {{ e.section.name }}</option>
-          {% endfor %}
-        </select>
-      </div>
-      <div class="field"><label>عدد الأقساط</label>
-        <input name="installments_count" type="number" min="1" value="1">
-      </div>
-    </div>
-    <div class="form-row cols-2">
-      <div class="field"><label>تاريخ الإصدار</label>
-        <input name="issue_date" type="date" value="{{ year.start_date }}">
-      </div>
-      <div class="field"><label>تاريخ الاستحقاق الأول</label>
-        <input name="due_date" type="date" value="{{ year.start_date }}">
-      </div>
-    </div>
-  </div>
-
-  <div class="card mt-2">
-    <h3>بنود الفاتورة</h3>
-    <table class="data">
-      <thead><tr><th>نوع الرسم</th><th>المبلغ</th></tr></thead>
-      <tbody>
-        {% for f in fee_types %}
-        <tr>
-          <td>
-            <input type="hidden" name="fee_type_id" value="{{ f.id }}">
-            <strong>{{ f.name }}</strong>
-            <div class="text-muted" style="font-size:12px">{{ f.revenue_account.name }}</div>
-          </td>
-          <td><input name="amount" type="number" step="0.01" min="0" value="{{ f.default_amount }}" style="width:140px;padding:6px;border:1px solid var(--c-border);border-radius:6px"></td>
-        </tr>
-        {% else %}
-        <tr><td colspan="2" class="text-muted" style="text-align:center;padding:14px">عرّف أنواع رسوم أولاً.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">إصدار وقيد محاسبيًا</button>
-  </div>
-</form>
+<script>
+  const FEE_TYPES = [
+    {% for ft in fee_types %}{id: {{ ft.id }}, name: "{{ ft.name|e }}", def_amount: "{{ ft.default_amount }}"}{{ ", " if not loop.last }}{% endfor %}
+  ];
+  function optionHtml(){
+    return '<option value="">— اختر —</option>' +
+      FEE_TYPES.map(ft => `<option value="${ft.id}" data-amount="${ft.def_amount}">${ft.name}</option>`).join('');
+  }
+  function makeRow(){
+    const row = document.createElement('div');
+    row.className = 'grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-2 items-end';
+    row.innerHTML = `
+      <select name="fee_type_id" required onchange="fillAmount(this)"
+              class="h-11 px-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-label-md">
+        ${optionHtml()}
+      </select>
+      <input name="amount" type="number" min="0" step="0.01" placeholder="المبلغ" required oninput="recomputeTotal()"
+             class="h-11 px-3 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-label-md tabular-nums">
+      <button type="button" onclick="this.parentElement.remove(); recomputeTotal();"
+              class="h-11 px-3 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center">
+        <span class="material-symbols-outlined text-lg">delete</span>
+      </button>
+    `;
+    return row;
+  }
+  function fillAmount(sel){
+    const amt = sel.selectedOptions[0]?.dataset.amount || '';
+    const row = sel.closest('div');
+    const inp = row.querySelector('input[name=amount]');
+    if (!inp.value && amt) inp.value = amt;
+    recomputeTotal();
+  }
+  function addLine(){
+    document.getElementById('lines').appendChild(makeRow());
+    recomputeTotal();
+  }
+  function recomputeTotal(){
+    let sum = 0;
+    document.querySelectorAll('input[name=amount]').forEach(i => {
+      const v = parseFloat(i.value); if (isFinite(v)) sum += v;
+    });
+    document.getElementById('grandTotal').textContent = sum.toFixed(2);
+  }
+  addLine();
+</script>
 {% endblock %}

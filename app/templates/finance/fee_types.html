@@ -1,24 +1,69 @@
-{% extends "partials/base.html" %}
+{# Fee types — Stitch _49. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}أنواع الرسوم{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>أنواع الرسوم</h2><div class="sub">قابلة للإضافة دون تدخل برمجي (T-8.2)</div></div>
-  <a href="{{ url_for('finance.fee_type_new') }}" class="btn btn-primary">+ نوع رسم</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">أنواع الرسوم</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>الاسم</th><th>القيمة الافتراضية</th><th>قابل للتقسيط</th><th>حساب الإيراد</th></tr></thead>
-  <tbody>
-    {% for f in fee_types %}
-    <tr>
-      <td><strong>{{ f.name }}</strong></td>
-      <td>{{ f.default_amount }}</td>
-      <td>{% if f.installable %}<span class="badge ok">نعم</span>{% else %}<span class="badge muted">لا</span>{% endif %}</td>
-      <td class="text-muted">{{ f.revenue_account.code }} — {{ f.revenue_account.name }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="4" class="text-muted" style="text-align:center;padding:18px">لا توجد أنواع رسوم.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">أنواع الرسوم والخدمات</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ fee_types|length }} نوع مسجل</p>
+    </div>
+    <a href="{{ url_for('finance.fee_type_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">sell</span><span>نوع رسم جديد</span>
+    </a>
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">اسم الرسم</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">المبلغ الافتراضي</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">أقساط</th>
+            <th class="px-4 py-3 font-label-lg text-primary">حساب الإيرادات</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in fee_types %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+                  <span class="material-symbols-outlined text-sm">sell</span>
+                </div>
+                <span class="font-label-lg text-label-lg text-primary font-bold">{{ f.name }}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-left font-label-lg text-primary tabular-nums font-bold">{{ f.default_amount|round(2) }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if f.installable %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">✓ مقسّط</span>
+              {% else %}<span class="text-outline">—</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 font-label-md text-on-surface-variant">
+              {% if f.revenue_account %}<code dir="ltr">{{ f.revenue_account.code }}</code> — {{ f.revenue_account.name }}{% else %}—{% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs font-bold
+                {% if f.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-on-surface-variant{% endif %}">
+                {{ 'نشط' if f.is_active else 'موقوف' }}
+              </span>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="px-6 py-8 text-center text-on-surface-variant">لا أنواع رسوم بعد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}
