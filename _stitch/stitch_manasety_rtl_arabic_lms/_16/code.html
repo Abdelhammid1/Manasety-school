@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=Nunito+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "background": "#f7f9fc",
+          "inverse-primary": "#b6c4ff",
+          "surface-variant": "#e0e3e6",
+          "on-secondary-fixed-variant": "#004c68",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "outline-variant": "#c5c5d3",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "inverse-on-surface": "#eff1f4",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed": "#001e2c",
+          "on-tertiary-fixed": "#00174b",
+          "on-secondary-container": "#005371",
+          "secondary": "#006689",
+          "on-surface": "#191c1e",
+          "surface-bright": "#f7f9fc",
+          "error": "#ba1a1a",
+          "on-primary-fixed-variant": "#264191",
+          "surface-dim": "#d8dadd",
+          "surface-container-lowest": "#ffffff",
+          "tertiary": "#00246b",
+          "error-container": "#ffdad6",
+          "surface-container-highest": "#e0e3e6",
+          "tertiary-fixed": "#dbe1ff",
+          "on-error-container": "#93000a",
+          "on-tertiary": "#ffffff",
+          "primary-container": "#1e3a8a",
+          "on-primary-fixed": "#00164e",
+          "on-error": "#ffffff",
+          "on-primary-container": "#90a8ff",
+          "primary": "#00236f",
+          "on-primary": "#ffffff",
+          "outline": "#757682",
+          "on-tertiary-container": "#8da9ff",
+          "surface-container-high": "#e6e8eb",
+          "secondary-fixed-dim": "#78d1ff",
+          "surface": "#f7f9fc",
+          "secondary-fixed": "#c3e8ff",
+          "surface-container-low": "#f2f4f7",
+          "primary-fixed": "#dce1ff",
+          "secondary-container": "#5bcaff",
+          "inverse-surface": "#2d3133",
+          "on-surface-variant": "#444651",
+          "on-background": "#191c1e",
+          "tertiary-container": "#00389a",
+          "primary-fixed-dim": "#b6c4ff",
+          "surface-container": "#eceef1",
+          "surface-tint": "#4059aa"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-lg": "1.5rem",
+          "gutter": "1.5rem",
+          "margin": "2rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-md": "1rem",
+          "space-xl": "2.5rem"
+        },
+        "fontFamily": {
+          "title-md": [
+            "Plus Jakarta Sans"
+          ],
+          "body-md": [
+            "Nunito Sans"
+          ],
+          "display-hero": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-md": [
+            "Plus Jakarta Sans"
+          ],
+          "label-lg": [
+            "Nunito Sans"
+          ],
+          "headline-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "label-xs": [
+            "Nunito Sans"
+          ],
+          "display-hero-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-sm": [
+            "Nunito Sans"
+          ],
+          "headline-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-lg": [
+            "Nunito Sans"
+          ],
+          "headline-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "label-md": [
+            "Nunito Sans"
+          ]
+        },
+        "fontSize": {
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "30px",
+              "fontWeight": "600"
+            }
+          ],
+          "body-md": [
+            "16px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "400"
+            }
+          ],
+          "display-hero": [
+            "40px",
+            {
+              "lineHeight": "64px",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "22px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "600"
+            }
+          ],
+          "label-xs": [
+            "11px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "700"
+            }
+          ],
+          "display-hero-mobile": [
+            "28px",
+            {
+              "lineHeight": "44px",
+              "fontWeight": "800"
+            }
+          ],
+          "body-sm": [
+            "14px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg-mobile": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "18px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg": [
+            "32px",
+            {
+              "lineHeight": "52px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-background font-body-md text-body-md text-on-background min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_4px_20px_rgba(12,36,97,0.06)]"><div class="h-20 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-headline-sm text-headline-sm text-primary">منصتي</span></div><div class="hidden xl:flex items-center bg-surface-container-low rounded-full px-space-md py-space-xs gap-space-xs w-64"><span class="material-symbols-outlined text-outline">search</span><input class="bg-transparent border-none outline-none font-body-sm text-body-sm text-on-surface placeholder:text-outline w-full text-right" placeholder="البحث عن الطلاب، الدروس، التقارير..." type="search"/></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-title-md"><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="students-list" href="#">قائمة الطلاب</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="student-profile" href="#">ملف الطالب</a><a aria-current="page" class="px-space-md py-space-xs rounded-lg transition-colors bg-primary-container text-on-primary font-title-md" data-path="admission-wizard" href="#">قبول طالب جديد</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="courses" href="#">موادي والمقررات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="schedule-builder" href="#">الجدول الأكاديمي</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="reports" href="#">التقارير</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center bg-surface-container rounded-full p-space-xs"><button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-[0_2px_8px_rgba(0,35,111,0.2)]" type="button">مدير النظام</button><button class="px-space-md py-space-xs rounded-full text-on-surface-variant font-label-xs text-label-xs hover:text-on-surface" type="button">معلم</button></div><button aria-label="التنبيهات" class="relative p-space-xs rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-secondary"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. أحمد السعيد</span><span class="font-label-xs text-label-xs text-on-surface-variant">الإدارة الأكاديمية</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></div></header><main class="w-full pt-20 bg-background"><div class="flex flex-col w-full">
+<div class="w-full max-w-[1440px] mx-auto px-gutter py-space-lg">
+<!-- Top Progress Header & Breadcrumb Info -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md mb-space-lg">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-md text-label-md">
+<span class="hover:text-primary cursor-pointer">بوابة القبول والتسجيل</span>
+<span class="material-symbols-outlined text-outline text-sm">chevron_left</span>
+<span class="hover:text-primary cursor-pointer">طلبات العام الجديد</span>
+<span class="material-symbols-outlined text-outline text-sm">chevron_left</span>
+<span class="text-primary font-semibold">طلب رقم #ADM-1446-882</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-on-surface flex items-center gap-space-sm">
+<span>معالج قبول وتسجيل طالب جديد</span>
+<span class="font-label-lg text-label-lg px-space-md py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-bold">
+            العام الدراسي ١٤٤٦/١٤٤٧هـ
+          </span>
+</h1>
+</div>
+<div class="flex items-center gap-space-sm self-start md:self-auto">
+<span class="inline-flex items-center gap-space-xs px-space-md py-space-xs rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md shadow-sm">
+<span class="w-2 h-2 rounded-full bg-secondary animate-ping"></span>
+          المسودة محفوظة تلقائياً: ١٠:٤٢ ص
+        </span>
+</div>
+</div>
+<!-- 5-Step Stepper Navigation -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-md mb-space-xl">
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-space-md relative">
+<!-- Step 1: Completed -->
+<div class="flex items-center gap-space-sm p-space-sm rounded-lg bg-surface-container-low transition-all">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold shadow-sm">
+<span class="material-symbols-outlined text-base">check</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-xs text-label-xs text-primary font-bold">الخطوة الأولى</span>
+<span class="font-label-lg text-label-lg text-on-surface font-bold truncate">البيانات الأساسية</span>
+</div>
+</div>
+<!-- Step 2: Completed -->
+<div class="flex items-center gap-space-sm p-space-sm rounded-lg bg-surface-container-low transition-all">
+<div class="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-on-primary font-bold shadow-sm">
+<span class="material-symbols-outlined text-base">check</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-xs text-label-xs text-primary font-bold">الخطوة الثانية</span>
+<span class="font-label-lg text-label-lg text-on-surface font-bold truncate">بيانات ولي الأمر</span>
+</div>
+</div>
+<!-- Step 3: Active Current Step -->
+<div class="flex items-center gap-space-sm p-space-sm rounded-lg bg-primary-container text-on-primary shadow-[0_4px_14px_rgba(0,35,111,0.25)] ring-2 ring-primary-container ring-offset-2">
+<div class="w-10 h-10 rounded-full bg-secondary-container text-on-secondary-container flex items-center justify-center font-bold text-base shadow-inner">
+<span>٣</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-xs text-label-xs text-on-primary-container font-semibold">الخطوة الحالية</span>
+<span class="font-label-lg text-label-lg font-bold truncate">التسجيل الأكاديمي والتوزيع</span>
+</div>
+</div>
+<!-- Step 4: Upcoming -->
+<div class="flex items-center gap-space-sm p-space-sm rounded-lg bg-surface-container-low opacity-75">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-bold text-base">
+<span>٤</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-xs text-label-xs text-outline">الخطوة القادمة</span>
+<span class="font-label-lg text-label-lg text-on-surface-variant font-semibold truncate">المستندات والأوراق</span>
+</div>
+</div>
+<!-- Step 5: Upcoming Final -->
+<div class="flex items-center gap-space-sm p-space-sm rounded-lg bg-surface-container-low opacity-75">
+<div class="w-10 h-10 rounded-full bg-surface-container-highest text-on-surface-variant flex items-center justify-center font-bold text-base">
+<span>٥</span>
+</div>
+<div class="flex flex-col min-w-0">
+<span class="font-label-xs text-label-xs text-outline">الخطوة النهائية</span>
+<span class="font-label-lg text-label-lg text-on-surface-variant font-semibold truncate">الرسوم والتأكيد</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Main Form Grid (Split Balanced Columns) -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg mb-space-xl">
+<!-- Right Column: Academic Settings & Input Form (7 cols) -->
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+<!-- Academic Level & Grade Block -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary">school</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">المستوى والمرحلة الأكاديمية</h2>
+</div>
+<span class="font-label-xs text-label-xs px-space-sm py-1 bg-surface-container text-on-surface-variant rounded-full">إلزامي</span>
+</div>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-space-xs font-semibold">المرحلة الدراسية</label>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low p-1 rounded-xl">
+<button class="py-space-xs text-center font-label-md text-label-md rounded-lg bg-surface-container-lowest text-primary font-bold shadow-sm transition-all" type="button">
+                  المرحلة المتوسطة
+                </button>
+<button class="py-space-xs text-center font-label-md text-label-md rounded-lg text-on-surface-variant hover:text-on-surface transition-all" type="button">
+                  المرحلة الثانوية
+                </button>
+</div>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-space-xs font-semibold">الصف الدراسي المقيد به</label>
+<select class="w-full h-12 px-space-md bg-surface-container-low rounded-xl font-body-sm text-body-sm text-on-surface outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary transition-all">
+<option selected="">الصف التاسع الأساسي (الثالث متوسط)</option>
+<option>الصف الثامن الأساسي (الثاني متوسط)</option>
+<option>الصف السابع الأساسي (الأول متوسط)</option>
+</select>
+</div>
+</div>
+<!-- Educational Track -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-space-xs font-semibold">المسار التعليمي والبرنامج</label>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-sm">
+<label class="relative flex flex-col p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-surface-container transition-all">
+<input checked="" class="sr-only peer" name="academic_track" type="radio"/>
+<div class="peer-checked:border-2 peer-checked:border-primary peer-checked:bg-surface-container-lowest absolute inset-0 rounded-xl pointer-events-none transition-all"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-label-lg font-bold text-on-surface">المسار العام</span>
+<span class="w-4 h-4 rounded-full border-2 border-primary bg-primary flex items-center justify-center">
+<span class="w-1.5 h-1.5 rounded-full bg-surface-container-lowest"></span>
+</span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">المنهاج القياسي المعتمد مع تدريب لغوي</span>
+</div>
+</label>
+<label class="relative flex flex-col p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-surface-container transition-all">
+<input class="sr-only peer" name="academic_track" type="radio"/>
+<div class="peer-checked:border-2 peer-checked:border-primary peer-checked:bg-surface-container-lowest absolute inset-0 rounded-xl pointer-events-none transition-all"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-label-lg font-bold text-on-surface">مسار الموهوبين</span>
+<span class="w-4 h-4 rounded-full border-2 border-outline"></span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">إثراء علمي متقدم في الرياضيات والعلوم</span>
+</div>
+</label>
+<label class="relative flex flex-col p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-surface-container transition-all">
+<input class="sr-only peer" name="academic_track" type="radio"/>
+<div class="peer-checked:border-2 peer-checked:border-primary peer-checked:bg-surface-container-lowest absolute inset-0 rounded-xl pointer-events-none transition-all"></div>
+<div class="relative z-10 flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-label-lg font-bold text-on-surface">المسار التقني والذكاء</span>
+<span class="w-4 h-4 rounded-full border-2 border-outline"></span>
+</div>
+<span class="font-body-sm text-body-sm text-on-surface-variant">تأسيس برمجيات وحوسبة تطبيقية</span>
+</div>
+</label>
+</div>
+</div>
+</div>
+<!-- Smart Section Selector (محدد الشعبة الذكي) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary">groups</span>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">توزيع الشعبة الصفية الذكي</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">تحليل ذكي فوري لتوزيع الكثافة وتوازن الفصول</p>
+</div>
+</div>
+<div class="flex items-center gap-space-xs bg-secondary-fixed px-space-md py-1 rounded-full text-on-secondary-fixed font-label-sm text-label-sm font-bold">
+<span class="material-symbols-outlined text-sm">auto_awesome</span>
+              توصية النظام: شعبة (ج)
+            </div>
+</div>
+<!-- Sections Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-space-md">
+<!-- Section A -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col justify-between gap-space-sm hover:bg-surface-container transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md font-bold text-on-surface">شعبة (أ)</span>
+<span class="font-label-xs text-label-xs px-space-xs py-0.5 rounded bg-error-container text-on-error-container font-bold">شبه مكتملة</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-label-xs text-label-xs text-on-surface-variant">
+<span>المقاعد المشغولة:</span>
+<span class="font-bold text-on-surface">٢٢ / ٢٥ مقعد</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 88%;"></div>
+</div>
+</div>
+<div class="flex items-center gap-1 font-label-xs text-label-xs text-outline">
+<span class="material-symbols-outlined text-xs">meeting_room</span>
+<span>قاعة ابن الهيثم (مبنى ب)</span>
+</div>
+</div>
+<!-- Section B -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col justify-between gap-space-sm hover:bg-surface-container transition-all cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md font-bold text-on-surface">شعبة (ب)</span>
+<span class="font-label-xs text-label-xs px-space-xs py-0.5 rounded bg-error-container text-on-error-container font-bold">مقعد واحد شاغر</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-label-xs text-label-xs text-on-surface-variant">
+<span>المقاعد المشغولة:</span>
+<span class="font-bold text-on-surface">٢٤ / ٢٥ مقعد</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-error rounded-full" style="width: 96%;"></div>
+</div>
+</div>
+<div class="flex items-center gap-1 font-label-xs text-label-xs text-outline">
+<span class="material-symbols-outlined text-xs">meeting_room</span>
+<span>قاعة الخوارزمي (مبنى ب)</span>
+</div>
+</div>
+<!-- Section C: Recommended & Selected -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest ring-2 ring-primary shadow-md flex flex-col justify-between gap-space-sm relative overflow-hidden">
+<div class="absolute -top-3 -left-8 bg-secondary text-on-secondary px-8 py-1 rotate-[-35deg] font-label-xs text-[10px] font-bold shadow-sm">
+                الأنسب
+              </div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+<span class="font-title-md text-title-md font-bold text-primary">شعبة (ج)</span>
+</div>
+<span class="font-label-xs text-label-xs px-space-xs py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed font-bold">٦ مقاعد شاغرة</span>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex justify-between font-label-xs text-label-xs text-on-surface-variant">
+<span>المقاعد المشغولة:</span>
+<span class="font-bold text-primary">١٩ / ٢٥ مقعد</span>
+</div>
+<div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
+<div class="h-full bg-secondary rounded-full" style="width: 76%;"></div>
+</div>
+</div>
+<div class="flex items-center justify-between font-label-xs text-label-xs text-on-surface-variant">
+<span class="flex items-center gap-1">
+<span class="material-symbols-outlined text-xs">meeting_room</span>
+                  قاعة الفارابي (مبنى أ)
+                </span>
+<span class="font-bold text-primary">مختارة تلقائياً</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Additional Services (النقل المدرسي والأنشطة) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary">verified</span>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">الخدمات الإضافية والأنشطة</h2>
+</div>
+<div class="flex flex-col gap-space-sm">
+<!-- Transportation Check -->
+<label class="flex items-start justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-start gap-space-md">
+<div class="pt-0.5">
+<input checked="" class="w-5 h-5 rounded text-primary focus:ring-primary" id="bus_checkbox" type="checkbox"/>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md font-bold text-on-surface">خدمة النقل المدرسي (الحافلات المكيّفة)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">ذهاب وعودة مع تتبع نظام المواقع الحي GPS وإشعارات الصعود</span>
+<div class="flex items-center gap-space-sm mt-space-xs font-label-xs text-label-xs text-primary font-semibold">
+<span class="material-symbols-outlined text-xs">directions_bus</span>
+<span>خط سير: حي النرجس / الياسمين - حافلة رقم ١٤</span>
+</div>
+</div>
+</div>
+<span class="font-title-md text-title-md font-bold text-primary">+ ٢,٤٠٠ ر.س / فصل</span>
+</label>
+<!-- Extracurricular Activities -->
+<label class="flex items-start justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-start gap-space-md">
+<div class="pt-0.5">
+<input checked="" class="w-5 h-5 rounded text-primary focus:ring-primary" id="activities_checkbox" type="checkbox"/>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md font-bold text-on-surface">باقة الأنشطة اللاصفية والنوادي المهارية</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">عضوية في نادي الروبوتات والذكاء الاصطناعي ونادي المناظرات الطلابية</span>
+<div class="flex items-center gap-space-sm mt-space-xs font-label-xs text-label-xs text-secondary font-semibold">
+<span class="material-symbols-outlined text-xs">psychology</span>
+<span>حصتان أسبوعياً بعد اليوم الدراسي</span>
+</div>
+</div>
+</div>
+<span class="font-title-md text-title-md font-bold text-primary">+ ٨٠٠ ر.س / فصل</span>
+</label>
+<!-- Meals Subscription -->
+<label class="flex items-start justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-start gap-space-md">
+<div class="pt-0.5">
+<input class="w-5 h-5 rounded text-primary focus:ring-primary" id="meals_checkbox" type="checkbox"/>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md font-bold text-on-surface">الوجبات الصحية الذكية (الكافتيريا المعتمدة)</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">وجبة إفطار صحية متكاملة وسناك طبيعي بإشراف أخصائي تغذية</span>
+</div>
+</div>
+<span class="font-title-md text-title-md font-bold text-on-surface-variant">+ ١,٢٠٠ ر.س / فصل</span>
+</label>
+</div>
+</div>
+<!-- Document Upload & Dropzone Strip -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-primary">cloud_upload</span>
+<div>
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">رفع ومراجعة الوثائق المرفقة</h2>
+<p class="font-body-sm text-body-sm text-on-surface-variant">صيغ الملفات المقبولة (PDF, JPG, PNG) بحجم أقصى 10MB</p>
+</div>
+</div>
+<span class="font-label-sm text-label-sm text-primary font-bold">٣ من ٣ مكتملة</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+<!-- Doc 1: Birth Cert -->
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col justify-between gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-primary text-base">picture_as_pdf</span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface truncate">شهادة_الميلاد.pdf</span>
+</div>
+<span class="material-symbols-outlined text-secondary text-base">check_circle</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 100%;"></div>
+</div>
+<div class="flex justify-between font-label-xs text-label-xs text-outline">
+<span>1.8 MB</span>
+<span class="text-primary font-bold">تم التحقق</span>
+</div>
+</div>
+<!-- Doc 2: Previous Academic Report -->
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col justify-between gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-primary text-base">description</span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface truncate">سجل_الدرجات_السابق.pdf</span>
+</div>
+<span class="material-symbols-outlined text-secondary text-base">check_circle</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 100%;"></div>
+</div>
+<div class="flex justify-between font-label-xs text-label-xs text-outline">
+<span>3.2 MB</span>
+<span class="text-primary font-bold">تم التحقق</span>
+</div>
+</div>
+<!-- Doc 3: Personal Photo -->
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col justify-between gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs min-w-0">
+<span class="material-symbols-outlined text-secondary text-base">image</span>
+<span class="font-label-sm text-label-sm font-bold text-on-surface truncate">الصورة_الشخصية.jpg</span>
+</div>
+<span class="material-symbols-outlined text-secondary text-base">check_circle</span>
+</div>
+<div class="w-full bg-surface-container-high h-1.5 rounded-full overflow-hidden">
+<div class="bg-primary h-full rounded-full" style="width: 100%;"></div>
+</div>
+<div class="flex justify-between font-label-xs text-label-xs text-outline">
+<span>850 KB</span>
+<span class="text-primary font-bold">جاهزة للطباعة</span>
+</div>
+</div>
+</div>
+<!-- Drop Area -->
+<div class="p-space-lg rounded-xl bg-surface-container border-2 border-dashed border-outline-variant flex flex-col items-center justify-center text-center gap-space-xs cursor-pointer hover:bg-surface-container-high transition-all">
+<div class="w-12 h-12 rounded-full bg-surface-container-lowest text-primary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined">add_to_photos</span>
+</div>
+<p class="font-title-md text-title-md text-on-surface font-bold">إرفاق مستندات إضافية أو تقارير طبية خاصة</p>
+<p class="font-body-sm text-body-sm text-on-surface-variant">اسحب الملفات هنا أو قم بالاستعراض من جهازك</p>
+</div>
+</div>
+</div>
+<!-- Left Column: Live Verification & Fee Summary (5 cols) -->
+<div class="lg:col-span-5 flex flex-col gap-space-lg">
+<!-- Live Student ID Card Preview -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-md flex flex-col gap-space-md relative overflow-hidden">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">badge</span>
+<h3 class="font-title-md text-title-md text-on-surface font-bold">معاينة بطاقة الطالب الذكية</h3>
+</div>
+<span class="font-label-xs text-label-xs px-space-xs py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed font-bold">
+              معاينة فورية
+            </span>
+</div>
+<!-- ID Card Graphic Layout -->
+<div class="relative w-full rounded-xl bg-gradient-to-bl from-primary to-primary-container text-on-primary p-space-lg shadow-xl overflow-hidden">
+<!-- Decorative curves -->
+<div class="absolute -top-12 -left-12 w-36 h-36 rounded-full bg-secondary opacity-20 blur-xl pointer-events-none"></div>
+<div class="absolute -bottom-10 -right-10 w-40 h-40 rounded-full bg-surface-tint opacity-30 blur-2xl pointer-events-none"></div>
+<div class="relative z-10 flex flex-col gap-space-md">
+<div class="flex items-center justify-between border-b border-outline-variant/30 pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<div class="w-7 h-7 rounded-lg bg-surface-container-lowest/20 flex items-center justify-center text-on-primary font-bold">
+                    م
+                  </div>
+<span class="font-label-md text-label-md font-bold tracking-wide">مدارس التميز الأهلية</span>
+</div>
+<span class="font-label-xs text-label-xs tracking-widest uppercase bg-surface-container-lowest/20 px-space-xs py-0.5 rounded">
+                  طالب معتمد
+                </span>
+</div>
+<div class="flex items-center gap-space-md">
+<img class="w-20 h-20 rounded-xl object-cover ring-2 ring-surface-container-lowest shadow-md flex-shrink-0" data-alt="Clear modern studio portrait of a neat Arabic Middle Eastern teenage schoolboy wearing a crisp navy and white private school uniform with an ambitious smile, high key professional lighting, sharp clarity on neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDbhZdgojv_W6pac29GtnnCThAhs6wnB_e2yrlPvtzx_p4hvtpyA6Zehwq_ADLPkgE0dN9tYI3DzSMvPwPaGcYD12AHW_KJ_l2SoI_F3tv5I1By7RKZzUk-m1x73OpdtguaWxjRF6VqhLMpb_cNmgngKawywjmGTronUb-GMByqT9wnKL65yT75_ZmVHIYI8obvRu6cKfGThEf9X18MKz-yv8ttzC1hJsRwq-YF3K-C3p3ND0kzTEcnmw"/>
+<div class="flex flex-col min-w-0">
+<h4 class="font-headline-sm text-headline-sm font-bold truncate">عمر ياسر الحازمي</h4>
+<span class="font-body-sm text-body-sm text-on-primary-container">رقم الهوية: ١٠٩٤٣٢٩٨٥١</span>
+<div class="flex items-center gap-space-xs mt-1">
+<span class="px-2 py-0.5 rounded bg-secondary text-on-secondary font-label-xs text-label-xs font-bold">الصف ٩ / شعبة ج</span>
+<span class="font-label-xs text-label-xs text-on-primary-container">المسار العام</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs border-t border-outline-variant/30">
+<div>
+<span class="block font-label-xs text-label-xs text-on-primary-container">الرقم الأكاديمي الرقمي</span>
+<span class="font-title-md text-title-md font-bold tracking-wider">2025-09-0412</span>
+</div>
+<div class="flex justify-end items-center">
+<!-- Simulated Mini Barcode -->
+<div class="flex items-center gap-0.5 bg-surface-container-lowest p-1 rounded">
+<div class="w-1 h-6 bg-primary"></div>
+<div class="w-0.5 h-6 bg-primary"></div>
+<div class="w-1.5 h-6 bg-primary"></div>
+<div class="w-0.5 h-6 bg-primary"></div>
+<div class="w-1 h-6 bg-primary"></div>
+<div class="w-2 h-6 bg-primary"></div>
+<div class="w-0.5 h-6 bg-primary"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Class Capacity & Demographic Distribution Metric -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<h3 class="font-title-md text-title-md text-on-surface font-bold">تأثير الإضافة على الشعبة (ج)</h3>
+<span class="font-label-md text-label-md text-secondary font-bold">٨٠٪ بعد الإضافة</span>
+</div>
+<!-- Capacity Visualization -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-space-sm">
+<div class="flex justify-between items-center font-label-sm text-label-sm text-on-surface">
+<span class="flex items-center gap-space-xs">
+<span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+                إجمالي الطلاب المسجلين
+              </span>
+<span class="font-bold">٢٠ / ٢٥ طالب</span>
+</div>
+<!-- Desk layout visual grid (25 seats) -->
+<div class="grid grid-cols-5 gap-1.5 py-space-xs">
+<!-- 19 occupied seats -->
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٢</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٣</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٤</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٥</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٦</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٧</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٨</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">٩</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٠</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١١</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٢</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٣</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٤</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٥</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٦</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٧</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٨</div>
+<div class="h-6 rounded bg-primary/80 flex items-center justify-center text-[10px] text-on-primary font-bold">١٩</div>
+<!-- 1 newly assigned seat (Current Student) -->
+<div class="h-6 rounded bg-secondary ring-2 ring-offset-1 ring-secondary flex items-center justify-center text-[10px] text-on-secondary font-bold animate-pulse">
+                عمر
+              </div>
+<!-- 5 empty seats -->
+<div class="h-6 rounded bg-surface-container-high border-dashed border border-outline-variant flex items-center justify-center text-[10px] text-outline font-semibold">متاح</div>
+<div class="h-6 rounded bg-surface-container-high border-dashed border border-outline-variant flex items-center justify-center text-[10px] text-outline font-semibold">متاح</div>
+<div class="h-6 rounded bg-surface-container-high border-dashed border border-outline-variant flex items-center justify-center text-[10px] text-outline font-semibold">متاح</div>
+<div class="h-6 rounded bg-surface-container-high border-dashed border border-outline-variant flex items-center justify-center text-[10px] text-outline font-semibold">متاح</div>
+<div class="h-6 rounded bg-surface-container-high border-dashed border border-outline-variant flex items-center justify-center text-[10px] text-outline font-semibold">متاح</div>
+</div>
+<div class="flex items-center justify-between font-label-xs text-label-xs text-on-surface-variant pt-space-xs">
+<span class="text-secondary font-bold">المعدل المثالي لكثافة الصف محقق</span>
+<span>تبقى ٥ مقاعد فقط في الشعبة</span>
+</div>
+</div>
+<!-- Academic Counselor Remarks -->
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary text-sm">support_agent</span>
+<span class="font-label-md text-label-md font-bold text-on-surface">ملاحظات مسؤول القبول المبدئي</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant leading-relaxed">
+              "تمت مطابقة الشهادات ومعدل الصف الثامن (٩٨.٤٪)، الطالب مؤهل بالكامل للمسار العام مع ترشيحه للدخول في اختبار المفاضلة لمسار الموهوبين."
+            </p>
+</div>
+</div>
+<!-- Live Fee Invoice Breakdown (معاينة الفاتورة وحساب الرسوم) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">receipt_long</span>
+<h3 class="font-title-md text-title-md text-on-surface font-bold">تفاصيل الرسوم المدرسية والفاتورة</h3>
+</div>
+<span class="font-label-xs text-label-xs text-outline">الفصل الدراسي الأول</span>
+</div>
+<!-- Invoice Line Items -->
+<div class="flex flex-col gap-space-sm font-body-sm text-body-sm">
+<div class="flex items-center justify-between pb-space-xs border-b border-surface-container">
+<span class="text-on-surface">الرسوم الدراسية الأساسية (الصف التاسع)</span>
+<span class="font-bold text-on-surface">١٢,٥٠٠ ر.س</span>
+</div>
+<div class="flex items-center justify-between pb-space-xs border-b border-surface-container">
+<span class="text-on-surface">الكتب والمقررات والحقيبة الرقمية</span>
+<span class="font-bold text-on-surface">١,٢٠٠ ر.س</span>
+</div>
+<div class="flex items-center justify-between pb-space-xs border-b border-surface-container" id="invoice_bus_row">
+<span class="text-on-surface">رسوم خدمة النقل المدرسي (اختياري)</span>
+<span class="font-bold text-on-surface">٢,٤٠٠ ر.س</span>
+</div>
+<div class="flex items-center justify-between pb-space-xs border-b border-surface-container" id="invoice_activities_row">
+<span class="text-on-surface">باقة الأنشطة اللاصفية والنوادي</span>
+<span class="font-bold text-on-surface">٨٠٠ ر.س</span>
+</div>
+<div class="flex items-center justify-between pb-space-xs border-b border-surface-container text-secondary">
+<span>خصم التسجيل المبكر (٥٪)</span>
+<span class="font-bold">- ٦٨٥ ر.س</span>
+</div>
+<div class="flex items-center justify-between pt-space-xs font-label-md text-label-md text-outline">
+<span>ضريبة القيمة المضافة (١٥٪ على الخدمات)</span>
+<span class="font-bold">٤٨٠ ر.س</span>
+</div>
+</div>
+<!-- Total Calculation Card -->
+<div class="p-space-md rounded-xl bg-surface-container-high flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant font-bold">المجموع الكلي المطلوب دفعه</span>
+<span class="font-label-xs text-label-xs text-outline">أو بنظام ٣ أقساط ميسرة</span>
+</div>
+<div class="flex items-baseline gap-1">
+<span class="font-headline-md text-headline-md text-primary font-extrabold" id="final_total_display">١٦,٦٩٥</span>
+<span class="font-label-sm text-label-sm font-bold text-primary">ر.س</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-xs text-label-xs">
+<span class="material-symbols-outlined text-sm text-secondary">verified_user</span>
+<span>سيتم إصدار فاتورة ضريبية رسمية متوافقة مع منصة زكاة وضريبة فور التأكيد.</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Bottom Action & Workflow Bar (Navigation Footer) -->
+<div class="sticky bottom-4 z-40 bg-surface-container-lowest/95 backdrop-blur-xl p-space-md rounded-xl shadow-xl flex flex-col sm:flex-row items-center justify-between gap-space-md mb-space-lg">
+<div class="flex items-center gap-space-sm w-full sm:w-auto">
+<!-- Back Button (Points Right in RTL) -->
+<button class="flex items-center justify-center gap-space-xs px-space-lg py-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-lg text-label-lg font-bold transition-all w-1/2 sm:w-auto" type="button">
+<span class="material-symbols-outlined">arrow_forward</span>
+<span>الخطوة السابقة</span>
+</button>
+<!-- Save Draft Button -->
+<button class="flex items-center justify-center gap-space-xs px-space-lg py-3 rounded-xl bg-surface-container-lowest border border-outline-variant hover:bg-surface-container text-on-surface-variant font-label-lg text-label-lg font-semibold transition-all w-1/2 sm:w-auto" type="button">
+<span class="material-symbols-outlined">save</span>
+<span>حفظ كمسودة</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm w-full sm:w-auto justify-end">
+<!-- Primary Action Button with Signature Gradient (Points Left in RTL) -->
+<button class="w-full sm:w-auto flex items-center justify-center gap-space-sm px-space-xl py-3 rounded-xl text-on-primary font-title-md text-title-md font-bold shadow-[0_4px_14px_rgba(37,99,235,0.3)] bg-gradient-to-l from-primary via-primary-container to-secondary hover:opacity-95 transition-all" id="confirm_btn" type="button">
+<span>تأكيد القبول وإصدار الفاتورة الرقمية</span>
+<span class="material-symbols-outlined">arrow_back</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+    (function() {
+      const busCb = document.getElementById('bus_checkbox');
+      const actCb = document.getElementById('activities_checkbox');
+      const mealsCb = document.getElementById('meals_checkbox');
+      const totalDisplay = document.getElementById('final_total_display');
+      const busRow = document.getElementById('invoice_bus_row');
+      const actRow = document.getElementById('invoice_activities_row');
+
+      function calculateTotal() {
+        let base = 12500 + 1200 - 685 + 480; // Core tuition + books - discount + tax
+        
+        if (busCb && busCb.checked) {
+          base += 2400;
+          if (busRow) busRow.style.display = 'flex';
+        } else {
+          if (busRow) busRow.style.display = 'none';
+        }
+
+        if (actCb && actCb.checked) {
+          base += 800;
+          if (actRow) actRow.style.display = 'flex';
+        } else {
+          if (actRow) actRow.style.display = 'none';
+        }
+
+        if (mealsCb && mealsCb.checked) {
+          base += 1200;
+        }
+
+        if (totalDisplay) {
+          // Format as Arabic locale number
+          totalDisplay.textContent = base.toLocaleString('ar-SA');
+        }
+      }
+
+      if (busCb) busCb.addEventListener('change', calculateTotal);
+      if (actCb) actCb.addEventListener('change', calculateTotal);
+      if (mealsCb) mealsCb.addEventListener('change', calculateTotal);
+
+      const confirmBtn = document.getElementById('confirm_btn');
+      if (confirmBtn) {
+        confirmBtn.addEventListener('click', function() {
+          const originalText = confirmBtn.innerHTML;
+          confirmBtn.innerHTML = '<span class="material-symbols-outlined animate-spin">sync</span> جاري إصدار رقم القبول...';
+          confirmBtn.classList.add('pointer-events-none', 'opacity-80');
+          setTimeout(function() {
+            confirmBtn.innerHTML = '<span class="material-symbols-outlined">check_circle</span> تم تسجيل الطالب بنجاح!';
+            confirmBtn.classList.remove('from-primary', 'via-primary-container', 'to-secondary');
+            confirmBtn.classList.add('bg-secondary');
+          }, 1200);
+        });
+      }
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest mt-space-xl"><div class="w-full px-gutter py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-label-md text-label-md text-on-surface">منصتي التعليمية الذكية © 2025</span></div><div class="flex items-center gap-space-lg font-label-sm text-label-md"><a class="hover:text-primary transition-colors" href="#">شروط الاستخدام</a><a class="hover:text-primary transition-colors" href="#">سياسة الخصوصية</a><a class="hover:text-primary transition-colors" href="#">الدعم الفني والمساعدة</a></div></div></footer></body></html>

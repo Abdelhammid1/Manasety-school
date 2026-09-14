@@ -1,0 +1,821 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=Nunito+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "background": "#f7f9fc",
+          "inverse-primary": "#b6c4ff",
+          "surface-variant": "#e0e3e6",
+          "on-secondary-fixed-variant": "#004c68",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "outline-variant": "#c5c5d3",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "inverse-on-surface": "#eff1f4",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed": "#001e2c",
+          "on-tertiary-fixed": "#00174b",
+          "on-secondary-container": "#005371",
+          "secondary": "#006689",
+          "on-surface": "#191c1e",
+          "surface-bright": "#f7f9fc",
+          "error": "#ba1a1a",
+          "on-primary-fixed-variant": "#264191",
+          "surface-dim": "#d8dadd",
+          "surface-container-lowest": "#ffffff",
+          "tertiary": "#00246b",
+          "error-container": "#ffdad6",
+          "surface-container-highest": "#e0e3e6",
+          "tertiary-fixed": "#dbe1ff",
+          "on-error-container": "#93000a",
+          "on-tertiary": "#ffffff",
+          "primary-container": "#1e3a8a",
+          "on-primary-fixed": "#00164e",
+          "on-error": "#ffffff",
+          "on-primary-container": "#90a8ff",
+          "primary": "#00236f",
+          "on-primary": "#ffffff",
+          "outline": "#757682",
+          "on-tertiary-container": "#8da9ff",
+          "surface-container-high": "#e6e8eb",
+          "secondary-fixed-dim": "#78d1ff",
+          "surface": "#f7f9fc",
+          "secondary-fixed": "#c3e8ff",
+          "surface-container-low": "#f2f4f7",
+          "primary-fixed": "#dce1ff",
+          "secondary-container": "#5bcaff",
+          "inverse-surface": "#2d3133",
+          "on-surface-variant": "#444651",
+          "on-background": "#191c1e",
+          "tertiary-container": "#00389a",
+          "primary-fixed-dim": "#b6c4ff",
+          "surface-container": "#eceef1",
+          "surface-tint": "#4059aa"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-lg": "1.5rem",
+          "gutter": "1.5rem",
+          "margin": "2rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-md": "1rem",
+          "space-xl": "2.5rem"
+        },
+        "fontFamily": {
+          "title-md": [
+            "Plus Jakarta Sans"
+          ],
+          "body-md": [
+            "Nunito Sans"
+          ],
+          "display-hero": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-md": [
+            "Plus Jakarta Sans"
+          ],
+          "label-lg": [
+            "Nunito Sans"
+          ],
+          "headline-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "label-xs": [
+            "Nunito Sans"
+          ],
+          "display-hero-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-sm": [
+            "Nunito Sans"
+          ],
+          "headline-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-lg": [
+            "Nunito Sans"
+          ],
+          "headline-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "label-md": [
+            "Nunito Sans"
+          ]
+        },
+        "fontSize": {
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "30px",
+              "fontWeight": "600"
+            }
+          ],
+          "body-md": [
+            "16px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "400"
+            }
+          ],
+          "display-hero": [
+            "40px",
+            {
+              "lineHeight": "64px",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "22px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "600"
+            }
+          ],
+          "label-xs": [
+            "11px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "700"
+            }
+          ],
+          "display-hero-mobile": [
+            "28px",
+            {
+              "lineHeight": "44px",
+              "fontWeight": "800"
+            }
+          ],
+          "body-sm": [
+            "14px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg-mobile": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "18px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg": [
+            "32px",
+            {
+              "lineHeight": "52px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-background font-body-md text-body-md text-on-background min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_4px_20px_rgba(12,36,97,0.06)]"><div class="h-20 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-headline-sm text-headline-sm text-primary">منصتي</span></div><div class="hidden xl:flex items-center bg-surface-container-low rounded-full px-space-md py-space-xs gap-space-xs w-72"><span class="material-symbols-outlined text-outline">search</span><input class="bg-transparent border-none outline-none font-body-sm text-body-sm text-on-surface placeholder:text-outline w-full text-right" placeholder="البحث عن الدروس، المقررات، الواجبات..." type="search"/></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-title-md"><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="dashboard" href="#">الرئيسية</a><a aria-current="page" class="px-space-md py-space-xs rounded-lg transition-colors bg-primary-container text-on-primary font-title-md" data-path="courses" href="#">موادي والمقررات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assignments" href="#">الواجبات والأنشطة</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assessments" href="#">الاختبارات والتقييمات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="schedule" href="#">الجدول الأكاديمي</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="reports" href="#">التقارير</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center bg-surface-container rounded-full p-space-xs"><button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-[0_2px_8px_rgba(0,35,111,0.2)]" type="button">معلم</button><button class="px-space-md py-space-xs rounded-full text-on-surface-variant font-label-xs text-label-xs hover:text-on-surface" type="button">طالب</button></div><button aria-label="التنبيهات" class="relative p-space-xs rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-secondary"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. أحمد السعيد</span><span class="font-label-xs text-label-xs text-on-surface-variant">المرحلة الثانوية</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></div></header><main class="w-full pt-20 bg-background"><div class="flex flex-col w-full">
+<!-- Interactive Top Action & Breadcrumb Header -->
+<section class="w-full px-gutter py-space-md bg-surface-container-lowest shadow-sm mb-space-lg">
+<div class="max-w-[1440px] mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md">
+<!-- RTL Hierarchy Breadcrumbs -->
+<nav aria-label="مسار التصفح" class="flex items-center flex-wrap gap-space-xs text-on-surface-variant font-label-lg text-label-lg">
+<a class="hover:text-primary transition-colors flex items-center gap-1" href="#">
+<span class="material-symbols-outlined text-secondary font-bold text-[18px]">school</span>
+<span>الرياضيات المتقدمة</span>
+</a>
+<span class="material-symbols-outlined text-outline-variant text-[16px] rotate-180">chevron_left</span>
+<a class="hover:text-primary transition-colors" href="#">الوحدة الثانية: المصفوفات</a>
+<span class="material-symbols-outlined text-outline-variant text-[16px] rotate-180">chevron_left</span>
+<span class="text-on-surface font-bold">الدرس الثالث: ضرب المصفوفات وخصائصها</span>
+<!-- Live Watching Status Chip -->
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs font-semibold mr-space-xs">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+          قيد المشاهدة الآن
+        </span>
+</nav>
+<!-- Utility Controls: Dark Mode Toggle & Help -->
+<div class="flex items-center gap-space-md">
+<!-- Display Mode Toggle -->
+<button class="flex items-center gap-space-xs px-3 py-1.5 rounded-full bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-label-md transition-colors" id="theme-toggle-btn" title="تبديل النمط" type="button">
+<span class="material-symbols-outlined text-[18px] text-secondary">light_mode</span>
+<span class="hidden sm:inline">الوضع المضيء</span>
+</button>
+<div class="h-5 w-px bg-surface-variant hidden sm:block"></div>
+<button class="flex items-center gap-1 px-3 py-1.5 rounded-lg text-on-surface-variant hover:text-primary font-label-md transition-colors" type="button">
+<span class="material-symbols-outlined text-[20px]">help_outline</span>
+<span class="hidden sm:inline">مساعدة الدرس</span>
+</button>
+</div>
+</div>
+</section>
+<!-- Main Workspace Grid (70% Viewer / 30% Side Rail) -->
+<div class="w-full px-gutter max-w-[1440px] mx-auto pb-space-xl">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- ================= 70% MAIN CONTENT AREA ================= -->
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<!-- 16:9 Video Player Container -->
+<div class="relative w-full rounded-2xl overflow-hidden bg-on-secondary-fixed shadow-[0_12px_36px_rgba(0,35,111,0.22)] group">
+<!-- Outer 16:9 Ratio Frame -->
+<div class="relative w-full pb-[56.25%] overflow-hidden bg-gradient-to-tr from-on-secondary-fixed via-primary to-on-secondary-fixed">
+<!-- Mathematical Graphic Board Simulation (Active Video Frame) -->
+<div class="absolute inset-0 p- space-lg flex flex-col justify-between select-none">
+<!-- Grid background texture watermark -->
+<div class="absolute inset-0 opacity-10 pointer-events-none" style="background-image: radial-gradient(#78d1ff 1px, transparent 1px); background-size: 24px 24px;"></div>
+<!-- Video Floating Header Overlay -->
+<div class="relative z-10 flex items-center justify-between">
+<span class="bg-black/40 backdrop-blur-md text-white font-label-md px-3 py-1 rounded-md flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-red-500 animate-ping"></span>
+                  تسجيل الدرس عالي الدقة (Full HD)
+                </span>
+<div class="flex items-center gap-2">
+<button class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 flex items-center justify-center transition-all">
+<span class="material-symbols-outlined text-[20px]">bookmark_border</span>
+</button>
+<button class="w-9 h-9 rounded-full bg-black/40 backdrop-blur-md text-white hover:bg-black/60 flex items-center justify-center transition-all">
+<span class="material-symbols-outlined text-[20px]">share</span>
+</button>
+</div>
+</div>
+<!-- Educational Visual Projection (Equations on blackboard style) -->
+<div class="relative z-10 flex flex-col items-center justify-center text-center my-auto px-4">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary-container/20 text-secondary-fixed font-label-md mb-2">
+<span>الخاصية التوزيعية لضرب المصفوفات</span>
+</div>
+<div class="font-headline-lg text-headline-lg text-white font-bold tracking-wider mb-2 dir-ltr">
+                  A × (B + C) = (A × B) + (A × C)
+                </div>
+<p class="text-primary-fixed-dim font-body-sm text-body-sm max-w-md">
+                  تنبيه هام: عملية ضرب المصفوفات ليست إبدالية بوجه عام (A × B ≠ B × A)
+                </p>
+</div>
+<!-- Center Big Play Button (Interactive) -->
+<div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+<button aria-label="تشغيل الفيديو" class="pointer-events-auto w-[74px] h-[74px] rounded-full p-[2px] bg-gradient-to-tr from-secondary to-secondary-container shadow-[0_0_30px_rgba(91,202,255,0.45)] hover:scale-105 active:scale-95 transition-transform flex items-center justify-center" id="main-play-btn" type="button">
+<span class="w-full h-full rounded-full bg-primary flex items-center justify-center hover:bg-primary-container transition-colors">
+<span class="material-symbols-outlined text-white text-[38px] translate-x-[-2px]" id="play-btn-icon">play_arrow</span>
+</span>
+</button>
+</div>
+<div class="relative z-10"></div>
+</div>
+<!-- Bottom Video Player Controls Bar (RTL Oriented) -->
+<div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/70 to-transparent pt-8 pb-3 px-4 flex flex-col gap-2 z-20">
+<!-- RTL Interactive Scrubber Timeline (Runs Right-to-Left) -->
+<div class="relative w-full h-3 group/timeline cursor-pointer flex items-center" id="timeline-container">
+<!-- Background Rail -->
+<div class="w-full h-1.5 bg-white/25 rounded-full overflow-hidden relative">
+<!-- Buffer Bar -->
+<div class="absolute right-0 top-0 bottom-0 w-[65%] bg-white/40"></div>
+<!-- Active Progress Bar (Gradient #0099CC to #2563EB) -->
+<div class="absolute right-0 top-0 bottom-0 w-[47%] bg-gradient-to-l from-[#0099CC] to-[#2563EB]" id="timeline-progress"></div>
+</div>
+<!-- Interactive Scrubber Thumb -->
+<div class="absolute right-[47%] -translate-x-1/2 w-4 h-4 rounded-full bg-secondary-container shadow-[0_0_10px_#5bcaff] border-2 border-white scale-100 group-hover/timeline:scale-125 transition-transform" id="timeline-thumb"></div>
+</div>
+<!-- Control Strip Buttons -->
+<div class="flex items-center justify-between text-white font-label-md text-label-md">
+<!-- Right Side: Playback and Audio -->
+<div class="flex items-center gap-3">
+<button class="text-white hover:text-secondary-fixed transition-colors flex items-center" id="sub-play-btn" type="button">
+<span class="material-symbols-outlined text-[26px]">pause</span>
+</button>
+<button class="text-white/80 hover:text-white transition-colors" title="تقديم 10 ثواني" type="button">
+<span class="material-symbols-outlined text-[22px]">forward_10</span>
+</button>
+<button class="text-white/80 hover:text-white transition-colors" title="إرجاع 10 ثواني" type="button">
+<span class="material-symbols-outlined text-[22px]">replay_10</span>
+</button>
+<!-- Time Stamp -->
+<div class="text-white font-label-sm font-semibold tracking-wide flex items-center gap-1 mr-1">
+<span class="text-secondary-fixed-dim">٠٨:٤٢</span>
+<span class="text-white/40">/</span>
+<span class="text-white/70">١٨:٣٠</span>
+</div>
+<!-- Audio Slider -->
+<div class="hidden sm:flex items-center gap-1.5 mr-2">
+<span class="material-symbols-outlined text-[20px] text-white/80">volume_up</span>
+<div class="w-16 h-1 bg-white/30 rounded-full overflow-hidden relative">
+<div class="absolute right-0 top-0 bottom-0 w-3/4 bg-secondary-fixed"></div>
+</div>
+</div>
+</div>
+<!-- Left Side: Quality, Subtitles, Speed, Fullscreen -->
+<div class="flex items-center gap-2">
+<!-- Playback Speed Pill -->
+<div class="relative group/speed">
+<button class="px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 text-white font-label-xs text-label-xs font-bold transition-colors" type="button">
+                      1.0x
+                    </button>
+<!-- Speed Selector Dropdown -->
+<div class="absolute bottom-full left-0 mb-2 hidden group-hover/speed:flex flex-col bg-on-surface text-surface-container-lowest rounded-lg shadow-xl p-1 min-w-[70px] z-30">
+<button class="px-2 py-1 text-right text-label-xs hover:bg-surface-container-variant rounded">1.5x</button>
+<button class="px-2 py-1 text-right text-label-xs hover:bg-surface-container-variant rounded">1.25x</button>
+<button class="px-2 py-1 text-right text-label-xs font-bold text-secondary-container bg-surface-container-variant rounded">1.0x</button>
+<button class="px-2 py-1 text-right text-label-xs hover:bg-surface-container-variant rounded">0.75x</button>
+</div>
+</div>
+<!-- Subtitles Toggle -->
+<button class="px-2 py-0.5 rounded bg-secondary/30 text-secondary-fixed-dim text-label-xs font-semibold flex items-center gap-1 hover:bg-secondary/40 transition-colors" type="button">
+<span class="material-symbols-outlined text-[16px]">subtitles</span>
+<span>العربية ✓</span>
+</button>
+<!-- Resolution HD Badge -->
+<span class="px-2 py-0.5 rounded bg-primary-container text-primary-fixed text-label-xs font-bold">
+                    1080p
+                  </span>
+<!-- Picture-in-picture -->
+<button class="text-white/80 hover:text-white p-1" title="نافذة عائمة" type="button">
+<span class="material-symbols-outlined text-[20px]">picture_in_picture_alt</span>
+</button>
+<!-- Fullscreen Icon -->
+<button class="text-white/80 hover:text-white p-1" title="ملء الشاشة" type="button">
+<span class="material-symbols-outlined text-[22px]">fullscreen</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Lesson Meta Bar & Title -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-space-md">
+<div>
+<span class="text-secondary font-label-md text-label-md font-bold block mb-1">الدرس ٠٣ • الوحدة الثانية</span>
+<h1 class="font-headline-lg text-headline-lg text-on-surface font-bold">الدرس الثالث: ضرب المصفوفات وتطبيقاتها الحياتية</h1>
+</div>
+<!-- Quick Action Toolbar -->
+<div class="flex items-center gap-2">
+<button class="p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="إضافة للإشارات المرجعية" type="button">
+<span class="material-symbols-outlined text-[20px]">bookmark</span>
+</button>
+<button class="p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="تحميل الدرس للمشاهدة بدون إنترنت" type="button">
+<span class="material-symbols-outlined text-[20px]">download_for_offline</span>
+</button>
+<button class="p-2.5 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-colors" title="طباعة ملخص الدرس" type="button">
+<span class="material-symbols-outlined text-[20px]">print</span>
+</button>
+</div>
+</div>
+<!-- Metadata with Instructor Image -->
+<div class="flex flex-wrap items-center justify-between gap-space-md pt-space-xs">
+<div class="flex items-center gap-3">
+<img alt="أ. عبد الرحمن السالم" class="w-12 h-12 rounded-full object-cover shadow-sm" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-title-md font-bold text-on-surface">أ. عبد الرحمن السالم</span>
+<span class="material-symbols-outlined text-secondary text-[18px]" title="معلم موثق">verified</span>
+</div>
+<span class="font-label-sm text-label-md text-on-surface-variant">كبير معلمي الرياضيات • ثانوية الموهوبين الأولى</span>
+</div>
+</div>
+<div class="flex items-center gap-space-lg text-on-surface-variant font-label-md text-label-md">
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">calendar_today</span>
+<span>نُشر منذ يومين</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+<span>٣٤ طالباً أتموا المشاهدة</span>
+</div>
+<div class="flex items-center gap-1">
+<span class="material-symbols-outlined text-amber-500 text-[18px]" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="font-bold text-on-surface">٤.٩</span>
+<span>(٢٨ تقييم)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Tabbed Workspace Content Area -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-lg">
+<!-- Modern Tab Navigation Bar -->
+<div class="flex items-center gap-2 overflow-x-auto pb-2" role="tablist">
+<button aria-selected="true" class="px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold shadow-[0_2px_10px_rgba(0,35,111,0.2)] flex items-center gap-2 whitespace-nowrap" role="tab">
+<span class="material-symbols-outlined text-[18px]">description</span>
+              المحتوى والشرح المكتوب
+            </button>
+<button aria-selected="false" class="px-5 py-2.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg transition-colors flex items-center gap-2 whitespace-nowrap" role="tab">
+<span class="material-symbols-outlined text-[18px]">folder_open</span>
+              الملفات المرفقة (٢)
+            </button>
+<button aria-selected="false" class="px-5 py-2.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg transition-colors flex items-center gap-2 whitespace-nowrap" role="tab">
+<span class="material-symbols-outlined text-[18px]">quiz</span>
+              أسئلة وتطبيقات الدرس (٤)
+            </button>
+<button aria-selected="false" class="px-5 py-2.5 rounded-xl bg-surface-container-low text-on-surface-variant hover:bg-surface-container hover:text-on-surface font-label-lg text-label-lg transition-colors flex items-center gap-2 whitespace-nowrap" role="tab">
+<span class="material-symbols-outlined text-[18px]">forum</span>
+              حلقة النقاش (١٢ تعليق)
+            </button>
+</div>
+<!-- Active Tab Content: Rich Mathematical Explanation & Summary -->
+<div class="flex flex-col gap-space-md font-body-md text-body-md text-on-surface leading-relaxed">
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-2">
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">lightbulb</span>
+                الهدف التعليمي العام للدرس:
+              </h2>
+<p class="text-on-surface-variant">
+                التمكن من إجراء عملية ضرب مصفوفتين جبرياً، وتحديد الرتبة الناتجة بدقة، واستيعاب المفاهيم الرياضية التي تعتمد على ضرب المصفوفات في مجالات الجرافيكس والذكاء الاصطناعي والتشفير الرقمي.
+              </p>
+</div>
+<h3 class="font-title-md text-title-md font-bold text-on-surface mt-2">شرط إمكانية ضرب مصفوفتين:</h3>
+<p>
+              لكي يمكن ضرب مصفوفة <span class="font-bold text-primary">A</span> في مصفوفة أخرى <span class="font-bold text-primary">B</span>، يجب أن يكون <span class="text-secondary font-bold">عدد أعمدة المصفوفة الأولى مساوياً تماماً لعدد صفوف المصفوفة الثانية</span>. إذا كانت رتبة المصفوفة الأولى هي <span class="dir-ltr inline-block font-mono bg-surface-container px-2 py-0.5 rounded">(m × k)</span>، ورتبة المصفوفة الثانية هي <span class="dir-ltr inline-block font-mono bg-surface-container px-2 py-0.5 rounded">(k × n)</span>، فإن رتبة المصفوفة الناتجة <span class="font-bold text-primary">C</span> ستكون <span class="dir-ltr inline-block font-mono bg-surface-container px-2 py-0.5 rounded">(m × n)</span>.
+            </p>
+<!-- Formula Visual Highlight Card -->
+<div class="my-space-xs p-space-md rounded-xl bg-primary/5 flex flex-col md:flex-row items-center justify-between gap-space-md">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold">
+                  ∑
+                </div>
+<div>
+<h4 class="font-bold text-primary">قاعدة حساب العنصر في المصفوفة الناتجة:</h4>
+<p class="text-on-surface-variant text-body-sm">حاصل ضرب عناصر الصف i في عناصر العمود j بالتناظر</p>
+</div>
+</div>
+<div class="p-3 bg-surface-container-lowest rounded-lg shadow-sm font-mono text-center dir-ltr text-on-surface font-bold tracking-wider">
+                c<sub>ij</sub> = ∑ (a<sub>ik</sub> × b<sub>kj</sub>)
+              </div>
+</div>
+<h3 class="font-title-md text-title-md font-bold text-on-surface mt-2">أبرز النقاط المستفادة (Key Takeaways):</h3>
+<ul class="space-y-2 pr-4 list-disc text-on-surface-variant">
+<li>ضرب المصفوفات ليس تبادلياً: <span class="font-semibold text-error">A × B ≠ B × A</span> في معظم الحالات العامة.</li>
+<li>الخاصية التجميعية محققة دائماً: <span class="font-semibold text-on-surface">A × (B × C) = (A × B) × C</span>.</li>
+<li>المصفوفة المحايدة الضربية (Identity Matrix <span class="font-bold">I</span>): عند ضرب أي مصفوفة بها تبقى دون تغيير <span class="font-semibold text-on-surface">A × I = I × A = A</span>.</li>
+<li>المصفوفة الصفرية تؤدي إلى نتيجة صفرية عند الضرب.</li>
+</ul>
+<!-- Attachments Sub-Section (Direct Quick Access) -->
+<div class="mt-space-md pt-space-md flex flex-col gap-3">
+<h4 class="font-title-md text-title-md font-bold text-on-surface flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">attachment</span>
+                الملفات والملخصات المرفقة مع هذا الدرس:
+              </h4>
+<div class="grid grid-cols-1 sm:grid-cols-2 gap-space-md">
+<!-- PDF Attachment Chip -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex items-center justify-between group/file cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center font-bold">
+<span class="material-symbols-outlined text-[24px]">picture_as_pdf</span>
+</div>
+<div>
+<span class="font-bold text-on-surface text-body-sm block group-hover/file:text-primary transition-colors">ملخص الدرس والتمارين المحلولة.pdf</span>
+<span class="font-label-xs text-outline text-label-xs">حجم الملف: 2.4 ميجابايت • متاح للطباعة</span>
+</div>
+</div>
+<button aria-label="تحميل الملف" class="w-8 h-8 rounded-full bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:shadow flex items-center justify-center transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</div>
+<!-- DOCX Attachment Chip -->
+<div class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-all flex items-center justify-between group/file cursor-pointer">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold">
+<span class="material-symbols-outlined text-[24px]">description</span>
+</div>
+<div>
+<span class="font-bold text-on-surface text-body-sm block group-hover/file:text-primary transition-colors">ورقة عمل تدريبية وتطبيقات عملية.docx</span>
+<span class="font-label-xs text-outline text-label-xs">حجم الملف: 1.1 ميجابايت • قابل للتعديل</span>
+</div>
+</div>
+<button aria-label="تحميل الملف" class="w-8 h-8 rounded-full bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:shadow flex items-center justify-center transition-all" type="button">
+<span class="material-symbols-outlined text-[18px]">download</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Course Linear Step Navigator (Previous / Mark Complete / Next) -->
+<nav aria-label="تنقل الدروس" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col sm:flex-row items-center justify-between gap-space-md">
+<!-- Previous Lesson Button -->
+<a class="w-full sm:w-auto px-5 py-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-lg text-label-lg font-semibold flex items-center justify-center gap-2 transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+<span>الدرس السابق: جمع وطرح المصفوفات</span>
+</a>
+<!-- Middle Complete Toggle CTA -->
+<button class="w-full sm:w-auto px-5 py-3 rounded-xl bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-label-lg text-label-lg font-bold flex items-center justify-center gap-2 transition-all" id="mark-complete-btn" type="button">
+<span class="material-symbols-outlined text-[20px]" id="complete-icon">check_circle</span>
+<span id="complete-text">تم الفهم — تحديد كمكتمل</span>
+</button>
+<!-- Next Lesson Button -->
+<a class="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-bold shadow-[0_4px_14px_rgba(37,99,235,0.25)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.35)] flex items-center justify-center gap-2 transition-all" href="#">
+<span>الدرس التالي: المحددات وقاعدة كرامر</span>
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</a>
+</nav>
+</div>
+<!-- ================= 30% SIDE RAIL ================= -->
+<aside class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- 1. Course Outline / Units & Lessons Card -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<!-- Header with Course Progress -->
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface font-bold">فهرس دروس الوحدة</span>
+<span class="font-label-sm text-on-surface-variant">الوحدة الثانية: المصفوفات والعمليات</span>
+</div>
+<span class="px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs font-bold">
+              ٦ / ١٤ درس مكتمل
+            </span>
+</div>
+<!-- Unit Progress Bar -->
+<div class="w-full flex flex-col gap-1.5">
+<div class="w-full h-2 rounded-full bg-surface-container overflow-hidden">
+<div class="h-full bg-gradient-to-l from-secondary to-primary rounded-full" style="width: 43%;"></div>
+</div>
+<div class="flex justify-between text-label-xs text-outline">
+<span>نسبة الإنجاز في الوحدة</span>
+<span class="font-bold text-primary">٤٣٪</span>
+</div>
+</div>
+<!-- Scrollable Lesson Items List -->
+<div class="flex flex-col gap-2 max-h-[380px] overflow-y-auto pr-1">
+<!-- Lesson 1 (Completed) -->
+<a class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-between group" href="#">
+<div class="flex items-center gap-3">
+<span class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</span>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors">الدرس ٠١: مقدمة في رتب المصفوفات</span>
+<span class="font-label-xs text-outline text-label-xs">تمت المشاهدة بنجاح</span>
+</div>
+</div>
+<span class="font-label-xs text-on-surface-variant">١٤ دقيقة</span>
+</a>
+<!-- Lesson 2 (Completed) -->
+<a class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors flex items-center justify-between group" href="#">
+<div class="flex items-center gap-3">
+<span class="w-7 h-7 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[18px]">check</span>
+</span>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-semibold text-on-surface group-hover:text-primary transition-colors">الدرس ٠٢: جمع وطرح المصفوفات</span>
+<span class="font-label-xs text-outline text-label-xs">تمت المشاهدة بنجاح</span>
+</div>
+</div>
+<span class="font-label-xs text-on-surface-variant">١٨ دقيقة</span>
+</a>
+<!-- Lesson 3 (Current Active Lesson) -->
+<div class="p-3 rounded-xl bg-secondary-fixed/20 relative flex items-center justify-between shadow-sm">
+<div class="absolute right-0 top-0 bottom-0 w-1.5 bg-primary rounded-r-xl"></div>
+<div class="flex items-center gap-3 pr-2">
+<span class="w-7 h-7 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_2px_8px_rgba(0,35,111,0.25)]">
+<span class="material-symbols-outlined text-[18px] animate-pulse">equalizer</span>
+</span>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-bold text-primary">الدرس ٠٣: ضرب المصفوفات وخصائصها</span>
+<span class="font-label-xs text-secondary font-bold text-label-xs">الدرس الحالي قيد المتابعة</span>
+</div>
+</div>
+<span class="font-label-xs font-bold text-primary">٢٤ دقيقة</span>
+</div>
+<!-- Lesson 4 (Locked) -->
+<div class="p-3 rounded-xl bg-surface-container-lowest/60 text-outline flex items-center justify-between cursor-not-allowed select-none">
+<div class="flex items-center gap-3">
+<span class="w-7 h-7 rounded-full bg-surface-container text-outline flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+</span>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-medium text-on-surface-variant/70">الدرس ٠٤: المحددات وقاعدة كرامر</span>
+<span class="font-label-xs text-outline-variant text-label-xs">يُفتح بعد إتمام الدرس الحالي</span>
+</div>
+</div>
+<span class="font-label-xs text-outline">٢٠ دقيقة</span>
+</div>
+<!-- Lesson 5 (Locked) -->
+<div class="p-3 rounded-xl bg-surface-container-lowest/60 text-outline flex items-center justify-between cursor-not-allowed select-none">
+<div class="flex items-center gap-3">
+<span class="w-7 h-7 rounded-full bg-surface-container text-outline flex items-center justify-center">
+<span class="material-symbols-outlined text-[16px]">lock</span>
+</span>
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-medium text-on-surface-variant/70">الدرس ٠٥: النظير الضربي للمصفوفة</span>
+<span class="font-label-xs text-outline-variant text-label-xs">مغلق</span>
+</div>
+</div>
+<span class="font-label-xs text-outline">١٦ دقيقة</span>
+</div>
+</div>
+<a class="w-full py-2 rounded-lg bg-surface-container-low hover:bg-surface-container text-center font-label-md text-label-md text-on-surface font-semibold transition-colors flex items-center justify-center gap-1" href="#">
+<span>عرض كافة وحدات المقرر (٥ وحدات)</span>
+<span class="material-symbols-outlined text-[16px] rotate-180">arrow_forward</span>
+</a>
+</div>
+<!-- 2. 'Smart Note Book' Card (دفتر ملاحظاتي الذكي) -->
+<div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="w-8 h-8 rounded-lg bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">edit_note</span>
+</span>
+<span class="font-title-md text-title-md text-on-surface font-bold">دفتر ملاحظاتي الذكي</span>
+</div>
+<!-- Auto-Save Chip -->
+<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 font-label-xs text-label-xs font-semibold" id="save-status-chip">
+<span class="material-symbols-outlined text-[14px]">done_all</span>
+<span>تم الحفظ تلقائياً</span>
+</span>
+</div>
+<!-- Textarea Input linked to timestamp -->
+<div class="flex flex-col gap-2">
+<div class="relative">
+<textarea class="w-full p-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary text-body-sm font-body-sm text-on-surface placeholder:text-outline outline-none resize-none transition-all" id="smart-note-input" placeholder="اكتب ملاحظتك المرتبطة بالدقيقة الحالية (08:42)..." rows="3"></textarea>
+<div class="absolute bottom-2 left-2 flex items-center gap-1">
+<button class="p-1 rounded-md text-outline hover:text-primary hover:bg-surface-container transition-colors" title="إدراج توقيت الفيديو الحالي" type="button">
+<span class="material-symbols-outlined text-[18px]">timer</span>
+</button>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-label-xs text-outline text-label-xs">تُربط الملاحظات بتوقيت الفيديو الحالي</span>
+<button class="px-3.5 py-1.5 rounded-lg bg-primary text-on-primary font-label-md text-label-md font-semibold hover:bg-primary-container transition-colors flex items-center gap-1" id="add-note-btn" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+<span>تدوين</span>
+</button>
+</div>
+</div>
+<!-- Chronological Stamped Notes List -->
+<div class="flex flex-col gap-2.5 pt-2" id="notes-list-container">
+<span class="font-label-md text-on-surface font-bold">ملاحظاتك السابقة في هذا الدرس:</span>
+<!-- Note Item 1 -->
+<div class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col gap-1 group/note cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-label-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">play_circle</span>
+                  03:15
+                </span>
+<button class="opacity-0 group-hover/note:opacity-100 text-outline hover:text-error transition-all" title="حذف">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface">
+                شرط تساوي عدد أعمدة المصفوفة الأولى مع عدد صفوف المصفوفة الثانية إلزامي لصحة العملية.
+              </p>
+</div>
+<!-- Note Item 2 -->
+<div class="p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col gap-1 group/note cursor-pointer">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-label-xs flex items-center gap-1">
+<span class="material-symbols-outlined text-[12px]">play_circle</span>
+                  06:40
+                </span>
+<button class="opacity-0 group-hover/note:opacity-100 text-outline hover:text-error transition-all" title="حذف">
+<span class="material-symbols-outlined text-[16px]">delete</span>
+</button>
+</div>
+<p class="text-body-sm font-body-sm text-on-surface">
+                المصفوفة المحايدة لعملية الضرب (I) لها قطر رئيسي من الآحاد وبقية العناصر أصفار.
+              </p>
+</div>
+</div>
+</div>
+</aside>
+</div>
+</div>
+<!-- Micro-interactions Script -->
+<script>
+    (function () {
+      // Toggle Complete State
+      const completeBtn = document.getElementById('mark-complete-btn');
+      const completeIcon = document.getElementById('complete-icon');
+      const completeText = document.getElementById('complete-text');
+      let isCompleted = false;
+
+      if (completeBtn) {
+        completeBtn.addEventListener('click', function () {
+          isCompleted = !isCompleted;
+          if (isCompleted) {
+            completeBtn.classList.remove('bg-emerald-50', 'text-emerald-700');
+            completeBtn.classList.add('bg-emerald-600', 'text-white');
+            completeIcon.textContent = 'verified';
+            completeText.textContent = 'مكتمل بنجاح ✓';
+          } else {
+            completeBtn.classList.add('bg-emerald-50', 'text-emerald-700');
+            completeBtn.classList.remove('bg-emerald-600', 'text-white');
+            completeIcon.textContent = 'check_circle';
+            completeText.textContent = 'تم الفهم — تحديد كمكتمل';
+          }
+        });
+      }
+
+      // Video Play / Pause Micro Interaction
+      const mainPlayBtn = document.getElementById('main-play-btn');
+      const subPlayBtn = document.getElementById('sub-play-btn');
+      const playBtnIcon = document.getElementById('play-btn-icon');
+      let isPlaying = false;
+
+      function togglePlay() {
+        isPlaying = !isPlaying;
+        if (playBtnIcon) {
+          playBtnIcon.textContent = isPlaying ? 'pause' : 'play_arrow';
+        }
+        if (subPlayBtn) {
+          const subIcon = subPlayBtn.querySelector('.material-symbols-outlined');
+          if (subIcon) subIcon.textContent = isPlaying ? 'pause' : 'play_arrow';
+        }
+      }
+
+      if (mainPlayBtn) mainPlayBtn.addEventListener('click', togglePlay);
+      if (subPlayBtn) subPlayBtn.addEventListener('click', togglePlay);
+
+      // Smart Notes Auto-Save Micro-interaction
+      const addNoteBtn = document.getElementById('add-note-btn');
+      const noteInput = document.getElementById('smart-note-input');
+      const notesContainer = document.getElementById('notes-list-container');
+      const saveChip = document.getElementById('save-status-chip');
+
+      if (addNoteBtn && noteInput && notesContainer) {
+        addNoteBtn.addEventListener('click', function () {
+          const text = noteInput.value.trim();
+          if (!text) return;
+
+          const newNote = document.createElement('div');
+          newNote.className = 'p-3 rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors flex flex-col gap-1 group/note cursor-pointer';
+          newNote.innerHTML = `
+            <div class="flex items-center justify-between">
+              <span class="px-2 py-0.5 rounded bg-primary/10 text-primary font-mono font-bold text-label-xs flex items-center gap-1">
+                <span class="material-symbols-outlined text-[12px]">play_circle</span>
+                08:42
+              </span>
+              <button class="opacity-0 group-hover/note:opacity-100 text-outline hover:text-error transition-all" title="حذف">
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+              </button>
+            </div>
+            <p class="text-body-sm font-body-sm text-on-surface">
+              ${text.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+            </p>
+          `;
+
+          notesContainer.appendChild(newNote);
+          noteInput.value = '';
+
+          // Temporarily pulse the auto-save indicator
+          if (saveChip) {
+            saveChip.innerHTML = '<span class="material-symbols-outlined text-[14px] animate-spin">sync</span><span>جارٍ الحفظ...</span>';
+            setTimeout(() => {
+              saveChip.innerHTML = '<span class="material-symbols-outlined text-[14px]">done_all</span><span>تم الحفظ تلقائياً</span>';
+            }, 500);
+          }
+        });
+      }
+
+      // Timeline Scrubber Interaction Simulation
+      const timelineContainer = document.getElementById('timeline-container');
+      const timelineProgress = document.getElementById('timeline-progress');
+      const timelineThumb = document.getElementById('timeline-thumb');
+
+      if (timelineContainer && timelineProgress && timelineThumb) {
+        timelineContainer.addEventListener('click', function (e) {
+          const rect = timelineContainer.getBoundingClientRect();
+          // RTL calculation: distance from right edge
+          const clickFromRight = rect.right - e.clientX;
+          let percent = (clickFromRight / rect.width) * 100;
+          percent = Math.max(0, Math.min(100, percent));
+          
+          timelineProgress.style.width = percent + '%';
+          timelineThumb.style.right = percent + '%';
+        });
+      }
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest mt-space-xl"><div class="w-full px-gutter py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-label-md text-label-md text-on-surface">منصتي التعليمية الذكية © 2025</span></div><div class="flex items-center gap-space-lg font-label-sm text-label-md"><a class="hover:text-primary transition-colors" href="#">شروط الاستخدام</a><a class="hover:text-primary transition-colors" href="#">سياسة الخصوصية</a><a class="hover:text-primary transition-colors" href="#">الدعم الفني والمساعدة</a></div></div></footer></body></html>

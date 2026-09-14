@@ -58,12 +58,32 @@ def create_app(config_class=Config):
 
     @app.context_processor
     def inject_globals():
-        return {
+        # Base branding vars — always available in every template.
+        ctx = {
             "app_name": "منصتي",
             "app_name_en": "Manasety",
             "app_tagline": "منصة التعلم الذكية للمدارس",
             "school_name": app.config["DEFAULT_SCHOOL_NAME"],
         }
+        # Per-request extras for the Stitch topbar (active year + notifications).
+        try:
+            from flask_login import current_user
+            from .models import AcademicYear, NotificationLog
+            if current_user.is_authenticated:
+                sid = getattr(current_user, "school_id", None)
+                if sid:
+                    year = AcademicYear.query.filter_by(
+                        school_id=sid, status="active"
+                    ).first()
+                    if year:
+                        ctx["active_year"] = year.name
+                    ctx["topbar_notifications_count"] = NotificationLog.query.filter_by(
+                        school_id=sid, read_at=None
+                    ).count()
+        except Exception:
+            # never let context enrichment blank a page
+            pass
+        return ctx
 
     @app.errorhandler(401)
     def err_401(_):

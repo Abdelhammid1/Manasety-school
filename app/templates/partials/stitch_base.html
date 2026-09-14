@@ -1,0 +1,256 @@
+{#
+  Manasety Stitch base template.
+  All Stitch-ported screens extend this. Provides:
+    - Tailwind CDN + brand config (all Stitch colors/typography tokens)
+    - Baloo Bhaijaan 2 (Arabic UI) + Nunito (Latin) + Plus Jakarta Sans (fallback)
+    - Material Symbols Outlined
+    - The optional app shell: sidebar (State A expanded / B mini / C hidden) +
+      topbar. Focus-mode pages (login, error, quiz-taking) set
+      block shell_hidden=true to skip the shell.
+    - Global sidebar-toggle + modal-backdrop JavaScript.
+#}
+<!DOCTYPE html>
+<html dir="rtl" lang="ar" data-role="{{ (current_user.role.name if current_user.is_authenticated and current_user.role else 'guest') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
+  <meta name="description" content="{% block description %}منصتي — منصة التعلم الذكية للمدارس{% endblock %}">
+
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+
+  {# Fonts — self-hosted Manasety + Google Plus Jakarta Sans + Material Symbols #}
+  <style>
+    @font-face{font-family:"Baloo Bhaijaan 2";src:url("{{ url_for('static', filename='fonts/BalooBhaijaan2.ttf') }}") format("truetype-variations"),url("{{ url_for('static', filename='fonts/BalooBhaijaan2.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
+    @font-face{font-family:"Nunito";src:url("{{ url_for('static', filename='fonts/Nunito.ttf') }}") format("truetype-variations"),url("{{ url_for('static', filename='fonts/Nunito.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+
+  {# Tailwind (Play CDN) — the Stitch designs are Tailwind-based. #}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            // Manasety canonical (from DESIGN.md v2 + Stitch shell files)
+            'navy':                     '#0c2461',
+            'navy-surface':             '#0c2461',
+            'navy-active':              'rgba(255,255,255,0.06)',
+            'primary':                  '#00236f',
+            'primary-container':        '#1e3a8a',
+            'primary-fixed':            '#dce1ff',
+            'primary-fixed-dim':        '#b6c4ff',
+            'on-primary':               '#ffffff',
+            'on-primary-container':     '#90a8ff',
+            'on-primary-fixed':         '#00164e',
+            'on-primary-fixed-variant': '#264191',
+            'secondary':                '#0051d5',
+            'secondary-container':      '#eff6ff',
+            'secondary-fixed':          '#dbe1ff',
+            'secondary-fixed-dim':      '#b4c5ff',
+            'on-secondary':             '#ffffff',
+            'on-secondary-container':   '#fefcff',
+            'on-secondary-fixed':       '#00174b',
+            'on-secondary-fixed-variant':'#003ea8',
+            'tertiary':                 '#002e40',
+            'tertiary-container':       '#e0f2fe',
+            'tertiary-fixed':           '#c3e8ff',
+            'tertiary-fixed-dim':       '#78d1ff',
+            'on-tertiary':              '#ffffff',
+            'on-tertiary-container':    '#42b7eb',
+            'on-tertiary-fixed':        '#001e2c',
+            'on-tertiary-fixed-variant':'#004c68',
+            'sidebar-icon':             '#dbe7ff',
+            'inverse-primary':          '#b6c4ff',
+            'inverse-surface':          '#2d3133',
+            'inverse-on-surface':       '#eff1f4',
+            'surface':                  '#f7f9fc',
+            'surface-bright':           '#f7f9fc',
+            'surface-dim':              '#d8dadd',
+            'surface-variant':          '#e0e3e6',
+            'surface-tint':             '#4059aa',
+            'surface-container-lowest': '#ffffff',
+            'surface-container-low':    '#f2f4f7',
+            'surface-container':        '#eceef1',
+            'surface-container-high':   '#e6e8eb',
+            'surface-container-highest':'#dce1eb',
+            'on-surface':               '#191c1e',
+            'on-surface-variant':       '#444651',
+            'outline':                  '#cbd5e1',
+            'outline-variant':          '#e2e8f0',
+            'error':                    '#ba1a1a',
+            'error-container':          '#ffdad6',
+            'on-error':                 '#ffffff',
+            'on-error-container':       '#93000a',
+            'success':                  '#10b981',
+            'warning':                  '#f59e0b',
+            'danger':                   '#ef4444',
+            'modal-backdrop':           'rgba(12,36,97,0.40)',
+            'background':               '#f7f9fc',
+            'on-background':            '#191c1e',
+          },
+          borderRadius: { 'DEFAULT': '0.25rem', 'lg': '0.5rem', 'xl': '0.75rem', 'full': '9999px' },
+          spacing: {
+            'space-xs':'0.25rem','space-sm':'0.5rem','space-md':'1rem',
+            'space-lg':'1.5rem','space-xl':'2rem','gutter':'1.5rem',
+            'gutter-sm':'1rem','margin':'1.5rem','margin-sm':'1rem'
+          },
+          fontFamily: {
+            'body':       ['"Baloo Bhaijaan 2"','Nunito','"Plus Jakarta Sans"','system-ui','sans-serif'],
+            'headline-lg':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'headline-md':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'headline-sm':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'headline-lg-mobile':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'display-lg':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'display-lg-mobile':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'display-hero':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'display-hero-mobile':['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'title-md':   ['"Baloo Bhaijaan 2"','"Plus Jakarta Sans"','sans-serif'],
+            'body-lg':    ['"Baloo Bhaijaan 2"','Nunito','"Plus Jakarta Sans"','sans-serif'],
+            'body-md':    ['"Baloo Bhaijaan 2"','Nunito','"Plus Jakarta Sans"','sans-serif'],
+            'body-sm':    ['"Baloo Bhaijaan 2"','Nunito','"Plus Jakarta Sans"','sans-serif'],
+            'label-lg':   ['Nunito','"Plus Jakarta Sans"','sans-serif'],
+            'label-md':   ['Nunito','"Plus Jakarta Sans"','sans-serif'],
+            'label-sm':   ['Nunito','"Plus Jakarta Sans"','sans-serif'],
+            'label-xs':   ['Nunito','"Plus Jakarta Sans"','sans-serif']
+          },
+          fontSize: {
+            'display-lg':        ['40px',{'lineHeight':'52px','fontWeight':'700'}],
+            'display-lg-mobile': ['30px',{'lineHeight':'40px','fontWeight':'700'}],
+            'display-hero':      ['40px',{'lineHeight':'64px','fontWeight':'800'}],
+            'display-hero-mobile':['28px',{'lineHeight':'44px','fontWeight':'800'}],
+            'headline-lg':       ['32px',{'lineHeight':'42px','fontWeight':'700'}],
+            'headline-lg-mobile':['26px',{'lineHeight':'34px','fontWeight':'700'}],
+            'headline-md':       ['24px',{'lineHeight':'32px','fontWeight':'600'}],
+            'headline-sm':       ['20px',{'lineHeight':'28px','fontWeight':'600'}],
+            'title-md':          ['18px',{'lineHeight':'26px','fontWeight':'600'}],
+            'body-lg':           ['16px',{'lineHeight':'24px','fontWeight':'400'}],
+            'body-md':           ['14px',{'lineHeight':'22px','fontWeight':'400'}],
+            'body-sm':           ['14px',{'lineHeight':'24px','fontWeight':'400'}],
+            'label-lg':          ['14px',{'lineHeight':'20px','fontWeight':'600'}],
+            'label-md':          ['12px',{'lineHeight':'18px','fontWeight':'600'}],
+            'label-sm':          ['11px',{'lineHeight':'16px','fontWeight':'500'}],
+            'label-xs':          ['11px',{'lineHeight':'16px','fontWeight':'700'}]
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    html,body{margin:0;padding:0;font-family:"Baloo Bhaijaan 2","Nunito","Plus Jakarta Sans",system-ui,sans-serif}
+    body{background:#f7f9fc;color:#191c1e;line-height:1.65}
+    ::-webkit-scrollbar{width:6px;height:6px}
+    ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+
+    /* Sidebar states — driven by <body> classes */
+    .transition-sidebar{transition:all 220ms cubic-bezier(0.4,0,0.2,1)}
+    body.sidebar-mini #app-sidebar{width:72px}
+    body.sidebar-mini #app-sidebar .nav-label,
+    body.sidebar-mini #app-sidebar .search-box,
+    body.sidebar-mini #app-sidebar .brand-text,
+    body.sidebar-mini #app-sidebar .nav-group-label{display:none}
+    body.sidebar-mini #app-sidebar .nav-link{justify-content:center;padding-left:0;padding-right:0}
+    body.sidebar-mini #app-sidebar .nav-link .tooltip{display:block}
+    body.sidebar-mini #app-main-wrapper{padding-right:72px}
+    body.sidebar-mini #app-topnav{right:72px}
+    body.sidebar-mini #toggle-icon{transform:rotate(180deg)}
+    @media (max-width:900px){
+      body:not(.sidebar-mobile-open) #app-sidebar{transform:translateX(100%)}
+      #app-main-wrapper{padding-right:0!important}
+      #app-topnav{right:0!important}
+    }
+
+    /* Modal backdrop */
+    .modal-open{overflow:hidden}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(12,36,97,0.4);backdrop-filter:blur(8px);z-index:60;display:flex;align-items:center;justify-content:center;padding:1rem}
+    .modal-backdrop[hidden]{display:none}
+    .modal-card{background:#fff;border-radius:16px;box-shadow:0 20px 40px rgba(12,36,97,0.16);width:100%;max-height:90vh;overflow-y:auto}
+    .modal-card.size-standard{max-width:720px}
+    .modal-card.size-split{max-width:960px}
+
+    /* Hide the utility-band Stitch design-system callouts on real pages */
+    .stitch-doc-band{display:none}
+  </style>
+
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-surface font-body text-body-md text-on-surface antialiased{% block body_class %}{% endblock %}">
+  {% if shell_hidden %}
+    {# Focus mode — no sidebar, no topbar. Used by auth, errors, quiz-taking. #}
+    {% block focus_content %}{% endblock %}
+  {% else %}
+    {# Full app shell #}
+    {% include "partials/stitch_sidebar.html" %}
+    <div id="app-main-wrapper" class="pr-[280px] transition-sidebar min-h-screen flex flex-col">
+      {% include "partials/stitch_topbar.html" %}
+      <main class="relative pt-16 w-full px-space-lg flex-1 bg-surface">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            <div class="mt-4 flex flex-col gap-2">
+              {% for category, msg in messages %}
+                <div class="px-4 py-3 rounded-lg font-label-lg text-label-lg
+                  {% if category=='error' or category=='danger' %}bg-error-container text-on-error-container
+                  {% elif category=='success' %}bg-secondary-container text-secondary
+                  {% elif category=='warning' %}bg-tertiary-fixed text-on-tertiary-fixed-variant
+                  {% else %}bg-surface-container text-on-surface{% endif %}">{{ msg }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endwith %}
+        <div class="w-full pb-space-xl">
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+    </div>
+  {% endif %}
+
+  {# Modal mount point — pages/JS push modals here #}
+  <div id="modal-mount"></div>
+
+  <script>
+    // Restore sidebar state
+    try {
+      if (localStorage.getItem('sidebarState') === 'mini') document.body.classList.add('sidebar-mini');
+    } catch (_) {}
+    // Toggle handler
+    window.toggleSidebar = function () {
+      document.body.classList.toggle('sidebar-mini');
+      try { localStorage.setItem('sidebarState', document.body.classList.contains('sidebar-mini') ? 'mini' : 'expanded'); } catch (_) {}
+    };
+    window.toggleSidebarMobile = function () {
+      document.body.classList.toggle('sidebar-mobile-open');
+    };
+
+    // Modal helpers — pages use openModal('#some-modal')
+    window.openModal = function (sel) {
+      const m = typeof sel === 'string' ? document.querySelector(sel) : sel;
+      if (!m) return;
+      m.removeAttribute('hidden');
+      document.body.classList.add('modal-open');
+    };
+    window.closeModal = function (sel) {
+      const m = typeof sel === 'string' ? document.querySelector(sel) : sel;
+      if (!m) return;
+      m.setAttribute('hidden', '');
+      document.body.classList.remove('modal-open');
+    };
+    document.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t.hasAttribute && t.hasAttribute('data-modal-open')) window.openModal(t.getAttribute('data-modal-open'));
+      if (t.hasAttribute && t.hasAttribute('data-modal-close')) {
+        const card = t.closest('.modal-backdrop'); if (card) window.closeModal(card);
+      }
+      if (t.classList && t.classList.contains('modal-backdrop')) window.closeModal(t);
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') document.querySelectorAll('.modal-backdrop:not([hidden])').forEach(m => window.closeModal(m));
+    });
+  </script>
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

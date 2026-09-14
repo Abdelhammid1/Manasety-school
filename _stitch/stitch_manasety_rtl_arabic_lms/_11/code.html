@@ -1,0 +1,846 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=Nunito+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "background": "#f7f9fc",
+          "inverse-primary": "#b6c4ff",
+          "surface-variant": "#e0e3e6",
+          "on-secondary-fixed-variant": "#004c68",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "outline-variant": "#c5c5d3",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "inverse-on-surface": "#eff1f4",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed": "#001e2c",
+          "on-tertiary-fixed": "#00174b",
+          "on-secondary-container": "#005371",
+          "secondary": "#006689",
+          "on-surface": "#191c1e",
+          "surface-bright": "#f7f9fc",
+          "error": "#ba1a1a",
+          "on-primary-fixed-variant": "#264191",
+          "surface-dim": "#d8dadd",
+          "surface-container-lowest": "#ffffff",
+          "tertiary": "#00246b",
+          "error-container": "#ffdad6",
+          "surface-container-highest": "#e0e3e6",
+          "tertiary-fixed": "#dbe1ff",
+          "on-error-container": "#93000a",
+          "on-tertiary": "#ffffff",
+          "primary-container": "#1e3a8a",
+          "on-primary-fixed": "#00164e",
+          "on-error": "#ffffff",
+          "on-primary-container": "#90a8ff",
+          "primary": "#00236f",
+          "on-primary": "#ffffff",
+          "outline": "#757682",
+          "on-tertiary-container": "#8da9ff",
+          "surface-container-high": "#e6e8eb",
+          "secondary-fixed-dim": "#78d1ff",
+          "surface": "#f7f9fc",
+          "secondary-fixed": "#c3e8ff",
+          "surface-container-low": "#f2f4f7",
+          "primary-fixed": "#dce1ff",
+          "secondary-container": "#5bcaff",
+          "inverse-surface": "#2d3133",
+          "on-surface-variant": "#444651",
+          "on-background": "#191c1e",
+          "tertiary-container": "#00389a",
+          "primary-fixed-dim": "#b6c4ff",
+          "surface-container": "#eceef1",
+          "surface-tint": "#4059aa"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-lg": "1.5rem",
+          "gutter": "1.5rem",
+          "margin": "2rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-md": "1rem",
+          "space-xl": "2.5rem"
+        },
+        "fontFamily": {
+          "title-md": [
+            "Plus Jakarta Sans"
+          ],
+          "body-md": [
+            "Nunito Sans"
+          ],
+          "display-hero": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-md": [
+            "Plus Jakarta Sans"
+          ],
+          "label-lg": [
+            "Nunito Sans"
+          ],
+          "headline-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "label-xs": [
+            "Nunito Sans"
+          ],
+          "display-hero-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-sm": [
+            "Nunito Sans"
+          ],
+          "headline-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-lg": [
+            "Nunito Sans"
+          ],
+          "headline-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "label-md": [
+            "Nunito Sans"
+          ]
+        },
+        "fontSize": {
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "30px",
+              "fontWeight": "600"
+            }
+          ],
+          "body-md": [
+            "16px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "400"
+            }
+          ],
+          "display-hero": [
+            "40px",
+            {
+              "lineHeight": "64px",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "22px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "600"
+            }
+          ],
+          "label-xs": [
+            "11px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "700"
+            }
+          ],
+          "display-hero-mobile": [
+            "28px",
+            {
+              "lineHeight": "44px",
+              "fontWeight": "800"
+            }
+          ],
+          "body-sm": [
+            "14px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg-mobile": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "18px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg": [
+            "32px",
+            {
+              "lineHeight": "52px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-background font-body-md text-body-md text-on-background min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_4px_20px_rgba(12,36,97,0.06)]"><div class="h-20 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-headline-sm text-headline-sm text-primary">منصتي</span></div><div class="hidden xl:flex items-center bg-surface-container-low rounded-full px-space-md py-space-xs gap-space-xs w-72"><span class="material-symbols-outlined text-outline">search</span><input class="bg-transparent border-none outline-none font-body-sm text-body-sm text-on-surface placeholder:text-outline w-full text-right" placeholder="البحث عن الدروس، المقررات، الواجبات..." type="search"/></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-title-md"><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="dashboard" href="#">الرئيسية</a><a aria-current="page" class="px-space-md py-space-xs rounded-lg transition-colors bg-primary-container text-on-primary font-title-md" data-path="courses" href="#">موادي والمقررات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assignments" href="#">الواجبات والأنشطة</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assessments" href="#">الاختبارات والتقييمات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="schedule" href="#">الجدول الأكاديمي</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="reports" href="#">التقارير</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center bg-surface-container rounded-full p-space-xs"><button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-[0_2px_8px_rgba(0,35,111,0.2)]" type="button">معلم</button><button class="px-space-md py-space-xs rounded-full text-on-surface-variant font-label-xs text-label-xs hover:text-on-surface" type="button">طالب</button></div><button aria-label="التنبيهات" class="relative p-space-xs rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-secondary"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. أحمد السعيد</span><span class="font-label-xs text-label-xs text-on-surface-variant">المرحلة الثانوية</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></div></header><main class="w-full pt-20 bg-background"><div class="flex flex-col w-full px-gutter pb-32">
+<!-- Subtle Ambient Glows -->
+<div class="relative w-full max-w-7xl mx-auto">
+<div class="absolute -top-12 right-1/4 w-96 h-96 bg-secondary/5 rounded-full blur-3xl pointer-events-none"></div>
+<div class="absolute top-48 left-10 w-80 h-80 bg-primary/5 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Header Meta & Action Strip -->
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md py-space-md">
+<!-- Title & Academic Context -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-sm flex-wrap">
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm" style="font-variation-settings: 'FILL' 1;">menu_book</span>
+            الصف التاسع (أ)
+          </span>
+<span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary font-label-md text-label-md font-semibold">
+<span class="material-symbols-outlined text-sm">schedule</span>
+            الحصة الثانية: الرياضيات المتقدمة
+          </span>
+<span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs">
+            معمل الخوارزمي
+          </span>
+</div>
+<div class="flex items-baseline gap-3 flex-wrap mt-1">
+<h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">رصد الحضور والغياب الذكي</h1>
+<span class="font-body-sm text-body-sm text-outline font-normal">سجل الرصد المباشر لليوم الدراسي</span>
+</div>
+</div>
+<!-- Date Switcher & Finalize Action -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<!-- Dual Calendar Widget -->
+<div class="flex items-center bg-surface-container-lowest shadow-sm rounded-xl px-3 py-2 gap-2 text-on-surface">
+<span class="material-symbols-outlined text-secondary text-xl">calendar_today</span>
+<div class="flex flex-col text-right">
+<span class="font-label-md text-label-md font-bold text-primary">هجري: ٢٤ شعبان ١٤٤٦ هـ</span>
+<span class="font-label-xs text-label-xs text-outline">ميلادي: ٢٣ فبراير ٢٠٢٥ م</span>
+</div>
+<button class="p-1 text-outline hover:text-primary hover:bg-surface-container rounded-lg transition-colors" title="اختيار تاريخ آخر" type="button">
+<span class="material-symbols-outlined text-lg">expand_more</span>
+</button>
+</div>
+<!-- Lock Day Button -->
+<button class="h-12 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all transform active:scale-95" id="lockDayBtn" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);" type="button">
+<span class="material-symbols-outlined text-xl">verified</span>
+<span>إغلاق اليوم والرصد النهائي</span>
+</button>
+</div>
+</div>
+<!-- Summary Metrics Quad (4 Stat Tiles with Circular Rings) -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md my-space-md">
+<!-- 1. Present Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
+<div class="absolute right-0 top-0 bottom-0 w-1.5 bg-[#10B981]"></div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">الطلاب الحاضرون</span>
+<div class="flex items-baseline gap-1.5">
+<span class="font-display-hero text-headline-lg font-bold text-on-surface" id="statPresentCount">٢٠</span>
+<span class="font-label-sm text-label-xs text-outline">/ ٢٤ طالباً</span>
+</div>
+<span class="font-label-xs text-label-xs text-[#059669] font-bold">نسبة ممتازة +٤٪ عن الأمس</span>
+</div>
+<div class="relative w-14 h-14 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 40 40">
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#E1E6EE" stroke-width="3.5"></circle>
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#10B981" stroke-dasharray="100.5" stroke-dashoffset="16.7" stroke-linecap="round" stroke-width="3.5"></circle>
+</svg>
+<span class="absolute font-label-xs text-label-xs font-bold text-on-surface">٨٣٪</span>
+</div>
+</div>
+<!-- 2. Absent Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
+<div class="absolute right-0 top-0 bottom-0 w-1.5 bg-[#EF4444]"></div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">الغياب بدون عذر</span>
+<div class="flex items-baseline gap-1.5">
+<span class="font-display-hero text-headline-lg font-bold text-on-surface" id="statAbsentCount">٢</span>
+<span class="font-label-sm text-label-xs text-outline">/ ٢٤ طالباً</span>
+</div>
+<span class="font-label-xs text-label-xs text-[#DC2626] font-semibold">إشعار ولي الأمر مفعل</span>
+</div>
+<div class="relative w-14 h-14 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 40 40">
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#E1E6EE" stroke-width="3.5"></circle>
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#EF4444" stroke-dasharray="100.5" stroke-dashoffset="92.1" stroke-linecap="round" stroke-width="3.5"></circle>
+</svg>
+<span class="absolute font-label-xs text-label-xs font-bold text-on-surface">٨.٣٪</span>
+</div>
+</div>
+<!-- 3. Late Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
+<div class="absolute right-0 top-0 bottom-0 w-1.5 bg-[#F59E0B]"></div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">حالات التأخير</span>
+<div class="flex items-baseline gap-1.5">
+<span class="font-display-hero text-headline-lg font-bold text-on-surface" id="statLateCount">١</span>
+<span class="font-label-sm text-label-xs text-outline">/ ٢٤ طالباً</span>
+</div>
+<span class="font-label-xs text-label-xs text-[#D97706] font-semibold">متوسط التأخير: ٨ دقائق</span>
+</div>
+<div class="relative w-14 h-14 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 40 40">
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#E1E6EE" stroke-width="3.5"></circle>
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#F59E0B" stroke-dasharray="100.5" stroke-dashoffset="96.3" stroke-linecap="round" stroke-width="3.5"></circle>
+</svg>
+<span class="absolute font-label-xs text-label-xs font-bold text-on-surface">٤.٢٪</span>
+</div>
+</div>
+<!-- 4. Excused Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between relative overflow-hidden group hover:shadow-md transition-all">
+<div class="absolute right-0 top-0 bottom-0 w-1.5 bg-[#64748B]"></div>
+<div class="flex flex-col gap-0.5">
+<span class="font-label-md text-label-md text-on-surface-variant font-medium">مستأذن بعذر طبي</span>
+<div class="flex items-baseline gap-1.5">
+<span class="font-display-hero text-headline-lg font-bold text-on-surface" id="statExcusedCount">١</span>
+<span class="font-label-sm text-label-xs text-outline">/ ٢٤ طالباً</span>
+</div>
+<span class="font-label-xs text-label-xs text-[#475569] font-semibold">معتمد من الإدارة المدرسية</span>
+</div>
+<div class="relative w-14 h-14 flex items-center justify-center">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 40 40">
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#E1E6EE" stroke-width="3.5"></circle>
+<circle cx="20" cy="20" fill="transparent" r="16" stroke="#64748B" stroke-dasharray="100.5" stroke-dashoffset="96.3" stroke-linecap="round" stroke-width="3.5"></circle>
+</svg>
+<span class="absolute font-label-xs text-label-xs font-bold text-on-surface">٤.٢٪</span>
+</div>
+</div>
+</div>
+<!-- Quick Control Bar & Mode Tools -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-space-md my-space-md">
+<!-- Left Action Buttons (RTL Order) -->
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="px-4 py-2.5 rounded-lg bg-[#ECFDF5] text-[#047857] hover:bg-[#D1FAE5] font-title-md text-body-sm font-semibold flex items-center gap-1.5 transition-colors" id="markAllPresentBtn" type="button">
+<span class="material-symbols-outlined text-lg font-bold">done_all</span>
+<span>تحديد الكل حاضر ✓</span>
+</button>
+<button class="px-4 py-2.5 rounded-lg bg-[#FEF2F2] text-[#B91C1C] hover:bg-[#FEE2E2] font-title-md text-body-sm font-semibold flex items-center gap-1.5 transition-colors" id="markAllAbsentBtn" type="button">
+<span class="material-symbols-outlined text-lg">close</span>
+<span>تحديد الكل غائب ✕</span>
+</button>
+<button class="px-4 py-2.5 rounded-lg text-primary hover:bg-surface-container font-title-md text-body-sm font-semibold flex items-center gap-1.5 transition-colors" id="importPreviousBtn" type="button">
+<span class="material-symbols-outlined text-lg">history</span>
+<span>استيراد من الحصة السابقة ↺</span>
+</button>
+</div>
+<!-- Right Metadata Indicators -->
+<div class="flex items-center gap-space-md">
+<!-- Live Pill Counter -->
+<div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface-container text-on-surface font-label-md text-label-md">
+<span class="w-2.5 h-2.5 rounded-full bg-[#10B981] animate-pulse"></span>
+<span id="auditPillLabel">تم رصد ٢٢ من ٢٤ طالباً</span>
+</div>
+<!-- Filter / Search Quick Input -->
+<div class="relative hidden sm:flex items-center">
+<span class="material-symbols-outlined absolute right-3 text-outline text-lg">search</span>
+<input class="bg-surface-container-low text-on-surface font-body-sm text-body-sm rounded-lg pr-9 pl-3 py-1.5 outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 transition-all w-44" id="studentSearchInput" placeholder="بحث بالاسم أو الرقم..." type="text"/>
+</div>
+</div>
+</div>
+<!-- STUDENT GRID: Primary Attendance Surface -->
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-space-md mt-space-md" id="studentsGrid">
+<!-- Student Card 1 -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="101" data-status="present">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#10B981] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#101-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait photo of an adolescent male Saudi middle school student with short neat black hair wearing a crisp traditional white thobe, friendly smile, clean soft studio lighting, edtech profile shot, high clarity, modern aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAxk-66sn9Fq63K1JVIM4EsHtQ0WwCh2q9mEIa4IO8U-udxGeZFFG6clCDnvGJVCPuuXtZU3n9i1byyNrBHpocHQICToK1BrlWxtCUGOuTgYUPxTIGh_YGuRlpOCiUia3Y8_7lHfRayUylF6YHrnsNL1cw5E-2X8JwAkZQsZBh7KS66aZUSou_IEDi8RTWCEKTeDCqucM8boh6zxyC94k1dCI68slS30HdSQzRrqNMFNglYWZsD1qvG6g"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#10B981] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">عمر عبد العزيز الراجحي</h3>
+<span class="font-label-xs text-label-xs text-on-surface-variant">المعدل: ٩٨.٤٪ • ملتزم</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5]" type="button">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="status-text">حاضر</span>
+</button>
+</div>
+<!-- Student Card 2 -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="102" data-status="present">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#10B981] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#102-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait of a young female Arab student in a modest modern navy school uniform, warm soft expression, natural school library bokeh background, bright clean light, high detail" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAwN357_Ihyz9btnO_MgwXM96z_bU9QEfrnjRijc-2tmzVeKQOaBWUo0eWWyOVkQWiuiqX-NYZyy1VLzezRq7uSiTwxHTo54LHp_tcBdstQV13hEs0HhiWrvIUW1zQOINg6zFKgMnIg_CnEH5UE1swbB0OD_bSen3CqXpQq3-dW8-HLhsMafLcUSFE95QqfaI-TCWh6YdlYtpAZDx2z4FbV1BcplpzNclaiqFuxJZx-SmpKwKqc7qH4DA"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#10B981] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">سارة محمد الغامدي</h3>
+<span class="font-label-xs text-label-xs text-on-surface-variant">المعدل: ٩٩.١٪ • عريفة الصف</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5]" type="button">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="status-text">حاضر</span>
+</button>
+</div>
+<!-- Student Card 3 (Late) -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="103" data-status="late">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#F59E0B] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#103-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait of an intelligent teenage boy with black curly hair and light brown skin wearing school attire, modern digital classroom ambiance, calm demeanor, authentic photo" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCaywzxg1Ox6RkgigXtqqp1fw-FiSc-8u2BxrBcn_9rfAqQSsTUDfRjfxIoEqAFYEQUYYgtpAP2mimS8KwaOsneiVbQTcOXFF9VUNBfcAHSguyoVooqsr1es9ntEY2Hpnq6TcrNtAByZDi9P5STWcGhPtvvdlw4Sr2gWWMfeVMS2vhWHNOENvoiLW_EY41BRnfrQtlhYEsbcgyBMYkek22ScR-c_d3Co5sRKqIoAup8yO_A-lPBtA6R0A"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#F59E0B] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">⏱</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">يوسف إبراهيم الزهراني</h3>
+<span class="font-label-xs text-label-xs text-[#D97706] font-semibold">تأخر: ١٠ دقائق</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#FEF3C7] text-[#D97706] hover:bg-[#FDE68A]" type="button">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span class="status-text">متأخر</span>
+</button>
+</div>
+<!-- Student Card 4 (Absent) -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="104" data-status="absent">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#EF4444] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#104-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant opacity-75" data-alt="Headshot of a middle school student wearing white Saudi thobe, facing front with neutral expression, soft lighting against light slate background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDI1FfoMbZJJaKVR3EmLaEklWJuwr1cH48HyrcJhhqdAONZwYFtbEgV7JCvBuZT5iXt8vm9tgj4JL96WOH-V8gDVOT5qTQAVDOoNkLTk6HKYx8G4FFGf2nXIXfyT7uCMeFcYl_I_AlXBo_Gnw3ZXQRsD079uIBXcUz2Opfb-nrN1trZSQHfoHtPPW8nQ_3J7KhS4-T0HXGZ2SodAfiYzMzDJ7o--8wPY5fTjdaDNoQ5Po2p2f4N9AbdKQ"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#EF4444] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">✕</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">خالد فهد القحطاني</h3>
+<span class="font-label-xs text-label-xs text-[#DC2626] font-semibold">غياب بدون عذر</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#FEE2E2] text-[#DC2626] hover:bg-[#FECACA]" type="button">
+<span class="material-symbols-outlined text-sm">cancel</span>
+<span class="status-text">غائب</span>
+</button>
+</div>
+<!-- Student Card 5 -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="105" data-status="present">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#10B981] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#105-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait of a focused middle school Arab student boy, bright friendly smile, modern school uniform, high quality studio portrait" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCyu0cOIj5dNdwxCOpnbjSsMd9Iq-Hl9iD1KGzqPGdZtvkPKAufWrClyXc6v6FoyYMh5NqG0P3OTvyo8rUusS2e-_zTXeiA3jhpU9AhE-gfNbTW78dAEt6-ikrAvY5aCPJ-R5ITrF9G3dkWl-RG99TboljDjUjMDf7HKg04kmSMmuvVt4FMgL72_aX0eZTr89qJhDFX-uReZUl5uAXfhGBlvaoXImc7yb1iWjxde976VSpbc-1gzB7l9g"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#10B981] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">بدر سلطان العتيبي</h3>
+<span class="font-label-xs text-label-xs text-on-surface-variant">المعدل: ٩٤.٠٪ • حاضر مبكراً</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5]" type="button">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="status-text">حاضر</span>
+</button>
+</div>
+<!-- Student Card 6 (Excused) -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="106" data-status="excused">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#64748B] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#106-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait of an Arab schoolboy with spectacles wearing clean thobe, thoughtful expression, soft ambient classroom background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC0o5n18rIYFe0HLWh9yNzjsZH77mSlRWu9T_cUFx7qZRupC9PXykbRVqc6dAm9H7gxnn7Vu3vq627DWKsxiqcYThZ06GGGDotKpzbaxUwm-Pr876cHId8NDuyaizGRplra25jihHwE8pJWHo6Chf7hRQJx6EjgTU_qWLJJlrQWhh-Tbu72S0k6vHUG_qJZHwXRo5X6CR4Jw2YlrpDsHMTNa_py1wvVz_ZUEJu0OORm5oVE0WoM6wY-cA"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#64748B] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">📄</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">فهد مشعل الدوسري</h3>
+<span class="font-label-xs text-label-xs text-[#475569] font-semibold">إجازة مرضية معتمدة</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#F1F5F9] text-[#475569] hover:bg-[#E2E8F0]" type="button">
+<span class="material-symbols-outlined text-sm">description</span>
+<span class="status-text">مستأذن</span>
+</button>
+</div>
+<!-- Student Card 7 -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="107" data-status="present">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#10B981] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#107-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait of an Arab girl student wearing smart school uniform, lively energetic smile, modern architectural education backdrop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBpjHRHOTL5AtfAEKiRj0ug0eCR01bWtgiGAKVCipFcOZU0ijOq2UXmeN-A6Zh3sa-9eLQZwQkivxIW7_wNWmajlVkhZ0Wnob9WuB3DmXG6ceqr1lT3TWd-ZPLoUPWeiOKFjsTd6Udu5qYDkqm84lFEoqcY9Ix3P8nnN2vZH-vKNgo9yVYvEqFKWodiOsfR5CRorLLSSu8bYFcMExAV3X4qTR7nknIsHNxGl_ytdRZ8iOltcxUx1p8pjQ"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#10B981] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">ريم طارق التميمي</h3>
+<span class="font-label-xs text-label-xs text-on-surface-variant">المعدل: ٩٦.٨٪ • متفوقة</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5]" type="button">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="status-text">حاضر</span>
+</button>
+</div>
+<!-- Student Card 8 -->
+<div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between overflow-hidden" data-id="108" data-status="present">
+<div class="status-indicator-bar absolute top-0 right-0 bottom-0 w-1.5 bg-[#10B981] transition-colors"></div>
+<div class="flex items-start justify-between w-full">
+<span class="font-label-xs text-label-xs text-outline font-semibold">#108-09A</span>
+<button class="note-trigger text-outline hover:text-primary transition-colors p-1 rounded-full hover:bg-surface-container" title="إضافة ملاحظة سلوكية أو إشعار ولي الأمر" type="button">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+</button>
+</div>
+<div class="flex flex-col items-center text-center mt-2 mb-3">
+<div class="relative">
+<img class="w-14 h-14 rounded-full object-cover shadow-sm ring-2 ring-surface-variant" data-alt="Portrait of a young female student with gentle eyes and polite smile, soft ambient daylight, clean school corridor setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDQO5HmckbiwKVDxdhJiZ-MhvEbiASjJNP0Q-k7Ye868Yvq2OFcEHp-j6f4JnM5gUcrr1FIGY5MdLJ1mlmZvheOusl8CFIbVX97wS8NdleMgnXNj1npRIO4lV_5aBf5-dxGomVxuMoDpjpaAUXJ4q5nbr_5gXiS3h0T2L4QfNr4hF8NbZHQ9j03S7fJ0kp3WheX_9nOcTFTYDAQ21LlifrIdoLWFQs8Pm5OtKWDD6XF4vIY4c773I1vrA"/>
+<span class="status-badge-dot absolute bottom-0 left-0 w-4 h-4 rounded-full bg-[#10B981] border-2 border-white flex items-center justify-center text-[9px] text-white font-bold">✓</span>
+</div>
+<h3 class="font-title-md text-title-md text-on-surface mt-2 font-bold student-name">جنى ناصر الشمري</h3>
+<span class="font-label-xs text-label-xs text-on-surface-variant">المعدل: ٩٥.٢٪ • مشاركة</span>
+</div>
+<button class="cycle-status-btn w-full py-2 px-3 rounded-lg text-label-md font-bold flex items-center justify-center gap-1.5 transition-all bg-[#ECFDF5] text-[#059669] hover:bg-[#D1FAE5]" type="button">
+<span class="material-symbols-outlined text-sm">check_circle</span>
+<span class="status-text">حاضر</span>
+</button>
+</div>
+</div>
+<!-- Motivational Pedagogical Card & Quick Insights -->
+<div class="mt-space-xl grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+<div class="lg:col-span-2 bg-gradient-to-r from-primary-container to-primary text-on-primary rounded-xl p-space-lg shadow-md flex flex-col sm:flex-row items-center justify-between gap-space-md relative overflow-hidden">
+<div class="flex flex-col gap-1 z-10">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary-container">auto_awesome</span>
+<span class="font-title-md text-title-md font-bold">مؤشر الالتزام المدرسي لهذا الأسبوع</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-primary-container max-w-lg">
+            سجل الصف التاسع (أ) نسبة حضور تراكمية بلغت ٩٣.٥٪ خلال شهر شعبان، متقدماً على المستوى العام للمرحلة بنسبة +٣٪.
+          </p>
+</div>
+<div class="shrink-0 flex items-center gap-3 z-10">
+<button class="px-4 py-2 rounded-lg bg-surface-container-lowest text-primary font-title-md text-label-md font-bold hover:bg-surface transition-colors shadow-sm" type="button">
+            عرض تقرير الشعبة
+          </button>
+</div>
+<div class="absolute -left-10 -bottom-10 w-44 h-44 rounded-full bg-white/5 pointer-events-none"></div>
+</div>
+<!-- SMS Notice Channel Status Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col justify-between">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-secondary">sms</span>
+<span class="font-title-md text-title-md text-on-surface font-semibold">بوابة إشعارات أولياء الأمور</span>
+</div>
+<span class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant my-2">
+          يتم إرسال رسائل نصية آلية (SMS) وتنبيهات عبر التطبيق لأولياء أمور الطلاب المتأخرين والغائبين فور إتمام الحفظ.
+        </p>
+<div class="flex items-center justify-between pt-2">
+<span class="font-label-xs text-label-xs text-outline">حالة الربط: نظام نور متصل ✓</span>
+<span class="font-label-xs text-label-xs text-secondary font-bold">إعدادات الإرسال</span>
+</div>
+</div>
+</div>
+</div>
+<!-- STICKY BOTTOM SAVE & SYNC BAR -->
+<aside aria-label="شريط الحفظ" class="fixed bottom-4 inset-x-4 max-w-5xl mx-auto z-40 bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-3 sm:px-6 sm:py-3.5 shadow-[0_12px_32px_rgba(12,36,97,0.18)] flex flex-wrap items-center justify-between gap-3">
+<!-- Unsaved Counter Info -->
+<div class="flex items-center gap-3">
+<div class="w-9 h-9 rounded-xl bg-amber-50 text-[#D97706] flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-xl">sync_problem</span>
+</div>
+<div class="flex flex-col text-right">
+<div class="flex items-center gap-1.5">
+<span class="font-title-md text-label-lg font-bold text-on-surface" id="unsavedCountBadge">٣ تغييرات غير محفوظة</span>
+<span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+</div>
+<span class="font-label-xs text-label-xs text-outline">آخر مزامنة سحابية منذ ٤ دقائق</span>
+</div>
+</div>
+<!-- Actions Group -->
+<div class="flex items-center gap-2 sm:gap-3">
+<button class="px-4 py-2.5 rounded-xl text-on-surface-variant hover:text-error hover:bg-surface-container font-title-md text-label-md transition-colors" id="discardChangesBtn" type="button">
+        تجاهل التعديلات
+      </button>
+<button class="h-11 px-5 rounded-xl text-on-primary font-title-md text-label-lg flex items-center gap-2 shadow-md hover:shadow-lg transition-all transform active:scale-95" id="saveChangesBtn" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);" type="button">
+<span class="material-symbols-outlined text-lg">send</span>
+<span>حفظ التغييرات وإرسال التقارير</span>
+</button>
+</div>
+</aside>
+<!-- BEHAVIORAL NOTE / SMS MODAL (Custom RTL dialog) -->
+<div class="fixed inset-0 z-50 flex items-center justify-center bg-primary/40 backdrop-blur-sm hidden" id="noteModal">
+<div class="bg-surface-container-lowest rounded-2xl w-full max-w-md mx-4 p-space-lg shadow-2xl relative animate-fade-in">
+<div class="flex items-center justify-between pb-3">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-lg">chat</span>
+</div>
+<h4 class="font-title-md text-title-md text-on-surface font-bold">تسجيل ملاحظة ولي الأمر</h4>
+</div>
+<button class="text-outline hover:text-on-surface p-1 rounded-lg" id="closeModalBtn" type="button">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="my-3 text-right">
+<span class="font-label-xs text-label-xs text-outline block">الطالب المستهدف</span>
+<span class="font-title-md text-label-lg text-primary font-bold" id="modalStudentName">عمر عبد العزيز الراجحي</span>
+</div>
+<div class="flex flex-col gap-2 my-2">
+<label class="font-label-md text-label-md text-on-surface font-semibold text-right">نوع الملاحظة السلوكية / الأكاديمية</label>
+<div class="grid grid-cols-2 gap-2">
+<button class="modal-tag-btn active text-right px-3 py-2 rounded-lg bg-primary-container text-on-primary text-label-xs font-semibold" type="button">ملاحظة تأخر متكرر</button>
+<button class="modal-tag-btn text-right px-3 py-2 rounded-lg bg-surface-container text-on-surface text-label-xs font-semibold" type="button">استئذان بعذر مسبق</button>
+<button class="modal-tag-btn text-right px-3 py-2 rounded-lg bg-surface-container text-on-surface text-label-xs font-semibold" type="button">مشاركة متميزة (+١ درجات)</button>
+<button class="modal-tag-btn text-right px-3 py-2 rounded-lg bg-surface-container text-on-surface text-label-xs font-semibold" type="button">تنبيه غياب غير مبرر</button>
+</div>
+</div>
+<div class="flex flex-col gap-1.5 my-3">
+<label class="font-label-md text-label-md text-on-surface font-semibold text-right">نص الرسالة الموجهة لولي الأمر (SMS)</label>
+<textarea class="w-full p-3 bg-surface-container-low rounded-xl text-on-surface font-body-sm text-body-sm outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20 text-right resize-none" placeholder="اكتب الملاحظة بالتفصيل ليتم إرسالها لولي الأمر..." rows="3"></textarea>
+</div>
+<div class="flex items-center gap-2 justify-end pt-2">
+<button class="px-4 py-2 rounded-xl text-on-surface-variant hover:bg-surface-container font-label-lg text-label-md" id="cancelModalBtn" type="button">إلغاء</button>
+<button class="px-5 py-2 rounded-xl bg-primary text-on-primary font-title-md text-label-md font-bold hover:bg-primary/90" id="sendModalBtn" type="button">اعتماد وإرسال</button>
+</div>
+</div>
+</div>
+<!-- Micro-Interactivity Script -->
+<script>
+    (function() {
+      // Status cycle definitions
+      const statuses = [
+        {
+          key: 'present',
+          label: 'حاضر',
+          icon: 'check_circle',
+          badgeText: '✓',
+          badgeBg: '#10B981',
+          btnBg: '#ECFDF5',
+          btnText: '#059669',
+          btnHover: '#D1FAE5'
+        },
+        {
+          key: 'absent',
+          label: 'غائب',
+          icon: 'cancel',
+          badgeText: '✕',
+          badgeBg: '#EF4444',
+          btnBg: '#FEE2E2',
+          btnText: '#DC2626',
+          btnHover: '#FECACA'
+        },
+        {
+          key: 'late',
+          label: 'متأخر',
+          icon: 'schedule',
+          badgeText: '⏱',
+          badgeBg: '#F59E0B',
+          btnBg: '#FEF3C7',
+          btnText: '#D97706',
+          btnHover: '#FDE68A'
+        },
+        {
+          key: 'excused',
+          label: 'مستأذن',
+          icon: 'description',
+          badgeText: '📄',
+          badgeBg: '#64748B',
+          btnBg: '#F1F5F9',
+          btnText: '#475569',
+          btnHover: '#E2E8F0'
+        }
+      ];
+
+      let unsavedChanges = 3;
+
+      function updateUnsavedBadge() {
+        const badge = document.getElementById('unsavedCountBadge');
+        if (badge) {
+          badge.textContent = unsavedChanges + ' تغييرات غير محفوظة ⚠️';
+        }
+      }
+
+      function applyCardState(card, statusKey) {
+        const config = statuses.find(s => s.key === statusKey) || statuses[0];
+        card.setAttribute('data-status', config.key);
+
+        // Update indicator bar on the right
+        const bar = card.querySelector('.status-indicator-bar');
+        if (bar) bar.style.backgroundColor = config.badgeBg;
+
+        // Update small avatar badge
+        const badgeDot = card.querySelector('.status-badge-dot');
+        if (badgeDot) {
+          badgeDot.style.backgroundColor = config.badgeBg;
+          badgeDot.textContent = config.badgeText;
+        }
+
+        // Update button
+        const btn = card.querySelector('.cycle-status-btn');
+        if (btn) {
+          btn.style.backgroundColor = config.btnBg;
+          btn.style.color = config.btnText;
+          const iconSpan = btn.querySelector('.material-symbols-outlined');
+          if (iconSpan) iconSpan.textContent = config.icon;
+          const textSpan = btn.querySelector('.status-text');
+          if (textSpan) textSpan.textContent = config.label;
+        }
+      }
+
+      // Hook click events on student cards
+      document.querySelectorAll('.student-card').forEach(card => {
+        const btn = card.querySelector('.cycle-status-btn');
+        const triggerCycle = () => {
+          const current = card.getAttribute('data-status');
+          const currentIndex = statuses.findIndex(s => s.key === current);
+          const nextIndex = (currentIndex + 1) % statuses.length;
+          applyCardState(card, statuses[nextIndex].key);
+          unsavedChanges++;
+          updateUnsavedBadge();
+        };
+
+        if (btn) {
+          btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            triggerCycle();
+          });
+        }
+
+        card.addEventListener('click', () => {
+          triggerCycle();
+        });
+      });
+
+      // Bulk Actions
+      const markAllPresentBtn = document.getElementById('markAllPresentBtn');
+      if (markAllPresentBtn) {
+        markAllPresentBtn.addEventListener('click', () => {
+          document.querySelectorAll('.student-card').forEach(card => {
+            applyCardState(card, 'present');
+          });
+          unsavedChanges += 4;
+          updateUnsavedBadge();
+        });
+      }
+
+      const markAllAbsentBtn = document.getElementById('markAllAbsentBtn');
+      if (markAllAbsentBtn) {
+        markAllAbsentBtn.addEventListener('click', () => {
+          document.querySelectorAll('.student-card').forEach(card => {
+            applyCardState(card, 'absent');
+          });
+          unsavedChanges += 4;
+          updateUnsavedBadge();
+        });
+      }
+
+      // Search Filter
+      const searchInput = document.getElementById('studentSearchInput');
+      if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+          const term = e.target.value.trim().toLowerCase();
+          document.querySelectorAll('.student-card').forEach(card => {
+            const name = card.querySelector('.student-name')?.textContent || '';
+            const id = card.getAttribute('data-id') || '';
+            if (name.toLowerCase().includes(term) || id.includes(term)) {
+              card.style.display = 'flex';
+            } else {
+              card.style.display = 'none';
+            }
+          });
+        });
+      }
+
+      // Modal Triggers
+      const noteModal = document.getElementById('noteModal');
+      const modalStudentName = document.getElementById('modalStudentName');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const cancelModalBtn = document.getElementById('cancelModalBtn');
+      const sendModalBtn = document.getElementById('sendModalBtn');
+
+      document.querySelectorAll('.note-trigger').forEach(trigger => {
+        trigger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const card = trigger.closest('.student-card');
+          const name = card.querySelector('.student-name')?.textContent || 'الطالب';
+          if (modalStudentName) modalStudentName.textContent = name;
+          if (noteModal) noteModal.classList.remove('hidden');
+        });
+      });
+
+      const hideModal = () => {
+        if (noteModal) noteModal.classList.add('hidden');
+      };
+
+      if (closeModalBtn) closeModalBtn.addEventListener('click', hideModal);
+      if (cancelModalBtn) cancelModalBtn.addEventListener('click', hideModal);
+      if (sendModalBtn) sendModalBtn.addEventListener('click', hideModal);
+
+      // Save & Discard
+      const saveChangesBtn = document.getElementById('saveChangesBtn');
+      if (saveChangesBtn) {
+        saveChangesBtn.addEventListener('click', () => {
+          unsavedChanges = 0;
+          const badge = document.getElementById('unsavedCountBadge');
+          if (badge) badge.textContent = 'تم حفظ جميع التغييرات بنجاح ✓';
+          saveChangesBtn.classList.add('opacity-80');
+          setTimeout(() => saveChangesBtn.classList.remove('opacity-80'), 1000);
+        });
+      }
+
+      const discardChangesBtn = document.getElementById('discardChangesBtn');
+      if (discardChangesBtn) {
+        discardChangesBtn.addEventListener('click', () => {
+          unsavedChanges = 0;
+          updateUnsavedBadge();
+        });
+      }
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest mt-space-xl"><div class="w-full px-gutter py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-label-md text-label-md text-on-surface">منصتي التعليمية الذكية © 2025</span></div><div class="flex items-center gap-space-lg font-label-sm text-label-md"><a class="hover:text-primary transition-colors" href="#">شروط الاستخدام</a><a class="hover:text-primary transition-colors" href="#">سياسة الخصوصية</a><a class="hover:text-primary transition-colors" href="#">الدعم الفني والمساعدة</a></div></div></footer></body></html>

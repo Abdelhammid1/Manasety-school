@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@500;600;700;800&amp;family=Nunito+Sans:ital,opsz,wght@0,6..12,300..800;1,6..12,300..800&amp;family=Plus+Jakarta+Sans:ital,wght@0,400..800;1,400..800&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{width:100vw;margin:0;padding:0;}body{overscroll-behavior:none;font-family:'Nunito Sans',sans-serif;}.pb-safe{padding-bottom:env(safe-area-inset-bottom,0px);}.pt-safe{padding-top:env(safe-area-inset-top,0px);}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: 'class', theme: { extend: { 'colors': { 'outline': '#757682', 'surface-container-highest': '#e0e3e6', 'inverse-primary': '#b6c4ff', 'surface-container': '#eceef1', 'surface-bright': '#f7f9fc', 'on-error-container': '#93000a', 'primary-fixed': '#dce1ff', 'on-primary': '#ffffff', 'on-tertiary-fixed': '#00174b', 'on-error': '#ffffff', 'on-secondary-fixed': '#001e2c', 'on-tertiary-fixed-variant': '#003ea8', 'surface-tint': '#4059aa', 'on-primary-fixed': '#00164e', 'primary-fixed-dim': '#b6c4ff', 'on-secondary-container': '#005371', 'on-background': '#191c1e', 'inverse-surface': '#2d3133', 'on-surface': '#191c1e', 'on-primary-fixed-variant': '#264191', 'on-primary-container': '#90a8ff', 'on-secondary-fixed-variant': '#004c68', 'on-surface-variant': '#444651', 'error': '#ba1a1a', 'surface-container-high': '#e6e8eb', 'tertiary-container': '#00389a', 'tertiary-fixed': '#dbe1ff', 'on-secondary': '#ffffff', 'outline-variant': '#c5c5d3', 'on-tertiary-container': '#8da9ff', 'primary': '#00236f', 'surface-dim': '#d8dadd', 'surface-variant': '#e0e3e6', 'surface': '#f7f9fc', 'surface-container-low': '#f2f4f7', 'surface-container-lowest': '#ffffff', 'secondary-fixed': '#c3e8ff', 'tertiary-fixed-dim': '#b4c5ff', 'primary-container': '#1e3a8a', 'tertiary': '#00246b', 'secondary': '#006689', 'error-container': '#ffdad6', 'secondary-container': '#5bcaff', 'secondary-fixed-dim': '#78d1ff', 'on-tertiary': '#ffffff', 'background': '#f7f9fc', 'inverse-on-surface': '#eff1f4' }, 'borderRadius': { 'DEFAULT': '0.25rem', 'lg': '0.5rem', 'xl': '0.75rem', 'full': '9999px' }, 'spacing': { 'space-xl': '2.5rem', 'margin': '2rem', 'gutter': '1.5rem', 'space-md': '1rem', 'space-xs': '0.25rem', 'space-lg': '1.5rem', 'space-sm': '0.5rem' }, 'fontFamily': { 'headline-md': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'], 'headline-sm': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'], 'display-hero': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'], 'body-lg': ['Nunito Sans', 'sans-serif'], 'display-hero-mobile': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'], 'body-sm': ['Nunito Sans', 'sans-serif'], 'label-md': ['Nunito Sans', 'sans-serif'], 'label-xs': ['Nunito Sans', 'sans-serif'], 'body-md': ['Nunito Sans', 'sans-serif'], 'headline-lg': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'], 'title-md': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'], 'label-lg': ['Nunito Sans', 'sans-serif'], 'headline-lg-mobile': ['Plus Jakarta Sans', 'Baloo Bhaijaan 2', 'sans-serif'] }, 'fontSize': { 'headline-md': ['24px', { 'lineHeight': '38px', 'fontWeight': '700' }], 'headline-sm': ['20px', { 'lineHeight': '34px', 'fontWeight': '600' }], 'display-hero': ['40px', { 'lineHeight': '64px', 'fontWeight': '800' }], 'body-lg': ['18px', { 'lineHeight': '32px', 'fontWeight': '400' }], 'display-hero-mobile': ['28px', { 'lineHeight': '44px', 'fontWeight': '800' }], 'body-sm': ['14px', { 'lineHeight': '24px', 'fontWeight': '400' }], 'label-md': ['12px', { 'lineHeight': '18px', 'fontWeight': '600' }], 'label-xs': ['11px', { 'lineHeight': '16px', 'fontWeight': '700' }], 'body-md': ['16px', { 'lineHeight': '28px', 'fontWeight': '400' }], 'headline-lg': ['32px', { 'lineHeight': '52px', 'fontWeight': '700' }], 'title-md': ['18px', { 'lineHeight': '30px', 'fontWeight': '600' }], 'label-lg': ['14px', { 'lineHeight': '22px', 'fontWeight': '600' }], 'headline-lg-mobile': ['24px', { 'lineHeight': '38px', 'fontWeight': '700' }] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface flex flex-col min-h-screen"><header class="fixed top-0 w-full z-50 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] pt-safe"><div class="h-16 px-space-md flex items-center justify-between"><div class="flex items-center gap-space-sm"><div class="relative w-10 h-10 rounded-full bg-primary-container flex items-center justify-center"><span class="material-symbols-outlined text-on-primary text-[20px]">school</span><span class="absolute bottom-0 right-0 w-3 h-3 bg-secondary rounded-full ring-2 ring-surface-container-lowest"></span></div><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary leading-tight tracking-tight font-extrabold">منصتي</span><span class="font-label-xs text-label-xs text-secondary leading-none">بوابة التعلم الذكية</span></div></div><div class="flex items-center gap-space-xs"><button class="w-11 h-11 flex items-center justify-center rounded-full text-on-surface-variant hover:bg-surface-container transition-colors relative"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-2 left-2 w-2 h-2 bg-error rounded-full"></span></button><div class="relative w-8 h-8 rounded-full bg-primary flex items-center justify-center shadow-[0_1px_8px_rgba(0,0,0,0.04)]"><span class="material-symbols-outlined text-on-primary text-[18px]">person</span><span class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-secondary rounded-full ring-2 ring-surface"></span></div></div></div></header><main class="flex flex-col relative w-full px-space-md pt-16 pb-24 bg-surface min-h-screen"><div class="flex flex-col w-full gap-space-md">
+<!-- Welcome & Profile Header Mini-bar -->
+<div class="flex items-center justify-between bg-surface-container-lowest p-space-md rounded-xl shadow-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-full overflow-hidden bg-primary-fixed flex items-center justify-center">
+<img class="w-full h-full object-cover" data-alt="Warm portrait photo of an Arab father smiling warmly, soft studio lighting, professional and friendly, clean academic blue background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuCtfcdxQ_4JbSmbgcjwzo7Qr9q2oNkWvpETv0tv6EpLCAKHAHKWmAdbcfG75KRnnqlG0g4QRggsXsQZT3-WwdDqIg5pu1w8tbmRfIG6r-RJmRn4q-mCap-VQaYvSWyidWob9qvvcN6FiW_p8OW5rXYsJy4UoT9YVq3FTUgT9qq5LpjrUR6tZhO855aTunJ_zgoWlfkQJpoVBcx2heql79rPDceTfmqU2vHdvzTIkGlX6yg4bXb5N1zJYg"/>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">أهلاً بك مجدداً</span>
+<span class="font-headline-sm text-headline-sm text-primary">أ. عبد العزيز السالم</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-low px-space-sm py-1.5 rounded-full">
+<span class="material-symbols-outlined text-secondary text-[18px]">verified_user</span>
+<span class="font-label-xs text-label-xs text-on-secondary-container">ولي أمر موثق</span>
+</div>
+</div>
+<!-- Child Selector Carousel -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between px-space-xs">
+<span class="font-title-md text-title-md text-primary font-bold">الأبناء المسجلون</span>
+<span class="font-label-xs text-label-xs text-outline">٣ طلاب مسجلين</span>
+</div>
+<!-- Scrollable Child Strip -->
+<div class="flex items-center gap-space-sm overflow-x-auto pb-2 pt-1 no-scrollbar scroll-smooth" id="childrenList">
+<!-- Child 1: Selected (Omar) -->
+<button class="flex items-center gap-space-sm p-space-sm bg-primary-container text-on-primary rounded-xl shadow-md flex-shrink-0 transition-transform active:scale-95" onclick="selectChild(this, 'عمر', 'الصف التاسع - شعبة ب', '98%')" type="button">
+<div class="relative w-12 h-12 rounded-full overflow-hidden bg-surface-container-lowest ring-2 ring-secondary-container">
+<img class="w-full h-full object-cover" data-alt="Portrait of an optimistic Middle Eastern teenage boy aged 15 with neat dark hair wearing school uniform navy blazer, gentle smile, bright studio lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuC90mdDeR6yB2pF03910Ac7QDUyRZOjprpLcBofTsNsomXv88vJuDea4uOaLUPFZX3EgwaPD52GSVcw2fmrdy2JsG65L5_J0eUgBg-EcCZsYXfmSVQQlFmU0HXn5FoMF66PGZ6ares22-4yJ4yHutE_AK2dP63bZICRJ_Po-ecadK40Eg5TRsvGUhDJXxQmHnvVHM1Yg8WDzEo9ffoZ2poEa6xVIlyf8Hxp3y9xSsvS0mxHvTNHiYb1yg"/>
+<span class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-secondary-container rounded-full flex items-center justify-center">
+<span class="material-symbols-outlined text-[10px] text-on-secondary-fixed">check</span>
+</span>
+</div>
+<div class="flex flex-col text-right">
+<div class="flex items-center gap-1">
+<span class="font-headline-sm text-headline-sm font-bold text-on-primary">عمر</span>
+<span class="bg-secondary-container text-on-secondary-fixed font-label-xs text-label-xs px-1.5 py-0.5 rounded-full">النشط</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-primary-container">الصف التاسع (ب)</span>
+</div>
+</button>
+<!-- Child 2: Sarah -->
+<button class="flex items-center gap-space-sm p-space-sm bg-surface-container-lowest text-on-surface rounded-xl shadow-sm flex-shrink-0 transition-all hover:bg-surface-container-low active:scale-95" onclick="selectChild(this, 'سارة', 'الصف السادس - شعبة أ', '100%')" type="button">
+<div class="relative w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest">
+<img class="w-full h-full object-cover" data-alt="Portrait of a cheerful 11-year-old Arab schoolgirl with braided hair wearing clean white school collar, bright expressive eyes, friendly educational portrait." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAcWhuBWfqMDt6hVbGtFEPM5UTqeagbS-fMkNW0tlsU7ylSYR9Hz7ig7xElpMHPH4Np-eO4aVYZ84rMLEtEWdWuL9Oj-TnEKzr2h2rEqRrPcS8qC1JgeEaJeiA2BykNkZjWy6Fcxv2LDeib71qF4Iv54zq8T1IGw4UzrWpjnuwVATaeM-9s2KK3ObkkNRuuzOrqERUEIcCeA3jtRvAKMZCXlIBzKkkgCW_k7BKJQHbec8Bc98NxbEWJwA"/>
+</div>
+<div class="flex flex-col text-right">
+<span class="font-title-md text-title-md font-bold text-on-surface">سارة</span>
+<span class="font-label-xs text-label-xs text-outline">الصف السادس (أ)</span>
+</div>
+</button>
+<!-- Child 3: Ahmed -->
+<button class="flex items-center gap-space-sm p-space-sm bg-surface-container-lowest text-on-surface rounded-xl shadow-sm flex-shrink-0 transition-all hover:bg-surface-container-low active:scale-95" onclick="selectChild(this, 'أحمد', 'الصف الثالث - شعبة ج', '96%')" type="button">
+<div class="relative w-12 h-12 rounded-full overflow-hidden bg-surface-container-highest">
+<img class="w-full h-full object-cover" data-alt="Portrait of an energetic 8-year-old Arab primary school boy smiling brightly, wearing navy school sweater, lively classroom background blurred softly." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAAUAsTuAXft8YI42xEiFxF53VAby3YR06ektOHY-28O46mLOYOZvkX5IEgoV6tCYEEXmMYYVVXmLMN0FZGUhs3lSQvB7dpDcR2WC_9QWxvFQQsX_dBOKh6cULGO3eB81pZHPmgEIFklGhWPyvyXsLOAAchhTRiEvVv6og_mAeMRRC0l7ehoMdxM4v34CuNpYQo71UJ8QfiPzkvX-YgIhsQ-EauxskJD7gHFQ1hWQBK3379bhM6X-WNlg"/>
+</div>
+<div class="flex flex-col text-right">
+<span class="font-title-md text-title-md font-bold text-on-surface">أحمد</span>
+<span class="font-label-xs text-label-xs text-outline">الصف الثالث (ج)</span>
+</div>
+</button>
+<!-- Add Child Action Button -->
+<button class="flex flex-col items-center justify-center p-space-sm bg-surface-container-low text-secondary rounded-xl shadow-sm flex-shrink-0 w-24 h-16 transition-colors hover:bg-surface-container" type="button">
+<span class="material-symbols-outlined text-[24px]">add_circle</span>
+<span class="font-label-xs text-label-xs font-bold mt-0.5">إضافة طالب</span>
+</button>
+</div>
+</div>
+<!-- Active Child Quick Status Hero Strip -->
+<div class="bg-gradient-to-l from-primary via-primary-container to-secondary rounded-xl p-space-md text-on-primary shadow-md relative overflow-hidden">
+<div class="relative z-10 flex items-center justify-between">
+<div class="flex flex-col">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px] text-secondary-fixed">face</span>
+<span class="font-label-xs text-label-xs text-secondary-fixed">ملف المتابعة الأكاديمية</span>
+</div>
+<span class="font-headline-lg-mobile text-headline-lg-mobile font-extrabold mt-0.5" id="activeChildName">عمر عبد العزيز</span>
+<span class="font-body-sm text-body-sm text-primary-fixed-dim" id="activeChildGrade">الصف التاسع الأساسي - مسار عام</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-surface-container-lowest/15 backdrop-blur-md px-space-md py-space-sm rounded-xl">
+<span class="font-label-xs text-label-xs text-secondary-fixed font-bold">المعدل التراكمي</span>
+<span class="font-headline-md text-headline-md font-extrabold text-on-primary">٩٦.٨٪</span>
+<span class="font-label-xs text-label-xs text-secondary-container font-semibold">ممتاز مرتفع ★</span>
+</div>
+</div>
+<!-- Subtle Arabic geometric decorative icon background -->
+<span class="material-symbols-outlined absolute -left-6 -bottom-6 text-[120px] text-on-primary/10 select-none pointer-events-none">auto_stories</span>
+</div>
+<!-- Weekly Attendance Tracker Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
+<span class="material-symbols-outlined text-[20px]">calendar_today</span>
+</div>
+<div>
+<span class="font-title-md text-title-md font-bold text-primary block leading-snug">الحضور والغياب الأسبوعي</span>
+<span class="font-label-xs text-label-xs text-outline">الأسبوع الحالي (١٥ - ١٩ أكتوبر)</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-headline-sm text-headline-sm font-extrabold text-secondary">٩٨٪</span>
+<span class="font-label-xs text-label-xs text-secondary font-semibold">نسبة الانضباط</span>
+</div>
+</div>
+<!-- 5-Day Interactive Visual Indicators (Sunday - Thursday) -->
+<div class="grid grid-cols-5 gap-2 pt-2">
+<!-- Sunday -->
+<div class="flex flex-col items-center bg-surface-container-low p-2 rounded-lg gap-1">
+<span class="font-label-xs text-label-xs text-outline">الأحد</span>
+<div class="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-on-secondary">check</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-bold">حاضر</span>
+</div>
+<!-- Monday -->
+<div class="flex flex-col items-center bg-surface-container-low p-2 rounded-lg gap-1">
+<span class="font-label-xs text-label-xs text-outline">الإثنين</span>
+<div class="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-on-secondary">check</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-bold">حاضر</span>
+</div>
+<!-- Tuesday -->
+<div class="flex flex-col items-center bg-surface-container-low p-2 rounded-lg gap-1">
+<span class="font-label-xs text-label-xs text-outline">الثلاثاء</span>
+<div class="w-7 h-7 rounded-full bg-secondary-fixed flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-on-secondary-fixed">schedule</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-secondary-fixed font-bold">متأخر</span>
+</div>
+<!-- Wednesday -->
+<div class="flex flex-col items-center bg-surface-container-low p-2 rounded-lg gap-1">
+<span class="font-label-xs text-label-xs text-outline">الأربعاء</span>
+<div class="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shadow-sm">
+<span class="material-symbols-outlined text-[16px] text-on-secondary">check</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-bold">حاضر</span>
+</div>
+<!-- Thursday (Today) -->
+<div class="flex flex-col items-center bg-secondary-fixed/40 p-2 rounded-lg gap-1">
+<span class="font-label-xs text-label-xs text-secondary font-bold">الخميس</span>
+<div class="w-7 h-7 rounded-full bg-secondary flex items-center justify-center shadow-sm ring-2 ring-secondary-container">
+<span class="material-symbols-outlined text-[16px] text-on-secondary">check</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-extrabold">اليوم</span>
+</div>
+</div>
+<!-- Attendance Legend -->
+<div class="flex items-center justify-around pt-1 bg-surface-container-lowest">
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-xs text-label-xs text-outline">حاضر (٤)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-secondary-container"></span>
+<span class="font-label-xs text-label-xs text-outline">تأخير (١)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-2.5 h-2.5 rounded-full bg-error"></span>
+<span class="font-label-xs text-label-xs text-outline">غياب (٠)</span>
+</div>
+</div>
+</div>
+<!-- Latest Grades & Assessments -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">military_tech</span>
+</div>
+<div>
+<span class="font-title-md text-title-md font-bold text-primary leading-snug">آخر الدرجات والتقييمات</span>
+<span class="font-label-xs text-label-xs text-outline">نتائج الاختبارات والواجبات الأخيرة</span>
+</div>
+</div>
+<button class="font-label-xs text-label-xs text-secondary font-bold hover:underline flex items-center gap-0.5" type="button">
+<span>السجل الكامل</span>
+<span class="material-symbols-outlined text-[14px]">arrow_back</span>
+</button>
+</div>
+<div class="flex flex-col gap-space-xs">
+<!-- Grade Item 1: Mathematics -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-xl">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[22px]">calculate</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md font-bold text-on-surface">الرياضيات المتقدمة</span>
+<span class="font-label-xs text-label-xs text-outline">اختبار الوحدة الثالثة - الجبر</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex flex-col items-end">
+<div class="flex items-baseline gap-0.5">
+<span class="font-headline-sm text-headline-sm font-extrabold text-primary">١٩.٥</span>
+<span class="font-label-xs text-label-xs text-outline">/ ٢٠</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-bold flex items-center gap-0.5">
+<span class="material-symbols-outlined text-[12px]">trending_up</span> +٢ درجة
+            </span>
+</div>
+</div>
+</div>
+<!-- Grade Item 2: Physics -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-xl">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-secondary-fixed flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-[22px]">science</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md font-bold text-on-surface">الفيزياء العامة</span>
+<span class="font-label-xs text-label-xs text-outline">التقرير المخبري - الحركة الخطية</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex flex-col items-end">
+<div class="flex items-baseline gap-0.5">
+<span class="font-headline-sm text-headline-sm font-extrabold text-primary">١٠</span>
+<span class="font-label-xs text-label-xs text-outline">/ ١٠</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-bold">علامة كاملة 🎯</span>
+</div>
+</div>
+</div>
+<!-- Grade Item 3: Arabic Literature -->
+<div class="flex items-center justify-between p-space-sm bg-surface-container-low rounded-xl">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[22px]">menu_book</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md font-bold text-on-surface">اللغة العربية</span>
+<span class="font-label-xs text-label-xs text-outline">تطبيق القواعد والنحو</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<div class="flex flex-col items-end">
+<div class="flex items-baseline gap-0.5">
+<span class="font-headline-sm text-headline-sm font-extrabold text-primary">١٨</span>
+<span class="font-label-xs text-label-xs text-outline">/ ٢٠</span>
+</div>
+<span class="font-label-xs text-label-xs text-secondary font-bold">متميز جداً</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Tuition & Fee Status Card -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
+<span class="material-symbols-outlined text-[20px]">account_balance_wallet</span>
+</div>
+<div>
+<span class="font-title-md text-title-md font-bold text-primary leading-snug">الرسوم والأقساط المدرسية</span>
+<span class="font-label-xs text-label-xs text-outline">العام الدراسي ٢٠٢٤ - ٢٠٢٥</span>
+</div>
+</div>
+<span class="bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-[14px]">check_circle</span>
+        منتظم بالسداد
+      </span>
+</div>
+<!-- Fee Detail Box -->
+<div class="bg-surface-container-low p-space-md rounded-xl flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">القسط الدراسي المستحق القادم</span>
+<span class="font-headline-sm text-headline-sm font-bold text-primary">القسط الثالث (الفصل الثاني)</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-xs text-label-xs text-outline">المبلغ المستحق</span>
+<span class="font-headline-sm text-headline-sm font-extrabold text-primary">٣,٢٥٠ <span class="font-label-xs text-label-xs font-normal">ر.س</span></span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-2">
+<div class="flex items-center gap-1.5 text-outline">
+<span class="material-symbols-outlined text-[16px]">event</span>
+<span class="font-body-sm text-body-sm">تاريخ الاستحقاق: ٠١ فبراير ٢٠٢٥</span>
+</div>
+<div class="flex items-center gap-1 text-secondary font-bold font-label-xs text-label-xs">
+<span class="material-symbols-outlined text-[14px]">done_all</span>
+<span>القسط الثاني: مسدد بالكامل</span>
+</div>
+</div>
+</div>
+<!-- Fee Action Buttons -->
+<div class="grid grid-cols-2 gap-space-sm pt-1">
+<button class="flex items-center justify-center gap-1.5 py-3 px-space-sm bg-surface-container-high text-primary rounded-xl font-title-md text-title-md font-bold transition-colors hover:bg-surface-container-highest" type="button">
+<span class="material-symbols-outlined text-[18px]">receipt_long</span>
+<span>عرض الفاتورة</span>
+</button>
+<button class="flex items-center justify-center gap-1.5 py-3 px-space-sm bg-primary text-on-primary rounded-xl font-title-md text-title-md font-bold shadow-md transition-transform active:scale-95 hover:bg-primary-container" type="button">
+<span class="material-symbols-outlined text-[18px]">credit_card</span>
+<span>سداد إلكتروني</span>
+</button>
+</div>
+</div>
+<!-- School Announcements & Direct Feed -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-8 h-8 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[20px]">campaign</span>
+</div>
+<div>
+<span class="font-title-md text-title-md font-bold text-primary leading-snug">إعلانات وإشعارات المدرسة</span>
+<span class="font-label-xs text-label-xs text-outline">تنبيهات الإدارة والأنشطة الأسبوعية</span>
+</div>
+</div>
+<span class="bg-surface-container-high text-primary font-label-xs text-label-xs px-2 py-0.5 rounded-full font-bold">٣ جديدة</span>
+</div>
+<div class="flex flex-col gap-space-sm">
+<!-- Announcement 1: Parents Meeting -->
+<div class="p-space-sm bg-surface-container-low rounded-xl flex items-start gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-secondary-fixed flex items-center justify-center text-secondary flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[22px]">diversity_3</span>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md font-bold text-on-surface truncate">اجتماع الجمعية العمومية للآباء والمعلمين</span>
+<span class="font-label-xs text-label-xs text-outline flex-shrink-0">أمس</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-0.5">
+            يسر إدارة المدرسة دعوتكم لحضور الاجتماع الفصلي لمناقشة الخطط التعليمية ونتائج الطلاب، وذلك يوم الأربعاء القادم الساعة ٥:٠٠ مساءً بالمسرح المدرسي.
+          </p>
+<div class="flex items-center gap-space-sm mt-2">
+<span class="bg-surface-container text-primary font-label-xs text-label-xs px-2 py-0.5 rounded-full font-semibold">تأكيد الحضور مطلوب</span>
+</div>
+</div>
+</div>
+<!-- Announcement 2: Scientific Field Trip -->
+<div class="p-space-sm bg-surface-container-low rounded-xl flex items-start gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-primary-fixed flex items-center justify-center text-primary flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[22px]">explore</span>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md font-bold text-on-surface truncate">رحلة علمية إلى واحة الملك سلمان للعلوم</span>
+<span class="font-label-xs text-label-xs text-outline flex-shrink-0">منذ يومين</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-0.5">
+            تنظم المدرسة زيارة استكشافية لطلاب المرحلة المتوسطة للتعرف على أحدث تقنيات الروبوت والذكاء الاصطناعي. يرجى توقيع إشعار الموافقة المرفق.
+          </p>
+</div>
+</div>
+<!-- Announcement 3: Midterm Schedule -->
+<div class="p-space-sm bg-surface-container-low rounded-xl flex items-start gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-tertiary-fixed flex items-center justify-center text-tertiary flex-shrink-0 mt-0.5">
+<span class="material-symbols-outlined text-[22px]">event_note</span>
+</div>
+<div class="flex flex-col flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md font-bold text-on-surface truncate">جدول الاختبارات النصفية للفصل الدراسي الثاني</span>
+<span class="font-label-xs text-label-xs text-outline flex-shrink-0">منذ ٣ أيام</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-0.5">
+            تم اعتماد جدول الاختبارات النصفية لجميع الصفوف، مع تمنياتنا لجميع أبنائنا وبناتنا بدوام التوفيق والنجاح.
+          </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Direct Communication Sticky Action Hub -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-md flex flex-col gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-full bg-secondary-fixed flex items-center justify-center text-on-secondary-fixed">
+<span class="material-symbols-outlined text-[24px]">support_agent</span>
+</div>
+<div class="flex flex-col">
+<span class="font-headline-sm text-headline-sm font-bold text-primary">قنوات التواصل المدرسي المباشر</span>
+<span class="font-label-xs text-label-xs text-outline">تواصل فوري وسريع مع الهيئة التعليمية والإرشادية</span>
+</div>
+</div>
+<!-- Quick Communication Action Buttons -->
+<div class="flex flex-col gap-space-xs pt-1">
+<button class="w-full flex items-center justify-between p-space-sm bg-primary text-on-primary rounded-xl shadow-md transition-all active:scale-[0.99] hover:bg-primary-container" type="button">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-secondary-container">forum</span>
+<div class="flex flex-col text-right">
+<span class="font-title-md text-title-md font-bold">مراسلة المرشد الطلابي الأكاديمي</span>
+<span class="font-label-xs text-label-xs text-on-primary-container">أ. سليمان الفهيد (متواجد حالياً)</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[20px] text-on-primary">arrow_back</span>
+</button>
+<button class="w-full flex items-center justify-between p-space-sm bg-surface-container-low text-primary rounded-xl transition-all hover:bg-surface-container active:scale-[0.99]" type="button">
+<div class="flex items-center gap-2.5">
+<span class="material-symbols-outlined text-[22px] text-secondary">contact_mail</span>
+<div class="flex flex-col text-right">
+<span class="font-title-md text-title-md font-bold">طلب موعد لقاء مع معلمي المواد</span>
+<span class="font-label-xs text-label-xs text-outline">حجز جلسة نقاش حضورية أو عن بعد</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-[20px] text-primary">arrow_back</span>
+</button>
+</div>
+</div>
+</div>
+<script>
+  function selectChild(buttonElement, name, grade, attendance) {
+    // Reset all children button states
+    const buttons = document.querySelectorAll('#childrenList > button');
+    buttons.forEach(btn => {
+      btn.className = "flex items-center gap-space-sm p-space-sm bg-surface-container-lowest text-on-surface rounded-xl shadow-sm flex-shrink-0 transition-all hover:bg-surface-container-low active:scale-95";
+      const badge = btn.querySelector('.bg-secondary-container');
+      if (badge) badge.remove();
+    });
+
+    // Mark current selected
+    buttonElement.className = "flex items-center gap-space-sm p-space-sm bg-primary-container text-on-primary rounded-xl shadow-md flex-shrink-0 transition-transform active:scale-95";
+
+    // Update active student hero text
+    const activeNameEl = document.getElementById('activeChildName');
+    const activeGradeEl = document.getElementById('activeChildGrade');
+    if (activeNameEl) activeNameEl.textContent = name + ' عبد العزيز';
+    if (activeGradeEl) activeGradeEl.textContent = grade;
+  }
+</script></main><nav class="fixed bottom-0 w-full z-50 pb-safe bg-surface/90 backdrop-blur-xl shadow-[0_-2px_12px_rgba(0,35,111,0.06)]" data-active-classes="text-primary font-bold"><div class="flex justify-around items-center h-20 px-space-xs"><a class="flex flex-col items-center justify-center gap-space-xs min-w-[54px] h-14 text-on-surface-variant transition-all" data-path="al-raeesiyyah" href="#"><span class="material-symbols-outlined text-[22px]">home</span><span class="font-label-xs text-label-xs">الرئيسية</span></a><a class="flex flex-col items-center justify-center gap-space-xs min-w-[54px] h-14 text-on-surface-variant transition-all" data-path="al-muallem" href="#"><span class="material-symbols-outlined text-[22px]">cast_for_education</span><span class="font-label-xs text-label-xs">المعلم</span></a><a class="flex flex-col items-center justify-center gap-space-xs min-w-[54px] h-14 text-on-surface-variant transition-all" data-path="al-taleb" href="#"><span class="material-symbols-outlined text-[22px]">local_library</span><span class="font-label-xs text-label-xs">الطالب</span></a><a aria-current="page" class="flex flex-col items-center justify-center gap-space-xs min-w-[54px] h-14 transition-all text-primary font-bold" data-path="wali-al-amr" href="#"><span class="material-symbols-outlined text-[22px]">supervisor_account</span><span class="font-label-xs text-label-xs">ولي الأمر</span></a><a class="flex flex-col items-center justify-center gap-space-xs min-w-[54px] h-14 text-on-surface-variant transition-all" data-path="hisabi" href="#"><span class="material-symbols-outlined text-[22px]">account_circle</span><span class="font-label-xs text-label-xs">حسابي</span></a></div></nav></body></html>

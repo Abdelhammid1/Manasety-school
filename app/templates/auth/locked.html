@@ -1,0 +1,25 @@
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}الحساب مقفل{% endblock %}
+
+{% block focus_content %}
+<main class="w-full min-h-screen bg-surface flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-md bg-surface-container-lowest rounded-3xl shadow-xl p-8 flex flex-col gap-6 items-center text-center">
+    <div class="w-20 h-20 rounded-full bg-error-container flex items-center justify-center">
+      <span class="material-symbols-outlined text-error text-5xl">lock</span>
+    </div>
+    <h1 class="font-headline-md text-headline-md text-navy">تم قفل الحساب مؤقتاً</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant max-w-xs">
+      لأسباب أمنية، تم قفل الحساب بعد عدة محاولات دخول فاشلة. حاول لاحقاً أو أعد تعيين كلمة المرور.
+    </p>
+    <div class="flex gap-3 w-full">
+      <a href="{{ url_for('auth.forgot') }}" class="flex-1 h-12 rounded-xl font-label-lg text-label-lg font-bold text-on-primary bg-gradient-to-l from-primary via-primary-container to-secondary flex items-center justify-center">
+        إعادة تعيين كلمة المرور
+      </a>
+      <a href="{{ url_for('auth.login') }}" class="flex-1 h-12 rounded-xl font-label-lg text-label-lg font-bold text-primary bg-surface-container-low hover:bg-surface-container flex items-center justify-center">
+        العودة لتسجيل الدخول
+      </a>
+    </div>
+  </div>
+</main>
+{% endblock %}

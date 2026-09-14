@@ -1,0 +1,67 @@
+{#
+  Manasety topbar — global search, academic year chip, notifications bell,
+  user chip. Fixed 64px tall, offset by the sidebar width via body.sidebar-mini.
+  Uses backend context (active_year, user, notifications_count) — nothing static.
+#}
+<header id="app-topnav"
+        class="fixed top-0 right-[280px] left-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg transition-sidebar">
+  <div class="flex items-center gap-space-md">
+    {# Mobile menu toggle #}
+    <button type="button" onclick="toggleSidebarMobile()"
+            class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors md:hidden"
+            aria-label="فتح القائمة">
+      <span class="material-symbols-outlined text-xl">menu</span>
+    </button>
+    {# Breadcrumb — page provides {% block topbar_crumb %} #}
+    <div class="hidden md:flex items-center gap-space-xs font-label-md text-label-md text-on-surface-variant">
+      <a href="{{ url_for('dashboard.home') }}" class="hover:text-primary cursor-pointer transition-colors">الرئيسية</a>
+      {% block topbar_crumb %}{% endblock %}
+    </div>
+  </div>
+
+  <div class="flex items-center gap-space-md">
+    {% if active_year %}
+    <div class="hidden sm:flex items-center gap-space-xs bg-surface-container-low px-space-sm py-1 rounded-lg text-on-surface-variant font-label-md text-label-md">
+      <span class="material-symbols-outlined text-sm text-secondary">event</span>
+      <span>العام الدراسي: {{ active_year }}</span>
+    </div>
+    {% endif %}
+
+    {# Global search — Cmd/Ctrl-K opens the palette (page-level JS may enhance) #}
+    <button type="button" onclick="document.getElementById('global-search-input').focus()"
+            class="hidden lg:flex items-center gap-space-sm bg-surface-container-low hover:bg-surface-container px-3 h-9 rounded-full text-on-surface-variant transition-colors">
+      <span class="material-symbols-outlined text-sm">search</span>
+      <input id="global-search-input" type="search"
+             placeholder="بحث عن طالب، معلم، فاتورة..."
+             class="bg-transparent border-none outline-none w-56 font-body-md text-body-md text-on-surface placeholder:text-outline">
+      <span class="font-label-sm text-label-sm text-outline">Ctrl+K</span>
+    </button>
+
+    {# Notifications #}
+    <button type="button" title="الإشعارات"
+            class="relative p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors">
+      <span class="material-symbols-outlined text-xl">notifications</span>
+      {% if (topbar_notifications_count or 0) > 0 %}
+        <span class="absolute top-1 left-1 min-w-[16px] h-4 px-1 rounded-full bg-error text-on-error text-[10px] leading-4 font-bold text-center">{{ topbar_notifications_count }}</span>
+      {% endif %}
+    </button>
+
+    {# User chip #}
+    {% if current_user.is_authenticated %}
+    <div class="flex items-center gap-space-sm pr-space-sm border-r border-outline-variant">
+      <div class="w-9 h-9 rounded-full bg-gradient-to-tr from-primary-container to-secondary text-on-primary flex items-center justify-center font-bold shadow-sm">
+        {{ current_user.full_name[:1] if current_user.full_name else '؟' }}
+      </div>
+      <div class="hidden md:flex flex-col text-right">
+        <span class="font-label-md text-label-md text-on-surface font-semibold">{{ current_user.full_name }}</span>
+        <span class="font-label-sm text-label-sm text-on-surface-variant">{{ current_user.role.name_ar if current_user.role else '' }}</span>
+      </div>
+      <a href="{{ url_for('auth.logout') }}" class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-error transition-colors" title="تسجيل الخروج">
+        <span class="material-symbols-outlined text-lg">logout</span>
+      </a>
+    </div>
+    {% else %}
+    <a href="{{ url_for('auth.login') }}" class="px-4 h-9 rounded-full bg-primary-container text-on-primary font-label-lg text-label-lg font-bold flex items-center">تسجيل الدخول</a>
+    {% endif %}
+  </div>
+</header>

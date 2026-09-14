@@ -1,0 +1,658 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com" rel="preconnect"/><link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/><link href="https://fonts.googleapis.com/css2?family=Baloo+Bhaijaan+2:wght@400;500;600;700;800&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base { html, body { margin: 0; padding: 0; font-family: 'Baloo Bhaijaan 2', 'Plus Jakarta Sans', system-ui, sans-serif; } body { overscroll-behavior: none; } main > :first-child { margin-top: 0 !important; } main > :last-child { margin-bottom: 0 !important; } } ::-webkit-scrollbar { display: none; } .transition-sidebar { transition: all 220ms cubic-bezier(0.4, 0, 0.2, 1); } body.sidebar-mini #sidebar { width: 72px; } body.sidebar-mini #sidebar .nav-label, body.sidebar-mini #sidebar .search-box, body.sidebar-mini #sidebar .brand-text, body.sidebar-mini #sidebar .section-heading { display: none; } body.sidebar-mini #sidebar .nav-link { justify-content: center; padding-left: 0; padding-right: 0; } body.sidebar-mini #sidebar .nav-link .tooltip { display: block; } body.sidebar-mini #main-wrapper { padding-right: 72px; } body.sidebar-mini #top-nav { right: 72px; } body.sidebar-mini #toggle-icon { transform: rotate(180deg); } body.modal-open { overflow: hidden; }</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = { darkMode: "class", theme: { extend: { "colors": { "on-secondary": "#ffffff", "navy": "#0c2461", "sidebar-icon": "#dbe7ff", "inverse-on-surface": "#eff1f4", "outline-variant": "#c5c5d3", "surface-container-high": "#e6e8eb", "on-primary-container": "#90a8ff", "surface-container-low": "#f2f4f7", "on-primary-fixed": "#00164e", "navy-active": "rgba(255, 255, 255, 0.06)", "surface-container-highest": "#e0e3e6", "surface-container-lowest": "#ffffff", "primary-container": "#1e3a8a", "on-primary-fixed-variant": "#264191", "primary-fixed-dim": "#b6c4ff", "error": "#ba1a1a", "inverse-surface": "#2d3133", "secondary-fixed": "#dbe1ff", "on-surface-variant": "#475569", "primary": "#00236f", "on-surface": "#191c1e", "tertiary-fixed": "#c3e8ff", "outline": "#cbd5e1", "on-tertiary": "#ffffff", "on-tertiary-fixed-variant": "#004c68", "on-primary": "#ffffff", "on-error-container": "#93000a", "navy-surface": "#0c2461", "on-tertiary-fixed": "#001e2c", "surface": "#f7f9fc", "background": "#f7f9fc", "surface-dim": "#d8dadd", "on-tertiary-container": "#42b7eb", "tertiary": "#002e40", "surface-tint": "#4059aa", "surface-bright": "#f7f9fc", "inverse-primary": "#b6c4ff", "on-error": "#ffffff", "secondary-container": "#eff6ff", "surface-container": "#eceef1", "on-secondary-container": "#fefcff", "secondary-fixed-dim": "#b4c5ff", "surface-variant": "#e0e3e6", "secondary": "#0051d5", "primary-fixed": "#dce1ff", "on-secondary-fixed-variant": "#003ea8", "on-secondary-fixed": "#00174b", "tertiary-container": "#00455e", "on-background": "#191c1e", "modal-backdrop": "rgba(12, 36, 97, 0.40)", "tertiary-fixed-dim": "#78d1ff", "error-container": "#ffdad6" }, "borderRadius": { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }, "spacing": { "space-sm": "0.5rem", "margin": "1.5rem", "space-md": "1rem", "space-xl": "2rem", "space-xs": "0.25rem", "gutter-sm": "1rem", "margin-sm": "1rem", "gutter": "1.5rem", "space-lg": "1.5rem" }, "fontFamily": { "headline-md": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "display-lg-mobile": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "headline-lg": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "label-sm": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "headline-sm": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "display-lg": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "label-lg": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "label-md": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "body-lg": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "body-md": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "title-md": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"], "headline-lg-mobile": ["Baloo Bhaijaan 2", "Plus Jakarta Sans"] }, "fontSize": { "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }], "display-lg-mobile": ["30px", { "lineHeight": "40px", "fontWeight": "700" }], "headline-lg": ["32px", { "lineHeight": "42px", "fontWeight": "700" }], "label-sm": ["11px", { "lineHeight": "16px", "fontWeight": "500" }], "headline-sm": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "display-lg": ["40px", { "lineHeight": "52px", "fontWeight": "700" }], "label-lg": ["14px", { "lineHeight": "20px", "fontWeight": "600" }], "label-md": ["12px", { "lineHeight": "18px", "fontWeight": "600" }], "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }], "body-md": ["14px", { "lineHeight": "22px", "fontWeight": "400" }], "title-md": ["18px", { "lineHeight": "26px", "fontWeight": "600" }], "headline-lg-mobile": ["26px", { "lineHeight": "34px", "fontWeight": "700" }] } } } };</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed top-0 right-0 h-full w-[280px] bg-navy z-50 flex flex-col justify-between transition-sidebar shadow-[0_1px_8px_rgba(0,0,0,0.04)] select-none" id="sidebar"><div class="flex flex-col"><div class="h-16 px-space-md flex items-center justify-between"><div class="flex items-center gap-space-sm overflow-hidden"><img alt="Manasety LMS" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><div class="brand-text flex flex-col"><span class="font-label-lg text-label-lg text-on-primary font-bold leading-tight">منصتي</span><span class="font-label-sm text-label-sm text-sidebar-icon">الإدارة المالية والتعليمية</span></div></div><button class="w-8 h-8 rounded-lg flex items-center justify-center text-sidebar-icon hover:bg-navy-active transition-sidebar" id="sidebar-toggle" onclick="document.body.classList.toggle('sidebar-mini')" title="طي / توسيع القائمة"><span class="inline-block transition-transform font-bold text-xs" id="toggle-icon">◀</span></button></div><div class="px-space-md my-space-sm search-box"><div class="relative flex items-center bg-navy-active rounded-lg px-space-sm py-1.5"><input class="w-full bg-transparent border-none outline-none font-body-md text-body-md text-on-primary placeholder:text-sidebar-icon/60 text-right" placeholder="بحث في الحسابات والسجلات..." type="text"/></div></div><nav class="flex flex-col gap-1 px-space-xs mt-space-xs overflow-y-auto max-h-[calc(100vh-160px)]" data-active-classes="bg-navy-active text-on-primary font-bold border-r-[3px] border-r-secondary"><div class="section-heading px-space-md pt-space-xs pb-1 font-label-sm text-label-sm text-sidebar-icon/60 font-semibold">المنظومة العامة</div><div class="group relative"><a class="nav-link flex items-center px-space-md py-2.5 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="dashboard" href="#"><span class="nav-label">لوحة التحكم العامة</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">لوحة التحكم العامة</span></div><div class="group relative"><a class="nav-link flex items-center px-space-md py-2.5 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="assignments-evaluations" href="#"><span class="nav-label">الواجبات والتقييمات</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">الواجبات والتقييمات</span></div><div class="section-heading px-space-md pt-space-sm pb-1 font-label-sm text-label-sm text-sidebar-icon/60 font-semibold">المالية والمحاسبة</div><div class="group relative"><a class="nav-link flex items-center px-space-md py-2.5 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="chart-of-accounts" href="#"><span class="nav-label">شجرة الحسابات الدليل المحاسبي</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">شجرة الحسابات الدليل المحاسبي</span></div><div class="group relative"><a class="nav-link flex items-center px-space-md py-2.5 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="manual-journal-entry" href="#"><span class="nav-label">قيود اليومية اليدوية</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">قيود اليومية اليدوية</span></div><div class="group relative"><a class="nav-link flex items-center px-space-md py-2.5 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="expenses" href="#"><span class="nav-label">إدارة المصروفات</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">إدارة المصروفات</span></div><div class="group relative"><a aria-current="page" class="nav-link flex items-center px-space-md py-2.5 rounded-lg transition-sidebar whitespace-nowrap bg-navy-active text-on-primary font-bold border-r-[3px] border-r-secondary" data-path="vendors" href="#"><span class="nav-label">الموردون والجهات الخارجية</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">الموردون والجهات الخارجية</span></div><div class="group relative"><a class="nav-link flex items-center px-space-md py-2.5 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="fee-types" href="#"><span class="nav-label">أنواع وبنود الرسوم</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">أنواع وبنود الرسوم</span></div></nav></div><div class="p-space-md border-t border-white/5"><div class="group relative"><a class="nav-link flex items-center px-space-sm py-2 rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-sidebar font-label-lg text-label-lg whitespace-nowrap" data-path="settings" href="#"><span class="nav-label">إعدادات النظام والمالية</span></a><span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">إعدادات النظام والمالية</span></div></div></aside><div class="pr-[280px] transition-sidebar min-h-screen flex flex-col" id="main-wrapper"><header class="fixed top-0 right-[280px] left-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg transition-sidebar" id="top-nav"><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs font-label-md text-label-md text-on-surface-variant"><span class="hover:text-primary cursor-pointer transition-colors">منصتي</span><span class="text-outline font-bold">/</span><span class="text-primary font-bold">الإدارة المالية والمحاسبية</span></div></div><div class="flex items-center gap-space-md"><div class="flex items-center gap-space-xs bg-surface-container-low border border-outline-variant/40 px-space-sm py-1.5 rounded-lg text-on-surface font-label-md text-label-md shadow-sm"><span class="text-secondary font-bold text-xs">●</span><span class="text-on-surface-variant">العام المالي:</span><select class="bg-transparent border-none outline-none font-bold text-on-surface cursor-pointer"><option>1446-1447 هـ (2025)</option><option>1445-1446 هـ (2024)</option></select></div><button class="relative px-3 py-1.5 rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors font-label-md text-label-md border border-outline-variant/30 flex items-center gap-1"><span class="text-secondary font-bold">الإشعارات</span><span class="w-2 h-2 rounded-full bg-error inline-block"></span></button><div class="flex items-center gap-space-sm pr-space-sm border-r border-outline-variant"><img alt="المحاسب المالي" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/><div class="hidden md:flex flex-col text-right"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. عبد الرحمن التميمي</span><span class="font-label-sm text-label-sm text-on-surface-variant">مدير الحسابات والمالية</span></div></div></div></header><main class="relative pt-16 w-full px-space-lg flex-1 bg-surface"><div class="flex flex-col w-full">
+<div class="flex flex-col gap-space-lg mb-space-xl">
+<div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-space-xs">
+<span class="inline-block w-2.5 h-2.5 rounded-full bg-secondary"></span>
+<span class="font-label-sm text-label-sm text-secondary uppercase tracking-wider">سجل الشركاء والخدمات</span>
+</div>
+<h1 class="font-headline-lg text-headline-lg text-navy">دليل الموردين وجهات التعامل</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">إدارة بيانات الشركات الخدمية، عقود التوريد، وأرصدة المستحقات المالية وحركات الصرف</p>
+</div>
+<div class="flex items-center gap-space-sm flex-wrap">
+<button class="px-space-md py-2.5 rounded-lg text-on-secondary font-label-lg text-label-lg shadow-sm hover:shadow-md transition-all flex items-center gap-space-xs" onclick="openVendorSheet('new')" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);" type="button">
+<span class="material-symbols-outlined text-lg">add_business</span>
+<span>+ مورد جديد</span>
+</button>
+<button class="px-space-md py-2.5 rounded-lg bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-colors flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-lg">download</span>
+<span>تصدير التقرير المالي</span>
+</button>
+</div>
+</div>
+<!-- Metrics Strip -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">إجمالي الموردين المعتمدين</span>
+<span class="font-headline-md text-headline-md text-navy mt-1">42 مورد</span>
+<span class="font-label-sm text-label-sm text-secondary mt-0.5">١٤ عقد نشط حالياً</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-secondary-container text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">apartment</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">إجمالي المستحقات القائمة</span>
+<span class="font-headline-md text-headline-md text-navy mt-1">١٨٤,٣٥٠ ر.س</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">موزعة على ٨ جهات</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-surface-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">receipt_long</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">متأخرات مستحقة الدفع</span>
+<span class="font-headline-md text-headline-md text-error mt-1">٢٨,٥٠٠ ر.س</span>
+<span class="font-label-sm text-label-sm text-error mt-0.5">تجاوزت الأجل التعاقدي (فواتير معلقة)</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">warning</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface-variant">دفعات مسددة خلال الشهر</span>
+<span class="font-headline-md text-headline-md text-primary mt-1">٩٢,٠٠٠ ر.س</span>
+<span class="font-label-sm text-label-sm text-secondary mt-0.5">١٠٠٪ معتمدة بقيود آلية</span>
+</div>
+<div class="w-12 h-12 rounded-lg bg-secondary-container text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined text-2xl">verified</span>
+</div>
+</div>
+</div>
+<!-- Search & Filter Controls -->
+<div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex flex-col md:flex-row items-stretch md:items-center justify-between gap-space-md">
+<div class="relative flex-1">
+<span class="material-symbols-outlined absolute right-space-sm top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input class="w-full bg-surface-container-low rounded-lg pr-10 pl-space-md py-2 font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest transition-all" id="vendor-search" placeholder="بحث باسم المورد، السجل التجاري، اسم المسؤول، أو النشاط..." type="text"/>
+</div>
+<div class="flex items-center gap-space-xs overflow-x-auto pb-1 md:pb-0 scrollbar-none">
+<button class="filter-chip active px-space-md py-1.5 rounded-full bg-navy text-on-primary font-label-md text-label-md whitespace-nowrap shadow-sm transition-all" type="button">الكل (٤٢)</button>
+<button class="filter-chip px-space-md py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md whitespace-nowrap transition-all" type="button">موردون دائنون (٨)</button>
+<button class="filter-chip px-space-md py-1.5 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-md text-label-md whitespace-nowrap transition-all" type="button">أرصدة متوازنة (٣٢)</button>
+<button class="filter-chip px-space-md py-1.5 rounded-full bg-error-container text-on-error-container hover:opacity-90 font-label-md text-label-md whitespace-nowrap transition-all" type="button">متأخرات سداد (٢)</button>
+</div>
+</div>
+</div>
+<!-- Vendors Cards Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-space-lg mb-space-xl">
+<!-- Card 1 (Active owed) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer" onclick="openVendorSheet('tech-horizon')">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-primary text-on-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              أق
+            </div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-navy group-hover:text-secondary transition-colors">شركة أفق التقنية للحلول الرقمية</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">س.ت: ١٠١٠٨٩٢٣١٤</span>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-md bg-secondary-container text-secondary font-label-sm text-label-sm font-semibold whitespace-nowrap">تقنية وبرمجيات</span>
+</div>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low rounded-lg p-space-sm font-label-sm text-label-sm">
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">مسؤول الحساب:</span>
+<span class="text-on-surface font-semibold">م. طارق المحمدي</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">رقم التواصل:</span>
+<span class="text-secondary font-semibold flex items-center gap-1" dir="ltr">
+<span>+966 54 321 8899</span>
+<span class="material-symbols-outlined text-sm">chat</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high/60">
+<span class="font-label-md text-label-md text-on-surface-variant">حالة الرصيد المالي:</span>
+<!-- vendor-balance/owed -->
+<span class="px-space-sm py-1 rounded-full bg-secondary-container text-primary font-label-md text-label-md font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>مستحق: ١٤,٢٠٠ ر.س</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-md border-t border-surface-container gap-space-xs">
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span>الملف المالي</span>
+</button>
+<button class="flex-1 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" onclick="event.stopPropagation(); quickPayAction('شركة أفق التقنية للحلول الرقمية', 14200)" type="button">
+<span class="material-symbols-outlined text-sm">payments</span>
+<span>تسجيل سداد</span>
+</button>
+</div>
+</div>
+<!-- Card 2 (Overdue) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer" onclick="openVendorSheet('andalus-maint')">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-error text-on-error font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              أن
+            </div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-navy group-hover:text-error transition-colors">مؤسسة الأندلس للصيانة العامة</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">س.ت: ١٠١٠٤٥٥٧١٢</span>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-md bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-semibold whitespace-nowrap">صيانة وتشغيل</span>
+</div>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low rounded-lg p-space-sm font-label-sm text-label-sm">
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">مسؤول الحساب:</span>
+<span class="text-on-surface font-semibold">أ. فيصل القحطاني</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">رقم التواصل:</span>
+<span class="text-secondary font-semibold flex items-center gap-1" dir="ltr">
+<span>+966 50 112 3445</span>
+<span class="material-symbols-outlined text-sm">chat</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high/60">
+<span class="font-label-md text-label-md text-on-surface-variant">حالة الرصيد المالي:</span>
+<!-- vendor-balance/overdue -->
+<span class="px-space-sm py-1 rounded-full bg-error-container text-on-error-container font-label-md text-label-md font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">error</span>
+<span>متأخر: ٢٨,٥٠٠ ر.س</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-md border-t border-surface-container gap-space-xs">
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span>الملف المالي</span>
+</button>
+<button class="flex-1 py-1.5 rounded-lg bg-error text-on-error hover:opacity-90 transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" onclick="event.stopPropagation(); quickPayAction('مؤسسة الأندلس للصيانة العامة', 28500)" type="button">
+<span class="material-symbols-outlined text-sm">priority_high</span>
+<span>تسوية عاجلة</span>
+</button>
+</div>
+</div>
+<!-- Card 3 (Clean / Zero Balance) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer" onclick="openVendorSheet('curriculum-press')">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-tertiary-container text-on-tertiary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              مط
+            </div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-navy group-hover:text-secondary transition-colors">مطابع المناهج المدرسية الحديثة</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">س.ت: ١٠١٠٧٧٤٥٩٠</span>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-md bg-secondary-container text-secondary font-label-sm text-label-sm font-semibold whitespace-nowrap">مطبوعات وكتب</span>
+</div>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low rounded-lg p-space-sm font-label-sm text-label-sm">
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">مسؤول الحساب:</span>
+<span class="text-on-surface font-semibold">أ. سالم الرشيدي</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">رقم التواصل:</span>
+<span class="text-secondary font-semibold flex items-center gap-1" dir="ltr">
+<span>+966 56 789 0123</span>
+<span class="material-symbols-outlined text-sm">chat</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high/60">
+<span class="font-label-md text-label-md text-on-surface-variant">حالة الرصيد المالي:</span>
+<!-- vendor-balance/clean -->
+<span class="px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-secondary">check_circle</span>
+<span>الرصيد: ٠٫٠٠ ر.س</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-md border-t border-surface-container gap-space-xs">
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span>الملف المالي</span>
+</button>
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" onclick="event.stopPropagation(); quickPayAction('مطابع المناهج المدرسية الحديثة', 0)" type="button">
+<span class="material-symbols-outlined text-sm">attachment</span>
+<span>العقود والملفات</span>
+</button>
+</div>
+</div>
+<!-- Card 4 (Transport / Owed) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer" onclick="openVendorSheet('safe-transport')">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-secondary text-on-secondary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              نق
+            </div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-navy group-hover:text-secondary transition-colors">شركة النقل المدرسي الآمن</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">س.ت: ١٠١٠٩٨٤٤٣٢</span>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-md bg-secondary-container text-secondary font-label-sm text-label-sm font-semibold whitespace-nowrap">نقل مدرسي</span>
+</div>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low rounded-lg p-space-sm font-label-sm text-label-sm">
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">مسؤول الحساب:</span>
+<span class="text-on-surface font-semibold">كابتن معاذ الدوسري</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">رقم التواصل:</span>
+<span class="text-secondary font-semibold flex items-center gap-1" dir="ltr">
+<span>+966 55 432 1098</span>
+<span class="material-symbols-outlined text-sm">chat</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high/60">
+<span class="font-label-md text-label-md text-on-surface-variant">حالة الرصيد المالي:</span>
+<span class="px-space-sm py-1 rounded-full bg-secondary-container text-primary font-label-md text-label-md font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>مستحق: ٤٥,٠٠٠ ر.س</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-md border-t border-surface-container gap-space-xs">
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span>الملف المالي</span>
+</button>
+<button class="flex-1 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" onclick="event.stopPropagation(); quickPayAction('شركة النقل المدرسي الآمن', 45000)" type="button">
+<span class="material-symbols-outlined text-sm">payments</span>
+<span>تسجيل سداد</span>
+</button>
+</div>
+</div>
+<!-- Card 5 (Utilities / Clean) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer" onclick="openVendorSheet('water-corp')">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-tertiary text-on-tertiary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              مي
+            </div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-navy group-hover:text-secondary transition-colors">شركة المياه الوطنية</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">حساب خدمة: ٨٠٠١٢٤</span>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-md bg-surface-container text-on-surface-variant font-label-sm text-label-sm font-semibold whitespace-nowrap">مرافق عامة</span>
+</div>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low rounded-lg p-space-sm font-label-sm text-label-sm">
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">نوع الحساب:</span>
+<span class="text-on-surface font-semibold">فوترة شهرية آلية</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">هاتف الخدمة:</span>
+<span class="text-secondary font-semibold" dir="ltr">920001744</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high/60">
+<span class="font-label-md text-label-md text-on-surface-variant">حالة الرصيد المالي:</span>
+<span class="px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant font-label-md text-label-md font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm text-secondary">check_circle</span>
+<span>الرصيد: ٠٫٠٠ ر.س</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-md border-t border-surface-container gap-space-xs">
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span>الملف المالي</span>
+</button>
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container-high text-on-surface-variant hover:text-on-surface transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" onclick="event.stopPropagation(); quickPayAction('شركة المياه الوطنية', 0)" type="button">
+<span class="material-symbols-outlined text-sm">receipt</span>
+<span>سجل الفواتير</span>
+</button>
+</div>
+</div>
+<!-- Card 6 (Electronics / Owed) -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col justify-between group cursor-pointer" onclick="openVendorSheet('advanced-electronics')">
+<div class="flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-primary-container text-on-primary font-headline-sm text-headline-sm flex items-center justify-center font-bold shadow-sm">
+              إل
+            </div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-navy group-hover:text-secondary transition-colors">شركة الإلكترونيات المتقدمة</h3>
+<span class="font-label-sm text-label-sm text-on-surface-variant">س.ت: ١٠١٠٦٦٤١٢٨</span>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-md bg-secondary-container text-secondary font-label-sm text-label-sm font-semibold whitespace-nowrap">تجهيزات معملية</span>
+</div>
+<div class="grid grid-cols-2 gap-space-xs bg-surface-container-low rounded-lg p-space-sm font-label-sm text-label-sm">
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">مسؤول المبيعات:</span>
+<span class="text-on-surface font-semibold">م. فهد الزهراني</span>
+</div>
+<div class="flex flex-col gap-0.5">
+<span class="text-on-surface-variant">رقم التواصل:</span>
+<span class="text-secondary font-semibold flex items-center gap-1" dir="ltr">
+<span>+966 53 221 0099</span>
+<span class="material-symbols-outlined text-sm">chat</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-high/60">
+<span class="font-label-md text-label-md text-on-surface-variant">حالة الرصيد المالي:</span>
+<span class="px-space-sm py-1 rounded-full bg-secondary-container text-primary font-label-md text-label-md font-bold flex items-center gap-1">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>مستحق: ٩٦,٦٥٠ ر.س</span>
+</span>
+</div>
+</div>
+<div class="flex items-center justify-between pt-space-md mt-space-md border-t border-surface-container gap-space-xs">
+<button class="flex-1 py-1.5 rounded-lg bg-surface-container text-on-surface hover:bg-surface-container-high transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" type="button">
+<span class="material-symbols-outlined text-sm">folder_open</span>
+<span>الملف المالي</span>
+</button>
+<button class="flex-1 py-1.5 rounded-lg bg-primary text-on-primary hover:bg-primary-container transition-colors font-label-sm text-label-sm font-semibold flex items-center justify-center gap-1" onclick="event.stopPropagation(); quickPayAction('شركة الإلكترونيات المتقدمة', 96650)" type="button">
+<span class="material-symbols-outlined text-sm">payments</span>
+<span>تسجيل سداد</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Slide-out Vendor Detail Drawer / Sheet (RTL Slide) -->
+<div class="fixed inset-0 z-50 bg-navy/50 backdrop-blur-sm hidden transition-opacity" id="vendor-sheet-overlay" onclick="closeVendorSheet()"></div>
+<aside class="fixed top-0 left-0 bottom-0 w-full max-w-[640px] bg-surface-container-lowest z-50 shadow-2xl transform -translate-x-full transition-transform duration-300 ease-in-out flex flex-col justify-between overflow-hidden" id="vendor-sheet">
+<!-- Header of Sheet -->
+<div class="p-space-lg bg-surface-container-low flex flex-col gap-space-md border-b border-surface-container">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<button class="w-9 h-9 rounded-lg bg-surface-container hover:bg-surface-container-high flex items-center justify-center text-on-surface transition-colors" onclick="closeVendorSheet()" type="button">
+<span class="material-symbols-outlined">close</span>
+</button>
+<span class="font-label-sm text-label-sm text-on-surface-variant font-semibold">بطاقة المورد التفصيلية</span>
+</div>
+<span class="px-space-sm py-1 rounded-full bg-secondary-container text-secondary font-label-sm text-label-sm font-bold flex items-center gap-1">
+<span class="w-2 h-2 rounded-full bg-secondary inline-block"></span>
+<span>شريك نشط ومعتمد</span>
+</span>
+</div>
+<div class="flex items-start gap-space-md">
+<div class="w-14 h-14 rounded-xl bg-primary text-on-primary font-headline-md text-headline-md flex items-center justify-center font-bold shadow-md shrink-0">
+          أق
+        </div>
+<div class="flex flex-col">
+<h2 class="font-headline-sm text-headline-sm text-navy font-bold">شركة أفق التقنية للحلول الرقمية</h2>
+<div class="flex items-center gap-space-sm text-on-surface-variant font-label-sm text-label-sm mt-1">
+<span>س.ت: ١٠١٠٨٩٢٣١٤</span>
+<span>•</span>
+<span>الرقم الضريبي: ٣١٠٢٤٥٥٨٩٩٠٠٠٠٣</span>
+</div>
+</div>
+</div>
+<!-- Quick Tab Navigation -->
+<div class="flex items-center gap-1 border-b border-surface-container overflow-x-auto scrollbar-none pt-2">
+<button class="sheet-tab-btn active pb-2.5 px-space-sm font-label-md text-label-md font-bold text-secondary border-b-2 border-secondary whitespace-nowrap" onclick="switchVendorTab('tab-contract', this)" type="button">بيانات الاتصال والعقد</button>
+<button class="sheet-tab-btn pb-2.5 px-space-sm font-label-md text-label-md font-semibold text-on-surface-variant hover:text-navy border-b-2 border-transparent whitespace-nowrap" onclick="switchVendorTab('tab-invoices', this)" type="button">الفواتير والمصروفات</button>
+<button class="sheet-tab-btn pb-2.5 px-space-sm font-label-md text-label-md font-semibold text-on-surface-variant hover:text-navy border-b-2 border-transparent whitespace-nowrap" onclick="switchVendorTab('tab-schedule', this)" type="button">جدول السداد المستقبلي</button>
+<button class="sheet-tab-btn pb-2.5 px-space-sm font-label-md text-label-md font-semibold text-on-surface-variant hover:text-navy border-b-2 border-transparent whitespace-nowrap" onclick="switchVendorTab('tab-notes', this)" type="button">المحاضر والملاحظات</button>
+</div>
+</div>
+<!-- Sheet Content Body -->
+<div class="p-space-lg overflow-y-auto flex-1 flex flex-col gap-space-lg">
+<!-- TAB 1: Contract & Contacts -->
+<div class="sheet-tab-content flex flex-col gap-space-md" id="tab-contract">
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<span class="font-label-lg text-label-lg text-navy font-bold">الممثل النظامي وبيانات التواصل</span>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md font-body-md text-body-md">
+<div class="flex flex-col">
+<span class="text-on-surface-variant font-label-sm text-label-sm">الاسم الكامل:</span>
+<span class="text-on-surface font-semibold">م. طارق المحمدي</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant font-label-sm text-label-sm">الصفة / المنصب:</span>
+<span class="text-on-surface font-semibold">مدير المبيعات الحكومية والتعليمية</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant font-label-sm text-label-sm">البريد الإلكتروني المعتمد:</span>
+<span class="text-secondary font-semibold" dir="ltr">tariq@horizon-tech.sa</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant font-label-sm text-label-sm">هاتف الدعم المباشر:</span>
+<span class="text-on-surface font-semibold" dir="ltr">+966 11 405 8890</span>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<span class="font-label-lg text-label-lg text-navy font-bold">الحساب البنكي المعتمد للصرف</span>
+<div class="flex items-center justify-between p-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">مصرف الراجحي (Al Rajhi Bank)</span>
+<span class="font-headline-sm text-headline-sm text-navy font-mono" dir="ltr">SA44 8000 0214 6080 1009 2314</span>
+</div>
+<button class="px-space-sm py-1 rounded bg-secondary-container text-secondary font-label-sm text-label-sm hover:opacity-80" onclick="navigator.clipboard.writeText('SA4480000214608010092314')" type="button">نسخ الآيبان</button>
+</div>
+</div>
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-label-lg text-navy font-bold">سريان العقد والتغطية</span>
+<span class="font-label-sm text-label-sm text-secondary font-bold">متبقي ٧ أشهر و١٤ يوم</span>
+</div>
+<div class="w-full bg-surface-container h-2 rounded-full overflow-hidden">
+<div class="bg-secondary h-full rounded-full" style="width: 65%;"></div>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm">
+<span>تاريخ البدء: ٠١/٠٩/٢٠٢٤ م</span>
+<span>تاريخ الانتهاء: ٣١/٠٨/٢٠٢٥ م</span>
+</div>
+</div>
+</div>
+<!-- TAB 2: Invoices and Expenses -->
+<div class="sheet-tab-content hidden flex flex-col gap-space-md" id="tab-invoices">
+<div class="flex items-center justify-between">
+<span class="font-label-lg text-label-lg text-navy font-bold">آخر ٥ فواتير واردة</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">إجمالي العمليات: ٨ فواتير</span>
+</div>
+<div class="flex flex-col gap-space-sm">
+<div class="p-space-sm rounded-xl bg-surface-container-low flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-navy font-bold">فاتورة ترقية خوادم الامتحانات #INV-9921</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">استحقاق: ١٥/٠٢/٢٠٢٥ م · رقم القيد: #JV-2025-081</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-lg text-label-lg text-navy font-bold">١٤,٢٠٠ ر.س</span>
+<span class="font-label-sm text-label-sm text-secondary font-semibold">بانتظار الصرف</span>
+</div>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container-low flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-navy font-bold">اشتراك الحوسبة السحابية لشهر يناير #INV-8812</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">مسددة بتاريخ: ٢٨/٠١/٢٠٢٥ م · حوالة سريعة</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-lg text-label-lg text-navy font-bold">٩,٥٠٠ ر.س</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تم السداد بالكامل</span>
+</div>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container-low flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-navy font-bold">تراخيص برمجيات التعليم التفاعلي #INV-7730</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">مسددة بتاريخ: ١٥/١٢/٢٠٢٤ م</span>
+</div>
+<div class="flex flex-col items-end">
+<span class="font-label-lg text-label-lg text-navy font-bold">٢٤,٠٠٠ ر.س</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تم السداد بالكامل</span>
+</div>
+</div>
+</div>
+</div>
+<!-- TAB 3: Schedule -->
+<div class="sheet-tab-content hidden flex flex-col gap-space-md" id="tab-schedule">
+<span class="font-label-lg text-label-lg text-navy font-bold">جدول الدفعات المجدولة (المستحقات القادمة)</span>
+<div class="flex flex-col gap-space-sm">
+<div class="p-space-md rounded-xl bg-secondary-container/40 flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary">pending_actions</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-navy font-bold">الدفعة الثالثة - الدعم الفني للفصل الدراسي الثاني</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تاريخ الاستحقاق: ٠١/٠٣/٢٠٢٥ م</span>
+</div>
+</div>
+<span class="font-headline-sm text-headline-sm text-navy font-bold">١٤,٢٠٠ ر.س</span>
+</div>
+<div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-on-surface-variant">event</span>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-navy font-bold">الدفعة الختامية - إغلاق العام التقني والتسليم النهائي</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">تاريخ الاستحقاق: ١٥/٠٦/٢٠٢٥ م</span>
+</div>
+</div>
+<span class="font-headline-sm text-headline-sm text-navy font-bold">١٢,٠٠٠ ر.س</span>
+</div>
+</div>
+</div>
+<!-- TAB 4: Notes and Handover Receipts -->
+<div class="sheet-tab-content hidden flex flex-col gap-space-md" id="tab-notes">
+<span class="font-label-lg text-label-lg text-navy font-bold">محاضر الاستلام والملاحظات الإدارية</span>
+<div class="p-space-md rounded-xl bg-surface-container-low flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-navy font-bold">محضر فحص وتركيب شبكة المعامل</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">١٠/٠١/٢٠٢٥ م</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant">تم الاستلام بحالة ممتازة ومطابقة للمواصفات من قبل رئيس قسم تقنية المعلومات أ. سمير الزيلعي دون وجود نواقص.</p>
+</div>
+<div class="flex flex-col gap-space-xs mt-2">
+<label class="font-label-md text-label-md text-navy font-semibold">إضافة ملاحظة إدارية أو إشعار فني:</label>
+<textarea class="w-full p-space-sm bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface outline-none focus:bg-surface-container-lowest transition-all" placeholder="اكتب ملاحظة هنا..." rows="3"></textarea>
+<button class="self-start mt-1 px-space-md py-1.5 rounded-lg bg-navy text-on-primary font-label-sm text-label-sm" type="button">حفظ الملاحظة</button>
+</div>
+</div>
+</div>
+<!-- Sheet Sticky Footer Action Bar -->
+<div class="p-space-lg bg-surface-container-low border-t border-surface-container flex items-center justify-between gap-space-sm">
+<button class="flex-1 py-3 rounded-lg text-on-secondary font-label-lg text-label-lg shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-space-xs" onclick="quickPayAction('شركة أفق التقنية للحلول الرقمية', 14200)" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);" type="button">
+<span class="material-symbols-outlined text-xl">payments</span>
+<span>تسجيل دفعة للمورد</span>
+</button>
+<button class="px-space-lg py-3 rounded-lg bg-surface-container-high text-on-surface font-label-lg text-label-lg hover:bg-surface-container-highest transition-colors" onclick="alert('فتح نافذة تعديل بيانات المورد')" type="button">
+        تعديل البيانات
+      </button>
+</div>
+</aside>
+<!-- Quick Payment Action Modal (Inline Micro-interaction) -->
+<div class="fixed inset-0 z-50 bg-navy/60 backdrop-blur-sm hidden flex items-center justify-center p-space-md" id="quick-pay-modal">
+<div class="bg-surface-container-lowest rounded-xl max-w-[540px] w-full p-space-lg shadow-2xl flex flex-col gap-space-md animate-in fade-in zoom-in-95 duration-200">
+<div class="flex items-center justify-between border-b border-surface-container pb-space-sm">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary">payments</span>
+<h3 class="font-headline-sm text-headline-sm text-navy">تسجيل سند صرف / سداد لمورد</h3>
+</div>
+<button class="w-8 h-8 rounded-lg bg-surface-container flex items-center justify-center hover:bg-surface-container-high transition-colors" onclick="closePayModal()" type="button">
+<span class="material-symbols-outlined text-sm">close</span>
+</button>
+</div>
+<div class="flex flex-col gap-space-sm">
+<div class="flex flex-col gap-1">
+<span class="font-label-sm text-label-sm text-on-surface-variant">الجهة المستفيدة:</span>
+<span class="font-headline-sm text-headline-sm text-navy font-bold" id="modal-vendor-name"></span>
+</div>
+<div class="grid grid-cols-2 gap-space-sm">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">المبلغ المسدد (ر.س):</label>
+<input class="p-space-sm bg-surface-container-low rounded-lg font-headline-sm text-headline-sm text-navy font-bold outline-none" id="modal-pay-amount" type="number"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">طريقة الدفع:</label>
+<select class="p-space-sm bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface outline-none">
+<option>تحويل بنكي مباشر (سريع)</option>
+<option>شيك مصرفي معتمد</option>
+<option>بطاقة الصرف المؤسسية</option>
+<option>صندوق العهدة النقدية</option>
+</select>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">الحساب المالي الدائن (مصدر الصرف):</label>
+<select class="p-space-sm bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface outline-none">
+<option>1101 - الحساب الجاري العام (مصرف الراجحي)</option>
+<option>1102 - حساب الأنشطة المدرسية (البنك الأهلي)</option>
+<option>1105 - صندوق المصروفات النثرية والتشغيل</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface-variant">رقم الحوالة / المرجع المصرفي:</label>
+<input class="p-space-sm bg-surface-container-low rounded-lg font-body-md text-body-md text-on-surface outline-none" placeholder="مثال: REF-9941208" type="text"/>
+</div>
+</div>
+<div class="flex items-center justify-end gap-space-sm pt-space-sm border-t border-surface-container">
+<button class="px-space-md py-2 rounded-lg bg-surface-container text-on-surface font-label-md text-label-md hover:bg-surface-container-high transition-colors" onclick="closePayModal()" type="button">إلغاء</button>
+<button class="px-space-lg py-2 rounded-lg bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors shadow-sm" onclick="submitPayment()" type="button">تأكيد وقيد السداد</button>
+</div>
+</div>
+</div>
+</div>
+<script>
+  function openVendorSheet(vendorKey) {
+    const sheet = document.getElementById('vendor-sheet');
+    const overlay = document.getElementById('vendor-sheet-overlay');
+    sheet.classList.remove('-translate-x-full');
+    overlay.classList.remove('hidden');
+    document.body.classList.add('overflow-hidden');
+  }
+
+  function closeVendorSheet() {
+    const sheet = document.getElementById('vendor-sheet');
+    const overlay = document.getElementById('vendor-sheet-overlay');
+    sheet.classList.add('-translate-x-full');
+    overlay.classList.add('hidden');
+    document.body.classList.remove('overflow-hidden');
+  }
+
+  function switchVendorTab(tabId, btn) {
+    document.querySelectorAll('.sheet-tab-content').forEach(el => el.classList.add('hidden'));
+    document.getElementById(tabId).classList.remove('hidden');
+
+    document.querySelectorAll('.sheet-tab-btn').forEach(b => {
+      b.classList.remove('active', 'text-secondary', 'border-secondary');
+      b.classList.add('text-on-surface-variant', 'border-transparent');
+    });
+
+    btn.classList.add('active', 'text-secondary', 'border-secondary');
+    btn.classList.remove('text-on-surface-variant', 'border-transparent');
+  }
+
+  function quickPayAction(vendorName, amount) {
+    document.getElementById('modal-vendor-name').innerText = vendorName;
+    document.getElementById('modal-pay-amount').value = amount > 0 ? amount : 5000;
+    document.getElementById('quick-pay-modal').classList.remove('hidden');
+  }
+
+  function closePayModal() {
+    document.getElementById('quick-pay-modal').classList.add('hidden');
+  }
+
+  function submitPayment() {
+    alert('تم تسجيل القيد وسند السداد بنجاح وإرسال الإشعار المحاسبي إلى المورد.');
+    closePayModal();
+  }
+
+  // Filter Chip toggles
+  document.querySelectorAll('.filter-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+      document.querySelectorAll('.filter-chip').forEach(c => {
+        c.classList.remove('bg-navy', 'text-on-primary', 'shadow-sm');
+        if (!c.classList.contains('bg-error-container')) {
+          c.classList.add('bg-surface-container', 'text-on-surface-variant');
+        }
+      });
+      this.classList.remove('bg-surface-container', 'text-on-surface-variant');
+      this.classList.add('bg-navy', 'text-on-primary', 'shadow-sm');
+    });
+  });
+</script></main></div><div class="hidden fixed inset-0 z-50 bg-modal-backdrop backdrop-blur-sm flex items-center justify-center p-space-md" id="app-modal-container"><div class="bg-surface-container-lowest rounded-xl max-w-[720px] w-full p-space-lg shadow-[0_8px_24px_-4px_rgba(12,36,97,0.12)] border border-outline-variant/40"><div id="app-modal-content"></div></div></div></body></html>

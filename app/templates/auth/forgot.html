@@ -1,0 +1,56 @@
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}استعادة كلمة المرور{% endblock %}
+
+{% block focus_content %}
+<main class="w-full min-h-screen bg-surface flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-md bg-surface-container-lowest rounded-3xl shadow-xl p-8 flex flex-col gap-6">
+    <div class="flex flex-col items-center text-center gap-2">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-12 w-auto bg-white rounded-xl p-2">
+      <h1 class="font-headline-md text-headline-md text-navy mt-2">استعادة كلمة المرور</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant max-w-xs">
+        أدخل بريدك الإلكتروني أو رقم جوالك وسنرسل رمز التحقق.
+      </p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, msg in messages %}
+        <div class="px-4 py-3 rounded-xl font-label-md text-label-md
+          {% if category=='danger' or category=='error' %}bg-error-container text-on-error-container
+          {% elif category=='warning' %}bg-tertiary-fixed text-on-tertiary-fixed-variant
+          {% elif category=='success' %}bg-secondary-container text-secondary
+          {% else %}bg-surface-container text-on-surface{% endif %}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" class="flex flex-col gap-4">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="grid grid-cols-2 gap-1.5 p-1 bg-surface-container rounded-2xl">
+        <label class="cursor-pointer">
+          <input type="radio" name="channel" value="email" {% if channel=='email' %}checked{% endif %} class="peer sr-only">
+          <div class="py-2.5 rounded-xl text-center font-label-md text-label-md font-semibold text-on-surface-variant peer-checked:bg-surface-container-lowest peer-checked:text-primary peer-checked:shadow-sm flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-base">mail</span><span>بالبريد</span>
+          </div>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="channel" value="sms" {% if channel=='sms' %}checked{% endif %} class="peer sr-only">
+          <div class="py-2.5 rounded-xl text-center font-label-md text-label-md font-semibold text-on-surface-variant peer-checked:bg-surface-container-lowest peer-checked:text-primary peer-checked:shadow-sm flex items-center justify-center gap-1.5">
+            <span class="material-symbols-outlined text-base">sms</span><span>برسالة نصية</span>
+          </div>
+        </label>
+      </div>
+      <div class="flex flex-col gap-1.5 text-right">
+        <label for="target" class="font-label-md text-label-md text-on-surface font-bold">البريد أو رقم الجوال</label>
+        <input id="target" name="target" required
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary transition-all" dir="ltr">
+      </div>
+      <button type="submit" class="w-full h-12 rounded-xl font-title-md text-title-md font-bold text-on-primary bg-gradient-to-l from-primary via-primary-container to-secondary shadow-md hover:shadow-lg transition-all">
+        إرسال الرمز
+      </button>
+      <a href="{{ url_for('auth.login') }}" class="text-center font-label-md text-label-md text-on-surface-variant hover:text-primary">
+        العودة إلى تسجيل الدخول
+      </a>
+    </form>
+  </div>
+</main>
+{% endblock %}

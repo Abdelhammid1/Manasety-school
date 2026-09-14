@@ -1,0 +1,51 @@
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}رمز التحقق{% endblock %}
+
+{% block focus_content %}
+<main class="w-full min-h-screen bg-surface flex flex-col items-center justify-center p-4">
+  <div class="w-full max-w-md bg-surface-container-lowest rounded-3xl shadow-xl p-8 flex flex-col gap-6">
+    <div class="flex flex-col items-center text-center gap-2">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-12 w-auto bg-white rounded-xl p-2">
+      <h1 class="font-headline-md text-headline-md text-navy">أدخل رمز التحقق</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant">تم إرسال رمز مكوّن من ٦ أرقام إلى {{ session.get('otp_target') or 'حسابك' }}.</p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, msg in messages %}
+        <div class="px-4 py-3 rounded-xl font-label-md text-label-md
+          {% if category=='danger' %}bg-error-container text-on-error-container
+          {% elif category=='warning' %}bg-tertiary-fixed text-on-tertiary-fixed-variant
+          {% elif category=='success' %}bg-secondary-container text-secondary
+          {% else %}bg-surface-container text-on-surface{% endif %}">{{ msg }}</div>
+      {% endfor %}
+    {% endwith %}
+
+    <form method="post" class="flex flex-col gap-4" onsubmit="collectCode()">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="code" id="fullCode">
+      <div class="flex justify-center gap-2" dir="ltr">
+        {% for i in range(1,7) %}
+        <input name="d{{ i }}" type="text" inputmode="numeric" pattern="[0-9]" maxlength="1" required
+               class="w-12 h-14 text-center text-2xl font-bold rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary transition-all"
+               oninput="if(this.value){this.nextElementSibling && this.nextElementSibling.focus();}"
+               onkeydown="if(event.key==='Backspace'&&!this.value){this.previousElementSibling && this.previousElementSibling.focus();}">
+        {% endfor %}
+      </div>
+      <button type="submit" class="w-full h-12 rounded-xl font-title-md text-title-md font-bold text-on-primary bg-gradient-to-l from-primary via-primary-container to-secondary shadow-md hover:shadow-lg transition-all">
+        تحقق ومتابعة
+      </button>
+      <a href="{{ url_for('auth.forgot') }}" class="text-center font-label-md text-label-md text-on-surface-variant hover:text-primary">
+        إعادة إرسال الرمز
+      </a>
+    </form>
+  </div>
+</main>
+<script>
+  function collectCode(){
+    var s='';
+    for(var i=1;i<=6;i++){s += (document.getElementsByName('d'+i)[0].value||'');}
+    document.getElementById('fullCode').value = s;
+  }
+</script>
+{% endblock %}

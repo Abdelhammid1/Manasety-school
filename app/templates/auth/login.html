@@ -1,43 +1,193 @@
-<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>تسجيل الدخول — {{ app_name }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-</head>
-<body>
-<div class="auth-wrap">
-  <div class="auth-card">
-    <div class="brand" style="text-align:center">
-      <img src="{{ url_for('static', filename='img/logo-vertical.png') }}"
-           alt="{{ school_name }}"
-           style="max-width:240px;height:auto;display:block;margin:0 auto 10px">
-      <div class="accent"></div>
-      <p style="color:var(--c-muted);font-size:13px;margin:10px 0 0">نظام الإدارة الإلكتروني</p>
+{#
+  Manasety Login — ported from Stitch _2 verbatim (structure + styling) with
+  the static form replaced by a real Flask POST to /auth/login. Focus-mode
+  page — no shell.
+#}
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+
+{% block title %}تسجيل الدخول{% endblock %}
+
+{% block focus_content %}
+<main class="flex flex-col relative w-full bg-surface min-h-screen">
+  <div class="flex flex-col w-full pb-10">
+    <!-- Top Branded Header -->
+    <div class="relative w-full overflow-hidden bg-gradient-to-bl from-primary via-primary-container to-secondary pt-8 pb-14 px-6 rounded-b-[2.5rem] shadow-lg">
+      <!-- Decorative Ambient Elements -->
+      <div class="absolute -top-12 -left-12 w-40 h-40 bg-secondary-container/20 rounded-full blur-2xl pointer-events-none"></div>
+      <div class="absolute -bottom-8 -right-8 w-36 h-36 bg-primary-fixed/15 rounded-full blur-xl pointer-events-none"></div>
+      <div class="relative z-10 flex flex-col items-center text-center">
+        <div class="w-full max-w-[220px] flex items-center justify-center p-2 mb-3 drop-shadow-md">
+          <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي LMS" class="w-full h-auto object-contain max-h-16 bg-white/95 rounded-2xl p-2">
+        </div>
+        <div class="inline-flex items-center gap-2 bg-surface-container-lowest/15 backdrop-blur-md px-3 py-1 rounded-full text-on-primary font-label-md text-label-md mb-2">
+          <span class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
+          <span>بوابة التعلّم الذكية والحديثة</span>
+        </div>
+        <h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-primary tracking-tight">أهلاً بك مجدداً في منصّتي</h1>
+        <p class="font-body-sm text-body-sm text-primary-fixed mt-1 max-w-xs leading-relaxed opacity-90">رحلتك التعليمية التفاعلية تبدأ بنقرة واحدة</p>
+      </div>
     </div>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% for category, msg in messages %}
-        <div class="alert {{ category }}">{{ msg }}</div>
-      {% endfor %}
-    {% endwith %}
+    <!-- Main Login Card -->
+    <div class="px-5 -mt-8 relative z-20 w-full max-w-md mx-auto">
+      <div class="bg-surface-container-lowest rounded-3xl shadow-xl p-6 flex flex-col gap-6">
 
-    <form method="post" novalidate>
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <div class="field" style="margin-bottom:14px">
-        <label>اسم المستخدم</label>
-        <input type="text" name="username" required autocomplete="username" autofocus>
+        {# Flashes surfaced by /auth/login on failure #}
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% for category, msg in messages %}
+            <div class="px-4 py-3 rounded-xl font-label-md text-label-md
+              {% if category=='danger' or category=='error' %}bg-error-container text-on-error-container
+              {% elif category=='warning' %}bg-tertiary-fixed text-on-tertiary-fixed-variant
+              {% elif category=='success' %}bg-secondary-container text-secondary
+              {% else %}bg-surface-container text-on-surface{% endif %}">
+              <span class="material-symbols-outlined text-base align-middle">
+                {% if category=='danger' %}error{% elif category=='warning' %}gpp_maybe{% elif category=='success' %}check_circle{% else %}info{% endif %}
+              </span>
+              <span class="align-middle">{{ msg }}</span>
+            </div>
+          {% endfor %}
+        {% endwith %}
+
+        <!-- Role Selector Tabs — hint for the user + preserved across submits -->
+        <div class="flex flex-col gap-2">
+          <label class="font-label-md text-label-md text-on-surface-variant text-right">حدد صفة الدخول:</label>
+          <div class="grid grid-cols-4 gap-1.5 p-1 bg-surface-container rounded-2xl" id="roleTabs">
+            {% for r in [
+                ('student','طالب','school'),
+                ('teacher','معلّم','menu_book'),
+                ('parent','ولي أمر','family_restroom'),
+                ('admin','إدارة','shield')
+              ] %}
+            <button type="button" data-role="{{ r[0] }}"
+                    class="role-btn py-2.5 px-2 rounded-xl font-label-md text-label-md font-semibold text-center transition-all duration-200 text-on-surface-variant hover:text-primary flex items-center justify-center gap-1.5"
+                    onclick="selectRole(this)">
+              <span class="material-symbols-outlined text-base">{{ r[2] }}</span>
+              <span>{{ r[1] }}</span>
+            </button>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Login Form — real POST to /auth/login -->
+        <form method="post" action="{{ url_for('auth.login') }}" class="flex flex-col gap-4" novalidate>
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="role_hint" id="roleHint" value="student">
+
+          <!-- Username -->
+          <div class="flex flex-col gap-1.5 text-right">
+            <label for="usernameInput" class="font-label-md text-label-md text-on-surface font-bold pr-1">اسم المستخدم أو البريد المدرسي</label>
+            <div class="relative flex items-center">
+              <span class="material-symbols-outlined absolute right-3.5 text-outline text-xl pointer-events-none">account_circle</span>
+              <input id="usernameInput" name="username" type="text" required autofocus autocomplete="username"
+                     placeholder="مثال: s.ahmed@schools.edu.sa" dir="ltr"
+                     class="w-full h-12 pr-11 pl-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary transition-all text-right">
+            </div>
+          </div>
+
+          <!-- Password -->
+          <div class="flex flex-col gap-1.5 text-right">
+            <label for="passwordInput" class="font-label-md text-label-md text-on-surface font-bold pr-1">كلمة المرور</label>
+            <div class="relative flex items-center">
+              <span class="material-symbols-outlined absolute right-3.5 text-outline text-xl pointer-events-none">lock</span>
+              <input id="passwordInput" name="password" type="password" required autocomplete="current-password"
+                     placeholder="••••••••"
+                     class="w-full h-12 pr-11 pl-11 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary transition-all">
+              <button type="button" aria-label="تبديل إظهار كلمة المرور" onclick="togglePasswordVisibility()"
+                      class="absolute left-3.5 p-1 text-outline hover:text-primary transition-colors focus:outline-none flex items-center justify-center">
+                <span class="material-symbols-outlined text-xl" id="eyeIcon">visibility</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Remember + Forgot -->
+          <div class="flex items-center justify-between pt-1">
+            <label class="inline-flex items-center gap-2 cursor-pointer select-none">
+              <input name="remember" value="1" type="checkbox" class="w-5 h-5 rounded-md accent-primary cursor-pointer">
+              <span class="font-body-sm text-body-sm text-on-surface-variant font-medium">تذكرني</span>
+            </label>
+            <a href="{{ url_for('auth.forgot') }}" class="font-label-md text-label-md text-secondary hover:underline transition-colors font-bold">
+              نسيت كلمة المرور؟
+            </a>
+          </div>
+
+          <!-- Submit -->
+          <button id="submitBtn" type="submit"
+                  class="w-full h-12 mt-2 rounded-xl font-title-md text-title-md font-bold text-on-primary bg-gradient-to-l from-primary via-primary-container to-secondary shadow-md hover:shadow-lg active:scale-[0.99] transition-all flex items-center justify-center gap-2 group">
+            <span>تسجيل الدخول</span>
+            <span class="material-symbols-outlined text-lg transition-transform group-hover:-translate-x-1 duration-200">arrow_back</span>
+          </button>
+        </form>
+
+        <!-- Divider -->
+        <div class="relative flex items-center justify-center my-1">
+          <div class="w-full h-px bg-surface-container-highest"></div>
+          <span class="absolute px-3 bg-surface-container-lowest font-label-md text-label-md text-outline font-medium">أو المتابعة عبر</span>
+        </div>
+
+        <!-- SSO buttons — placeholder posts to /auth/sso (backend to enable when provider is configured) -->
+        <form method="post" action="{{ url_for('auth.sso') }}" class="flex flex-col gap-3">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" name="provider" value="nafath"
+                  class="w-full h-12 rounded-xl bg-surface-container-low hover:bg-surface-container active:scale-[0.99] text-on-surface font-title-md text-title-md font-semibold transition-all flex items-center justify-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-surface-container-lowest flex items-center justify-center shadow-sm">
+              <span class="material-symbols-outlined text-secondary text-lg">fingerprint</span>
+            </div>
+            <span>الدخول عبر النفاذ الوطني الموحد</span>
+          </button>
+          <button type="submit" name="provider" value="microsoft"
+                  class="w-full h-12 rounded-xl bg-surface-container-low hover:bg-surface-container active:scale-[0.99] text-on-surface font-title-md text-title-md font-semibold transition-all flex items-center justify-center gap-3">
+            <div class="w-7 h-7 rounded-lg bg-surface-container-lowest flex items-center justify-center shadow-sm">
+              <span class="material-symbols-outlined text-primary text-lg">domain</span>
+            </div>
+            <span>حساب مايكروسوفت المدرسي (365)</span>
+          </button>
+        </form>
       </div>
-      <div class="field" style="margin-bottom:18px">
-        <label>كلمة المرور</label>
-        <input type="password" name="password" required autocomplete="current-password">
+
+      <!-- Help & Footer -->
+      <div class="mt-6 text-center flex flex-col items-center gap-2">
+        <div class="p-3 bg-surface-container-low rounded-2xl flex items-center gap-2 max-w-sm w-full shadow-sm">
+          <span class="material-symbols-outlined text-secondary text-xl">contact_support</span>
+          <div class="flex-1 text-right">
+            <p class="font-body-sm text-body-sm text-on-surface font-bold">ليس لديك حساب بعد؟</p>
+            <p class="font-label-md text-label-md text-on-surface-variant">تُنشأ الحسابات تلقائياً عبر إدارة مدرستك.</p>
+          </div>
+        </div>
+        <p class="font-label-xs text-label-xs text-outline mt-2">{{ app_name }} LMS © {{ ('now'|striptags) }} 2026 • جميع الحقوق محفوظة</p>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px">دخول</button>
-    </form>
+    </div>
   </div>
-</div>
-</body>
-</html>
+</main>
+
+<script>
+  function selectRole(button){
+    document.querySelectorAll('#roleTabs .role-btn').forEach(btn => {
+      btn.classList.remove('bg-surface-container-lowest','text-primary','shadow-sm');
+      btn.classList.add('text-on-surface-variant');
+    });
+    button.classList.remove('text-on-surface-variant');
+    button.classList.add('bg-surface-container-lowest','text-primary','shadow-sm');
+    document.getElementById('roleHint').value = button.dataset.role;
+    // Contextual hint on the username field
+    const input = document.getElementById('usernameInput');
+    input.placeholder = ({
+      student: 'مثال: s.ahmed@schools.edu.sa',
+      teacher: 'مثال: t.fatima@schools.edu.sa',
+      parent : 'رقم الهوية الوطنية أو البريد الشخصي',
+      admin  : 'اسم مستخدم مدير النظام'
+    })[button.dataset.role] || 'اسم المستخدم';
+  }
+  function togglePasswordVisibility(){
+    const p = document.getElementById('passwordInput');
+    const e = document.getElementById('eyeIcon');
+    if(p.type==='password'){p.type='text';e.textContent='visibility_off';}
+    else{p.type='password';e.textContent='visibility';}
+  }
+  // Preselect the default role (student)
+  document.addEventListener('DOMContentLoaded', () => {
+    const first = document.querySelector('#roleTabs .role-btn');
+    if (first) selectRole(first);
+  });
+</script>
+{% endblock %}

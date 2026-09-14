@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=Nunito+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "on-primary-container": "#90a8ff",
+          "inverse-primary": "#b6c4ff",
+          "surface": "#f7f9fc",
+          "surface-container": "#eceef1",
+          "on-primary-fixed": "#00164e",
+          "on-tertiary-container": "#8da9ff",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "on-surface-variant": "#444651",
+          "on-secondary-fixed": "#001e2c",
+          "outline": "#757682",
+          "error-container": "#ffdad6",
+          "surface-container-low": "#f2f4f7",
+          "on-primary-fixed-variant": "#264191",
+          "secondary": "#006689",
+          "outline-variant": "#c5c5d3",
+          "surface-dim": "#d8dadd",
+          "surface-container-highest": "#e0e3e6",
+          "on-primary": "#ffffff",
+          "surface-tint": "#4059aa",
+          "on-tertiary": "#ffffff",
+          "error": "#ba1a1a",
+          "surface-variant": "#e0e3e6",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "secondary-fixed": "#c3e8ff",
+          "inverse-on-surface": "#eff1f4",
+          "primary-fixed-dim": "#b6c4ff",
+          "on-secondary-fixed-variant": "#004c68",
+          "background": "#f7f9fc",
+          "on-error": "#ffffff",
+          "primary-fixed": "#dce1ff",
+          "secondary-fixed-dim": "#78d1ff",
+          "on-tertiary-fixed": "#00174b",
+          "on-surface": "#191c1e",
+          "inverse-surface": "#2d3133",
+          "primary-container": "#1e3a8a",
+          "on-background": "#191c1e",
+          "tertiary-container": "#00389a",
+          "secondary-container": "#5bcaff",
+          "on-secondary": "#ffffff",
+          "primary": "#00236f",
+          "on-error-container": "#93000a",
+          "tertiary": "#00246b",
+          "surface-bright": "#f7f9fc",
+          "on-secondary-container": "#005371",
+          "surface-container-lowest": "#ffffff",
+          "surface-container-high": "#e6e8eb",
+          "tertiary-fixed": "#dbe1ff"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-sm": "0.5rem",
+          "space-lg": "1.5rem",
+          "margin": "2rem",
+          "space-md": "1rem",
+          "space-xs": "0.25rem",
+          "gutter": "1.5rem",
+          "space-xl": "2.5rem"
+        },
+        "fontFamily": {
+          "label-xs": ["Nunito Sans"],
+          "label-lg": ["Nunito Sans"],
+          "headline-sm": ["Plus Jakarta Sans"],
+          "body-md": ["Nunito Sans"],
+          "headline-lg": ["Plus Jakarta Sans"],
+          "display-hero": ["Plus Jakarta Sans"],
+          "display-hero-mobile": ["Plus Jakarta Sans"],
+          "body-lg": ["Nunito Sans"],
+          "label-md": ["Nunito Sans"],
+          "body-sm": ["Nunito Sans"],
+          "headline-md": ["Plus Jakarta Sans"],
+          "headline-lg-mobile": ["Plus Jakarta Sans"],
+          "title-md": ["Plus Jakarta Sans"]
+        },
+        "fontSize": {
+          "label-xs": ["11px", {"lineHeight": "16px", "fontWeight": "700"}],
+          "label-lg": ["14px", {"lineHeight": "22px", "fontWeight": "600"}],
+          "headline-sm": ["20px", {"lineHeight": "34px", "fontWeight": "600"}],
+          "body-md": ["16px", {"lineHeight": "28px", "fontWeight": "400"}],
+          "headline-lg": ["32px", {"lineHeight": "52px", "fontWeight": "700"}],
+          "display-hero": ["40px", {"lineHeight": "64px", "fontWeight": "800"}],
+          "display-hero-mobile": ["28px", {"lineHeight": "44px", "fontWeight": "800"}],
+          "body-lg": ["18px", {"lineHeight": "32px", "fontWeight": "400"}],
+          "label-md": ["12px", {"lineHeight": "18px", "fontWeight": "600"}],
+          "body-sm": ["14px", {"lineHeight": "24px", "fontWeight": "400"}],
+          "headline-md": ["24px", {"lineHeight": "38px", "fontWeight": "700"}],
+          "headline-lg-mobile": ["24px", {"lineHeight": "38px", "fontWeight": "700"}],
+          "title-md": ["18px", {"lineHeight": "30px", "fontWeight": "600"}]
+        }
+      },
+    },
+  }</script></head><body class="bg-background font-body-md text-body-md text-on-background min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/95 backdrop-blur-xl shadow-[0_4px_20px_rgba(12,36,97,0.08)]"><div class="h-20 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="شعار منصتي للتعليم الذكي" class="h-9 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-primary leading-tight">منصتي</span><span class="font-label-xs text-label-xs text-secondary">Manasety LMS</span></div></div><div class="hidden xl:flex items-center bg-surface-container-low rounded-full px-space-md py-space-xs gap-space-xs w-80 shadow-[0_2px_8px_rgba(12,36,97,0.04)]"><span class="material-symbols-outlined text-outline">search</span><input class="bg-transparent border-none outline-none font-body-sm text-body-sm text-on-surface placeholder:text-outline w-full text-right" placeholder="بحث عن فواتير، حسابات، طلاب، موظفين..." type="search"/></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-title-md shadow-[0_4px_12px_rgba(30,58,138,0.2)]"><a class="px-space-md py-space-xs rounded-xl text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="dashboard" href="#">الرئيسية</a><a class="px-space-md py-space-xs rounded-xl text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="finance-invoices" href="#">المالية والفواتير</a><a aria-current="page" class="px-space-md py-space-xs rounded-xl transition-all bg-primary-container text-on-primary font-title-md shadow-[0_4px_12px_rgba(30,58,138,0.2)]" data-path="hr-payroll" href="#">شؤون الموظفين والرواتب</a><a class="px-space-md py-space-xs rounded-xl text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="admin-portal" href="#">لوحة الإدارة</a><a class="px-space-md py-space-xs rounded-xl text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="students-list" href="#">الطلاب</a><a class="px-space-md py-space-xs rounded-xl text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-all" data-path="reports" href="#">التقارير</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center bg-surface-container rounded-full p-space-xs"><button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-[0_2px_8px_rgba(0,35,111,0.2)]" type="button">المدير المالي</button><button class="px-space-md py-space-xs rounded-full text-on-surface-variant font-label-xs text-label-xs hover:text-on-surface transition-colors" type="button">مدير النظام</button></div><button aria-label="التنبيهات والإشعارات المالية" class="relative p-space-xs rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">notifications</span><span class="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-secondary ring-2 ring-surface-container-lowest"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. أحمد السعيد</span><span class="font-label-xs text-label-xs text-secondary font-semibold">الإدارة والمالية / المدير المالي</span></div><img alt="أ. أحمد السعيد" class="w-9 h-9 rounded-full object-cover ring-2 ring-primary-container shadow-[0_2px_6px_rgba(12,36,97,0.15)]" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></div></header><main class="w-full pt-20 bg-background"><div class="flex flex-col w-full px-gutter py-space-lg gap-space-lg" dir="rtl">
+<!-- Top Action & Overview Header -->
+<div class="w-full flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl shadow-[0_4px_16px_rgba(12,36,97,0.06)]">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-sm">
+<span class="p-space-xs bg-primary/10 text-primary rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">badge</span>
+</span>
+<h1 class="font-headline-md text-headline-md text-primary font-bold">إدارة الموارد البشرية ومسيرات الرواتب الشهرية</h1>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant mr-11">
+        إدارة الكوادر الأكاديمية والإدارية، احتساب بدلات منصة LMS الذكية، واعتماد القيود المحاسبية التلقائية لدورة الرواتب.
+      </p>
+</div>
+<!-- Quick Tool Buttons -->
+<div class="flex flex-wrap items-center gap-space-sm w-full lg:w-auto">
+<button class="p-space-sm rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors flex items-center justify-center shadow-sm" id="themeToggleBtn" title="تبديل النمط" type="button">
+<span class="material-symbols-outlined">dark_mode</span>
+</button>
+<button class="px-space-md py-space-sm rounded-xl bg-surface-container text-on-surface font-label-lg text-label-lg hover:bg-surface-container-high transition-colors flex items-center gap-space-xs shadow-sm" type="button">
+<span class="material-symbols-outlined text-secondary">policy</span>
+<span>لوائح وسياسات الموارد البشرية</span>
+</button>
+<button class="px-space-lg py-space-sm rounded-xl text-on-primary font-label-lg text-label-lg transition-all flex items-center gap-space-xs shadow-[0_4px_14px_rgba(37,99,235,0.28)] hover:shadow-[0_6px_20px_rgba(37,99,235,0.38)] bg-gradient-to-l from-primary via-primary-container to-secondary" id="openHireWizardBtn" type="button">
+<span class="material-symbols-outlined">person_add</span>
+<span>+ موظف جديد</span>
+</button>
+</div>
+</div>
+<!-- Summary KPI Ribbon -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-on-surface-variant font-semibold">إجمالي القوى العاملة</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">94 موظفاً</span>
+<span class="font-label-xs text-label-xs text-secondary font-medium">89 على رأس العمل • 5 إجازات</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">groups</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-on-surface-variant font-semibold">صافي مسير فبراير 2025</span>
+<span class="font-headline-md text-headline-md text-on-surface font-bold">600,800 <span class="text-label-md text-on-surface-variant font-normal">ر.س</span></span>
+<span class="font-label-xs text-label-xs text-error font-medium">14,200 ر.س استقطاعات مفعلة</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-secondary/10 text-secondary flex items-center justify-center">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-on-surface-variant font-semibold">مكافآت التميز الرقمي LMS</span>
+<span class="font-headline-md text-headline-md text-on-surface font-bold">28,450 <span class="text-label-md text-on-surface-variant font-normal">ر.س</span></span>
+<span class="font-label-xs text-label-xs text-secondary font-medium">محسوبة تلقائياً من تقييم الحصص</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-secondary-fixed text-on-secondary-fixed-variant flex items-center justify-center">
+<span class="material-symbols-outlined">stars</span>
+</div>
+</div>
+<div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-on-surface-variant font-semibold">حالة منصة مدد (WPS)</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">ملف مُجهّز</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant font-medium">جاهز للرفع فور المصادقة</span>
+</div>
+<div class="w-12 h-12 rounded-xl bg-surface-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined">cloud_upload</span>
+</div>
+</div>
+</div>
+<!-- Main Split Architecture (2 Panels) -->
+<div class="grid grid-cols-1 xl:grid-cols-12 gap-space-lg items-start">
+<!-- RIGHT PANEL: Employee Roster & Department Filters (5 Cols) -->
+<section class="xl:col-span-5 flex flex-col gap-space-md bg-surface-container-lowest p-space-lg rounded-xl shadow-[0_4px_16px_rgba(12,36,97,0.06)]">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">diversity_3</span>
+<h2 class="font-headline-sm text-headline-sm text-primary font-bold">الكادر التعليمي والإداري</h2>
+</div>
+<span class="px-space-sm py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs">94 موظف نشط</span>
+</div>
+<!-- Department Segment Filter -->
+<div class="flex items-center gap-space-xs overflow-x-auto pb-space-xs text-nowrap">
+<button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-sm" type="button">الكل (94)</button>
+<button class="px-space-md py-space-xs rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container font-label-xs text-label-xs transition-colors" type="button">الكادر التعليمي (58)</button>
+<button class="px-space-md py-space-xs rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container font-label-xs text-label-xs transition-colors" type="button">الإداريون (16)</button>
+<button class="px-space-md py-space-xs rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container font-label-xs text-label-xs transition-colors" type="button">الصيانة والخدمات (12)</button>
+<button class="px-space-md py-space-xs rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container font-label-xs text-label-xs transition-colors" type="button">الأمن (8)</button>
+</div>
+<!-- Status Switcher Bar -->
+<div class="flex items-center justify-between bg-surface-container-low p-space-xs rounded-xl">
+<div class="flex items-center gap-space-xs text-on-surface font-label-xs text-label-xs">
+<button class="px-space-md py-1 rounded-lg bg-surface-container-lowest text-primary font-bold shadow-xs" type="button">نشط (89)</button>
+<button class="px-space-md py-1 rounded-lg text-on-surface-variant hover:text-on-surface" type="button">في إجازة (5)</button>
+<button class="px-space-md py-1 rounded-lg text-on-surface-variant hover:text-on-surface" type="button">منتهي العقد (0)</button>
+</div>
+<div class="flex items-center gap-1 text-outline">
+<span class="material-symbols-outlined text-sm">tune</span>
+</div>
+</div>
+<!-- Employee List Cards -->
+<div class="flex flex-col gap-space-sm max-h-[820px] overflow-y-auto pr-space-xs">
+<!-- Employee Card 1 -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-[0_2px_8px_rgba(12,36,97,0.04)] flex flex-col gap-space-sm group">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<img class="w-12 h-12 rounded-full object-cover shrink-0 shadow-sm" data-alt="Portrait of an experienced Arab male mathematics educator with neat beard wearing modern navy blazer and glasses in professional school studio lighting, serene high-tech educational backdrop" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBgQphjaPlBqKb3iwqyrSPvRdK61nNgO_iCRCPKTD9o3BLs-qDMNAp01wyCGpFocezAiTa_nhh-TW1zO13Z-_LrpxH9FbGnsoC-h_Z_AvbQHBWaWaTXUQMOSwhFV649DB4aYTbtElFL-Uf8tLmj6aQEwB3GDSEhq-o0r7EiMbGI8p8OKZNKnsHq2Z5t0aEhCkTgKuKgTaXhh09u6Lw5ybX9mtf0nO7WR_VJQUmjwLW6fXxqqI3daMq7Ag"/>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-on-surface font-bold truncate">أ. طارق عبد الله المنصور</span>
+<span class="px-space-xs py-0.5 rounded-full bg-primary/10 text-primary font-label-xs text-label-xs">معلم رياضيات أول</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">القسم الأكاديمي • تعيين: 15 أغسطس 2021</span>
+</div>
+</div>
+<span class="px-space-xs py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs shrink-0">عقد سنوي سارٍ</span>
+</div>
+<div class="flex items-center justify-between pt-space-xs bg-surface-container/30 px-space-sm py-1.5 rounded-lg">
+<div class="flex items-center gap-space-md">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">الأساسي</span>
+<span class="font-label-md text-label-md text-primary font-bold">12,500 ر.س</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">مكافآت LMS</span>
+<span class="font-label-md text-label-md text-secondary font-bold">+1,200 ر.س</span>
+</div>
+</div>
+<!-- Action Chips -->
+<div class="flex items-center gap-1">
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تعديل الملف" type="button">
+<span class="material-symbols-outlined text-sm">edit_square</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تقرير الأداء الأكاديمي" type="button">
+<span class="material-symbols-outlined text-sm">analytics</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="الإجازات" type="button">
+<span class="material-symbols-outlined text-sm">calendar_month</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-primary font-bold" title="كشف المستحقات" type="button">
+<span class="material-symbols-outlined text-sm">receipt_long</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Employee Card 2 -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-[0_2px_8px_rgba(12,36,97,0.04)] flex flex-col gap-space-sm group">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<img class="w-12 h-12 rounded-full object-cover shrink-0 shadow-sm" data-alt="Portrait of a confident Saudi female school administrator wearing professional dark abaya and modest stylish headscarf in a bright modern educational leadership office" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCCDV6dT4K5Cslo5Tm5udXHNWx9k-HEaE50lTfMoZtkxVKxoodj8qOcr4SmN5YxqSTKkxtpOsbVp4zhDOisOzAfNDaYZUOXwGhpedk5ffK2-odEZTGAUAGCh5IXk9fbrQbJNdwdL4RY_BydJ6EGtoSbMGmSekjsonbBnV576sh9_a_0Qbmj23MUa7D8queUThajKJviO_Fs9DethKIK8cxQuTecZ-T9AcXt_dbZ6ekmxgiMvfAOZJfP2Q"/>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-on-surface font-bold truncate">أ. سارة خالد الجبيري</span>
+<span class="px-space-xs py-0.5 rounded-full bg-secondary/10 text-secondary font-label-xs text-label-xs">وكيلة شؤون الطلاب</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">الإدارة الأكاديمية • تعيين: 01 نوفمبر 2019</span>
+</div>
+</div>
+<span class="px-space-xs py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs shrink-0">عقد دائم</span>
+</div>
+<div class="flex items-center justify-between pt-space-xs bg-surface-container/30 px-space-sm py-1.5 rounded-lg">
+<div class="flex items-center gap-space-md">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">الأساسي</span>
+<span class="font-label-md text-label-md text-primary font-bold">14,200 ر.س</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">حضور والتزام</span>
+<span class="font-label-md text-label-md text-secondary font-bold">100% منتظم</span>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تعديل الملف" type="button">
+<span class="material-symbols-outlined text-sm">edit_square</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تقرير الأداء" type="button">
+<span class="material-symbols-outlined text-sm">analytics</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="الإجازات" type="button">
+<span class="material-symbols-outlined text-sm">calendar_month</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-primary font-bold" title="كشف المستحقات" type="button">
+<span class="material-symbols-outlined text-sm">receipt_long</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Employee Card 3 -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-[0_2px_8px_rgba(12,36,97,0.04)] flex flex-col gap-space-sm group">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<img class="w-12 h-12 rounded-full object-cover shrink-0 shadow-sm" data-alt="Portrait of a young Arab male accountant sitting in high-end financial office with dual monitors showing financial graphs, dressed in formal shirt with warm professional smile" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDPLIu4dfHmQWLdWw6_qX1T0z6xk1I9KllrGB6dRMAtzEOBTRG434OL5ivg9no_B27u9oRqe4A2uoINFhLvb0_FHeX5eONuFXdGfSxlFbB_fbswsJn_fXjHVICYRzLD_dkaaPeMo-T89rCvJm76q5uYOQNdL3hunCdgL5AAbjBq-ok95HhlvIDE-QyDQpBBrjbWQ1ofNhRzAhMO36N87MLEdheKuhXR960HR8LX_-Yq-Yk5ffpC_c2fTQ"/>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-on-surface font-bold truncate">أ. ماجد فهد الشمري</span>
+<span class="px-space-xs py-0.5 rounded-full bg-primary/10 text-primary font-label-xs text-label-xs">محاسب مالي أول</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">المالية والحسابات • تعيين: 10 مارس 2022</span>
+</div>
+</div>
+<span class="px-space-xs py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs shrink-0">عقد سنوي سارٍ</span>
+</div>
+<div class="flex items-center justify-between pt-space-xs bg-surface-container/30 px-space-sm py-1.5 rounded-lg">
+<div class="flex items-center gap-space-md">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">الأساسي</span>
+<span class="font-label-md text-label-md text-primary font-bold">10,800 ر.س</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">استقطاع غياب</span>
+<span class="font-label-md text-label-md text-error font-bold">-450 ر.س (يوم)</span>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تعديل الملف" type="button">
+<span class="material-symbols-outlined text-sm">edit_square</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تقرير الأداء" type="button">
+<span class="material-symbols-outlined text-sm">analytics</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="الإجازات" type="button">
+<span class="material-symbols-outlined text-sm">calendar_month</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-primary font-bold" title="كشف المستحقات" type="button">
+<span class="material-symbols-outlined text-sm">receipt_long</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Employee Card 4 -->
+<div class="p-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low transition-all shadow-[0_2px_8px_rgba(12,36,97,0.04)] flex flex-col gap-space-sm group">
+<div class="flex items-start justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm min-w-0">
+<img class="w-12 h-12 rounded-full object-cover shrink-0 shadow-sm" data-alt="Portrait of an Arab female instructional technology specialist sitting in modern computer lab with smart interactive screens, wearing modern dark educational uniform" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDssca3AbixfgrqUefsmzsq9EJ1_h33vz3YtSYB5Lqr29v1KgeBNCE7HmZbOhAPEM-KCQmspGnkH8y3WiPDp6_THYR97BO_RdICHK-CMzCh5xpBrsJ2Cw1TwObLRkNNi5I_0DfNVunCqkAwyqHmBFGHqiTSndycy4PwfgNGmH9M4NMjxDv2aJIYY5U-XqBAYXGMbX03zVm5187g5g-BASaKH64R-gvYqe-CgpQg0h11Mi64A5VuJJxcEQ"/>
+<div class="flex flex-col min-w-0">
+<div class="flex items-center gap-space-xs flex-wrap">
+<span class="font-title-md text-title-md text-on-surface font-bold truncate">م. نورة إبراهيم الدوسري</span>
+<span class="px-space-xs py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant font-label-xs text-label-xs">مشرفة تقنية التعليم</span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">التقنية والابتكار • تعيين: 01 سبتمبر 2023</span>
+</div>
+</div>
+<span class="px-space-xs py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs shrink-0">إجازة سنوية</span>
+</div>
+<div class="flex items-center justify-between pt-space-xs bg-surface-container/30 px-space-sm py-1.5 rounded-lg">
+<div class="flex items-center gap-space-md">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">الأساسي</span>
+<span class="font-label-md text-label-md text-primary font-bold">11,500 ر.س</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">رصيد الإجازة</span>
+<span class="font-label-md text-label-md text-on-surface font-bold">18 يوماً</span>
+</div>
+</div>
+<div class="flex items-center gap-1">
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تعديل الملف" type="button">
+<span class="material-symbols-outlined text-sm">edit_square</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="تقرير الأداء" type="button">
+<span class="material-symbols-outlined text-sm">analytics</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-on-surface-variant" title="الإجازات" type="button">
+<span class="material-symbols-outlined text-sm">calendar_month</span>
+</button>
+<button class="p-1 rounded-lg hover:bg-surface-container text-primary font-bold" title="كشف المستحقات" type="button">
+<span class="material-symbols-outlined text-sm">receipt_long</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- LEFT PANEL: Monthly Payroll Cycle & Interactive Worksheet (7 Cols) -->
+<section class="xl:col-span-7 flex flex-col gap-space-lg">
+<!-- Payroll Cycle Control Header Card -->
+<div class="w-full bg-surface-container-lowest p-space-lg rounded-xl shadow-[0_4px_16px_rgba(12,36,97,0.06)] flex flex-col gap-space-md">
+<div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-sm">
+<div class="flex items-center gap-space-sm">
+<div class="p-space-xs rounded-lg bg-secondary/10 text-secondary">
+<span class="material-symbols-outlined">event_available</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">دورة رواتب شهر: فبراير 2025</h2>
+<span class="px-space-sm py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs font-bold animate-pulse">
+                  مسودة جاهزة للاعتماد
+                </span>
+</div>
+<span class="font-label-xs text-label-xs text-on-surface-variant">فترة الاستحقاق: 01 فبراير 2025 – 28 فبراير 2025</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="text-label-xs font-label-xs text-outline">تاريخ الإيداع المقترح:</span>
+<span class="text-label-sm font-label-lg text-primary font-bold">27 فبراير 2025</span>
+</div>
+</div>
+<!-- Action Strip with Smart Recalculate & Export -->
+<div class="flex flex-wrap items-center justify-between gap-space-sm pt-space-sm">
+<div class="flex flex-wrap items-center gap-space-sm">
+<!-- Smart Auto-Calculate Button -->
+<button class="px-space-md py-space-xs rounded-xl bg-surface-container-low text-primary hover:bg-surface-container font-label-lg text-label-lg font-bold transition-all flex items-center gap-space-xs shadow-xs" id="smartCalculateBtn" type="button">
+<span class="material-symbols-outlined text-secondary">auto_fix_high</span>
+<span>الاحتساب التلقائي الذكي (LMS + الحضور)</span>
+</button>
+<span class="hidden font-label-xs text-label-xs text-secondary bg-secondary/10 px-space-xs py-1 rounded-md" id="calcBadge">
+              تم التحديث التلقائي بنجاح!
+            </span>
+</div>
+<!-- WPS / Muddad Platform Export -->
+<button class="px-space-md py-space-xs rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high font-label-lg text-label-lg transition-colors flex items-center gap-space-xs shadow-xs" type="button">
+<span class="material-symbols-outlined text-secondary">download_for_offline</span>
+<span>تصدير مسير الرواتب إلى مدد (WPS)</span>
+</button>
+</div>
+</div>
+<!-- Interactive Payroll Table -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_16px_rgba(12,36,97,0.06)] overflow-hidden flex flex-col">
+<div class="p-space-md bg-surface-container-low flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">table_chart</span>
+<span class="font-title-md text-title-md text-on-surface font-bold">جدول تفاصيل الرواتب الفردية (مباشر وقابل للتعديل)</span>
+</div>
+<span class="font-label-xs text-label-xs text-outline">انقر فوق أي خلية باللون الداكن للتعديل المباشر</span>
+</div>
+<div class="overflow-x-auto w-full">
+<table class="w-full text-right">
+<thead>
+<tr class="bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs">
+<th class="py-space-sm px-space-md font-bold">الموظف والكود</th>
+<th class="py-space-sm px-space-md font-bold">الأساسي</th>
+<th class="py-space-sm px-space-md font-bold">سكن ونقل</th>
+<th class="py-space-sm px-space-md font-bold">مكافآت الأداء (LMS)</th>
+<th class="py-space-sm px-space-md font-bold">استقطاعات وغياب</th>
+<th class="py-space-sm px-space-md font-bold text-left">صافي المستحق</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-surface-container font-body-sm text-body-sm text-on-surface">
+<!-- Row 1 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-bold text-primary">أ. طارق عبد الله المنصور</span>
+<span class="font-label-xs text-label-xs text-outline">EMP-1049 • معلم رياضيات أول</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md font-semibold">12,500 ر.س</td>
+<td class="py-space-sm px-space-md font-semibold">3,125 ر.س</td>
+<td class="py-space-sm px-space-md">
+<span class="inline-flex items-center gap-1 font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-lg cursor-pointer hover:bg-secondary/20 transition-all" title="مكافأة تفاعل رقمي 100% وإعداد 12 اختباراً ذكياً">
+                    +1,200 ر.س
+                    <span class="material-symbols-outlined text-xs">edit</span>
+</span>
+</td>
+<td class="py-space-sm px-space-md text-error font-semibold">-0.00 ر.س</td>
+<td class="py-space-sm px-space-md text-left font-headline-sm text-headline-sm text-primary font-bold">
+                  16,825 <span class="text-label-xs font-normal text-outline">ر.س</span>
+</td>
+</tr>
+<!-- Row 2 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-bold text-primary">أ. سارة خالد الجبيري</span>
+<span class="font-label-xs text-label-xs text-outline">EMP-0821 • وكيلة شؤون الطلاب</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md font-semibold">14,200 ر.س</td>
+<td class="py-space-sm px-space-md font-semibold">3,550 ر.س</td>
+<td class="py-space-sm px-space-md">
+<span class="inline-flex items-center gap-1 font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-lg cursor-pointer hover:bg-secondary/20 transition-all" title="بدل إشراف ميداني إضافي">
+                    +800 ر.س
+                    <span class="material-symbols-outlined text-xs">edit</span>
+</span>
+</td>
+<td class="py-space-sm px-space-md text-error font-semibold">-0.00 ر.س</td>
+<td class="py-space-sm px-space-md text-left font-headline-sm text-headline-sm text-primary font-bold">
+                  18,550 <span class="text-label-xs font-normal text-outline">ر.س</span>
+</td>
+</tr>
+<!-- Row 3 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-bold text-primary">أ. ماجد فهد الشمري</span>
+<span class="font-label-xs text-label-xs text-outline">EMP-1194 • محاسب مالي</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md font-semibold">10,800 ر.س</td>
+<td class="py-space-sm px-space-md font-semibold">2,700 ر.س</td>
+<td class="py-space-sm px-space-md text-outline">0.00 ر.س</td>
+<td class="py-space-sm px-space-md">
+<span class="inline-flex items-center gap-1 font-bold text-error bg-error/10 px-2 py-0.5 rounded-lg cursor-pointer hover:bg-error/20 transition-all" title="حسم غياب غير معذور: يوم 12 فبراير">
+                    -450 ر.س
+                    <span class="material-symbols-outlined text-xs">edit</span>
+</span>
+</td>
+<td class="py-space-sm px-space-md text-left font-headline-sm text-headline-sm text-primary font-bold">
+                  13,050 <span class="text-label-xs font-normal text-outline">ر.س</span>
+</td>
+</tr>
+<!-- Row 4 -->
+<tr class="hover:bg-surface-container-low transition-colors">
+<td class="py-space-sm px-space-md">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg font-bold text-primary">م. نورة إبراهيم الدوسري</span>
+<span class="font-label-xs text-label-xs text-outline">EMP-1288 • مشرفة تقنية التعليم</span>
+</div>
+</td>
+<td class="py-space-sm px-space-md font-semibold">11,500 ر.س</td>
+<td class="py-space-sm px-space-md font-semibold">2,875 ر.س</td>
+<td class="py-space-sm px-space-md">
+<span class="inline-flex items-center gap-1 font-bold text-secondary bg-secondary/10 px-2 py-0.5 rounded-lg cursor-pointer hover:bg-secondary/20 transition-all" title="مكافأة إطلاق بيئة الفصول الافتراضية">
+                    +1,500 ر.س
+                    <span class="material-symbols-outlined text-xs">edit</span>
+</span>
+</td>
+<td class="py-space-sm px-space-md text-error font-semibold">-0.00 ر.س</td>
+<td class="py-space-sm px-space-md text-left font-headline-sm text-headline-sm text-primary font-bold">
+                  15,875 <span class="text-label-xs font-normal text-outline">ر.س</span>
+</td>
+</tr>
+</tbody>
+<!-- Summary Aggregation Row -->
+<tfoot class="bg-surface-container font-title-md text-title-md font-bold text-on-surface">
+<tr>
+<td class="py-space-md px-space-md text-primary">إجمالي المسير العام (94 موظف)</td>
+<td class="py-space-md px-space-md text-on-surface">520,000 ر.س</td>
+<td class="py-space-md px-space-md text-on-surface">95,000 ر.س</td>
+<td class="py-space-md px-space-md text-secondary">+28,450 ر.س</td>
+<td class="py-space-md px-space-md text-error">-14,200 ر.س</td>
+<td class="py-space-md px-space-md text-left text-primary bg-primary-fixed font-headline-sm text-headline-sm">
+                  600,800 ر.س
+                </td>
+</tr>
+</tfoot>
+</table>
+</div>
+</div>
+<!-- Payroll Approval & Auto-Journal Integration -->
+<div class="bg-surface-container-lowest p-space-lg rounded-xl shadow-[0_4px_16px_rgba(12,36,97,0.06)] flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-primary">account_tree</span>
+<h3 class="font-title-md text-title-md text-primary font-bold">معاينة القيد المحاسبي المزدوج التلقائي (Journal Integration)</h3>
+</div>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs">
+            جاهز للنقل إلى دليل الحسابات
+          </span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+          بمجرد النقر على زر الاعتماد أدناه، سيقوم محرك منصتي المالي بترحيل هذا القيد فورياً إلى سجل اليومية العامة وتحديث أرصدة بنك الرياض ومخصص التأمينات:
+        </p>
+<!-- Accounting Entry Table Box -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm font-body-sm">
+<div class="flex items-center justify-between pb-space-xs border-b-0">
+<span class="font-label-xs text-label-xs text-outline font-bold">الحساب المحاسبي والدليل</span>
+<div class="flex items-center gap-space-xl font-label-xs text-label-xs text-outline font-bold">
+<span class="w-24 text-left">مدين (Debit)</span>
+<span class="w-24 text-left">دائن (Credit)</span>
+</div>
+</div>
+<!-- Debit Line -->
+<div class="flex items-center justify-between py-1.5 px-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-xs py-0.5 rounded bg-primary/10 text-primary font-label-xs font-bold">[مدين]</span>
+<span class="text-on-surface font-semibold">حساب مصروف رواتب وأجور الهيئة التعليمية والإدارية (5101)</span>
+</div>
+<div class="flex items-center gap-space-xl">
+<span class="w-24 text-left font-bold text-primary">600,800 ر.س</span>
+<span class="w-24 text-left text-outline">-</span>
+</div>
+</div>
+<!-- Credit Line 1 -->
+<div class="flex items-center justify-between py-1.5 px-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-xs py-0.5 rounded bg-secondary/10 text-secondary font-label-xs font-bold">[دائن]</span>
+<span class="text-on-surface font-semibold">حساب البنك / بنك الرياض - الحساب الجاري التشغيلي (1102)</span>
+</div>
+<div class="flex items-center gap-space-xl">
+<span class="w-24 text-left text-outline">-</span>
+<span class="w-24 text-left font-bold text-secondary">575,000 ر.س</span>
+</div>
+</div>
+<!-- Credit Line 2 -->
+<div class="flex items-center justify-between py-1.5 px-space-sm rounded-lg bg-surface-container-lowest">
+<div class="flex items-center gap-space-xs">
+<span class="px-space-xs py-0.5 rounded bg-secondary/10 text-secondary font-label-xs font-bold">[دائن]</span>
+<span class="text-on-surface font-semibold">حساب التأمينات الاجتماعية والضرائب المستحقة (2104)</span>
+</div>
+<div class="flex items-center gap-space-xl">
+<span class="w-24 text-left text-outline">-</span>
+<span class="w-24 text-left font-bold text-secondary">25,800 ر.س</span>
+</div>
+</div>
+</div>
+<!-- Master Approval Button -->
+<button class="w-full py-space-md px-space-lg rounded-xl text-on-primary font-headline-sm text-headline-sm font-bold flex items-center justify-center gap-space-md shadow-[0_8px_24px_rgba(37,99,235,0.35)] hover:shadow-[0_12px_32px_rgba(37,99,235,0.45)] transition-all bg-gradient-to-l from-primary via-primary-container to-secondary" id="masterApproveBtn" type="button">
+<span class="material-symbols-outlined text-2xl">verified_user</span>
+<span>اعتماد مسير رواتب شهر فبراير وإصدار القيد المحاسبي</span>
+</button>
+</div>
+</section>
+</div>
+<!-- Smart Hire Wizard Modal (Overlay & 2-Step Flow) -->
+<div class="fixed inset-0 z-50 hidden flex items-center justify-center bg-inverse-surface/50 backdrop-blur-sm p-space-md" id="hireWizardModal">
+<div class="bg-surface-container-lowest rounded-xl max-w-2xl w-full p-space-lg shadow-[0_20px_40px_rgba(12,36,97,0.25)] flex flex-col gap-space-md">
+<!-- Wizard Modal Header -->
+<div class="flex items-center justify-between pb-space-sm border-b border-surface-container-high">
+<div class="flex items-center gap-space-sm">
+<div class="p-space-xs bg-primary/10 text-primary rounded-lg">
+<span class="material-symbols-outlined">person_add_alt</span>
+</div>
+<div class="flex flex-col">
+<h3 class="font-headline-sm text-headline-sm text-primary font-bold">معالج التوظيف الذكي (Smart Hire Wizard)</h3>
+<span class="font-label-xs text-label-xs text-on-surface-variant">إضافة كادر جديد وتوليد بيانات الوصول لمنصة LMS آلياً</span>
+</div>
+</div>
+<button class="p-space-xs text-outline hover:text-on-surface rounded-full" id="closeHireWizardBtn" type="button">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<!-- Stepper Indicator -->
+<div class="flex items-center justify-between gap-space-md px-space-sm">
+<div class="flex items-center gap-space-xs flex-1">
+<span class="w-8 h-8 rounded-full bg-primary text-on-primary font-label-lg flex items-center justify-center font-bold" id="step1Indicator">1</span>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm font-bold text-primary">البيانات الشخصية</span>
+<span class="font-label-xs text-label-xs text-outline">الهوية، الاسم، الاتصال</span>
+</div>
+</div>
+<div class="h-1 flex-1 bg-surface-container-high rounded-full overflow-hidden">
+<div class="h-full bg-primary w-1/2 transition-all duration-300" id="stepProgress"></div>
+</div>
+<div class="flex items-center gap-space-xs flex-1 justify-end">
+<span class="w-8 h-8 rounded-full bg-surface-container text-outline font-label-lg flex items-center justify-center font-bold" id="step2Indicator">2</span>
+<div class="flex flex-col text-left">
+<span class="font-label-sm text-label-sm font-bold text-outline">الوظيفة وحساب LMS</span>
+<span class="font-label-xs text-label-xs text-outline">الراتب، الصلاحية، المقررات</span>
+</div>
+</div>
+</div>
+<!-- Step 1 Content -->
+<div class="flex flex-col gap-space-md" id="wizardStep1">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">الاسم الكامل بالعربية</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm" placeholder="مثال: خالد منصور الشريف" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">رقم الهوية الوطنية / الإقامة</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm" placeholder="10 أرقام" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">البريد الإلكتروني المهني</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm text-left" placeholder="khalid@manasety.edu.sa" type="email"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">رقم الجوال الشخصي</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm text-left" placeholder="+966 5x xxx xxxx" type="tel"/>
+</div>
+</div>
+<div class="flex justify-end gap-space-sm pt-space-md">
+<button class="px-space-lg py-space-sm rounded-xl text-on-primary bg-primary font-label-lg font-bold flex items-center gap-space-xs shadow-md" id="toStep2Btn" type="button">
+<span>التالي: البيانات الوظيفية</span>
+<span class="material-symbols-outlined">arrow_left</span>
+</button>
+</div>
+</div>
+<!-- Step 2 Content -->
+<div class="hidden flex flex-col gap-space-md" id="wizardStep2">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">القسم / التصنيف الأكاديمي</label>
+<select class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm">
+<option>الكادر التعليمي الأكاديمي</option>
+<option>الشؤون الإدارية والتنظيمية</option>
+<option>التقنية والابتكار</option>
+<option>الخدمات والتشغيل</option>
+</select>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">المسمى الوظيفي الدقيق</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm" placeholder="مثال: معلم فيزياء ثانوي" type="text"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">الراتب الأساسي الشهري (ر.س)</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm" placeholder="مثال: 11000" type="number"/>
+</div>
+<div class="flex flex-col gap-1">
+<label class="font-label-sm text-label-sm text-on-surface font-semibold">تاريخ مباشرة العمل</label>
+<input class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface border-none outline-none focus:ring-2 focus:ring-secondary font-body-sm" type="date" value="2025-03-01"/>
+</div>
+</div>
+<!-- Automatic LMS User Provisioning Notice -->
+<div class="p-space-md rounded-xl bg-secondary/10 flex items-start gap-space-sm">
+<span class="material-symbols-outlined text-secondary">vpn_key</span>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-primary font-bold">توليد حساب النظام الذكي تلقائياً</span>
+<span class="font-body-sm text-body-sm text-on-surface-variant">
+              سيتم إنشاء حساب معلم في نظام منصتي فوراً، وربطه بالفصول الدراسية وتزويده بكلمة مرور أولية عبر رسالة نصية وواتساب موثق.
+            </span>
+</div>
+</div>
+<div class="flex justify-between items-center gap-space-sm pt-space-md">
+<button class="px-space-md py-space-sm rounded-xl bg-surface-container-low text-on-surface font-label-lg" id="backToStep1Btn" type="button">
+            السابق
+          </button>
+<button class="px-space-lg py-space-sm rounded-xl text-on-primary bg-primary font-label-lg font-bold flex items-center gap-space-xs shadow-md" id="completeHireBtn" type="button">
+<span class="material-symbols-outlined">check_circle</span>
+<span>حفظ الموظف وتوليد الحساب</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Client-side Micro-Interactions Script -->
+<script>
+  // Hire Wizard Logic
+  const openHireBtn = document.getElementById('openHireWizardBtn');
+  const closeHireBtn = document.getElementById('closeHireWizardBtn');
+  const hireModal = document.getElementById('hireWizardModal');
+  const toStep2 = document.getElementById('toStep2Btn');
+  const backToStep1 = document.getElementById('backToStep1Btn');
+  const wizardStep1 = document.getElementById('wizardStep1');
+  const wizardStep2 = document.getElementById('wizardStep2');
+  const step1Ind = document.getElementById('step1Indicator');
+  const step2Ind = document.getElementById('step2Indicator');
+  const stepProgress = document.getElementById('stepProgress');
+  const completeHire = document.getElementById('completeHireBtn');
+
+  if (openHireBtn && hireModal) {
+    openHireBtn.addEventListener('click', () => {
+      hireModal.classList.remove('hidden');
+    });
+  }
+
+  if (closeHireBtn && hireModal) {
+    closeHireBtn.addEventListener('click', () => {
+      hireModal.classList.add('hidden');
+    });
+  }
+
+  if (toStep2) {
+    toStep2.addEventListener('click', () => {
+      wizardStep1.classList.add('hidden');
+      wizardStep2.classList.remove('hidden');
+      stepProgress.classList.remove('w-1/2');
+      stepProgress.classList.add('w-full');
+      step2Ind.classList.remove('bg-surface-container', 'text-outline');
+      step2Ind.classList.add('bg-primary', 'text-on-primary');
+    });
+  }
+
+  if (backToStep1) {
+    backToStep1.addEventListener('click', () => {
+      wizardStep2.classList.add('hidden');
+      wizardStep1.classList.remove('hidden');
+      stepProgress.classList.remove('w-full');
+      stepProgress.classList.add('w-1/2');
+      step2Ind.classList.remove('bg-primary', 'text-on-primary');
+      step2Ind.classList.add('bg-surface-container', 'text-outline');
+    });
+  }
+
+  if (completeHire) {
+    completeHire.addEventListener('click', () => {
+      alert('تم بنجاح حفظ سجل الموظف وتوليد حساب المعلم في نظام منصتي وإرسال بطاقة الاعتماد.');
+      hireModal.classList.add('hidden');
+    });
+  }
+
+  // Smart Calculate Interactive Demo
+  const smartCalculateBtn = document.getElementById('smartCalculateBtn');
+  const calcBadge = document.getElementById('calcBadge');
+  if (smartCalculateBtn && calcBadge) {
+    smartCalculateBtn.addEventListener('click', () => {
+      calcBadge.classList.remove('hidden');
+      setTimeout(() => {
+        calcBadge.classList.add('hidden');
+      }, 4000);
+    });
+  }
+
+  // Master Approval Action
+  const masterApproveBtn = document.getElementById('masterApproveBtn');
+  if (masterApproveBtn) {
+    masterApproveBtn.addEventListener('click', () => {
+      if (confirm('تأكيد اعتماد مسير رواتب شهر فبراير بمبلغ 600,800 ر.س وترحيل القيد المحاسبي التلقائي؟')) {
+        masterApproveBtn.disabled = true;
+        masterApproveBtn.classList.remove('from-primary', 'via-primary-container', 'to-secondary');
+        masterApproveBtn.classList.add('bg-surface-container', 'text-on-surface-variant');
+        masterApproveBtn.innerHTML = '<span class="material-symbols-outlined">task_alt</span> تم الاعتماد وترحيل القيد اليومي بنجاح (#JV-2025-0288)';
+      }
+    });
+  }
+
+  // Dark Mode Mini-Toggle
+  const themeToggleBtn = document.getElementById('themeToggleBtn');
+  if (themeToggleBtn) {
+    themeToggleBtn.addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+  }
+</script></main><footer class="w-full bg-surface-container-lowest mt-space-xl"><div class="w-full px-gutter py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-sm"><img alt="شعار منصتي" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-label-md text-label-md text-on-surface">منصتي التعليمية الذكية © 2025 - جميع الحقوق محفوظة</span></div><div class="flex items-center gap-space-lg font-label-sm text-label-md"><a class="hover:text-primary transition-colors" href="#">شروط الاستخدام</a><a class="hover:text-primary transition-colors" href="#">سياسة الخصوصية</a><a class="hover:text-primary transition-colors" href="#">دليل العمليات المالية</a><a class="hover:text-primary transition-colors" href="#">الدعم الفني والمساعدة</a></div></div></footer></body></html>

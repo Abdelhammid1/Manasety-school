@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=Nunito+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "background": "#f7f9fc",
+          "inverse-primary": "#b6c4ff",
+          "surface-variant": "#e0e3e6",
+          "on-secondary-fixed-variant": "#004c68",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "outline-variant": "#c5c5d3",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "inverse-on-surface": "#eff1f4",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed": "#001e2c",
+          "on-tertiary-fixed": "#00174b",
+          "on-secondary-container": "#005371",
+          "secondary": "#006689",
+          "on-surface": "#191c1e",
+          "surface-bright": "#f7f9fc",
+          "error": "#ba1a1a",
+          "on-primary-fixed-variant": "#264191",
+          "surface-dim": "#d8dadd",
+          "surface-container-lowest": "#ffffff",
+          "tertiary": "#00246b",
+          "error-container": "#ffdad6",
+          "surface-container-highest": "#e0e3e6",
+          "tertiary-fixed": "#dbe1ff",
+          "on-error-container": "#93000a",
+          "on-tertiary": "#ffffff",
+          "primary-container": "#1e3a8a",
+          "on-primary-fixed": "#00164e",
+          "on-error": "#ffffff",
+          "on-primary-container": "#90a8ff",
+          "primary": "#00236f",
+          "on-primary": "#ffffff",
+          "outline": "#757682",
+          "on-tertiary-container": "#8da9ff",
+          "surface-container-high": "#e6e8eb",
+          "secondary-fixed-dim": "#78d1ff",
+          "surface": "#f7f9fc",
+          "secondary-fixed": "#c3e8ff",
+          "surface-container-low": "#f2f4f7",
+          "primary-fixed": "#dce1ff",
+          "secondary-container": "#5bcaff",
+          "inverse-surface": "#2d3133",
+          "on-surface-variant": "#444651",
+          "on-background": "#191c1e",
+          "tertiary-container": "#00389a",
+          "primary-fixed-dim": "#b6c4ff",
+          "surface-container": "#eceef1",
+          "surface-tint": "#4059aa"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-lg": "1.5rem",
+          "gutter": "1.5rem",
+          "margin": "2rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-md": "1rem",
+          "space-xl": "2.5rem"
+        },
+        "fontFamily": {
+          "title-md": [
+            "Plus Jakarta Sans"
+          ],
+          "body-md": [
+            "Nunito Sans"
+          ],
+          "display-hero": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-md": [
+            "Plus Jakarta Sans"
+          ],
+          "label-lg": [
+            "Nunito Sans"
+          ],
+          "headline-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "label-xs": [
+            "Nunito Sans"
+          ],
+          "display-hero-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-sm": [
+            "Nunito Sans"
+          ],
+          "headline-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-lg": [
+            "Nunito Sans"
+          ],
+          "headline-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "label-md": [
+            "Nunito Sans"
+          ]
+        },
+        "fontSize": {
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "30px",
+              "fontWeight": "600"
+            }
+          ],
+          "body-md": [
+            "16px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "400"
+            }
+          ],
+          "display-hero": [
+            "40px",
+            {
+              "lineHeight": "64px",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "22px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "600"
+            }
+          ],
+          "label-xs": [
+            "11px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "700"
+            }
+          ],
+          "display-hero-mobile": [
+            "28px",
+            {
+              "lineHeight": "44px",
+              "fontWeight": "800"
+            }
+          ],
+          "body-sm": [
+            "14px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg-mobile": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "18px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg": [
+            "32px",
+            {
+              "lineHeight": "52px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-background font-body-md text-body-md text-on-background min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_4px_20px_rgba(12,36,97,0.06)]"><div class="h-20 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-headline-sm text-headline-sm text-primary">منصتي</span></div><div class="hidden xl:flex items-center bg-surface-container-low rounded-full px-space-md py-space-xs gap-space-xs w-72"><span class="material-symbols-outlined text-outline">search</span><input class="bg-transparent border-none outline-none font-body-sm text-body-sm text-on-surface placeholder:text-outline w-full text-right" placeholder="البحث عن الدروس، المقررات، الواجبات..." type="search"/></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-title-md"><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="dashboard" href="#">الرئيسية</a><a aria-current="page" class="px-space-md py-space-xs rounded-lg transition-colors bg-primary-container text-on-primary font-title-md" data-path="courses" href="#">موادي والمقررات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assignments" href="#">الواجبات والأنشطة</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assessments" href="#">الاختبارات والتقييمات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="schedule" href="#">الجدول الأكاديمي</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="reports" href="#">التقارير</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center bg-surface-container rounded-full p-space-xs"><button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-[0_2px_8px_rgba(0,35,111,0.2)]" type="button">معلم</button><button class="px-space-md py-space-xs rounded-full text-on-surface-variant font-label-xs text-label-xs hover:text-on-surface" type="button">طالب</button></div><button aria-label="التنبيهات" class="relative p-space-xs rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-secondary"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. أحمد السعيد</span><span class="font-label-xs text-label-xs text-on-surface-variant">المرحلة الثانوية</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></div></header><main class="w-full pt-20 bg-background"><div class="flex flex-col w-full">
+<div class="w-full px-gutter py-space-lg flex flex-col gap-space-lg">
+<!-- PAGE HEADER BAR -->
+<div class="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-space-md">
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center gap-space-xs">
+<span class="p-space-xs rounded-lg bg-surface-container text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">campaign</span>
+</span>
+<span class="font-headline-lg text-headline-lg text-primary tracking-tight">الإعلانات المدرسية والتعاميم</span>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs">مباشر ومُوثّق</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant pr-9">
+          الموجز الإخباري المباشر لمجتمع المدرسة والطلاب وأولياء الأمور · العام الدراسي الحالي
+        </p>
+</div>
+<div class="flex items-center gap-space-sm self-stretch lg:self-auto justify-end">
+<!-- Theme Mode Toggle -->
+<button aria-label="تبديل الوضع" class="h-12 px-space-md rounded-xl bg-surface-container text-on-surface hover:bg-surface-container-high transition-all flex items-center gap-space-xs shadow-sm" id="themeToggleBtn" type="button">
+<span class="material-symbols-outlined text-on-surface-variant" id="themeIcon">light_mode</span>
+<span class="font-label-lg text-label-lg hidden sm:inline" id="themeLabel">الوضع النهاري</span>
+</button>
+<!-- New Announcement CTA -->
+<button class="h-12 px-space-lg rounded-xl text-on-primary font-title-md text-title-md shadow-md hover:shadow-xl transition-all flex items-center gap-space-xs" id="toggleComposerBtn" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);" type="button">
+<span class="material-symbols-outlined">add_circle</span>
+<span>نشر إعلان جديد</span>
+</button>
+</div>
+</div>
+<!-- FILTER CHIPS SCROLL ROW -->
+<div class="flex items-center gap-space-xs overflow-x-auto pb-space-xs no-scrollbar">
+<button class="filter-chip active px-space-md py-space-xs rounded-full bg-primary-container text-on-primary font-label-lg text-label-lg shadow-sm whitespace-nowrap transition-all flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-base">apps</span>
+<span>الكل (١٨)</span>
+</button>
+<button class="filter-chip px-space-md py-space-xs rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-lg text-label-lg whitespace-nowrap transition-all flex items-center gap-space-xs" type="button">
+<span>🏛️</span>
+<span>الإدارة العامة</span>
+<span class="w-2 h-2 rounded-full bg-error"></span>
+</button>
+<button class="filter-chip px-space-md py-space-xs rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-lg text-label-lg whitespace-nowrap transition-all flex items-center gap-space-xs" type="button">
+<span>🎓</span>
+<span>معلمو المادة</span>
+</button>
+<button class="filter-chip px-space-md py-space-xs rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-lg text-label-lg whitespace-nowrap transition-all flex items-center gap-space-xs" type="button">
+<span>🏫</span>
+<span>فصلي (شعبة أ)</span>
+</button>
+<button class="filter-chip px-space-md py-space-xs rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-lg text-label-lg whitespace-nowrap transition-all flex items-center gap-space-xs" type="button">
+<span>📌</span>
+<span>الإعلانات المثبتة</span>
+<span class="px-space-xs py-0.5 rounded-full bg-primary text-on-primary font-label-xs text-label-xs">٢</span>
+</button>
+<button class="filter-chip px-space-md py-space-xs rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-container-high font-label-lg text-label-lg whitespace-nowrap transition-all flex items-center gap-space-xs" type="button">
+<span>📊</span>
+<span>استطلاعات الرأي</span>
+</button>
+<div class="mr-auto pl-space-xs flex items-center gap-space-xs text-outline font-label-xs text-label-xs">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span class="hidden md:inline">آخر تحديث: منذ لحظات</span>
+</div>
+</div>
+<!-- MAIN TWO-COLUMN DASHBOARD WORKSPACE -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- FEED & COMPOSER COLUMN (Cols 8) -->
+<div class="lg:col-span-8 flex flex-col gap-space-lg">
+<!-- COLLAPSIBLE RICH COMPOSER CARD -->
+<div class="bg-surface-container-lowest rounded-xl shadow-[0_4px_16px_rgba(12,36,97,0.06)] overflow-hidden transition-all duration-300" id="composerCard">
+<div class="p-space-lg flex flex-col gap-space-md">
+<!-- Composer Top Meta -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of an authoritative Saudi school administrator or teacher in neat formal white thobe and shemagh, warm engaging expression, modern educational office background, natural lighting, ultra high definition." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBSPwhzIwQ07bCf8mZvoqV2kdH9OnmyImfDxrLheB9SMsNv26pK60DKAoy7XZeiDDfy1e2-hs3uzUWsUhDNrtHMnuUWoZ0jRziOeT3wCvvg1lMKm3w6AdgOfGKYriWC6vvVzegBuHisogHvNdo751RhGfAChErF5zzJ85t7L9-jLBO8GYPnyIF-jFVQEig6N_rPm_GWtJKVd0Etr5gMiRS13kZXD4Yo9_JcwjQ2gCFlmnSzVM3ZqqOAhQ"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-on-surface">أ. أحمد السعيد</span>
+<span class="px-space-xs py-0.5 rounded bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs">معلم معتمد</span>
+</div>
+<span class="font-label-sm text-label-md text-on-surface-variant">المرحلة الثانوية · قسم العلوم التطبيقية</span>
+</div>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="px-space-sm py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs flex items-center gap-space-xs">
+<span class="w-1.5 h-1.5 rounded-full bg-secondary animate-pulse"></span>
+                  مسودة محفوظة تلقائياً
+                </span>
+</div>
+</div>
+<!-- Composer Input Area -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<input class="bg-transparent outline-none font-headline-sm text-headline-sm text-on-surface placeholder:text-outline w-full text-right font-semibold" placeholder="عنوان الإعلان أو التعميم..." type="text"/>
+<textarea class="bg-transparent outline-none font-body-md text-body-md text-on-surface placeholder:text-outline w-full text-right resize-none" placeholder="اكتب إعلاناً أو توجيهاً جديداً للطلاب وأولياء الأمور والمجتمع المدرسي..." rows="3"></textarea>
+<!-- Formatting Bar -->
+<div class="flex items-center justify-between pt-space-xs bg-surface-container-low">
+<div class="flex items-center gap-space-xs text-on-surface-variant">
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface" title="غامق" type="button">
+<span class="font-bold text-sm">B</span>
+</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface" title="مائل" type="button">
+<span class="italic text-sm">I</span>
+</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center text-on-surface" title="تسطير" type="button">
+<span class="underline text-sm">U</span>
+</button>
+<div class="w-px h-4 bg-surface-variant mx-1"></div>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center" title="قائمة نقطية" type="button">
+<span class="material-symbols-outlined text-lg">format_list_bulleted</span>
+</button>
+<button class="w-8 h-8 rounded hover:bg-surface-container flex items-center justify-center" title="رابط" type="button">
+<span class="material-symbols-outlined text-lg">link</span>
+</button>
+</div>
+<span class="font-label-xs text-label-xs text-outline">حتى ٥٠٠٠ حرف</span>
+</div>
+</div>
+<!-- Audience Chips Selector -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface font-semibold flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-base text-primary">group</span>
+                  الجمهور المستهدف بالإشعار:
+                </span>
+<button class="font-label-xs text-label-xs text-secondary hover:underline" type="button">تعديل الفئات المستهدفة</button>
+</div>
+<div class="flex flex-wrap items-center gap-space-xs">
+<div class="px-space-sm py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-md text-label-md flex items-center gap-space-xs">
+<span>المدرسة كاملة</span>
+<button class="material-symbols-outlined text-xs hover:opacity-75" type="button">close</button>
+</div>
+<div class="px-space-sm py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-md text-label-md flex items-center gap-space-xs">
+<span>أولياء الأمور فقط</span>
+<button class="material-symbols-outlined text-xs hover:opacity-75" type="button">close</button>
+</div>
+<div class="px-space-sm py-1 rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md flex items-center gap-space-xs">
+<span>الصف التاسع - عام</span>
+<button class="material-symbols-outlined text-xs hover:opacity-75" type="button">close</button>
+</div>
+<button class="px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant hover:bg-surface-variant font-label-md text-label-md flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-sm">add</span>
+<span>إضافة فئة أخرى</span>
+</button>
+</div>
+</div>
+<!-- Attachment Action Shortcuts & Publish Bar -->
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-space-md pt-space-sm">
+<div class="flex flex-wrap items-center gap-space-xs">
+<button class="px-space-sm py-space-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors font-label-md text-label-md flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-lg text-primary">attach_file</span>
+<span>إرفاق مستند</span>
+</button>
+<button class="px-space-sm py-space-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors font-label-md text-label-md flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-lg text-secondary">poll</span>
+<span>استطلاع رأي</span>
+</button>
+<button class="px-space-sm py-space-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors font-label-md text-label-md flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-lg text-error">mic</span>
+<span>تسجيل صوتي</span>
+</button>
+<button class="px-space-sm py-space-xs rounded-lg bg-surface-container text-on-surface-variant hover:text-primary hover:bg-surface-container-high transition-colors font-label-md text-label-md flex items-center gap-space-xs" type="button">
+<span class="material-symbols-outlined text-lg text-outline">schedule</span>
+<span>تحديد موعد النشر</span>
+</button>
+</div>
+<div class="flex items-center gap-space-sm justify-end">
+<button class="h-10 px-space-md rounded-lg text-primary hover:bg-surface-container font-label-lg text-label-lg transition-colors" type="button">
+                  جدولة المنشور
+                </button>
+<button class="h-10 px-space-lg rounded-xl text-on-primary font-title-md text-title-md shadow hover:shadow-lg transition-all flex items-center gap-space-xs" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);" type="button">
+<span>نشر الآن للجميع</span>
+<span class="material-symbols-outlined text-base">arrow_back</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- FEED SECTION TITLE -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm text-on-surface font-bold">آخر الإعلانات والتحديثات المباشرة</span>
+<span class="w-2 h-2 rounded-full bg-secondary"></span>
+</div>
+<div class="flex items-center gap-space-xs text-outline font-label-sm text-label-md">
+<span>الترتيب حسب: الأحدث أولاً</span>
+<span class="material-symbols-outlined text-sm">tune</span>
+</div>
+</div>
+<!-- CARD 1: PINNED HIGH-FIDELITY ANNOUNCEMENT (Component: announcement/pinned) -->
+<article class="bg-surface-container-lowest rounded-xl shadow-[0_4px_18px_rgba(12,36,97,0.08)] overflow-hidden relative" style="box-shadow: inset 4px 0 0 0 #2563EB, 0 4px 18px rgba(12,36,97,0.08);">
+<div class="p-space-lg flex flex-col gap-space-md">
+<!-- Card Header Meta -->
+<div class="flex items-start justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<img class="w-14 h-14 rounded-full object-cover" data-alt="Portrait of distinguished senior Saudi school principal Dr. Abdulaziz Al-Fahd, white traditional thobe, embroidered bisht edge, calm reassuring smile, official executive school office setting, high visual prestige." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAbJ-imA0Ur90TNRGmxtAJ89oe1hvbfdZm6qMrmfE5mxyOwcck7MM_G_IdxlhUury-2tjPuzcxXGS3xfHGRMr58JubCxJvQtxualuqSaTS3e2Fc0jN9n5OghxjSD3KgCvHhc3T9kDRvEGJ9fPfAouJBLZbOwgen-TTYo44kFozcmA2zsWDJK8qeZLtqbYxBQHq7SNnC3mwTVTrO9Z6yU9h-y3o4fzN6cIiVqxctNR9m9HVmc43IXPyufw"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">د. عبد العزيز الفهد</span>
+<span class="material-symbols-outlined text-secondary text-base" style="font-variation-settings: 'FILL' 1;" title="حساب إدارة المدرسة موثق">verified</span>
+<span class="px-space-xs py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs">مدير المدرسة</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-xs">schedule</span>
+<span>قبل ساعتين</span>
+<span>·</span>
+<span>موجه لكافة المراحل والصفوف</span>
+</div>
+</div>
+</div>
+<!-- Pinned Badge -->
+<div class="flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md">
+<span class="material-symbols-outlined text-base text-primary" style="font-variation-settings: 'FILL' 1;">keep</span>
+<span>إعلان مثبت من الإدارة</span>
+</div>
+</div>
+<!-- Card Content Body -->
+<div class="flex flex-col gap-space-xs">
+<h2 class="font-headline-md text-headline-md text-on-surface font-bold leading-snug">
+                جدول الاختبارات الفصلية الموحدة للفصل الدراسي الثاني وتوجيهات الحضور الأكاديمي
+              </h2>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                أبناءنا وبناتنا الطلبة، أولياء الأمور الكرام: تود إدارة المدرسة إحاطتكم علماً بصدور الجدول الرسمي المعتمد للاختبارات التحريرية لنهاية الفصل الدراسي الثاني. يرجى من جميع الطلاب الالتزام بالحضور في تمام الساعة ٧:٠٠ صباحاً، مع الالتزام التام بالزي المدرسي الموحد وإحضار الأدوات المدرسية المعتمدة فقط. كما تم إرفاق خطة المراجعة الاسترشادية ومواعيد اللجان.
+              </p>
+</div>
+<!-- Image Visual Attachment Preview -->
+<div class="rounded-xl overflow-hidden shadow-sm relative group cursor-pointer">
+<img class="w-full h-56 object-cover transform group-hover:scale-101 transition-transform duration-500" data-alt="Modern brightly lit Arabic school exam hall with organized single wooden desks, students focused in neat white uniforms, inspiring motivational digital screen display on the wall, architectural blue geometric banners of Manasety platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMkaqyPNFe9zlHQVQpp2GB68bx5Qxoi82A_7QdZZMPcezpFGNDPpYcr_Nbx5fCqTdeE2ISEEkOJRcgulJY-7UmI_O_FEc4aexMFq3jRMNj9wdjP_nt20U69i2LEzJkqMWJZezkvkeZ5xnHscAOx2eMkxWNS9Xo56kU6B2y3HposDE2jINkWJkeBLwVVxisy6MPzLobLTiMU1KTcymAsazUI31FPec0Icd0sI4EdgrxsyDumwgVDrUoXA"/>
+<div class="absolute inset-0 bg-gradient-to-t from-primary/80 via-transparent to-transparent flex items-end p-space-md">
+<div class="flex items-center justify-between w-full text-on-primary">
+<div class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-secondary-fixed">photo_camera</span>
+<span class="font-label-lg text-label-lg font-bold">معاينة مقرات اللجان المجهزة وقاعات الاختبار</span>
+</div>
+<span class="font-label-xs text-label-xs bg-primary/80 px-space-sm py-0.5 rounded-full">١٢ صورة مرفقة</span>
+</div>
+</div>
+</div>
+<!-- File Attachments Strip -->
+<div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-space-sm">
+<a class="flex-1 p-space-sm rounded-xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors" href="#">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined text-lg">picture_as_pdf</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface text-sm">جدول_الاختبارات_النهائية.pdf</span>
+<span class="font-label-xs text-label-xs text-outline">ملف PDF مُوثّق · 2.4 MB</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary">download</span>
+</a>
+<a class="flex-1 p-space-sm rounded-xl bg-surface-container flex items-center justify-between gap-space-sm hover:bg-surface-container-high transition-colors" href="#">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-primary-fixed text-on-primary-fixed flex items-center justify-center">
+<span class="material-symbols-outlined text-lg">description</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface text-sm">دليل_الإرشادات_الامتحانية.docx</span>
+<span class="font-label-xs text-label-xs text-outline">مستند Word · 1.1 MB</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary">download</span>
+</a>
+</div>
+<!-- Interactive Reactions Bar -->
+<div class="pt-space-sm flex flex-wrap items-center justify-between gap-space-sm bg-surface-container-low p-space-sm rounded-xl">
+<div class="flex items-center gap-space-xs">
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors flex items-center gap-space-xs text-on-surface font-label-md text-label-md" type="button">
+<span>👍</span>
+<span class="font-bold">٤٨</span>
+</button>
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors flex items-center gap-space-xs text-on-surface font-label-md text-label-md" type="button">
+<span>❤️</span>
+<span class="font-bold">٢٦</span>
+</button>
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors flex items-center gap-space-xs text-on-surface font-label-md text-label-md" type="button">
+<span>🎉</span>
+<span class="font-bold">١٩</span>
+</button>
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container hover:bg-primary-fixed hover:text-on-primary-fixed transition-colors flex items-center gap-space-xs text-on-surface font-label-md text-label-md" type="button">
+<span>💡</span>
+<span class="font-bold">١٢</span>
+</button>
+<button class="w-8 h-8 rounded-full bg-surface-container hover:bg-surface-variant text-on-surface-variant flex items-center justify-center text-sm" title="إضافة تفاعل" type="button">
+<span class="material-symbols-outlined text-base">add_reaction</span>
+</button>
+</div>
+<div class="flex items-center gap-space-md text-on-surface-variant font-label-md text-label-md">
+<span class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-base">chat_bubble_outline</span>
+<span>١٨ تعليقاً</span>
+</span>
+<span class="flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-base">share</span>
+<span>مشاركة</span>
+</span>
+</div>
+</div>
+<!-- Recent Comment Preview Snippet -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between text-on-surface-variant font-body-sm text-body-sm">
+<div class="flex items-center gap-space-xs truncate">
+<span class="material-symbols-outlined text-base text-secondary">forum</span>
+<span class="font-semibold text-on-surface">أ. طارق الهاشمي:</span>
+<span class="truncate">"تم توزيع أرقام الجلوس عبر البوابة الإلكترونية لكل طالب بالتوفيق للجميع."</span>
+</div>
+<span class="font-label-xs text-label-xs text-outline shrink-0 pr-space-sm">قبل ١٢ دقيقة</span>
+</div>
+</div>
+</article>
+<!-- CARD 2: SCHEDULED / ACTIVE POLL ANNOUNCEMENT (Component: announcement/scheduled) -->
+<article class="bg-surface-container-lowest rounded-xl shadow-[0_4px_14px_rgba(12,36,97,0.05)] overflow-hidden">
+<div class="p-space-lg flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of enthusiastic modern science activities supervisor for high school students in Saudi Arabia, smart blazer, engaging energetic demeanor, modern campus library background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDp0uDogIs_E8hNQMD9PzhNbiYv78W4dsCnYewTyN1KMBZHAbAzptNXFGveEELEWehjuNyytfq6V7tpwyi-H_idaDHgjgnKnwsIh0lY4lo5CC5Q-HH-UxKq4AzhLRzI8qK_unm9VrDhlcC2wP27GlIoGszBAe59-XU4ZHL50G2lDC0lNz_w35US5ofrUaARuzdUIBZmR2ElRwHhAQlgdxAtqK5EqL2XQldbvxeTEhl3TaQXOLOBEtmZzQ"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">أ. خالد بن منصور</span>
+<span class="px-space-xs py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs">رائد النشاط الطلابي</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-md text-label-md">
+<span class="material-symbols-outlined text-xs">how_to_vote</span>
+<span>استطلاع رأي تفاعلي للطلاب</span>
+<span>·</span>
+<span>ينتهي التصويت غداً ٦:٠٠ م</span>
+</div>
+</div>
+</div>
+<span class="px-space-sm py-1 rounded-full bg-surface-container text-secondary font-label-xs text-label-xs flex items-center gap-space-xs">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>تصويت مفتوح</span>
+</span>
+</div>
+<div class="flex flex-col gap-space-xs">
+<h2 class="font-title-md text-title-md text-on-surface font-bold">
+                استطلاع رأي: تحديد الوجهة المفضلة للرحلة العلمية الاستكشافية القادمة للفصل الدراسي
+              </h2>
+<p class="font-body-md text-body-md text-on-surface-variant">
+                أعزائي الطلاب، حرصاً على مشاركتكم في صياغة الأنشطة اللاصفية، يرجى التصويت على الوجهة التي تفضلون زيارتها ضمن الأسبوع العلمي المقبل:
+              </p>
+</div>
+<!-- Interactive Poll Options with Arabic Bars -->
+<div class="flex flex-col gap-space-sm" id="pollOptionsContainer">
+<!-- Option 1 (Leading) -->
+<div class="relative p-space-md rounded-xl bg-surface-container overflow-hidden cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="absolute inset-y-0 right-0 bg-primary-fixed opacity-70 transition-all duration-700" style="width: 62%;"></div>
+<div class="relative flex items-center justify-between z-10">
+<div class="flex items-center gap-space-sm">
+<div class="w-5 h-5 rounded-full bg-primary text-on-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-xs">check</span>
+</div>
+<span class="font-title-md text-title-md text-primary font-bold">واحة الملك سلمان للعلوم (الرياض)</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-primary font-bold">٦٢٪</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">(١٤٢ صوتاً)</span>
+</div>
+</div>
+</div>
+<!-- Option 2 -->
+<div class="relative p-space-md rounded-xl bg-surface-container overflow-hidden cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="absolute inset-y-0 right-0 bg-secondary-fixed opacity-60 transition-all duration-700" style="width: 24%;"></div>
+<div class="relative flex items-center justify-between z-10">
+<div class="flex items-center gap-space-sm">
+<div class="w-5 h-5 rounded-full bg-surface-container-highest text-transparent flex items-center justify-center">
+<span class="material-symbols-outlined text-xs">check</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-semibold">مركز الملك عبد العزيز للتواصل الحضاري</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-on-surface font-bold">٢٤٪</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">(٥٥ صوتاً)</span>
+</div>
+</div>
+</div>
+<!-- Option 3 -->
+<div class="relative p-space-md rounded-xl bg-surface-container overflow-hidden cursor-pointer hover:bg-surface-container-high transition-colors">
+<div class="absolute inset-y-0 right-0 bg-surface-variant opacity-50 transition-all duration-700" style="width: 14%;"></div>
+<div class="relative flex items-center justify-between z-10">
+<div class="flex items-center gap-space-sm">
+<div class="w-5 h-5 rounded-full bg-surface-container-highest text-transparent flex items-center justify-center">
+<span class="material-symbols-outlined text-xs">check</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface font-semibold">متحف العلوم والتقنية بجامعة الملك سعود</span>
+</div>
+<div class="flex items-center gap-space-xs">
+<span class="font-title-md text-title-md text-on-surface font-bold">١٤٪</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">(٣٢ صوتاً)</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Poll Meta Footnote -->
+<div class="flex items-center justify-between text-on-surface-variant font-label-md text-label-md pt-space-xs">
+<span class="flex items-center gap-space-xs text-secondary">
+<span class="material-symbols-outlined text-base">how_to_reg</span>
+<span>إجمالي الأصوات: ٢٢٩ طالباً ومعلماً</span>
+</span>
+<button class="text-primary hover:underline font-semibold" type="button">تغيير تصويتي</button>
+</div>
+</div>
+</article>
+<!-- CARD 3: NORMAL CLASS ANNOUNCEMENT (Component: announcement/normal) -->
+<article class="bg-surface-container-lowest rounded-xl shadow-[0_4px_14px_rgba(12,36,97,0.05)] overflow-hidden">
+<div class="p-space-lg flex flex-col gap-space-md">
+<div class="flex items-start justify-between gap-space-md">
+<div class="flex items-center gap-space-md">
+<img class="w-12 h-12 rounded-full object-cover" data-alt="Portrait of senior Arabic mathematics teacher Mr. Abdulrahman Al-Salem, warm professorial glasses, neat dark blue jacket, clear educational classroom chalkboard background with subtle geometric diagrams." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBARfaUnhWgw9AETr8uc31vANVuyFdtktIcUbPjPh0TtEvUWDudHaWQ3EyRp92RxsvEYFbYdqC9NBN8Z5_CgrwmuLu2_SHgIoQrpYHWvpEuMvFuQHeFpQE-gF4giqvg9MrlYw_0Kid1GmsmtqJdQ91MObDeSyLAEJ3Eic8JgWsuSf-e9v6XlqLMdpbpo04Wqtz95w71fRP-Czd9QFUTTbj2uQZOcsVPUbshtsd0l6KiYf3XczZ6KTd2Ug"/>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">أ. عبد الرحمن السالم</span>
+<span class="px-space-xs py-0.5 rounded-full bg-surface-container-high text-on-surface font-label-xs text-label-xs">معلم أول الرياضيات</span>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-md text-label-md">
+<span>قبل ٤ ساعات</span>
+<span>·</span>
+<span class="text-secondary font-semibold">موجه إلى: الصف التاسع (شعبة أ، شعبة ب)</span>
+</div>
+</div>
+</div>
+<div class="w-8 h-8 rounded-full hover:bg-surface-container flex items-center justify-center cursor-pointer text-outline">
+<span class="material-symbols-outlined">more_horiz</span>
+</div>
+</div>
+<div class="flex flex-col gap-space-xs">
+<h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">
+                إطلاق ورشة مراجعة مجانية مباشرة لمادة الرياضيات: وحدة المصفوفات والمحددات
+              </h2>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+                طلابي الأعزاء في الصف التاسع، استجابةً لطلباتكم خلال الحصة الماضية، سنعقد بمشيئة الله جلسة افتراضية إثرائية تفاعلية عبر المنصة لشرح التمارين الصعبة في وحدة المصفوفات والمحددات والإجابة المباشرة عن تساؤلاتكم. رابط الدخول للقاعة متاح أدناه.
+              </p>
+</div>
+<!-- Virtual Classroom Session Ribbon -->
+<div class="p-space-md rounded-xl bg-surface-container flex flex-col sm:flex-row sm:items-center justify-between gap-space-md">
+<div class="flex items-center gap-space-sm">
+<div class="w-12 h-12 rounded-xl bg-primary text-on-primary flex items-center justify-center shrink-0">
+<span class="material-symbols-outlined text-2xl">video_camera_front</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface">غرفة البث المباشر: منصتي الافتراضية #٣</span>
+<span class="font-label-md text-label-md text-secondary">غداً الأربعاء · ٥:٣٠ مساءً - ٦:٤٥ مساءً (٧٥ دقيقة)</span>
+</div>
+</div>
+<button class="px-space-md py-space-xs rounded-lg bg-primary text-on-primary font-label-lg text-label-lg shadow hover:opacity-95 whitespace-nowrap self-start sm:self-auto" type="button">
+                إضافة للتقويم وتفعيل التذكير
+              </button>
+</div>
+<!-- Reactions -->
+<div class="flex items-center justify-between pt-space-xs">
+<div class="flex items-center gap-space-xs">
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container text-on-surface font-label-md text-label-md flex items-center gap-space-xs hover:bg-primary-fixed" type="button">
+<span>👍</span>
+<span class="font-bold">٣٢</span>
+</button>
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container text-on-surface font-label-md text-label-md flex items-center gap-space-xs hover:bg-primary-fixed" type="button">
+<span>❤️</span>
+<span class="font-bold">١٤</span>
+</button>
+<button class="reaction-pill px-space-sm py-1 rounded-full bg-surface-container text-on-surface font-label-md text-label-md flex items-center gap-space-xs hover:bg-primary-fixed" type="button">
+<span>👏</span>
+<span class="font-bold">٨</span>
+</button>
+</div>
+<div class="flex items-center gap-space-md text-on-surface-variant font-label-md text-label-md">
+<span>٩ استفسارات طلابية</span>
+</div>
+</div>
+</div>
+</article>
+</div>
+<!-- ASIDE WIDGETS COLUMN (Cols 4) -->
+<div class="lg:col-span-4 flex flex-col gap-space-lg">
+<!-- FAST STATS BENTO WIDGET -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-[0_4px_16px_rgba(12,36,97,0.05)] flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md text-primary font-bold">إحصاءات مجتمع المدرسة</span>
+<span class="material-symbols-outlined text-secondary">analytics</span>
+</div>
+<!-- Mini Inline Bar Chart (CSS / SVG) -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex justify-between items-center text-on-surface-variant font-label-xs text-label-xs">
+<span>معدل تفاعل الطلاب الأسبوعي</span>
+<span class="text-primary font-bold">٩٤.٢٪ (+٦٪)</span>
+</div>
+<!-- Progress SVG -->
+<div class="w-full bg-surface-container rounded-full h-3 overflow-hidden">
+<div class="h-full rounded-full" style="width: 94.2%; background: linear-gradient(90deg, #0099CC, #2563EB, #1E3A8A);"></div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-space-sm pt-space-xs">
+<div class="p-space-sm rounded-xl bg-surface-container flex flex-col">
+<span class="font-label-xs text-label-xs text-on-surface-variant">التعاميم النشطة</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">١٤</span>
+<span class="font-label-xs text-label-xs text-secondary mt-1">منها ٢ ملزمة بالرد</span>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container flex flex-col">
+<span class="font-label-xs text-label-xs text-on-surface-variant">نسبة القراءة والمطالعة</span>
+<span class="font-headline-md text-headline-md text-primary font-bold">٩٨٪</span>
+<span class="font-label-xs text-label-xs text-secondary mt-1">خلال أول ساعتين</span>
+</div>
+</div>
+</div>
+<!-- URGENT ADMINISTRATIVE BULLETINS -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-[0_4px_16px_rgba(12,36,97,0.05)] flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-xs">
+<span class="w-2 h-2 rounded-full bg-error animate-ping"></span>
+<span class="font-title-md text-title-md text-error font-bold">تنبيهات إدارية عاجلة</span>
+</div>
+<span class="px-space-xs py-0.5 rounded bg-error-container text-on-error-container font-label-xs text-label-xs font-bold">هام جداً</span>
+</div>
+<div class="flex flex-col gap-space-sm">
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md text-on-surface text-sm font-bold">تحديث نظام الحضور والانصراف الذكي</span>
+<span class="font-label-xs text-label-xs text-outline">أمس</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                يرجى من أولياء الأمور التأكد من تفعيل الإشعارات اللحظية عبر تطبيق منصتي لمتابعة خروج أبنائهم.
+              </p>
+</div>
+<div class="p-space-sm rounded-xl bg-surface-container-low flex flex-col gap-1">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md text-on-surface text-sm font-bold">موعد استلام الكتب الإثرائية للفصل الثاني</span>
+<span class="font-label-xs text-label-xs text-outline">منذ يومين</span>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant">
+                يفتح مستودع المصادر الأكاديمية يومياً من الساعة ٨ صباحاً حتى الواحدة ظهراً.
+              </p>
+</div>
+</div>
+</div>
+<!-- UPCOMING SCHOOL EVENTS MINI CALENDAR -->
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-[0_4px_16px_rgba(12,36,97,0.05)] flex flex-col gap-space-md">
+<div class="flex items-center justify-between">
+<span class="font-title-md text-title-md text-on-surface font-bold">المناسبات المدرسية القادمة</span>
+<span class="material-symbols-outlined text-outline">event</span>
+</div>
+<div class="flex flex-col gap-space-sm">
+<!-- Event Item 1 -->
+<div class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container transition-colors">
+<div class="w-12 h-12 rounded-xl bg-primary-fixed text-on-primary-fixed flex flex-col items-center justify-center shrink-0">
+<span class="font-label-xs text-label-xs">مارس</span>
+<span class="font-headline-sm text-headline-sm font-bold leading-none">١٥</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface text-sm font-bold">المعرض العلمي السنوي للمبتكرين</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">الصالة الرياضية الكبرى · ٩:٠٠ ص</span>
+</div>
+</div>
+<!-- Event Item 2 -->
+<div class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container transition-colors">
+<div class="w-12 h-12 rounded-xl bg-secondary-fixed text-on-secondary-fixed flex flex-col items-center justify-center shrink-0">
+<span class="font-label-xs text-label-xs">مارس</span>
+<span class="font-headline-sm text-headline-sm font-bold leading-none">٢٢</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface text-sm font-bold">اللقاء الدوري العام لأولياء الأمور</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">مسرح المدرسة والمقابلة الافتراضية</span>
+</div>
+</div>
+<!-- Event Item 3 -->
+<div class="flex items-center gap-space-sm p-space-xs rounded-lg hover:bg-surface-container transition-colors">
+<div class="w-12 h-12 rounded-xl bg-surface-container-high text-on-surface flex flex-col items-center justify-center shrink-0">
+<span class="font-label-xs text-label-xs">أبريل</span>
+<span class="font-headline-sm text-headline-sm font-bold leading-none">٠٥</span>
+</div>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-on-surface text-sm font-bold">بدء مرحلة التحكيم للأولمبياد الوطني</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">مختبرات الحاسب والذكاء الاصطناعي</span>
+</div>
+</div>
+</div>
+<a class="font-label-md text-label-md text-primary font-semibold hover:underline flex items-center justify-center gap-space-xs pt-space-xs" href="#">
+<span>عرض التقويم المدرسي الكامل</span>
+<span class="material-symbols-outlined text-sm">arrow_back</span>
+</a>
+</div>
+<!-- HELP / FEEDBACK CALLOUT -->
+<div class="rounded-xl p-space-md text-on-primary flex items-center justify-between gap-space-sm shadow-md" style="background: linear-gradient(135deg, #1E3A8A 0%, #00236F 100%);">
+<div class="flex items-center gap-space-sm">
+<span class="material-symbols-outlined text-secondary-container text-3xl">support_agent</span>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-sm font-bold">تحتاج إلى إرسال تعميم رسمي؟</span>
+<span class="font-label-xs text-label-xs text-on-primary-container">فريق الإرشاد الطلابي وشؤون التعليم جاهزون للمساعدة</span>
+</div>
+</div>
+<button class="px-space-sm py-1 rounded bg-surface-container-lowest text-primary font-label-md text-label-md font-bold hover:bg-surface-bright transition-colors shrink-0" type="button">
+            تواصل
+          </button>
+</div>
+</div>
+</div>
+</div>
+<!-- INLINE INTERACTION SCRIPTS (Pure Vanilla JavaScript) -->
+<script>
+    (function() {
+      // 1. Dark/Light Theme Toggle
+      const themeToggleBtn = document.getElementById('themeToggleBtn');
+      const themeIcon = document.getElementById('themeIcon');
+      const themeLabel = document.getElementById('themeLabel');
+      let isDark = false;
+
+      if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', function() {
+          isDark = !isDark;
+          document.documentElement.classList.toggle('dark', isDark);
+          if (isDark) {
+            themeIcon.textContent = 'dark_mode';
+            themeLabel.textContent = 'الوضع الليلي';
+          } else {
+            themeIcon.textContent = 'light_mode';
+            themeLabel.textContent = 'الوضع النهاري';
+          }
+        });
+      }
+
+      // 2. Toggle Composer Expansion
+      const toggleComposerBtn = document.getElementById('toggleComposerBtn');
+      const composerCard = document.getElementById('composerCard');
+      if (toggleComposerBtn && composerCard) {
+        toggleComposerBtn.addEventListener('click', function() {
+          composerCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          const composerInput = composerCard.querySelector('input');
+          if (composerInput) {
+            composerInput.focus();
+          }
+        });
+      }
+
+      // 3. Filter Chips active state switching
+      const chips = document.querySelectorAll('.filter-chip');
+      chips.forEach(function(chip) {
+        chip.addEventListener('click', function() {
+          chips.forEach(function(c) {
+            c.classList.remove('bg-primary-container', 'text-on-primary');
+            c.classList.add('bg-surface-container', 'text-on-surface-variant');
+          });
+          chip.classList.remove('bg-surface-container', 'text-on-surface-variant');
+          chip.classList.add('bg-primary-container', 'text-on-primary');
+        });
+      });
+
+      // 4. Interactive Poll Vote Switching
+      const pollOptions = document.querySelectorAll('#pollOptionsContainer > div');
+      pollOptions.forEach(function(option) {
+        option.addEventListener('click', function() {
+          pollOptions.forEach(function(opt) {
+            const check = opt.querySelector('.material-symbols-outlined');
+            if (check) {
+              check.parentElement.classList.remove('bg-primary', 'text-on-primary');
+              check.parentElement.classList.add('bg-surface-container-highest', 'text-transparent');
+            }
+          });
+          const activeCheck = option.querySelector('.material-symbols-outlined');
+          if (activeCheck) {
+            activeCheck.parentElement.classList.add('bg-primary', 'text-on-primary');
+            activeCheck.parentElement.classList.remove('bg-surface-container-highest', 'text-transparent');
+          }
+        });
+      });
+
+      // 5. Reaction Buttons Counter Micro-increment
+      const reactionPills = document.querySelectorAll('.reaction-pill');
+      reactionPills.forEach(function(pill) {
+        pill.addEventListener('click', function() {
+          const numSpan = pill.querySelector('.font-bold');
+          if (numSpan && !pill.dataset.voted) {
+            pill.dataset.voted = 'true';
+            pill.classList.add('bg-primary-fixed', 'text-on-primary-fixed');
+            // convert arabic digit or increment visually
+            let current = parseInt(numSpan.textContent.replace(/[٠-٩]/g, function(d) {
+              return d.charCodeAt(0) - 1632;
+            }), 10);
+            if (!isNaN(current)) {
+              current++;
+              numSpan.textContent = current.toLocaleString('ar-SA');
+            }
+          }
+        });
+      });
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest mt-space-xl"><div class="w-full px-gutter py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-label-md text-label-md text-on-surface">منصتي التعليمية الذكية © 2025</span></div><div class="flex items-center gap-space-lg font-label-sm text-label-md"><a class="hover:text-primary transition-colors" href="#">شروط الاستخدام</a><a class="hover:text-primary transition-colors" href="#">سياسة الخصوصية</a><a class="hover:text-primary transition-colors" href="#">الدعم الفني والمساعدة</a></div></div></footer></body></html>

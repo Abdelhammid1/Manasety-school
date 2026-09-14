@@ -1,28 +1,120 @@
-<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <title>{{ title }} — {{ app_name }}</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-</head>
-<body>
-<div class="auth-wrap">
-  <div class="auth-card" style="text-align:center">
-    <div class="brand">
-      <img src="{{ url_for('static', filename='img/logo-emblem.png') }}"
-           alt="" style="width:80px;height:80px;margin:0 auto 12px;display:block">
-      <h1 style="font-size:64px;color:var(--c-gold);margin:0;line-height:1">{{ code }}</h1>
-      <div class="accent"></div>
-      <h2 style="color:var(--c-navy);margin:18px 0 8px">{{ title }}</h2>
-      <p style="color:var(--c-muted);margin:0 0 22px">{{ msg }}</p>
+{# Manasety error page — 403/404/500 variant selected server-side. Ported
+   from Stitch 403_404_500 verbatim. Focus mode, no shell. #}
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}{{ code }} · {{ title }}{% endblock %}
+
+{% block focus_content %}
+<main class="w-full min-h-screen bg-surface flex flex-col justify-center">
+  <div class="flex flex-col w-full">
+    <div class="relative w-full min-h-screen bg-surface flex flex-col justify-between items-center p-4 md:p-8 overflow-hidden">
+      <div class="absolute inset-0 pointer-events-none overflow-hidden">
+        <div class="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[500px] bg-gradient-to-tr from-secondary/10 via-primary-fixed/20 to-tertiary-container/30 blur-3xl rounded-full"></div>
+        <div class="absolute bottom-10 right-1/4 w-[450px] h-[350px] bg-secondary-container/50 blur-2xl rounded-full"></div>
+        <svg class="absolute inset-0 w-full h-full opacity-[0.035] stroke-navy" height="100%" width="100%" xmlns="http://www.w3.org/2000/svg">
+          <defs><pattern height="48" id="grid-pattern" patternUnits="userSpaceOnUse" width="48"><path d="M 48 0 L 0 0 0 48" fill="none" stroke="currentColor" stroke-width="1.2"/></pattern></defs>
+          <rect fill="url(#grid-pattern)" height="100%" width="100%"/>
+        </svg>
+      </div>
+
+      <header class="relative z-20 w-full max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
+        <div class="flex items-center gap-3">
+          <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-9 w-auto object-contain bg-white rounded-md p-1">
+          <span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm tracking-wide">مركز الدعم والنظام</span>
+        </div>
+        <nav class="flex items-center p-1.5 rounded-xl bg-surface-container-low shadow-sm gap-1">
+          {% for c, dot_label in [(404,'٤٠٤ · مفقودة'),(403,'٤٠٣ · محظور'),(500,'٥٠٠ · الخادم')] %}
+          <span class="px-4 py-2 rounded-lg font-label-md text-label-md flex items-center gap-2
+                       {% if code == c %}bg-primary-container text-on-primary shadow-sm{% else %}text-on-surface-variant{% endif %}">
+            <span class="w-2 h-2 rounded-full {% if code==c %}bg-secondary-fixed{% else %}bg-outline{% endif %}"></span>
+            <span>{{ dot_label }}</span>
+          </span>
+          {% endfor %}
+        </nav>
+      </header>
+
+      <div class="relative z-10 w-full max-w-4xl my-6 flex-1 flex flex-col justify-center items-center">
+        <div class="w-full bg-surface-container-lowest rounded-xl shadow-xl p-8 sm:p-12 md:p-16 relative overflow-hidden">
+          <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-primary-container via-secondary to-tertiary-container"></div>
+          <div class="absolute -top-24 -left-24 w-60 h-60 bg-secondary-container/40 rounded-full blur-2xl pointer-events-none"></div>
+
+          <section class="flex flex-col items-center text-center">
+            <div class="relative flex items-center justify-center mb-6">
+              <span class="font-headline-lg text-[130px] md:text-[170px] leading-none font-bold bg-gradient-to-b {% if code==403 %}from-navy via-primary-container to-secondary{% else %}from-primary-container via-secondary to-tertiary-fixed-dim{% endif %} bg-clip-text text-transparent select-none tracking-tight">
+                {% if code==403 %}٤٠٣{% elif code==500 %}٥٠٠{% else %}٤٠٤{% endif %}
+              </span>
+              <div class="absolute -bottom-2 -left-2 sm:left-6 w-24 h-24 sm:w-28 sm:h-28 bg-surface-container-lowest rounded-xl shadow-lg p-3 flex flex-col items-center justify-center transform -rotate-6">
+                <div class="w-full h-full {% if code==403 %}bg-error-container/40{% else %}bg-tertiary-container/60{% endif %} rounded-lg flex items-center justify-center relative">
+                  {% if code==403 %}
+                    <span class="material-symbols-outlined text-error text-4xl" style="font-variation-settings:'FILL' 1;">admin_panel_settings</span>
+                    <span class="material-symbols-outlined absolute top-2 right-2 text-on-error-container text-sm">lock</span>
+                  {% elif code==500 %}
+                    <span class="material-symbols-outlined text-secondary text-4xl">dns</span>
+                    <span class="material-symbols-outlined absolute top-1 right-1 text-error text-base">sync_problem</span>
+                  {% else %}
+                    <span class="material-symbols-outlined text-secondary text-4xl" style="font-variation-settings:'FILL' 1;">explore</span>
+                    <span class="material-symbols-outlined absolute top-1 right-1 text-primary text-base font-bold">help</span>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="absolute -top-3 -right-2 sm:right-8 w-12 h-12 rounded-full shadow-md flex items-center justify-center transform rotate-12
+                          {% if code==403 %}bg-surface-container-high text-navy{% elif code==500 %}bg-tertiary text-on-tertiary{% else %}bg-secondary text-on-secondary{% endif %}">
+                <span class="material-symbols-outlined text-2xl">
+                  {% if code==403 %}vpn_key{% elif code==500 %}build{% else %}near_me{% endif %}
+                </span>
+              </div>
+            </div>
+
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full font-label-md text-label-md mb-3
+                        {% if code==403 %}bg-error-container text-on-error-container{% else %}bg-secondary-container text-secondary{% endif %}">
+              <span class="material-symbols-outlined text-sm">
+                {% if code==403 %}gpp_maybe{% elif code==500 %}bolt{% else %}search_off{% endif %}
+              </span>
+              <span>
+                {% if code==403 %}صلاحية وصول مقيّدة
+                {% elif code==500 %}استجابة غير متوقعة من الخادم
+                {% else %}خطأ المسار أو المحتوى غير متوفر{% endif %}
+              </span>
+            </div>
+
+            <h1 class="font-headline-lg text-headline-lg text-navy mb-4 max-w-xl font-bold">{{ title }}</h1>
+            <p class="font-body-lg text-body-lg text-on-surface-variant max-w-2xl leading-relaxed mb-8">{{ msg }}</p>
+
+            {% if code==403 and current_user.is_authenticated and current_user.role %}
+            <div class="w-full max-w-lg mb-8 p-4 rounded-xl bg-surface-container-low flex items-start gap-3 text-right">
+              <span class="material-symbols-outlined text-secondary text-2xl mt-0.5">verified_user</span>
+              <div class="flex-1">
+                <p class="font-label-md text-label-md text-navy">المستوى المطلوب: صلاحية أعلى</p>
+                <p class="font-body-md text-body-md text-on-surface-variant mt-0.5">
+                  حسابك الحالي مسجل بصفة: <span class="text-secondary font-bold">{{ current_user.role.name_ar or current_user.role.name }}</span>
+                </p>
+              </div>
+            </div>
+            {% endif %}
+
+            <div class="flex flex-wrap items-center justify-center gap-4 w-full">
+              {% if code==500 %}
+              <button onclick="window.location.reload()" class="px-6 py-3 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md shadow-md hover:shadow-lg hover:bg-navy transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-xl">refresh</span><span>إعادة المحاولة</span>
+              </button>
+              {% endif %}
+              <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('index') }}"
+                 class="px-6 py-3 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md shadow-md hover:shadow-lg hover:bg-navy transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-xl">home</span><span>العودة إلى الرئيسية</span>
+              </a>
+              <a href="mailto:support@manasety.ai" class="px-6 py-3 rounded-lg bg-surface-container-high text-on-surface hover:text-primary font-title-md text-title-md transition-colors flex items-center gap-2">
+                <span class="material-symbols-outlined text-xl">support_agent</span><span>الدعم الفني</span>
+              </a>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <footer class="relative z-10 w-full max-w-4xl flex items-center justify-between gap-4 pt-4 pb-2 text-on-surface-variant font-label-sm text-label-sm">
+        <span class="flex items-center gap-1.5"><span class="w-2 h-2 rounded-full bg-secondary"></span><span>{{ app_name }} — منصة التعلم الذكية</span></span>
+        <span class="font-mono text-[11px]">HOST: {{ request.host }}</span>
+      </footer>
     </div>
-    <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('auth.login') }}"
-       class="btn btn-navy" style="width:100%;justify-content:center;padding:12px">
-      {{ 'العودة إلى لوحة المعلومات' if current_user.is_authenticated else 'العودة إلى تسجيل الدخول' }}
-    </a>
   </div>
-</div>
-</body>
-</html>
+</main>
+{% endblock %}

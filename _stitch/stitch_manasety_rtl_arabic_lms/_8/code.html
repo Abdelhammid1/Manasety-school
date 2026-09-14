@@ -1,0 +1,885 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&amp;family=Nunito+Sans:wght@400;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "background": "#f7f9fc",
+          "inverse-primary": "#b6c4ff",
+          "surface-variant": "#e0e3e6",
+          "on-secondary-fixed-variant": "#004c68",
+          "on-tertiary-fixed-variant": "#003ea8",
+          "outline-variant": "#c5c5d3",
+          "tertiary-fixed-dim": "#b4c5ff",
+          "inverse-on-surface": "#eff1f4",
+          "on-secondary": "#ffffff",
+          "on-secondary-fixed": "#001e2c",
+          "on-tertiary-fixed": "#00174b",
+          "on-secondary-container": "#005371",
+          "secondary": "#006689",
+          "on-surface": "#191c1e",
+          "surface-bright": "#f7f9fc",
+          "error": "#ba1a1a",
+          "on-primary-fixed-variant": "#264191",
+          "surface-dim": "#d8dadd",
+          "surface-container-lowest": "#ffffff",
+          "tertiary": "#00246b",
+          "error-container": "#ffdad6",
+          "surface-container-highest": "#e0e3e6",
+          "tertiary-fixed": "#dbe1ff",
+          "on-error-container": "#93000a",
+          "on-tertiary": "#ffffff",
+          "primary-container": "#1e3a8a",
+          "on-primary-fixed": "#00164e",
+          "on-error": "#ffffff",
+          "on-primary-container": "#90a8ff",
+          "primary": "#00236f",
+          "on-primary": "#ffffff",
+          "outline": "#757682",
+          "on-tertiary-container": "#8da9ff",
+          "surface-container-high": "#e6e8eb",
+          "secondary-fixed-dim": "#78d1ff",
+          "surface": "#f7f9fc",
+          "secondary-fixed": "#c3e8ff",
+          "surface-container-low": "#f2f4f7",
+          "primary-fixed": "#dce1ff",
+          "secondary-container": "#5bcaff",
+          "inverse-surface": "#2d3133",
+          "on-surface-variant": "#444651",
+          "on-background": "#191c1e",
+          "tertiary-container": "#00389a",
+          "primary-fixed-dim": "#b6c4ff",
+          "surface-container": "#eceef1",
+          "surface-tint": "#4059aa"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-lg": "1.5rem",
+          "gutter": "1.5rem",
+          "margin": "2rem",
+          "space-sm": "0.5rem",
+          "space-xs": "0.25rem",
+          "space-md": "1rem",
+          "space-xl": "2.5rem"
+        },
+        "fontFamily": {
+          "title-md": [
+            "Plus Jakarta Sans"
+          ],
+          "body-md": [
+            "Nunito Sans"
+          ],
+          "display-hero": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-md": [
+            "Plus Jakarta Sans"
+          ],
+          "label-lg": [
+            "Nunito Sans"
+          ],
+          "headline-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "label-xs": [
+            "Nunito Sans"
+          ],
+          "display-hero-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-sm": [
+            "Nunito Sans"
+          ],
+          "headline-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "body-lg": [
+            "Nunito Sans"
+          ],
+          "headline-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "label-md": [
+            "Nunito Sans"
+          ]
+        },
+        "fontSize": {
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "30px",
+              "fontWeight": "600"
+            }
+          ],
+          "body-md": [
+            "16px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "400"
+            }
+          ],
+          "display-hero": [
+            "40px",
+            {
+              "lineHeight": "64px",
+              "fontWeight": "800"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "22px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "600"
+            }
+          ],
+          "label-xs": [
+            "11px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "700"
+            }
+          ],
+          "display-hero-mobile": [
+            "28px",
+            {
+              "lineHeight": "44px",
+              "fontWeight": "800"
+            }
+          ],
+          "body-sm": [
+            "14px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg-mobile": [
+            "24px",
+            {
+              "lineHeight": "38px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "18px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "400"
+            }
+          ],
+          "headline-lg": [
+            "32px",
+            {
+              "lineHeight": "52px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-background font-body-md text-body-md text-on-background min-h-screen"><header class="fixed top-0 inset-x-0 z-50 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_4px_20px_rgba(12,36,97,0.06)]"><div class="h-20 w-full px-gutter flex items-center justify-between gap-space-md"><div class="flex items-center gap-space-lg"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-headline-sm text-headline-sm text-primary">منصتي</span></div><div class="hidden xl:flex items-center bg-surface-container-low rounded-full px-space-md py-space-xs gap-space-xs w-72"><span class="material-symbols-outlined text-outline">search</span><input class="bg-transparent border-none outline-none font-body-sm text-body-sm text-on-surface placeholder:text-outline w-full text-right" placeholder="البحث عن الدروس، المقررات، الواجبات..." type="search"/></div></div><nav class="hidden lg:flex items-center gap-space-xs" data-active-classes="bg-primary-container text-on-primary font-title-md"><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="dashboard" href="#">الرئيسية</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="courses" href="#">موادي والمقررات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="assignments" href="#">الواجبات والأنشطة</a><a aria-current="page" class="px-space-md py-space-xs rounded-lg transition-colors bg-primary-container text-on-primary font-title-md" data-path="assessments" href="#">الاختبارات والتقييمات</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="schedule" href="#">الجدول الأكاديمي</a><a class="px-space-md py-space-xs rounded-lg text-on-surface-variant font-label-lg text-label-lg hover:bg-surface-container-high hover:text-on-surface transition-colors" data-path="reports" href="#">التقارير</a></nav><div class="flex items-center gap-space-md"><div class="hidden sm:flex items-center bg-surface-container rounded-full p-space-xs"><button class="px-space-md py-space-xs rounded-full bg-primary text-on-primary font-label-xs text-label-xs shadow-[0_2px_8px_rgba(0,35,111,0.2)]" type="button">معلم</button><button class="px-space-md py-space-xs rounded-full text-on-surface-variant font-label-xs text-label-xs hover:text-on-surface" type="button">طالب</button></div><button aria-label="التنبيهات" class="relative p-space-xs rounded-full text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors flex items-center justify-center" type="button"><span class="material-symbols-outlined">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-secondary"></span></button><div class="flex items-center gap-space-sm pl-space-xs"><div class="hidden md:flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface font-semibold">أ. أحمد السعيد</span><span class="font-label-xs text-label-xs text-on-surface-variant">المرحلة الثانوية</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover ring-2 ring-surface-variant" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></div></header><main class="w-full pt-20 bg-background"><div class="flex flex-col w-full font-body-md text-body-md text-on-background min-h-screen bg-background select-none">
+<!-- Minimal Focused Chrome (Exam Header Bar) -->
+<header class="w-full bg-surface-container-lowest/95 backdrop-blur-md px-gutter py-space-sm shadow-[0_4px_16px_rgba(12,36,97,0.05)] sticky top-0 z-40">
+<div class="max-w-7xl mx-auto flex items-center justify-between gap-space-md">
+<!-- Right (RTL Start): Exam Metadata -->
+<div class="flex items-center gap-space-md">
+<div class="w-10 h-10 rounded-xl bg-primary-container/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[26px]">calculate</span>
+</div>
+<div class="flex flex-col">
+<div class="flex items-center gap-space-xs">
+<h1 class="font-headline-sm text-headline-sm text-on-surface">الاختبار النصفي لمادة الرياضيات المتقدمة</h1>
+<span class="bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs px-2.5 py-0.5 rounded-full">الفصل الأول</span>
+</div>
+<p class="font-label-md text-label-md text-outline">الصف الثالث الثانوي • القسم العلمي • الزمن الكلي: ٦٠ دقيقة</p>
+</div>
+</div>
+<!-- Center: Circular Timer with Warning Visual State -->
+<div class="flex items-center gap-space-sm bg-surface-container-low px-space-md py-1.5 rounded-full shadow-inner">
+<div class="relative w-12 h-12 flex items-center justify-center">
+<svg class="w-12 h-12 -rotate-90" viewbox="0 0 48 48">
+<circle class="text-surface-variant fill-none" cx="24" cy="24" r="20" stroke="currentColor" stroke-width="3.5"></circle>
+<circle class="fill-none transition-all duration-1000" cx="24" cy="24" id="timer-stroke" r="20" stroke="url(#timerGrad)" stroke-dasharray="125.6" stroke-dashoffset="36" stroke-linecap="round" stroke-width="3.5"></circle>
+<defs>
+<lineargradient id="timerGrad" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#2563EB"></stop>
+<stop offset="100%" stop-color="#0099CC"></stop>
+</lineargradient>
+</defs>
+</svg>
+<span class="material-symbols-outlined text-secondary absolute text-[18px]">hourglass_top</span>
+</div>
+<div class="flex flex-col items-start pr-1">
+<span class="font-label-xs text-label-xs text-outline">الوقت المتبقي</span>
+<span class="font-title-md text-title-md text-primary font-bold tracking-wider font-mono" id="countdown-text">٢٥:٤٣</span>
+</div>
+<div class="w-2 h-2 rounded-full bg-secondary animate-ping mr-1"></div>
+</div>
+<!-- Left (RTL End): Actions & System Toggles -->
+<div class="flex items-center gap-space-sm">
+<button class="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface-variant transition-all flex items-center justify-center" id="theme-toggle-btn" title="تبديل المظهر">
+<span class="material-symbols-outlined text-[20px]">light_mode</span>
+</button>
+<button class="px-space-md py-2.5 rounded-xl text-on-surface-variant hover:bg-surface-container-high font-label-lg text-label-lg transition-colors flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[18px]">save</span>
+<span>حفظ ومتابعة لاحقاً</span>
+</button>
+<button class="px-space-md py-2.5 rounded-xl bg-error-container/60 hover:bg-error-container text-error font-label-lg text-label-lg transition-all flex items-center gap-1.5" id="finish-quiz-quick">
+<span class="material-symbols-outlined text-[18px]">exit_to_app</span>
+<span>إنهاء الاختبار</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Navigation Ribbon (20 Questions Strip) -->
+<section class="w-full bg-surface-container-lowest py-space-sm px-gutter shadow-sm border-t-0">
+<div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-space-md">
+<!-- Ribbon Label & Key Indicators -->
+<div class="flex items-center gap-space-md text-label-xs font-label-xs text-on-surface-variant shrink-0">
+<div class="flex items-center gap-1.5">
+<span class="w-3.5 h-3.5 rounded bg-primary-container"></span>
+<span>تمت الإجابة (١٢)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-3.5 h-3.5 rounded bg-secondary-fixed text-on-secondary-fixed"></span>
+<span>الحالي</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-3.5 h-3.5 rounded bg-amber-400"></span>
+<span>مُعلَّم للمراجعة (٢)</span>
+</div>
+<div class="flex items-center gap-1.5">
+<span class="w-3.5 h-3.5 rounded bg-surface-variant"></span>
+<span>شاغر (٦)</span>
+</div>
+</div>
+<!-- 20 Interactive Question Tiles -->
+<div class="flex items-center gap-1.5 overflow-x-auto py-1 max-w-full no-scrollbar" id="question-strip">
+<!-- Tile 1 -->
+<button class="relative w-9 h-9 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>١</span>
+</button>
+<!-- Tile 2 -->
+<button class="relative w-9 h-9 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>٢</span>
+</button>
+<!-- Tile 3: Answered & Flagged -->
+<button class="relative w-9 h-9 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>٣</span>
+<span class="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full flex items-center justify-center shadow-xs">
+<span class="material-symbols-outlined text-[9px] text-on-surface">flag</span>
+</span>
+</button>
+<!-- Tile 4: Active Question -->
+<button class="relative w-9 h-9 rounded-lg bg-secondary-fixed text-on-secondary-fixed ring-2 ring-secondary font-title-md text-title-md font-bold flex items-center justify-center shadow-md scale-105">
+<span>٤</span>
+<span class="absolute -bottom-1 w-3.5 h-1 bg-secondary rounded-full"></span>
+</button>
+<!-- Tile 5 -->
+<button class="relative w-9 h-9 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>٥</span>
+</button>
+<!-- Tile 6 -->
+<button class="relative w-9 h-9 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>٦</span>
+</button>
+<!-- Tile 7 -->
+<button class="relative w-9 h-9 rounded-lg bg-primary-container text-on-primary font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>٧</span>
+</button>
+<!-- Tile 8: Flagged & Unanswered -->
+<button class="relative w-9 h-9 rounded-lg bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-transform hover:scale-105">
+<span>٨</span>
+<span class="absolute -top-1 -right-1 w-3 h-3 bg-amber-400 rounded-full flex items-center justify-center shadow-xs">
+<span class="material-symbols-outlined text-[9px] text-on-surface">flag</span>
+</span>
+</button>
+<!-- Tiles 9 to 20 -->
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">٩</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٠</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١١</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٢</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٣</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٤</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٥</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٦</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٧</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٨</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">١٩</button>
+<button class="w-9 h-9 rounded-lg bg-surface-container-low hover:bg-surface-variant text-on-surface-variant font-label-md text-label-md flex items-center justify-center transition-colors">٢٠</button>
+</div>
+</div>
+</section>
+<!-- Interactive Component State Picker (Figma States Playground) -->
+<div class="w-full px-gutter pt-4 pb-1">
+<div class="max-w-4xl mx-auto flex flex-wrap items-center justify-between gap-space-xs bg-surface-container-low p-1.5 rounded-xl">
+<span class="font-label-xs text-label-xs text-outline px-2 flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px] text-secondary">tune</span>
+        نماذج أسئلة الاختبار (Figma Components):
+      </span>
+<div class="flex items-center gap-1 overflow-x-auto no-scrollbar" id="variant-tabs">
+<button class="tab-btn active-tab px-3 py-1.5 rounded-lg bg-primary-container text-on-primary font-label-xs text-label-xs transition-all flex items-center gap-1" data-target="variant-mcq-single">
+<span class="material-symbols-outlined text-[14px]">radio_button_checked</span>
+          اختيار فردي (MCQ Single)
+        </button>
+<button class="tab-btn px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant font-label-xs text-label-xs hover:bg-surface-container-high transition-all flex items-center gap-1" data-target="variant-mcq-multi">
+<span class="material-symbols-outlined text-[14px]">check_box</span>
+          متعدد الاختيارات (Multi)
+        </button>
+<button class="tab-btn px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant font-label-xs text-label-xs hover:bg-surface-container-high transition-all flex items-center gap-1" data-target="variant-tf">
+<span class="material-symbols-outlined text-[14px]">thumbs_up_down</span>
+          صح / خطأ (T/F)
+        </button>
+<button class="tab-btn px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant font-label-xs text-label-xs hover:bg-surface-container-high transition-all flex items-center gap-1" data-target="variant-short">
+<span class="material-symbols-outlined text-[14px]">edit_note</span>
+          إجابة قصيرة (Short)
+        </button>
+<button class="tab-btn px-3 py-1.5 rounded-lg bg-surface-container text-on-surface-variant font-label-xs text-label-xs hover:bg-surface-container-high transition-all flex items-center gap-1" data-target="variant-essay">
+<span class="material-symbols-outlined text-[14px]">article</span>
+          سؤال مقالي (Essay)
+        </button>
+</div>
+</div>
+</div>
+<!-- Central Question Workspace (Max-Width 820px, Soft Shadow, Crisp Geometry) -->
+<main class="w-full flex-1 px-gutter py-space-md flex flex-col items-center justify-start">
+<div class="w-full max-w-[840px] bg-surface-container-lowest rounded-2xl p-space-lg shadow-[0_8px_30px_rgba(12,36,97,0.06)] flex flex-col gap-space-lg relative transition-all">
+<!-- Question Top Metadata Bar -->
+<div class="flex items-center justify-between pb-space-sm bg-surface-container-low/40 -mx-space-lg -mt-space-lg px-space-lg pt-space-md rounded-t-2xl">
+<div class="flex items-center gap-space-sm">
+<span class="font-headline-sm text-headline-sm text-primary font-bold">السؤال ٤ من ٢٠</span>
+<span class="px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs font-semibold">٢ درجة أصلية</span>
+<span class="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs">مستوى: متقدم</span>
+</div>
+<button class="px-3 py-1.5 rounded-xl bg-surface-container hover:bg-amber-50 text-on-surface-variant hover:text-amber-800 font-label-sm text-label-sm transition-all flex items-center gap-1.5" id="flag-question-toggle">
+<span class="material-symbols-outlined text-[18px]" id="flag-icon">flag</span>
+<span id="flag-label">وضع علامة للمراجعة</span>
+</button>
+</div>
+<!-- Question Prompt Body -->
+<div class="flex flex-col gap-space-sm">
+<h2 class="font-headline-md text-headline-md text-on-surface leading-relaxed text-right">
+          إذا كانت المصفوفة <span class="text-primary font-serif font-bold">A</span> من الرتبة <span class="font-mono text-secondary">(2 × 3)</span> والمصفوفة <span class="text-primary font-serif font-bold">B</span> من الرتبة <span class="font-mono text-secondary">(3 × 2)</span>، فما هي رتبة المصفوفة الناتجة عن حاصل الضرب <span class="font-mono text-primary font-bold">(A × B)</span>؟
+        </h2>
+<p class="font-body-sm text-body-sm text-outline text-right">
+          تلميح: تذكر شروط ضرب المصفوفات من خلال مقارنة عدد أعمدة المصفوفة الأولى مع صفوف المصفوفة الثانية.
+        </p>
+<!-- Mathematical Notation Box -->
+<div class="w-full bg-surface-container-low p-space-md rounded-xl flex items-center justify-center gap-space-lg my-1">
+<div class="flex items-center gap-2 font-mono text-primary font-bold text-title-md" dir="ltr">
+<span>A<sub class="text-xs">2×3</sub></span>
+<span class="text-secondary text-lg">×</span>
+<span>B<sub class="text-xs">3×2</sub></span>
+<span class="text-on-surface-variant font-normal">=</span>
+<span class="bg-secondary-fixed/50 px-3 py-1 rounded-lg text-primary">C<sub class="text-xs">? × ?</sub></span>
+</div>
+<div class="h-8 w-[1px] bg-surface-variant"></div>
+<div class="flex items-center gap-2 text-label-sm text-on-surface-variant">
+<span class="material-symbols-outlined text-secondary text-[20px]">functions</span>
+<span>جبر خطي والمصفوفات الثنائية</span>
+</div>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- VARIANT 1: MCQ SINGLE (Default active state) -->
+<!-- =================================================================== -->
+<div class="question-variant-container flex flex-col gap-space-sm" id="variant-mcq-single">
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold mb-1">اختر الإجابة الصحيحة الوحيدة:</span>
+<!-- Option 1: Selected State -->
+<label class="relative flex items-center justify-between p-space-md rounded-xl bg-surface-container-lowest hover:bg-secondary-fixed/20 shadow-xs cursor-pointer transition-all border-r-4 border-primary">
+<div class="flex items-center gap-space-md">
+<div class="w-6 h-6 rounded-full bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<span class="font-title-md text-title-md text-primary font-bold">رتبة (2 × 2)</span>
+</div>
+<span class="font-mono font-label-xs text-label-xs bg-primary-fixed text-on-primary-fixed px-2 py-0.5 rounded">الخيار أ</span>
+<input checked="" class="hidden" name="mcq_answer" type="radio" value="opt1"/>
+</label>
+<!-- Option 2 -->
+<label class="relative flex items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-center gap-space-md">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-transparent">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<span class="font-title-md text-title-md text-on-surface">رتبة (3 × 3)</span>
+</div>
+<span class="font-mono font-label-xs text-label-xs bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">الخيار ب</span>
+<input class="hidden" name="mcq_answer" type="radio" value="opt2"/>
+</label>
+<!-- Option 3 -->
+<label class="relative flex items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-center gap-space-md">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-transparent">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<span class="font-title-md text-title-md text-on-surface">رتبة (2 × 3)</span>
+</div>
+<span class="font-mono font-label-xs text-label-xs bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">الخيار ج</span>
+<input class="hidden" name="mcq_answer" type="radio" value="opt3"/>
+</label>
+<!-- Option 4 -->
+<label class="relative flex items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-center gap-space-md">
+<div class="w-6 h-6 rounded-full bg-surface-variant flex items-center justify-center text-transparent">
+<span class="material-symbols-outlined text-[16px]">done</span>
+</div>
+<span class="font-title-md text-title-md text-on-surface">عملية الضرب غير معرفة</span>
+</div>
+<span class="font-mono font-label-xs text-label-xs bg-surface-variant text-on-surface-variant px-2 py-0.5 rounded">الخيار د</span>
+<input class="hidden" name="mcq_answer" type="radio" value="opt4"/>
+</label>
+</div>
+<!-- =================================================================== -->
+<!-- VARIANT 2: MCQ MULTI -->
+<!-- =================================================================== -->
+<div class="question-variant-container hidden flex-col gap-space-sm" id="variant-mcq-multi">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">اختر جميع العبارات الرياضية الصحيحة:</span>
+<span class="font-label-xs text-label-xs text-secondary font-semibold bg-secondary-fixed/50 px-2 py-0.5 rounded">يمكن اختيار أكثر من إجابة</span>
+</div>
+<label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-center gap-space-md">
+<div class="w-5 h-5 rounded-md bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+<span class="font-title-md text-title-md text-on-surface">عدد أعمدة المصفوفة A يساوي عدد صفوف المصفوفة B</span>
+</div>
+<span class="font-label-xs text-label-xs text-outline">صحيحة</span>
+<input checked="" class="hidden" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-center gap-space-md">
+<div class="w-5 h-5 rounded-md bg-primary flex items-center justify-center text-on-primary">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+<span class="font-title-md text-title-md text-on-surface">حاصل الضرب (B × A) ممكن وينتج مصفوفة من الرتبة (3 × 3)</span>
+</div>
+<span class="font-label-xs text-label-xs text-outline">صحيحة</span>
+<input checked="" class="hidden" type="checkbox"/>
+</label>
+<label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+<div class="flex items-center gap-space-md">
+<div class="w-5 h-5 rounded-md bg-surface-variant flex items-center justify-center text-transparent">
+<span class="material-symbols-outlined text-[16px]">check</span>
+</div>
+<span class="font-title-md text-title-md text-on-surface">ضرب المصفوفات دائماً تبديلي أي أن (A × B = B × A)</span>
+</div>
+<span class="font-label-xs text-label-xs text-outline">خاطئة</span>
+<input class="hidden" type="checkbox"/>
+</label>
+</div>
+<!-- =================================================================== -->
+<!-- VARIANT 3: TRUE / FALSE -->
+<!-- =================================================================== -->
+<div class="question-variant-container hidden flex-col gap-space-md" id="variant-tf">
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">حدد ما إذا كانت العبارة التالية صائبة أم خاطئة:</span>
+<div class="p-space-md bg-surface-container-low rounded-xl text-on-surface text-right font-title-md text-title-md">
+          "تكون عملية ضرب مصفوفتين معرفة دائماً طالما أن المصفوفتين لهما نفس الرتبة بالضبط."
+        </div>
+<div class="grid grid-cols-2 gap-space-md mt-2">
+<button class="group flex items-center justify-center gap-space-sm p-space-lg rounded-2xl bg-surface-container-low hover:bg-emerald-50 text-on-surface transition-all" type="button">
+<div class="w-10 h-10 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px]">check_circle</span>
+</div>
+<div class="flex flex-col text-right">
+<span class="font-title-md text-title-md font-bold text-emerald-800">صواب (صح)</span>
+<span class="font-label-xs text-label-xs text-emerald-600">العبارة الرياضية صحيحة</span>
+</div>
+</button>
+<button class="group flex items-center justify-center gap-space-sm p-space-lg rounded-2xl bg-error-container/20 ring-2 ring-error text-error transition-all" type="button">
+<div class="w-10 h-10 rounded-full bg-error text-on-error flex items-center justify-center group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-[24px]">cancel</span>
+</div>
+<div class="flex flex-col text-right">
+<span class="font-title-md text-title-md font-bold text-error">خطأ (غير صحيحة)</span>
+<span class="font-label-xs text-label-xs text-error/80">المحدد خاطئ رياضياً</span>
+</div>
+</button>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- VARIANT 4: SHORT ANSWER WITH MATH PALETTE -->
+<!-- =================================================================== -->
+<div class="question-variant-container hidden flex-col gap-space-sm" id="variant-short">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">اكتب القيمة أو التعبير النهائي لرتبة المصفوفة:</span>
+<span class="font-label-xs text-label-xs text-outline">حساسية الرموز مفعلة</span>
+</div>
+<div class="relative w-full">
+<input class="w-full h-14 bg-surface-container-low rounded-xl px-space-md text-title-md font-title-md text-on-surface outline-none focus:ring-2 focus:ring-primary text-right font-mono" dir="ltr" placeholder="مثال: (2 x 2) أو أدخل الرموز من الأسفل" type="text" value="(2 × 2)"/>
+<button class="absolute left-3 top-3 text-outline hover:text-on-surface">
+<span class="material-symbols-outlined">backspace</span>
+</button>
+</div>
+<!-- Math Symbols Palette -->
+<div class="flex items-center gap-2 pt-2 flex-wrap">
+<span class="font-label-xs text-label-xs text-outline ml-2">لوحة الرموز السريعة:</span>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">×</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">±</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">∞</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">√</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">≠</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">∑</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">π</button>
+<button class="px-3 py-1 bg-surface-container-low hover:bg-surface-container rounded-lg font-mono text-sm font-bold text-primary transition-colors">[ A ]</button>
+</div>
+</div>
+<!-- =================================================================== -->
+<!-- VARIANT 5: ESSAY WITH AUTO-SAVE CHIP -->
+<!-- =================================================================== -->
+<div class="question-variant-container hidden flex-col gap-space-sm" id="variant-essay">
+<div class="flex items-center justify-between mb-1">
+<span class="font-label-md text-label-md text-on-surface-variant font-semibold">فسّر خطوات البرهان بالتفصيل:</span>
+<div class="flex items-center gap-1.5 text-label-xs text-label-xs bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full">
+<span class="material-symbols-outlined text-[14px]">cloud_done</span>
+<span>يُحفظ تلقائياً (منذ ٦ ثوانٍ)</span>
+</div>
+</div>
+<!-- Rich Text Toolbar -->
+<div class="w-full bg-surface-container-low rounded-t-xl px-space-sm py-1.5 flex items-center justify-between">
+<div class="flex items-center gap-1">
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface"><span class="material-symbols-outlined text-[18px]">format_bold</span></button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface"><span class="material-symbols-outlined text-[18px]">format_italic</span></button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface"><span class="material-symbols-outlined text-[18px]">format_underlined</span></button>
+<div class="h-4 w-[1px] bg-surface-variant mx-1"></div>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface"><span class="material-symbols-outlined text-[18px]">format_list_numbered</span></button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface"><span class="material-symbols-outlined text-[18px]">functions</span></button>
+<button class="p-1.5 rounded hover:bg-surface-container text-on-surface"><span class="material-symbols-outlined text-[18px]">add_photo_alternate</span></button>
+</div>
+<span class="font-label-xs text-label-xs text-outline">١٤٢ كلمة</span>
+</div>
+<!-- Essay Text Area -->
+<textarea class="w-full bg-surface-container-lowest rounded-b-xl p-space-md text-body-md font-body-md text-on-surface outline-none focus:ring-2 focus:ring-primary -mt-2 resize-y shadow-inner text-right leading-relaxed" placeholder="ابدأ كتابة خطوات الحل الرياضي هنا..." rows="5">لكي تكون عملية ضرب المصفوفتين A و B ممكنة، يشترط أن يكون عدد أعمدة الأولى مساوياً لعدد صفوف الثانية. وحيث أن A من الرتبة (2 × 3) و B من الرتبة (3 × 2)، فإن ناتج الضرب C يتكون من صفوف A وأعمدة B، وبالتالي فإن رتبة المصفوفة الناتجة هي (2 × 2).</textarea>
+</div>
+</div>
+</main>
+<!-- Persistent Exam Footer Navigation Bar -->
+<footer class="w-full bg-surface-container-lowest py-space-sm px-gutter shadow-[0_-4px_20px_rgba(12,36,97,0.06)] sticky bottom-0 z-30">
+<div class="max-w-4xl mx-auto flex items-center justify-between gap-space-md">
+<!-- Right in RTL: Previous Question -->
+<button class="px-space-lg py-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-title-md text-title-md flex items-center gap-space-xs transition-colors">
+<span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+<span>السؤال السابق</span>
+</button>
+<!-- Center: Quick Jump Popover Trigger -->
+<div class="relative">
+<button class="px-space-md py-2 rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface-variant font-label-md text-label-md flex items-center gap-2 transition-all" id="jump-menu-btn">
+<span class="material-symbols-outlined text-[18px]">apps</span>
+<span>الانتقال إلى سؤال...</span>
+<span class="material-symbols-outlined text-[16px]">expand_less</span>
+</button>
+<!-- Jump Popover Menu (hidden by default) -->
+<div class="hidden absolute bottom-12 left-1/2 -translate-x-1/2 w-64 p-3 bg-surface-container-lowest rounded-2xl shadow-xl z-50 flex flex-col gap-2" id="jump-popover">
+<span class="font-label-xs text-label-xs text-outline px-1">انقر للانتقال الفوري:</span>
+<div class="grid grid-cols-5 gap-1.5">
+<button class="p-2 rounded bg-primary-container text-on-primary font-bold text-xs">١</button>
+<button class="p-2 rounded bg-primary-container text-on-primary font-bold text-xs">٢</button>
+<button class="p-2 rounded bg-primary-container text-on-primary font-bold text-xs">٣</button>
+<button class="p-2 rounded bg-secondary-fixed text-on-secondary-fixed font-bold text-xs ring-1 ring-secondary">٤</button>
+<button class="p-2 rounded bg-primary-container text-on-primary font-bold text-xs">٥</button>
+<button class="p-2 rounded bg-primary-container text-on-primary font-bold text-xs">٦</button>
+<button class="p-2 rounded bg-primary-container text-on-primary font-bold text-xs">٧</button>
+<button class="p-2 rounded bg-amber-400 text-on-surface font-bold text-xs">٨</button>
+<button class="p-2 rounded bg-surface-container text-on-surface text-xs">٩</button>
+<button class="p-2 rounded bg-surface-container text-on-surface text-xs">١٠</button>
+</div>
+</div>
+</div>
+<!-- Left in RTL: Next & Final Submission -->
+<div class="flex items-center gap-space-sm">
+<button class="px-space-md py-2.5 rounded-xl bg-surface-container text-primary hover:bg-primary-fixed font-label-lg text-label-lg transition-all flex items-center gap-1" id="review-submit-trigger">
+<span class="material-symbols-outlined text-[18px]">fact_check</span>
+<span>مراجعة وإنهاء الاختبار</span>
+</button>
+<button class="px-space-xl py-2.5 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-title-md text-title-md shadow-md hover:shadow-lg transition-all flex items-center gap-space-xs">
+<span>السؤال التالي</span>
+<span class="material-symbols-outlined text-[20px]">arrow_back</span>
+</button>
+</div>
+</div>
+</footer>
+<!-- ===================================================================== -->
+<!-- MODAL 1: Submission Confirmation & Summary Sheet -->
+<!-- ===================================================================== -->
+<div class="hidden fixed inset-0 z-50 bg-primary/40 backdrop-blur-sm flex items-center justify-center p-gutter" id="submit-modal">
+<div class="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-space-xl shadow-[0_20px_50px_rgba(12,36,97,0.2)] flex flex-col gap-space-md transform transition-all scale-95 opacity-0 duration-200" id="submit-modal-card">
+<!-- Modal Header -->
+<div class="flex items-start justify-between">
+<div class="w-12 h-12 rounded-2xl bg-primary-container/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[28px]">assignment_turned_in</span>
+</div>
+<button class="p-2 rounded-full hover:bg-surface-container text-outline hover:text-on-surface" id="close-submit-modal">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+<div class="flex flex-col gap-1 text-right">
+<h3 class="font-headline-md text-headline-md text-on-surface">تأكيد تسليم ورقة الإجابة</h3>
+<p class="font-body-sm text-body-sm text-outline">
+          يرجى مراجعة ملخص الإجابات قبل التأكيد النهائي. لن تتمكن من العودة بعد التسليم.
+        </p>
+</div>
+<!-- Quick Metrics Pills -->
+<div class="grid grid-cols-3 gap-space-sm p-space-md bg-surface-container-low rounded-2xl text-center">
+<div class="flex flex-col items-center">
+<span class="font-display-hero text-headline-md text-primary font-bold">١٨</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">أجبت عليها</span>
+</div>
+<div class="flex flex-col items-center border-x-0">
+<span class="font-display-hero text-headline-md text-amber-600 font-bold">٢</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">معلَّمة للمراجعة</span>
+</div>
+<div class="flex flex-col items-center">
+<span class="font-display-hero text-headline-md text-outline font-bold">٠</span>
+<span class="font-label-xs text-label-xs text-on-surface-variant">غير مجابة</span>
+</div>
+</div>
+<!-- Attention Notice -->
+<div class="flex items-start gap-space-sm p-space-sm bg-amber-50 rounded-xl text-amber-900 text-right font-label-md text-label-md">
+<span class="material-symbols-outlined text-amber-600 text-[20px] shrink-0 mt-0.5">warning</span>
+<span>لديك سؤالان عليهما علامة مراجعة (السؤال رقم ٣ و ٨). هل تود الرجوع إليهما قبل الإرسال النهائي؟</span>
+</div>
+<!-- Actions -->
+<div class="flex items-center justify-end gap-space-sm pt-2">
+<button class="px-space-md py-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-label-lg text-label-lg transition-colors" id="return-to-quiz-btn">
+          العودة للمراجعة
+        </button>
+<button class="px-space-lg py-3 rounded-xl bg-gradient-to-l from-primary to-secondary text-on-primary font-title-md text-title-md shadow-md hover:shadow-lg transition-all flex items-center gap-1.5" id="confirm-final-submit">
+<span class="material-symbols-outlined text-[20px]">send</span>
+<span>تأكيد الإرسال والإنهاء</span>
+</button>
+</div>
+</div>
+</div>
+<!-- ===================================================================== -->
+<!-- MODAL 2: Instant Results Screen Modal (Result Preview) -->
+<!-- ===================================================================== -->
+<div class="hidden fixed inset-0 z-50 bg-primary/50 backdrop-blur-md flex items-center justify-center p-gutter" id="result-modal">
+<div class="w-full max-w-lg bg-surface-container-lowest rounded-3xl p-space-xl shadow-[0_24px_60px_rgba(12,36,97,0.25)] flex flex-col items-center text-center gap-space-md transform transition-all scale-95 opacity-0 duration-300" id="result-modal-card">
+<!-- Circular Gradient Score Badge -->
+<div class="relative w-36 h-36 flex items-center justify-center my-2">
+<svg class="w-36 h-36 -rotate-90" viewbox="0 0 100 100">
+<circle class="text-surface-variant fill-none" cx="50" cy="50" r="42" stroke="currentColor" stroke-width="8"></circle>
+<circle class="fill-none" cx="50" cy="50" r="42" stroke="url(#scoreGradient)" stroke-dasharray="263.8" stroke-dashoffset="15.8" stroke-linecap="round" stroke-width="8"></circle>
+<defs>
+<lineargradient id="scoreGradient" x1="0%" x2="100%" y1="0%" y2="100%">
+<stop offset="0%" stop-color="#2563EB"></stop>
+<stop offset="100%" stop-color="#0099CC"></stop>
+</lineargradient>
+</defs>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center">
+<span class="font-display-hero text-headline-lg font-extrabold text-primary">٩٤٪</span>
+<span class="font-label-xs text-label-xs text-secondary font-semibold">ممتاز مرتفع</span>
+</div>
+</div>
+<div class="flex flex-col gap-1">
+<h3 class="font-headline-md text-headline-md text-on-surface">تم تسليم الاختبار بنجاح!</h3>
+<p class="font-body-sm text-body-sm text-outline max-w-sm">
+          أحسنت يا أ. أحمد السعيد! أتممت الاختبار النصفي لمادة الرياضيات المتقدمة في ٣٤ دقيقة و١٧ ثانية.
+        </p>
+</div>
+<!-- Score Breakdown Card -->
+<div class="w-full grid grid-cols-3 gap-2 bg-surface-container-low p-space-md rounded-2xl text-right">
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">الدرجة الكلية</span>
+<span class="font-title-md text-title-md text-primary font-bold">٣٨ / ٤٠</span>
+</div>
+<div class="flex flex-col border-x-0">
+<span class="font-label-xs text-label-xs text-outline">الإجابات الصحيحة</span>
+<span class="font-title-md text-title-md text-emerald-600 font-bold">١٩ من ٢٠</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-xs text-label-xs text-outline">الترتيب بالفصل</span>
+<span class="font-title-md text-title-md text-secondary font-bold">الأول 🥇</span>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="w-full flex items-center justify-center gap-space-sm pt-2">
+<button class="w-full py-3 rounded-xl bg-surface-container hover:bg-surface-container-high text-on-surface font-title-md text-title-md transition-colors" id="close-result-modal">
+          إغلاق
+        </button>
+<button class="w-full py-3 rounded-xl bg-primary text-on-primary font-title-md text-title-md shadow-md hover:bg-primary-container transition-all flex items-center justify-center gap-1">
+<span class="material-symbols-outlined text-[18px]">visibility</span>
+<span>عرض نموذج الإجابة</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Inline Interaction Scripts -->
+<script>
+    (function () {
+      // 1. Component State Switcher (Figma Variants Playground)
+      const tabs = document.querySelectorAll('#variant-tabs .tab-btn');
+      const containers = document.querySelectorAll('.question-variant-container');
+
+      tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+          tabs.forEach(t => {
+            t.classList.remove('bg-primary-container', 'text-on-primary', 'active-tab');
+            t.classList.add('bg-surface-container', 'text-on-surface-variant');
+          });
+          tab.classList.add('bg-primary-container', 'text-on-primary', 'active-tab');
+          tab.classList.remove('bg-surface-container', 'text-on-surface-variant');
+
+          const targetId = tab.getAttribute('data-target');
+          containers.forEach(c => {
+            if (c.id === targetId) {
+              c.classList.remove('hidden');
+              c.classList.add('flex');
+            } else {
+              c.classList.add('hidden');
+              c.classList.remove('flex');
+            }
+          });
+        });
+      });
+
+      // 2. Question Flag Toggle Button
+      const flagBtn = document.getElementById('flag-question-toggle');
+      const flagIcon = document.getElementById('flag-icon');
+      const flagLabel = document.getElementById('flag-label');
+      let isFlagged = false;
+
+      flagBtn.addEventListener('click', () => {
+        isFlagged = !isFlagged;
+        if (isFlagged) {
+          flagBtn.classList.add('bg-amber-100', 'text-amber-800');
+          flagIcon.style.fontVariationSettings = "'FILL' 1";
+          flagIcon.classList.add('text-amber-600');
+          flagLabel.textContent = 'مُعلَّم للمراجعة ✓';
+        } else {
+          flagBtn.classList.remove('bg-amber-100', 'text-amber-800');
+          flagIcon.style.fontVariationSettings = "'FILL' 0";
+          flagIcon.classList.remove('text-amber-600');
+          flagLabel.textContent = 'وضع علامة للمراجعة';
+        }
+      });
+
+      // 3. Jump to Question Menu Popover
+      const jumpBtn = document.getElementById('jump-menu-btn');
+      const jumpPopover = document.getElementById('jump-popover');
+      jumpBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        jumpPopover.classList.toggle('hidden');
+      });
+      document.addEventListener('click', () => {
+        jumpPopover.classList.add('hidden');
+      });
+
+      // 4. Submit Review & Result Modals
+      const submitModal = document.getElementById('submit-modal');
+      const submitModalCard = document.getElementById('submit-modal-card');
+      const reviewTrigger = document.getElementById('review-submit-trigger');
+      const quickFinish = document.getElementById('finish-quiz-quick');
+      const closeSubmitModal = document.getElementById('close-submit-modal');
+      const returnToQuiz = document.getElementById('return-to-quiz-btn');
+      const confirmFinalSubmit = document.getElementById('confirm-final-submit');
+
+      const resultModal = document.getElementById('result-modal');
+      const resultModalCard = document.getElementById('result-modal-card');
+      const closeResultModal = document.getElementById('close-result-modal');
+
+      function openModal(modal, card) {
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+          card.classList.remove('scale-95', 'opacity-0');
+          card.classList.add('scale-100', 'opacity-100');
+        }, 10);
+      }
+
+      function closeModal(modal, card) {
+        card.classList.remove('scale-100', 'opacity-100');
+        card.classList.add('scale-95', 'opacity-0');
+        setTimeout(() => {
+          modal.classList.add('hidden');
+        }, 200);
+      }
+
+      [reviewTrigger, quickFinish].forEach(btn => {
+        btn.addEventListener('click', () => openModal(submitModal, submitModalCard));
+      });
+
+      [closeSubmitModal, returnToQuiz].forEach(btn => {
+        btn.addEventListener('click', () => closeModal(submitModal, submitModalCard));
+      });
+
+      confirmFinalSubmit.addEventListener('click', () => {
+        closeModal(submitModal, submitModalCard);
+        setTimeout(() => {
+          openModal(resultModal, resultModalCard);
+        }, 250);
+      });
+
+      closeResultModal.addEventListener('click', () => {
+        closeModal(resultModal, resultModalCard);
+      });
+
+      // 5. Dark/Light Mode Visual Toggle (Html class toggle)
+      const themeToggle = document.getElementById('theme-toggle-btn');
+      themeToggle.addEventListener('click', () => {
+        const isDark = document.documentElement.classList.toggle('dark');
+        themeToggle.innerHTML = isDark
+          ? '<span class="material-symbols-outlined text-[20px]">dark_mode</span>'
+          : '<span class="material-symbols-outlined text-[20px]">light_mode</span>';
+      });
+
+      // 6. Interactive Radio Options Selector
+      const singleRadios = document.querySelectorAll('input[name="mcq_answer"]');
+      singleRadios.forEach(radio => {
+        radio.addEventListener('change', () => {
+          singleRadios.forEach(r => {
+            const parent = r.closest('label');
+            const circle = parent.querySelector('.w-6');
+            parent.classList.remove('bg-surface-container-lowest', 'border-r-4', 'border-primary', 'shadow-xs');
+            parent.classList.add('bg-surface-container-low');
+            circle.classList.remove('bg-primary', 'text-on-primary');
+            circle.classList.add('bg-surface-variant', 'text-transparent');
+          });
+          const activeParent = radio.closest('label');
+          const activeCircle = activeParent.querySelector('.w-6');
+          activeParent.classList.remove('bg-surface-container-low');
+          activeParent.classList.add('bg-surface-container-lowest', 'border-r-4', 'border-primary', 'shadow-xs');
+          activeCircle.classList.remove('bg-surface-variant', 'text-transparent');
+          activeCircle.classList.add('bg-primary', 'text-on-primary');
+        });
+      });
+    })();
+  </script>
+</div></main><footer class="w-full bg-surface-container-lowest mt-space-xl"><div class="w-full px-gutter py-space-xl flex flex-col md:flex-row items-center justify-between gap-space-md text-on-surface-variant"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-6 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><span class="font-label-md text-label-md text-on-surface">منصتي التعليمية الذكية © 2025</span></div><div class="flex items-center gap-space-lg font-label-sm text-label-md"><a class="hover:text-primary transition-colors" href="#">شروط الاستخدام</a><a class="hover:text-primary transition-colors" href="#">سياسة الخصوصية</a><a class="hover:text-primary transition-colors" href="#">الدعم الفني والمساعدة</a></div></div></footer></body></html>

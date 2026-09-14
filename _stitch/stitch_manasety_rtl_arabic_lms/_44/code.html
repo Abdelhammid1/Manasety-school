@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+
+<html dir="rtl" lang="ar"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+          "background": "#f7f9fc",
+          "surface-dim": "#d8dadd",
+          "surface-variant": "#e0e3e6",
+          "surface-container": "#edf0f5",
+          "on-tertiary-fixed-variant": "#004c68",
+          "secondary-fixed": "#dbe1ff",
+          "modal-backdrop": "rgba(12, 36, 97, 0.40)",
+          "tertiary-container": "#00455e",
+          "tertiary-fixed-dim": "#78d1ff",
+          "error-container": "#ffdad6",
+          "on-error": "#ffffff",
+          "surface-container-highest": "#e0e3e6",
+          "surface-container-low": "#f2f4f7",
+          "navy-active": "rgba(255, 255, 255, 0.06)",
+          "on-surface-variant": "#475569",
+          "on-tertiary-fixed": "#001e2c",
+          "secondary": "#0051d5",
+          "on-background": "#191c1e",
+          "sidebar-icon": "#dbe7ff",
+          "inverse-primary": "#b6c4ff",
+          "surface-bright": "#f7f9fc",
+          "on-secondary": "#ffffff",
+          "secondary-fixed-dim": "#b4c5ff",
+          "on-secondary-fixed-variant": "#003ea8",
+          "primary-container": "#1e3a8a",
+          "surface-container-lowest": "#ffffff",
+          "on-error-container": "#93000a",
+          "primary-fixed": "#dce1ff",
+          "on-surface": "#191c1e",
+          "outline-variant": "#e2e8f0",
+          "inverse-surface": "#2d3133",
+          "surface": "#f7f9fc",
+          "tertiary-fixed": "#c3e8ff",
+          "on-primary-container": "#90a8ff",
+          "secondary-container": "#316bf3",
+          "navy": "#0c2461",
+          "surface-container-high": "#e5e9f0",
+          "on-secondary-fixed": "#00174b",
+          "outline": "#cbd5e1",
+          "on-tertiary-container": "#42b7eb",
+          "inverse-on-surface": "#eff1f4",
+          "navy-surface": "#0c2461",
+          "tertiary": "#002e40",
+          "error": "#ba1a1a",
+          "on-primary-fixed-variant": "#264191",
+          "surface-tint": "#4059aa",
+          "on-secondary-container": "#fefcff",
+          "on-tertiary": "#ffffff",
+          "primary": "#00236f",
+          "primary-fixed-dim": "#b6c4ff",
+          "on-primary-fixed": "#00164e",
+          "on-primary": "#ffffff"
+        },
+        "borderRadius": {
+          "DEFAULT": "0.25rem",
+          "lg": "0.5rem",
+          "xl": "0.75rem",
+          "full": "9999px"
+        },
+        "spacing": {
+          "space-sm": "0.5rem",
+          "space-md": "1rem",
+          "space-xs": "0.25rem",
+          "space-lg": "1.5rem",
+          "gutter-sm": "1rem",
+          "margin-sm": "1rem",
+          "space-xl": "2rem",
+          "margin": "1.5rem",
+          "gutter": "1.5rem"
+        },
+        "fontFamily": {
+          "display-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "body-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "body-md": [
+            "Plus Jakarta Sans"
+          ],
+          "label-md": [
+            "Plus Jakarta Sans"
+          ],
+          "display-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "label-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-lg": [
+            "Plus Jakarta Sans"
+          ],
+          "label-sm": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-lg-mobile": [
+            "Plus Jakarta Sans"
+          ],
+          "title-md": [
+            "Plus Jakarta Sans"
+          ],
+          "headline-md": [
+            "Plus Jakarta Sans"
+          ]
+        },
+        "fontSize": {
+          "display-lg": [
+            "40px",
+            {
+              "lineHeight": "52px",
+              "fontWeight": "700"
+            }
+          ],
+          "body-lg": [
+            "16px",
+            {
+              "lineHeight": "24px",
+              "fontWeight": "400"
+            }
+          ],
+          "body-md": [
+            "14px",
+            {
+              "lineHeight": "22px",
+              "fontWeight": "400"
+            }
+          ],
+          "label-md": [
+            "12px",
+            {
+              "lineHeight": "18px",
+              "fontWeight": "600"
+            }
+          ],
+          "display-lg-mobile": [
+            "30px",
+            {
+              "lineHeight": "40px",
+              "fontWeight": "700"
+            }
+          ],
+          "headline-sm": [
+            "20px",
+            {
+              "lineHeight": "28px",
+              "fontWeight": "600"
+            }
+          ],
+          "label-lg": [
+            "14px",
+            {
+              "lineHeight": "20px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-lg": [
+            "32px",
+            {
+              "lineHeight": "42px",
+              "fontWeight": "700"
+            }
+          ],
+          "label-sm": [
+            "11px",
+            {
+              "lineHeight": "16px",
+              "fontWeight": "500"
+            }
+          ],
+          "headline-lg-mobile": [
+            "26px",
+            {
+              "lineHeight": "34px",
+              "fontWeight": "700"
+            }
+          ],
+          "title-md": [
+            "18px",
+            {
+              "lineHeight": "26px",
+              "fontWeight": "600"
+            }
+          ],
+          "headline-md": [
+            "24px",
+            {
+              "lineHeight": "32px",
+              "fontWeight": "600"
+            }
+          ]
+        }
+      },
+    },
+  }</script></head><body class="bg-surface font-body-md text-body-md text-on-surface antialiased"><aside class="fixed top-0 right-0 h-full w-[280px] bg-navy z-50 flex flex-col justify-between shadow-[0_1px_8px_rgba(0,0,0,0.04)] transition-all duration-200 ease-in-out"><div class="flex flex-col"><div class="h-16 px-space-lg flex items-center justify-between"><div class="flex items-center gap-space-sm"><img alt="Geometric modern wordmark logo for Manasety LMS in Arabic, horizontal bar-glyphs forming sleek abstracted educational arches in deep navy and vibrant blue gradient #1E3A8A to #0099CC, on crisp clean transparent background.. Brand logo. - Primary color: #1e3a8a
+- Font: plusJakartaSans
+- Mode: light
+- Roundness: rounded-md
+" class="h-8 w-auto object-contain" src="https://lh3.googleusercontent.com/aida/AEtjO1U_ZcW4w49xE0zqwoLNXVRJy73dxW9Fve3xIEaMHB6_vbMhmlF9t6pSGe2Dd-UBJpM_kmwy4DkRFvl7reG5IAsir0PAoTec6ao1KbFXVVixZ_VwnyrGpAqtwiXDlxuQnBRU4tba2I16XxUUdvc67PvesHt3dRoP8TQa-BZU2tMWzugDwZVupYbXlkoEZj0UmGlyBzHMRF2w2RvNC4lOl4qdh-vqh5heAORHlH1dwwlU6GxYmSKysbqAwNSI"/><div class="flex flex-col"><span class="font-headline-sm text-headline-sm text-on-primary">منصتي</span><span class="font-label-sm text-label-sm text-sidebar-icon">نظام إدارة التعلم K-12</span></div></div><button class="flex items-center justify-center p-space-xs rounded-lg text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-colors"><span class="material-symbols-outlined text-[20px]">menu_open</span></button></div><div class="px-space-md py-space-sm"><div class="p-space-sm rounded-xl bg-navy-active flex items-center justify-between"><div class="flex items-center gap-space-xs text-sidebar-icon"><span class="material-symbols-outlined text-[18px]">calendar_month</span><span class="font-label-md text-label-md text-on-primary">العام الدراسي 1446-1447</span></div><span class="px-space-xs py-0.5 rounded-full bg-secondary-container font-label-sm text-label-sm text-on-secondary-container">الفصل 1</span></div></div><nav class="flex flex-col gap-1 px-space-sm mt-space-sm" data-active-classes="bg-navy-active text-on-primary font-label-lg border-r-4 border-secondary"><a class="flex items-center gap-space-md px-space-md py-3 rounded-xl text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-colors" data-path="overview-dashboard" href="#"><span class="material-symbols-outlined text-[20px]">dashboard</span><span class="font-body-md text-body-md">لوحة التحكم العامة</span></a><a class="flex items-center gap-space-md px-space-md py-3 rounded-xl text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-colors" data-path="classes-curriculum" href="#"><span class="material-symbols-outlined text-[20px]">menu_book</span><span class="font-body-md text-body-md">الفصول والمناهج</span></a><a class="flex items-center gap-space-md px-space-md py-3 rounded-xl text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-colors" data-path="schedules-reports" href="#"><span class="material-symbols-outlined text-[20px]">calendar_today</span><span class="font-body-md text-body-md">الجداول والتقارير</span></a><a aria-current="page" class="flex items-center gap-space-md px-space-md py-3 rounded-xl transition-colors bg-navy-active text-on-primary font-label-lg border-r-4 border-secondary" data-path="assignments-evaluations" href="#"><span class="material-symbols-outlined text-[20px]">assignment_turned_in</span><span class="font-body-md text-body-md">الواجبات والتقييمات</span></a><a class="flex items-center gap-space-md px-space-md py-3 rounded-xl text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-colors" data-path="students-attendance" href="#"><span class="material-symbols-outlined text-[20px]">group</span><span class="font-body-md text-body-md">الطلاب والحضور</span></a><a class="flex items-center gap-space-md px-space-md py-3 rounded-xl text-sidebar-icon hover:bg-navy-active hover:text-on-primary transition-colors" data-path="settings-system" href="#"><span class="material-symbols-outlined text-[20px]">tune</span><span class="font-body-md text-body-md">الإعدادات والنظام</span></a></nav></div><div class="p-space-md"><div class="p-space-sm rounded-xl bg-navy-active flex items-center justify-between"><div class="flex items-center gap-space-sm"><div class="w-8 h-8 rounded-full bg-tertiary-container flex items-center justify-center text-on-tertiary-container font-label-md text-label-md">م.م</div><div class="flex flex-col"><span class="font-label-md text-label-md text-on-primary">مدرسة المعرفة الأهلية</span><span class="font-label-sm text-label-sm text-sidebar-icon">الرياض - بنين</span></div></div><span class="material-symbols-outlined text-sidebar-icon text-[18px]">verified</span></div></div></aside><div class="pr-[280px]"><header class="fixed top-0 left-0 right-[280px] h-16 bg-surface/80 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-xl"><div class="flex items-center gap-space-md flex-1 max-w-lg"><div class="relative w-full"><span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-[20px]">search</span><input class="w-full pr-10 pl-space-md py-2 bg-surface-container-low rounded-xl font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary" placeholder="بحث عن طالب، فصل، درس أو تقرير أكاديمي..." type="text"/></div></div><div class="flex items-center gap-space-md"><div class="hidden md:flex items-center gap-space-xs px-space-sm py-1 rounded-full bg-surface-container text-on-surface-variant"><span class="material-symbols-outlined text-[18px]">school</span><span class="font-label-md text-label-md">العام 1446-1447 هـ</span></div><button class="relative p-space-xs rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">notifications</span><span class="absolute top-1 right-1 w-2 h-2 rounded-full bg-error"></span></button><button class="p-space-xs rounded-xl text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"><span class="material-symbols-outlined text-[22px]">help_outline</span></button><div class="h-6 w-px bg-outline-variant"></div><div class="flex items-center gap-space-sm pl-space-xs"><div class="flex flex-col text-left"><span class="font-label-md text-label-md text-on-surface text-right">أحمد السعيد</span><span class="font-label-sm text-label-sm text-on-surface-variant text-right">مشرف تربوي</span></div><img alt="Profile" class="w-8 h-8 rounded-full object-cover" src="https://lh3.googleusercontent.com/aida/AEtjO1W7nwKVCW2ohtWNUSmMTKIsm_-HSOtzL4v5aeut0D_GozrIaQQ_H_ueS7iEpesuHyzH8iHGrPdUZUzQxMfYlEfcVEeYgS0fim6n2TjHFzBnVg1XlKA1e1WD1iwP8nmioxAWFr3f1awff9_3p4IkufmJqGonU6iUsu_zvNlVCm5f8gggeuqBfs2tFZJ0nKDvvFB5CygAjjFeEkXJPgq8jYIRHRM1_yOnDV-gBuVHdPShnIdlBoD31XfMTr2g"/></div></div></header><main class="w-full pt-16 px-space-xl pb-space-xl bg-surface"><div class="flex flex-col w-full">
+<!-- Breadcrumb and Quick Status Bar -->
+<div class="flex flex-wrap items-center justify-between gap-space-md mb-space-lg">
+<div class="flex flex-col gap-1">
+<nav class="flex items-center gap-space-xs text-on-surface-variant font-label-md text-label-md">
+<span class="hover:text-primary transition-colors cursor-pointer">النظام الأكاديمي</span>
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+<span class="hover:text-primary transition-colors cursor-pointer">التقييمات والاختبارات</span>
+<span class="material-symbols-outlined text-[16px]">chevron_left</span>
+<span class="text-primary font-label-lg text-label-lg">سياسة وقواعد النجاح والرسوب</span>
+</nav>
+<div class="flex items-center gap-space-sm mt-1">
+<h1 class="font-headline-md text-headline-md text-navy tracking-tight">قواعد ومعايير النجاح والرسوب الأكاديمي</h1>
+<span class="px-space-sm py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant font-label-sm text-label-sm">لائحة 1446هـ المُعتمدة</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<button class="flex items-center gap-space-xs px-space-md py-2.5 rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-all duration-200" onclick="resetToMinisterialDefaults()" type="button">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">restart_alt</span>
+<span class="font-label-lg text-label-lg">استعادة الإعدادات الوزارية القياسية</span>
+</button>
+<button class="flex items-center gap-space-xs px-space-lg py-2.5 rounded-xl bg-primary text-on-primary shadow-md hover:shadow-lg hover:bg-primary-container transition-all duration-200" id="save-policy-btn" onclick="triggerPolicySave()" type="button">
+<span class="material-symbols-outlined text-[18px]">verified_user</span>
+<span class="font-label-lg text-label-lg">حفظ واعتماد سياسة النجاح</span>
+</button>
+</div>
+</div>
+<!-- Main Asymmetric Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-space-lg items-start">
+<!-- Right Column (60% Desktop - Rule Configuration Form) -->
+<div class="lg:col-span-7 flex flex-col gap-space-lg">
+<!-- General Rules Accordion/Card -->
+<section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md relative overflow-hidden">
+<div class="absolute top-0 right-0 left-0 h-1 bg-gradient-to-l from-primary via-secondary to-tertiary-fixed-dim"></div>
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-primary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[24px]">balance</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-navy">الضوابط العامة للدرجات الصغرى</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">تطبيق المعايير على المعدل النهائي وورقة الاختبار التحريري</p>
+</div>
+</div>
+<span class="material-symbols-outlined text-on-surface-variant text-[20px]">tune</span>
+</div>
+<!-- Metric 1: General Passing Grade -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg text-on-surface">الحد الأدنى للنجاح العام (General Passing Grade)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">النسبة المئوية الإجمالية لدرجة المادة لنهاية العام</span>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1 rounded-lg shadow-sm">
+<button class="w-7 h-7 rounded bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors" onclick="adjustGeneralThreshold(-1)" type="button">
+<span class="material-symbols-outlined text-[16px]">remove</span>
+</button>
+<span class="font-headline-sm text-headline-sm text-primary w-12 text-center" id="general-threshold-display">50%</span>
+<button class="w-7 h-7 rounded bg-surface-container flex items-center justify-center text-on-surface hover:bg-surface-variant transition-colors" onclick="adjustGeneralThreshold(1)" type="button">
+<span class="material-symbols-outlined text-[16px]">add</span>
+</button>
+</div>
+</div>
+<div class="flex items-center gap-space-md mt-1">
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" id="general-threshold-slider" max="70" min="40" oninput="updateGeneralThreshold(this.value)" type="range" value="50"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant w-14 text-left">المدى: 40-70</span>
+</div>
+</div>
+<!-- Metric 2: Final Exam Minimum Percentage -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg text-on-surface">الحد الأدنى في الاختبار التحريري النهائي</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">شرط اجتياز الورقة الأخيرة بغض النظر عن درجات أعمال السنة</span>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest px-space-sm py-1 rounded-lg shadow-sm">
+<span class="font-title-md text-title-md text-primary" id="final-exam-display">40%</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">من الدرجة</span>
+</div>
+</div>
+<div class="flex items-center gap-space-md">
+<input class="w-full h-2 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-secondary" id="final-exam-slider" max="50" min="20" oninput="updateFinalThreshold(this.value)" step="5" type="range" value="40"/>
+<span class="font-label-sm text-label-sm text-on-surface-variant">شرط نظامي إلزامي</span>
+</div>
+</div>
+<!-- Metric 3: Max subjects allowed for Second Chance / Make-up -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg text-on-surface">أقصى عدد مواد للتحويل للدور الثاني (Make-up Round)</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">الحد الفاصل بين دخول الدور الثاني والرسوب المباشر للإعادة</span>
+</div>
+<div class="flex items-center gap-space-xs bg-surface-container-lowest p-1 rounded-lg shadow-sm">
+<button class="px-3 py-1 text-label-md rounded font-label-md transition-all text-on-surface hover:bg-surface-container" id="max-btn-1" onclick="setMaxFailed(1)" type="button">1 مادة</button>
+<button class="px-3 py-1 text-label-md rounded font-label-md transition-all bg-primary text-on-primary" id="max-btn-2" onclick="setMaxFailed(2)" type="button">2 مادتان</button>
+<button class="px-3 py-1 text-label-md rounded font-label-md transition-all text-on-surface hover:bg-surface-container" id="max-btn-3" onclick="setMaxFailed(3)" type="button">3 مواد</button>
+</div>
+</div>
+<div class="flex items-center gap-space-xs text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[16px] text-tertiary-container">info</span>
+<span>الرسوب في أكثر من <strong class="text-primary font-label-md" id="max-failed-label">مادتين</strong> يُحيل الطالب مباشرة إلى الرسوب وبقاء الإعادة.</span>
+</div>
+</div>
+</section>
+<!-- Second Chance Calculation Policy (Radio Cards) -->
+<section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center gap-space-sm pb-space-xs">
+<div class="w-10 h-10 rounded-lg bg-secondary-fixed flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[24px]">rule</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-navy">آلية احتساب درجة الدور الثاني (Second Chance Rule)</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">كيفية رصد المعدل عند إتمام اختبارات الدور الثاني بنجاح</p>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Option 1 -->
+<label class="relative flex flex-col p-space-md rounded-xl bg-surface cursor-pointer hover:bg-surface-container-low transition-all duration-150 group">
+<div class="flex items-start justify-between">
+<input checked="" class="w-4 h-4 text-primary accent-primary mt-1" name="second-chance-mode" onchange="updateRuleMode('cap50')" type="radio" value="cap50"/>
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm">معياري</span>
+</div>
+<div class="mt-space-sm flex flex-col gap-1">
+<span class="font-label-lg text-label-lg text-on-surface group-hover:text-primary transition-colors">إجازة نجاح بسقف 50%</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant leading-relaxed">
+                تُرصد درجة النجاح الدنيا (50%) فقط في الشهادة الختامية مهما كانت درجة اختبار المكمّل.
+              </p>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">policy</span>
+<span>النظام المعتمد حكومياً</span>
+</div>
+</label>
+<!-- Option 2 -->
+<label class="relative flex flex-col p-space-md rounded-xl bg-surface cursor-pointer hover:bg-surface-container-low transition-all duration-150 group">
+<div class="flex items-start justify-between">
+<input class="w-4 h-4 text-primary accent-primary mt-1" name="second-chance-mode" onchange="updateRuleMode('actual')" type="radio" value="actual"/>
+<span class="px-2 py-0.5 rounded bg-secondary-fixed text-on-secondary-fixed-variant font-label-sm text-label-sm">أهلي/مرن</span>
+</div>
+<div class="mt-space-sm flex flex-col gap-1">
+<span class="font-label-lg text-label-lg text-on-surface group-hover:text-primary transition-colors">الدرجة الفعلية كاملة</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant leading-relaxed">
+                تحتسب الدرجة الحقيقية التي حصل عليها الطالب كاملة مع تدوين مؤشر "اختبار دور ثان".
+              </p>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">history_edu</span>
+<span>قيد تفصيلي بالسجل</span>
+</div>
+</label>
+<!-- Option 3 -->
+<label class="relative flex flex-col p-space-md rounded-xl bg-surface cursor-pointer hover:bg-surface-container-low transition-all duration-150 group">
+<div class="flex items-start justify-between">
+<input class="w-4 h-4 text-primary accent-primary mt-1" name="second-chance-mode" onchange="updateRuleMode('strict')" type="radio" value="strict"/>
+<span class="px-2 py-0.5 rounded bg-surface-container text-on-surface-variant font-label-sm text-label-sm">صارم</span>
+</div>
+<div class="mt-space-sm flex flex-col gap-1">
+<span class="font-label-lg text-label-lg text-on-surface group-hover:text-primary transition-colors">رسوب وبقاء مشروط</span>
+<p class="font-label-sm text-label-sm text-on-surface-variant leading-relaxed">
+                في حال عدم تخطي نسبة 60% في الدور الثاني يُلغى الاستثناء ويُعتبر الطالب راسباً رسمياً.
+              </p>
+</div>
+<div class="mt-space-md pt-space-xs flex items-center gap-1 text-on-surface-variant font-label-sm text-label-sm">
+<span class="material-symbols-outlined text-[14px]">warning</span>
+<span>تصفير الفرص البديلة</span>
+</div>
+</label>
+</div>
+</section>
+<!-- Term Weights Across Academic Year -->
+<section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+<div class="flex items-center justify-between pb-space-xs">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-lg bg-tertiary-fixed flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined text-[24px]">percent</span>
+</div>
+<div>
+<h2 class="font-title-md text-title-md text-navy">ترجيح الفصول الأكاديمية (Term Weights)</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">توزيع الأوزان النسبية للفصول الثلاثة (يجب أن يساوي المجموع 100%)</p>
+</div>
+</div>
+<div class="flex items-center gap-1 px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md" id="weights-status-pill">
+<span class="material-symbols-outlined text-[16px] text-secondary">check_circle</span>
+<span id="weights-total-text">المجموع: 100% (متطابق)</span>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+<!-- Term 1 -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">الفصل الدراسي الأول</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">looks_one</span>
+</div>
+<div class="relative mt-2">
+<input class="w-full bg-surface-container-lowest px-space-md py-2 text-title-md font-title-md text-navy rounded-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm text-left" id="term-1-weight" max="60" min="10" oninput="calculateWeights()" type="number" value="30"/>
+<span class="absolute left-3 top-1/2 -translate-y-1/2 font-label-lg text-label-lg text-on-surface-variant">%</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1">الوزن الافتراضي المعتمد 30%</span>
+</div>
+<!-- Term 2 -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">الفصل الدراسي الثاني</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">looks_two</span>
+</div>
+<div class="relative mt-2">
+<input class="w-full bg-surface-container-lowest px-space-md py-2 text-title-md font-title-md text-navy rounded-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm text-left" id="term-2-weight" max="60" min="10" oninput="calculateWeights()" type="number" value="35"/>
+<span class="absolute left-3 top-1/2 -translate-y-1/2 font-label-lg text-label-lg text-on-surface-variant">%</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1">الوزن الافتراضي المعتمد 35%</span>
+</div>
+<!-- Term 3 -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface">الفصل الدراسي الثالث</span>
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">looks_3</span>
+</div>
+<div class="relative mt-2">
+<input class="w-full bg-surface-container-lowest px-space-md py-2 text-title-md font-title-md text-navy rounded-lg focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm text-left" id="term-3-weight" max="60" min="10" oninput="calculateWeights()" type="number" value="35"/>
+<span class="absolute left-3 top-1/2 -translate-y-1/2 font-label-lg text-label-lg text-on-surface-variant">%</span>
+</div>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1">الوزن الافتراضي المعتمد 35%</span>
+</div>
+</div>
+<!-- Progress visual bar for weights -->
+<div class="flex flex-col gap-1 mt-space-xs">
+<div class="w-full h-3 bg-surface-container rounded-full overflow-hidden flex">
+<div class="bg-primary h-full transition-all duration-300" id="bar-term-1" style="width: 30%"></div>
+<div class="bg-secondary h-full transition-all duration-300" id="bar-term-2" style="width: 35%"></div>
+<div class="bg-tertiary-fixed-dim h-full transition-all duration-300" id="bar-term-3" style="width: 35%"></div>
+</div>
+<div class="flex items-center justify-between text-on-surface-variant font-label-sm text-label-sm pt-1">
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-primary inline-block"></span> ف1: <span id="leg-1">30%</span></span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-secondary inline-block"></span> ف2: <span id="leg-2">35%</span></span>
+<span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-tertiary-fixed-dim inline-block"></span> ف3: <span id="leg-3">35%</span></span>
+</div>
+</div>
+</section>
+</div>
+<!-- Left Column (40% Desktop - Live Preview Simulator Card) -->
+<div class="lg:col-span-5 flex flex-col gap-space-lg lg:sticky lg:top-20">
+<div class="bg-surface-container-lowest rounded-xl p-space-lg shadow-md flex flex-col gap-space-md relative overflow-hidden">
+<!-- Visual Accent Corner -->
+<div class="absolute -top-10 -left-10 w-32 h-32 bg-primary/5 rounded-full blur-2xl pointer-events-none"></div>
+<!-- Simulator Header -->
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-10 h-10 rounded-xl bg-navy text-sidebar-icon flex items-center justify-center">
+<span class="material-symbols-outlined text-[22px]">labs</span>
+</div>
+<div>
+<span class="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed font-label-sm text-label-sm">محاكاة فورية</span>
+<h3 class="font-title-md text-title-md text-navy mt-0.5">فحص أهلية النجاح والرسوب اللحظي</h3>
+</div>
+</div>
+<span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse" title="المحاكي نشط"></span>
+</div>
+<!-- Student Selector & Profile Snippet -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-sm">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface-variant">عينة الاختبار المرجعية:</span>
+<span class="font-label-sm text-label-sm text-secondary cursor-pointer hover:underline" onclick="toggleSimStudent()">تبديل الطالب</span>
+</div>
+<div class="flex items-center justify-between pt-1">
+<div class="flex items-center gap-space-sm">
+<img class="w-11 h-11 rounded-full object-cover shadow-sm" data-alt="Close up realistic portrait photo of a Saudi middle school student boy wearing a clean white thobe in a brightly lit modern educational institute hallway with warm calm lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAsqSHJMJKYdFWcOMoaFHi3izawla9BG6ByaHI55eDGPgtTMSMA1xx93f7g9RXP6uUBwOlUbbBqWpgIe_-5uoMPenVyuOktcn15u1_jn1poMZIQoOKAqHO_9PpHpdkrSQ1fIOxgMi95yNnTIEDubgkVqYopUr1lolwB1kNPOfsMUaXKhguad3_yWTWmNmsjuWAUpF7z05oefqVsS3EV25LXupvm0t6fkN65Qez_9HXji8oW6paXm-UaEA"/>
+<div class="flex flex-col">
+<span class="font-title-md text-title-md text-navy" id="student-name">عمر عبد العزيز السالم</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">الصف التاسع (3/3 متوسط) • الرقم الأكاديمي: 442910</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Live Status Evaluation Box -->
+<div class="rounded-xl p-space-md flex items-center justify-between transition-all duration-300 bg-secondary-fixed/50" id="sim-status-box">
+<div class="flex items-center gap-space-md">
+<div class="w-12 h-12 rounded-xl flex items-center justify-center bg-secondary text-on-secondary shadow-sm" id="sim-icon-container">
+<span class="material-symbols-outlined text-[28px]" id="sim-status-icon">pending_actions</span>
+</div>
+<div class="flex flex-col">
+<span class="font-label-sm text-label-sm text-on-surface-variant">القرار الأكاديمي التلقائي</span>
+<span class="font-headline-sm text-headline-sm text-navy" id="sim-status-title">دور ثانٍ (مادة واحدة)</span>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="px-space-sm py-1 rounded-full font-label-md text-label-md bg-secondary text-on-secondary shadow-sm" id="sim-badge">
+              pass-rule/second-chance
+            </span>
+<span class="font-label-sm text-label-sm text-on-surface-variant mt-1" id="sim-ratio-meta">معدل مرجح: 56.4%</span>
+</div>
+</div>
+<!-- Detailed Breakdown Box -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex flex-col gap-space-xs">
+<div class="flex items-center justify-between">
+<span class="font-label-md text-label-md text-on-surface flex items-center gap-1">
+<span class="material-symbols-outlined text-[18px] text-on-surface-variant">analytics</span>
+              موجبات القرار والتحليل التراكمي:
+            </span>
+<span class="font-label-sm text-label-sm text-on-surface-variant" id="failed-count-badge">عدد المواد غير المجتازة: 1</span>
+</div>
+<p class="font-body-md text-body-md text-on-surface-variant leading-relaxed mt-1" id="sim-decision-explanation">
+            حصل الطالب على معدل عام أعلى من الحد الأدنى (50%)، لكنه أخفق في مادة <strong class="text-primary font-label-md">الرياضيات</strong> لحصوله على 44%، وبما أن عدد المواد المتعثرة لم يتجاوز المادتين المسموح بهما، يُحول الطالب لاختبار الدور الثاني.
+          </p>
+</div>
+<!-- Subject Sheet Preview with Micro-adjusters -->
+<div class="flex flex-col gap-space-xs">
+<div class="flex items-center justify-between text-on-surface-variant font-label-md text-label-md px-1">
+<span>المادة والدرجة المجمعة</span>
+<span>درجة الاختبار النهائي / الإجمالي</span>
+</div>
+<!-- Subject rows -->
+<div class="flex flex-col gap-1.5" id="simulator-subjects-list">
+<!-- Row 1: Math (Failing in default state) -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center font-label-md text-navy">ر</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">الرياضيات المتقدمة</span>
+<span class="font-label-sm text-label-sm text-error">أقل من الحد العام (44%)</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">نهائي: 16/40</span>
+<span class="px-2 py-1 rounded bg-error-container text-on-error-container font-label-md text-label-md">44/100</span>
+</div>
+</div>
+<!-- Row 2: Science -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center font-label-md text-navy">ع</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">العلوم العامة</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">مجتاز للحدين</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">نهائي: 22/40</span>
+<span class="px-2 py-1 rounded bg-surface-container text-on-surface font-label-md text-label-md">58/100</span>
+</div>
+</div>
+<!-- Row 3: Arabic -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center font-label-md text-navy">ض</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">لغتي الخالدة</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">مجتاز بتفوق</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">نهائي: 34/40</span>
+<span class="px-2 py-1 rounded bg-surface-container text-on-surface font-label-md text-label-md">76/100</span>
+</div>
+</div>
+<!-- Row 4: English -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center font-label-md text-navy">E</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">اللغة الإنجليزية</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">مجتاز للحدين</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">نهائي: 19/40</span>
+<span class="px-2 py-1 rounded bg-surface-container text-on-surface font-label-md text-label-md">52/100</span>
+</div>
+</div>
+<!-- Row 5: Islamic Studies -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center font-label-md text-navy">د</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">الدراسات الإسلامية</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">مجتاز بتفوق</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">نهائي: 38/40</span>
+<span class="px-2 py-1 rounded bg-surface-container text-on-surface font-label-md text-label-md">84/100</span>
+</div>
+</div>
+<!-- Row 6: Social Studies (Borderline 48%) -->
+<div class="p-space-sm rounded-lg bg-surface flex items-center justify-between">
+<div class="flex items-center gap-space-sm">
+<div class="w-7 h-7 rounded bg-surface-container-high flex items-center justify-center font-label-md text-navy">ج</div>
+<div class="flex flex-col">
+<span class="font-label-md text-label-md text-on-surface">الدراسات الاجتماعية</span>
+<span class="font-label-sm text-label-sm text-error" id="row-soc-status">حرج (48%)</span>
+</div>
+</div>
+<div class="flex items-center gap-space-sm">
+<span class="font-label-sm text-label-sm text-on-surface-variant">نهائي: 17/40</span>
+<span class="px-2 py-1 rounded bg-error-container text-on-error-container font-label-md text-label-md" id="row-soc-grade">48/100</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Visual Mini SVG Donut Chart representing Success distribution -->
+<div class="bg-surface-container-low rounded-xl p-space-md flex items-center justify-between mt-space-xs">
+<div class="flex flex-col">
+<span class="font-label-lg text-label-lg text-on-surface">تأثير القاعدة على دفعة الصف التاسع</span>
+<span class="font-label-sm text-label-sm text-on-surface-variant">148 طالب مسجل بالدفعة</span>
+</div>
+<div class="flex items-center gap-space-md">
+<svg class="w-12 h-12 -rotate-90" viewbox="0 0 36 36">
+<circle class="text-surface-container" cx="18" cy="18" fill="none" r="15.5" stroke="currentColor" stroke-width="4"></circle>
+<!-- 78% Pass (Navy/Blue) -->
+<circle class="text-primary" cx="18" cy="18" fill="none" r="15.5" stroke="currentColor" stroke-dasharray="76 100" stroke-linecap="round" stroke-width="4"></circle>
+<!-- 14% Make up (Secondary) -->
+<circle class="text-secondary" cx="18" cy="18" fill="none" r="15.5" stroke="currentColor" stroke-dasharray="14 100" stroke-dashoffset="-76" stroke-linecap="round" stroke-width="4"></circle>
+</svg>
+<div class="flex flex-col font-label-sm text-label-sm">
+<span class="text-primary font-label-md">76% نجاح مباشر</span>
+<span class="text-secondary font-label-md">14% دور ثانٍ</span>
+<span class="text-error font-label-md">10% رسوب</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Toast Notification Container -->
+<div class="fixed bottom-6 left-6 z-50 transform translate-y-24 opacity-0 transition-all duration-300 flex items-center gap-space-sm bg-navy text-on-primary px-space-lg py-space-md rounded-xl shadow-xl" id="toast">
+<span class="material-symbols-outlined text-[20px] text-tertiary-fixed-dim">check_circle</span>
+<span class="font-label-lg text-label-lg" id="toast-message">تم اعتماد وتحديث سياسة النجاح والرسوب بنجاح.</span>
+</div>
+<script>
+    // State management
+    const state = {
+      generalThreshold: 50,
+      finalThreshold: 40,
+      maxFailed: 2,
+      ruleMode: 'cap50',
+      termWeights: { t1: 30, t2: 35, t3: 35 },
+      sampleStudentIndex: 0
+    };
+
+    const students = [
+      {
+        name: "عمر عبد العزيز السالم",
+        grade: "الصف التاسع (3/3 متوسط) • الرقم الأكاديمي: 442910",
+        scores: [
+          { subject: "الرياضيات المتقدمة", code: "ر", final: 16, total: 44, maxFinal: 40 },
+          { subject: "العلوم العامة", code: "ع", final: 22, total: 58, maxFinal: 40 },
+          { subject: "لغتي الخالدة", code: "ض", final: 34, total: 76, maxFinal: 40 },
+          { subject: "اللغة الإنجليزية", code: "E", final: 19, total: 52, maxFinal: 40 },
+          { subject: "الدراسات الإسلامية", code: "د", final: 38, total: 84, maxFinal: 40 },
+          { subject: "الدراسات الاجتماعية", code: "ج", final: 17, total: 48, maxFinal: 40 }
+        ]
+      },
+      {
+        name: "خالد فهد المري",
+        grade: "الصف التاسع (3/1 متوسط) • الرقم الأكاديمي: 442805",
+        scores: [
+          { subject: "الرياضيات المتقدمة", code: "ر", final: 12, total: 38, maxFinal: 40 },
+          { subject: "العلوم العامة", code: "ع", final: 15, total: 42, maxFinal: 40 },
+          { subject: "لغتي الخالدة", code: "ض", final: 14, total: 45, maxFinal: 40 },
+          { subject: "اللغة الإنجليزية", code: "E", final: 18, total: 51, maxFinal: 40 },
+          { subject: "الدراسات الإسلامية", code: "د", final: 32, total: 70, maxFinal: 40 },
+          { subject: "الدراسات الاجتماعية", code: "ج", final: 20, total: 55, maxFinal: 40 }
+        ]
+      }
+    ];
+
+    function updateGeneralThreshold(val) {
+      state.generalThreshold = parseInt(val, 10);
+      document.getElementById('general-threshold-display').innerText = state.generalThreshold + '%';
+      document.getElementById('general-threshold-slider').value = state.generalThreshold;
+      recalculateSimulation();
+    }
+
+    function adjustGeneralThreshold(delta) {
+      const next = Math.min(70, Math.max(40, state.generalThreshold + delta));
+      updateGeneralThreshold(next);
+    }
+
+    function updateFinalThreshold(val) {
+      state.finalThreshold = parseInt(val, 10);
+      document.getElementById('final-exam-display').innerText = state.finalThreshold + '%';
+      recalculateSimulation();
+    }
+
+    function setMaxFailed(num) {
+      state.maxFailed = num;
+      [1, 2, 3].forEach(n => {
+        const btn = document.getElementById('max-btn-' + n);
+        if (n === num) {
+          btn.className = 'px-3 py-1 text-label-md rounded font-label-md transition-all bg-primary text-on-primary';
+        } else {
+          btn.className = 'px-3 py-1 text-label-md rounded font-label-md transition-all text-on-surface hover:bg-surface-container';
+        }
+      });
+      document.getElementById('max-failed-label').innerText = num === 1 ? 'مادة واحدة' : (num === 2 ? 'مادتين' : '3 مواد');
+      recalculateSimulation();
+    }
+
+    function updateRuleMode(mode) {
+      state.ruleMode = mode;
+      recalculateSimulation();
+    }
+
+    function calculateWeights() {
+      const t1 = parseInt(document.getElementById('term-1-weight').value || 0, 10);
+      const t2 = parseInt(document.getElementById('term-2-weight').value || 0, 10);
+      const t3 = parseInt(document.getElementById('term-3-weight').value || 0, 10);
+      const total = t1 + t2 + t3;
+
+      state.termWeights = { t1, t2, t3 };
+
+      document.getElementById('leg-1').innerText = t1 + '%';
+      document.getElementById('leg-2').innerText = t2 + '%';
+      document.getElementById('leg-3').innerText = t3 + '%';
+
+      document.getElementById('bar-term-1').style.width = (total > 0 ? (t1 / total * 100) : 0) + '%';
+      document.getElementById('bar-term-2').style.width = (total > 0 ? (t2 / total * 100) : 0) + '%';
+      document.getElementById('bar-term-3').style.width = (total > 0 ? (t3 / total * 100) : 0) + '%';
+
+      const pill = document.getElementById('weights-status-pill');
+      const text = document.getElementById('weights-total-text');
+
+      if (total === 100) {
+        pill.className = 'flex items-center gap-1 px-space-sm py-1 rounded-full bg-surface-container text-primary font-label-md text-label-md';
+        text.innerText = 'المجموع: 100% (متطابق)';
+      } else {
+        pill.className = 'flex items-center gap-1 px-space-sm py-1 rounded-full bg-error-container text-on-error-container font-label-md text-label-md';
+        text.innerText = 'المجموع: ' + total + '% (غير متطابق مع 100%)';
+      }
+    }
+
+    function toggleSimStudent() {
+      state.sampleStudentIndex = state.sampleStudentIndex === 0 ? 1 : 0;
+      const s = students[state.sampleStudentIndex];
+      document.getElementById('student-name').innerText = s.name;
+      recalculateSimulation();
+    }
+
+    function recalculateSimulation() {
+      const student = students[state.sampleStudentIndex];
+      let failedSubjects = [];
+      let totalSum = 0;
+
+      student.scores.forEach(sub => {
+        totalSum += sub.total;
+        const finalExamPerc = (sub.final / sub.maxFinal) * 100;
+        // Failing if total < general threshold OR final exam < final exam min threshold
+        const failedTotal = sub.total < state.generalThreshold;
+        const failedFinal = finalExamPerc < state.finalThreshold;
+
+        if (failedTotal || failedFinal) {
+          failedSubjects.push({
+            subject: sub.subject,
+            reason: failedTotal ? 'درجة المجموع أقل من ' + state.generalThreshold + '%' : 'ورقة الاختبار النهائي أقل من ' + state.finalThreshold + '%'
+          });
+        }
+      });
+
+      const avg = (totalSum / student.scores.length).toFixed(1);
+      document.getElementById('sim-ratio-meta').innerText = 'معدل مرجح: ' + avg + '%';
+      document.getElementById('failed-count-badge').innerText = 'عدد المواد غير المجتازة: ' + failedSubjects.length;
+
+      const box = document.getElementById('sim-status-box');
+      const iconContainer = document.getElementById('sim-icon-container');
+      const icon = document.getElementById('sim-status-icon');
+      const title = document.getElementById('sim-status-title');
+      const badge = document.getElementById('sim-badge');
+      const expl = document.getElementById('sim-decision-explanation');
+
+      if (failedSubjects.length === 0) {
+        // PASS
+        box.className = 'rounded-xl p-space-md flex items-center justify-between transition-all duration-300 bg-surface-container';
+        iconContainer.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-primary text-on-primary shadow-sm';
+        icon.innerText = 'check_circle';
+        title.innerText = 'ناجح ومنقول بالكامل';
+        badge.className = 'px-space-sm py-1 rounded-full font-label-md text-label-md bg-primary text-on-primary shadow-sm';
+        badge.innerText = 'pass-rule/pass';
+        expl.innerHTML = 'حقق الطالب شروط النجاح في كافة المواد بحد أدنى يتجاوز <strong>' + state.generalThreshold + '%</strong> مع استيفاء شرط الورقة النهائية بنسبة أعلى من <strong>' + state.finalThreshold + '%</strong>.';
+      } else if (failedSubjects.length <= state.maxFailed) {
+        // SECOND CHANCE
+        box.className = 'rounded-xl p-space-md flex items-center justify-between transition-all duration-300 bg-secondary-fixed/50';
+        iconContainer.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-secondary text-on-secondary shadow-sm';
+        icon.innerText = 'pending_actions';
+        title.innerText = 'دور ثانٍ (' + (failedSubjects.length === 1 ? 'مادة واحدة' : failedSubjects.length + ' مواد') + ')';
+        badge.className = 'px-space-sm py-1 rounded-full font-label-md text-label-md bg-secondary text-on-secondary shadow-sm';
+        badge.innerText = 'pass-rule/second-chance';
+        
+        let subNames = failedSubjects.map(f => '<span class="text-primary font-label-md">' + f.subject + '</span>').join(' و ');
+        expl.innerHTML = 'تعثر الطالب في ' + subNames + ' (' + failedSubjects[0].reason + '). وبما أن عدد المواد لم يتجاوز السقف المسموح (' + state.maxFailed + ')، يتم تحويله لاختبار الدور الثاني وفق سياسة ' + (state.ruleMode === 'cap50' ? 'سقف 50% نظامي' : (state.ruleMode === 'actual' ? 'رصد الدرجة الفعلية' : 'الفرصة المشروطة')) + '.';
+      } else {
+        // FAIL / REPEAT
+        box.className = 'rounded-xl p-space-md flex items-center justify-between transition-all duration-300 bg-error-container/40';
+        iconContainer.className = 'w-12 h-12 rounded-xl flex items-center justify-center bg-error text-on-error shadow-sm';
+        icon.innerText = 'error';
+        title.innerText = 'باقٍ للإعادة (رسوب أكاديمي)';
+        badge.className = 'px-space-sm py-1 rounded-full font-label-md text-label-md bg-error text-on-error shadow-sm';
+        badge.innerText = 'pass-rule/fail';
+        
+        expl.innerHTML = 'تجاوز الطالب الحد الأقصى للمواد المسموح برسوبها بالتحويل لدور المكمّل (' + state.maxFailed + ' مواد)، حيث تعثر في ' + failedSubjects.length + ' مواد، مما يوجب بقاء الطالب في نفس الصف الدراسي لإعادة السنة وفق اللائحة.';
+      }
+    }
+
+    function resetToMinisterialDefaults() {
+      updateGeneralThreshold(50);
+      updateFinalThreshold(40);
+      setMaxFailed(2);
+      document.querySelector('input[name="second-chance-mode"][value="cap50"]').checked = true;
+      updateRuleMode('cap50');
+      document.getElementById('term-1-weight').value = 30;
+      document.getElementById('term-2-weight').value = 35;
+      document.getElementById('term-3-weight').value = 35;
+      calculateWeights();
+
+      showToast('تمت استعادة الإعدادات الوزارية المعتمدة لعام 1446هـ');
+    }
+
+    function triggerPolicySave() {
+      const btn = document.getElementById('save-policy-btn');
+      const originalHtml = btn.innerHTML;
+      btn.innerHTML = '<span class="material-symbols-outlined text-[18px] animate-spin">progress_activity</span><span class="font-label-lg text-label-lg">جارٍ الحفظ والاعتماد...</span>';
+      btn.disabled = true;
+
+      setTimeout(() => {
+        btn.innerHTML = originalHtml;
+        btn.disabled = false;
+        showToast('تم حفظ معايير النجاح والرسوب وتعميمها على الكنترول المدرسي.');
+      }, 700);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-message').innerText = msg;
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      setTimeout(() => {
+        toast.classList.add('translate-y-24', 'opacity-0');
+        toast.classList.remove('translate-y-0', 'opacity-100');
+      }, 3500);
+    }
+
+    // Initial simulation check on load
+    recalculateSimulation();
+  </script>
+</div></main></div></body></html>
