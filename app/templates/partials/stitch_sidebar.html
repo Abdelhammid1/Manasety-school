@@ -1,15 +1,21 @@
 {#
-  Manasety sidebar — State A (expanded 280px) collapsing to B (mini 72px) via
-  body.sidebar-mini. Role-aware: admin, teacher, parent, student each see a
-  different nav set. Every link uses url_for so nothing is static.
+  Manasety sidebar — role-aware. Each nav group is a collapsible <details>
+  block:
+    · Default: CLOSED.
+    · Auto-opens the group that contains the current page's active link.
+    · Remembers per-group open/close in localStorage under
+      'sidebarGroup:<key>' so the user's choice persists across pages.
+    · In mini state (body.sidebar-mini) groups fall back to always-visible
+      icon-only list — headers hidden, expansion inert.
 #}
 {% set _role = (current_user.role.name if current_user.is_authenticated and current_user.role else 'guest') %}
+
 {% macro nav_item(endpoint, label, icon, extra_endpoints=None) -%}
   {% set _cur = request.endpoint or '' %}
   {% set _active = (_cur == endpoint) or (extra_endpoints and _cur in extra_endpoints) or (_cur and _cur.split('.')[0] == endpoint.split('.')[0] and endpoint.endswith('.index')) %}
   <div class="group relative">
     <a href="{{ url_for(endpoint) }}"
-       class="nav-link flex items-center gap-space-md px-space-md py-3 rounded-lg transition-sidebar {% if _active %}bg-navy-active text-on-primary font-bold border-r-[3px] border-r-secondary{% else %}text-sidebar-icon hover:bg-navy-active hover:text-on-primary{% endif %}"
+       class="nav-link flex items-center gap-space-md px-space-md py-2.5 rounded-lg transition-sidebar {% if _active %}bg-navy-active text-on-primary font-bold border-r-[3px] border-r-secondary is-active{% else %}text-sidebar-icon hover:bg-navy-active hover:text-on-primary{% endif %}"
        {% if _active %}aria-current="page"{% endif %}>
       <span class="material-symbols-outlined text-xl shrink-0">{{ icon }}</span>
       <span class="nav-label font-label-lg text-label-lg whitespace-nowrap">{{ label }}</span>
@@ -17,13 +23,31 @@
     <span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">{{ label }}</span>
   </div>
 {%- endmacro %}
-{% macro nav_group(label) -%}
-  <div class="nav-group-label px-space-md pt-space-md pb-1 text-sidebar-icon/60 font-label-sm text-label-sm tracking-wider uppercase">{{ label }}</div>
+
+{# Collapsible group block. Use as:
+     {% call group('key','Label','icon') %}
+        {{ nav_item(...) }}
+        {{ nav_item(...) }}
+     {% endcall %}
+#}
+{% macro group(key, label, icon='folder') -%}
+  <details class="nav-group" data-group="{{ key }}">
+    <summary class="nav-group-head flex items-center justify-between px-space-md py-2 rounded-lg cursor-pointer text-sidebar-icon hover:bg-navy-active transition-sidebar select-none list-none">
+      <span class="flex items-center gap-space-sm">
+        <span class="material-symbols-outlined text-lg opacity-80">{{ icon }}</span>
+        <span class="nav-label font-label-md text-label-md font-semibold tracking-wide">{{ label }}</span>
+      </span>
+      <span class="nav-chevron material-symbols-outlined text-lg transition-transform">expand_more</span>
+    </summary>
+    <div class="nav-group-body flex flex-col gap-0.5 pt-1 pb-2 pr-space-sm">
+      {{ caller() }}
+    </div>
+  </details>
 {%- endmacro %}
 
 <aside id="app-sidebar"
        class="fixed top-0 right-0 h-full w-[280px] bg-navy z-50 flex flex-col justify-between transition-sidebar shadow-[0_1px_8px_rgba(0,0,0,0.04)] select-none">
-  <div class="flex flex-col overflow-y-auto">
+  <div class="flex flex-col overflow-y-auto flex-1">
     {# Brand row #}
     <div class="h-16 px-space-md flex items-center justify-between border-b border-white/5">
       <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('index') }}"
@@ -50,71 +74,86 @@
     </div>
 
     {# Role-aware nav #}
-    <nav class="flex flex-col gap-1 px-space-xs mt-space-xs" aria-label="التنقل الرئيسي">
+    <nav class="flex flex-col gap-0.5 px-space-xs mt-space-xs" aria-label="التنقل الرئيسي">
 
       {% if _role in ('admin', 'admin_full', 'system_admin') or (current_user.is_authenticated and current_user.can('users','view')) %}
-        {{ nav_group('الرئيسية') }}
-        {{ nav_item('dashboard.home', 'لوحة التحكم العامة', 'dashboard') }}
+        {% call group('admin-home', 'الرئيسية', 'home') %}
+          {{ nav_item('dashboard.home', 'لوحة التحكم العامة', 'dashboard') }}
+        {% endcall %}
 
-        {{ nav_group('البنية الأكاديمية') }}
-        {{ nav_item('academic.years_list',    'السنوات الدراسية', 'event') }}
-        {{ nav_item('academic.grades_list',   'الصفوف والمراحل', 'stairs') }}
-        {{ nav_item('academic.sections_list', 'الفصول والشعب',   'meeting_room') }}
+        {% call group('admin-academic', 'البنية الأكاديمية', 'stairs') %}
+          {{ nav_item('academic.years_list',    'السنوات الدراسية', 'event') }}
+          {{ nav_item('academic.grades_list',   'الصفوف والمراحل', 'stairs') }}
+          {{ nav_item('academic.sections_list', 'الفصول والشعب',   'meeting_room') }}
+        {% endcall %}
 
-        {{ nav_group('الأعضاء') }}
-        {{ nav_item('students.students_list', 'الطلاب',    'groups') }}
-        {{ nav_item('teachers.teachers_list', 'المعلمون',  'menu_book') }}
-        {{ nav_item('admin.users_list',       'المستخدمون','manage_accounts') }}
-        {{ nav_item('admin.roles_list',       'الأدوار والصلاحيات','admin_panel_settings') }}
+        {% call group('admin-members', 'الأعضاء', 'groups') %}
+          {{ nav_item('students.students_list', 'الطلاب',    'groups') }}
+          {{ nav_item('teachers.teachers_list', 'المعلمون',  'menu_book') }}
+          {{ nav_item('admin.users_list',       'المستخدمون','manage_accounts') }}
+          {{ nav_item('admin.roles_list',       'الأدوار والصلاحيات','admin_panel_settings') }}
+        {% endcall %}
 
-        {{ nav_group('التعلم والأداء') }}
-        {{ nav_item('courses.list_courses',    'المواد والدروس', 'auto_stories') }}
-        {{ nav_item('lms.assignments_home',    'الواجبات',       'assignment') }}
-        {{ nav_item('lms.quizzes_home',        'الاختبارات',      'quiz') }}
-        {{ nav_item('lms.announcements_home',  'الإعلانات',       'campaign') }}
-        {{ nav_item('schedule.index',          'الجدول المدرسي',  'calendar_month') }}
-        {{ nav_item('attendance.index',        'الحضور والغياب',  'fact_check') }}
-        {{ nav_item('results.grades_index',    'رصد الدرجات',     'grading') }}
+        {% call group('admin-lms', 'التعلم والأداء', 'auto_stories') %}
+          {{ nav_item('courses.list_courses',    'المواد والدروس', 'auto_stories') }}
+          {{ nav_item('lms.assignments_home',    'الواجبات',       'assignment') }}
+          {{ nav_item('lms.quizzes_home',        'الاختبارات',      'quiz') }}
+          {{ nav_item('lms.announcements_home',  'الإعلانات',       'campaign') }}
+          {{ nav_item('schedule.index',          'الجدول المدرسي',  'calendar_month') }}
+          {{ nav_item('attendance.index',        'الحضور والغياب',  'fact_check') }}
+          {{ nav_item('results.grades_index',    'رصد الدرجات',     'grading') }}
+        {% endcall %}
 
-        {{ nav_group('المالية والموارد البشرية') }}
-        {{ nav_item('finance.invoices_list', 'الفواتير',          'receipt_long') }}
-        {{ nav_item('finance.expenses_list', 'المصروفات',         'payments') }}
-        {{ nav_item('finance.vendors_list',  'الموردون',          'storefront') }}
-        {{ nav_item('finance.fee_types',     'أنواع الرسوم',      'sell') }}
-        {{ nav_item('finance.accounts',      'دليل الحسابات',     'account_tree') }}
-        {{ nav_item('finance.journal',       'قيود اليومية',      'menu_book') }}
-        {{ nav_item('finance.reports',       'التقارير المالية',  'analytics') }}
-        {{ nav_item('hr.employees_list',     'الموظفون',          'badge') }}
-        {{ nav_item('hr.payroll_list',       'الرواتب',           'paid') }}
+        {% call group('admin-finance', 'المالية والموارد البشرية', 'account_balance') %}
+          {{ nav_item('finance.invoices_list', 'الفواتير',          'receipt_long') }}
+          {{ nav_item('finance.expenses_list', 'المصروفات',         'payments') }}
+          {{ nav_item('finance.vendors_list',  'الموردون',          'storefront') }}
+          {{ nav_item('finance.fee_types',     'أنواع الرسوم',      'sell') }}
+          {{ nav_item('finance.accounts',      'دليل الحسابات',     'account_tree') }}
+          {{ nav_item('finance.journal',       'قيود اليومية',      'menu_book') }}
+          {{ nav_item('finance.reports',       'التقارير المالية',  'analytics') }}
+          {{ nav_item('hr.employees_list',     'الموظفون',          'badge') }}
+          {{ nav_item('hr.payroll_list',       'الرواتب',           'paid') }}
+        {% endcall %}
 
       {% elif _role == 'teacher' %}
-        {{ nav_group('الرئيسية') }}
-        {{ nav_item('dashboard.home',        'لوحة المعلم',   'dashboard') }}
-        {{ nav_item('portal.home',           'بوابتي',        'workspaces') }}
-        {{ nav_group('صفوفي') }}
-        {{ nav_item('courses.list_courses',  'موادي وحصصي',   'auto_stories') }}
-        {{ nav_item('portal.materials',      'المكتبة الرقمية','folder_open') }}
-        {{ nav_item('lms.assignments_home',  'الواجبات',      'assignment') }}
-        {{ nav_item('lms.quizzes_home',      'الاختبارات',     'quiz') }}
-        {{ nav_item('schedule.index',        'جدولي',          'calendar_month') }}
-        {{ nav_item('attendance.index',      'رصد الحضور',    'fact_check') }}
-        {{ nav_item('results.grades_index',  'دفتر الدرجات',   'grading') }}
-        {{ nav_item('lms.announcements_home','الإعلانات',       'campaign') }}
+        {% call group('teacher-home', 'الرئيسية', 'home') %}
+          {{ nav_item('dashboard.home', 'لوحة المعلم', 'dashboard') }}
+          {{ nav_item('portal.home',    'بوابتي',       'workspaces') }}
+        {% endcall %}
+        {% call group('teacher-classes', 'صفوفي والمقررات', 'menu_book') %}
+          {{ nav_item('courses.list_courses',  'موادي وحصصي',   'auto_stories') }}
+          {{ nav_item('portal.materials',      'المكتبة الرقمية','folder_open') }}
+          {{ nav_item('lms.assignments_home',  'الواجبات',      'assignment') }}
+          {{ nav_item('lms.quizzes_home',      'الاختبارات',     'quiz') }}
+        {% endcall %}
+        {% call group('teacher-ops', 'العمليات اليومية', 'today') %}
+          {{ nav_item('schedule.index',        'جدولي',          'calendar_month') }}
+          {{ nav_item('attendance.index',      'رصد الحضور',    'fact_check') }}
+          {{ nav_item('results.grades_index',  'دفتر الدرجات',   'grading') }}
+          {{ nav_item('lms.announcements_home','الإعلانات',       'campaign') }}
+        {% endcall %}
 
       {% elif _role == 'parent' %}
-        {{ nav_group('الرئيسية') }}
-        {{ nav_item('dashboard.home',       'صفحة ولي الأمر',  'family_restroom') }}
-        {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
-        {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long') }}
+        {% call group('parent-home', 'صفحتي', 'family_restroom') %}
+          {{ nav_item('dashboard.home', 'صفحة ولي الأمر', 'family_restroom') }}
+        {% endcall %}
+        {% call group('parent-updates', 'المتابعة والرسوم', 'campaign') %}
+          {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
+          {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long') }}
+        {% endcall %}
 
       {% elif _role == 'student' %}
-        {{ nav_group('الرئيسية') }}
-        {{ nav_item('dashboard.home',        'صفحتي',         'home') }}
-        {{ nav_item('courses.list_courses',  'موادي',          'auto_stories') }}
-        {{ nav_item('lms.assignments_home',  'واجباتي',        'assignment') }}
-        {{ nav_item('lms.quizzes_home',      'اختباراتي',      'quiz') }}
-        {{ nav_item('schedule.index',        'جدولي',          'calendar_month') }}
-        {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
+        {% call group('student-home', 'الرئيسية', 'home') %}
+          {{ nav_item('dashboard.home', 'صفحتي', 'home') }}
+        {% endcall %}
+        {% call group('student-learning', 'دراستي', 'auto_stories') %}
+          {{ nav_item('courses.list_courses',  'موادي',       'auto_stories') }}
+          {{ nav_item('lms.assignments_home',  'واجباتي',      'assignment') }}
+          {{ nav_item('lms.quizzes_home',      'اختباراتي',    'quiz') }}
+          {{ nav_item('schedule.index',        'جدولي',       'calendar_month') }}
+          {{ nav_item('lms.announcements_home','الإعلانات',    'campaign') }}
+        {% endcall %}
       {% endif %}
     </nav>
   </div>
@@ -127,3 +166,54 @@
     </a>
   </div>
 </aside>
+
+<style>
+  /* Details/summary — remove default marker + rotate chevron on open. */
+  #app-sidebar details.nav-group > summary::-webkit-details-marker{display:none}
+  #app-sidebar details.nav-group[open] > summary .nav-chevron{transform:rotate(180deg)}
+  #app-sidebar details.nav-group > .nav-group-body{
+    max-height:0;overflow:hidden;opacity:0;
+    transition:max-height 240ms ease, opacity 200ms ease;
+  }
+  #app-sidebar details.nav-group[open] > .nav-group-body{
+    max-height:800px;opacity:1;
+  }
+  /* Mini state: hide headers, flatten items so icons are visible.        */
+  body.sidebar-mini #app-sidebar details.nav-group > summary{display:none}
+  body.sidebar-mini #app-sidebar details.nav-group > .nav-group-body{
+    max-height:none;opacity:1;padding:0;
+  }
+  /* Small visual: active-link parent group gets a subtle right rail. */
+  #app-sidebar details.nav-group:has(.is-active){
+    background:rgba(255,255,255,0.03);border-radius:0.5rem;
+  }
+</style>
+
+<script>
+  (function(){
+    const sb = document.getElementById('app-sidebar');
+    if (!sb) return;
+
+    const groups = sb.querySelectorAll('details.nav-group');
+    groups.forEach(g => {
+      const key = g.getAttribute('data-group');
+      const hasActive = !!g.querySelector('.is-active');
+
+      // 1. Auto-open the group containing the current active link.
+      if (hasActive){ g.open = true; return; }
+
+      // 2. Otherwise apply persisted state — default is CLOSED.
+      try {
+        const v = localStorage.getItem('sidebarGroup:' + key);
+        g.open = (v === 'open');
+      } catch (_) { g.open = false; }
+
+      // 3. Remember user toggles.
+      g.addEventListener('toggle', () => {
+        try {
+          localStorage.setItem('sidebarGroup:' + key, g.open ? 'open' : 'closed');
+        } catch (_) {}
+      });
+    });
+  })();
+</script>
