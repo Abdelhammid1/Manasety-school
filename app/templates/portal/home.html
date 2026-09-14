@@ -1,82 +1,101 @@
-{% extends "partials/base.html" %}
+{# Teacher portal home — Stitch _53. Weekly schedule + assigned sections. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}بوابة المعلم{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>أهلًا، {{ teacher.full_name }}</h2>
-    <div class="sub">
-      <span class="badge navy">{{ teacher.specialization }}</span>
-      {% if year %}<span class="badge muted">{{ year.name }}</span>{% endif %}
-      — جدولك وفصولك ومحتواك (T-10.1)
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">بوابتي</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary p-space-lg"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="relative flex items-center gap-space-md flex-wrap">
+      <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center font-headline-md font-extrabold">{{ teacher.full_name[:1] }}</div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-headline-lg tracking-tight">أهلاً أ. {{ teacher.full_name.split()[0] }}</h1>
+        <p class="font-body-md opacity-90">{{ teacher.specialization }}{% if year %} · {{ year.name }}{% endif %}</p>
+      </div>
+      <a href="{{ url_for('portal.materials') }}" class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">folder_open</span><span>المكتبة</span>
+      </a>
     </div>
-  </div>
-  <a href="{{ url_for('portal.material_new') }}" class="btn btn-primary">+ رفع محتوى</a>
-</div>
+  </section>
 
-<div class="grid grid-2">
-  <div class="card">
-    <h3>فصولك وموادك</h3>
-    {% if sections %}
-    <table class="data" style="border:0">
-      <thead><tr><th>الفصل</th><th>المواد</th><th></th></tr></thead>
-      <tbody>
-        {% for s in sections %}
-        <tr>
-          <td><strong>{{ s.section.grade.name }} / {{ s.section.name }}</strong></td>
-          <td>{% for sub in s.subjects %}<span class="badge muted">{{ sub.name }}</span> {% endfor %}</td>
-          <td class="actions">
-            <a class="btn btn-ghost btn-sm" href="{{ url_for('attendance.mark', section_id=s.section.id) }}">حضور</a>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="text-muted">لا توجد إسنادات لك حاليًا.</p>
-    {% endif %}
-  </div>
-
-  <div class="card">
-    <h3>روابط سريعة</h3>
-    <div class="grid grid-2" style="gap:8px">
-      <a href="{{ url_for('portal.materials') }}" class="btn btn-ghost" style="justify-content:center">المحتوى الذي رفعته</a>
-      <a href="{{ url_for('schedule.teacher_schedule', teacher_id=teacher.id) }}" class="btn btn-ghost" style="justify-content:center">جدولي الكامل</a>
-      <a href="{{ url_for('attendance.index') }}" class="btn btn-ghost" style="justify-content:center">تسجيل الحضور</a>
-      <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost" style="justify-content:center">رصد الدرجات</a>
+  {# Weekly schedule #}
+  {% if days and periods %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <header class="p-space-md border-b border-outline-variant">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined">calendar_month</span>جدولي الأسبوعي
+      </h2>
+    </header>
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr>
+            <th class="px-3 py-2 text-right font-label-lg text-primary sticky right-0 bg-surface-container-high z-10">الحصة</th>
+            {% for d in days %}<th class="px-3 py-2 text-center font-label-lg text-primary">{{ d.name }}</th>{% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-2 sticky right-0 bg-surface-container-lowest z-10">
+              <div class="flex flex-col items-center">
+                <span class="font-label-md text-primary font-bold">{{ p.name }}</span>
+                {% if p.start_time and p.end_time %}<span class="font-label-xs text-outline" dir="ltr">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</span>{% endif %}
+              </div>
+            </td>
+            {% for d in days %}
+            {% set slot = grid.get((d.id, p.id)) %}
+            <td class="p-2">
+              {% if slot %}
+              <div class="p-2 rounded-lg bg-primary-container/10 border-2 border-primary/30">
+                <div class="font-label-md text-primary font-bold text-sm">{{ slot.subject.name }}</div>
+                <div class="font-label-xs text-outline">{{ slot.section.grade.name }} — {{ slot.section.name }}</div>
+              </div>
+              {% else %}
+              <div class="p-2 rounded-lg bg-surface-container-low text-center text-outline"><span class="material-symbols-outlined text-sm">horizontal_rule</span></div>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
-  </div>
-</div>
+  </section>
+  {% endif %}
 
-{% if days and periods %}
-<div class="card mt-2" style="overflow-x:auto">
-  <h3>جدول الأسبوع</h3>
-  <table class="data" style="min-width:700px">
-    <thead>
-      <tr>
-        <th>الحصة</th>
-        {% for d in days %}<th>{{ d.name }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in periods %}
-      <tr>
-        <td>
-          <strong>{{ p.name }}</strong>
-          <div class="text-muted" style="font-size:12px">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</div>
-        </td>
-        {% for d in days %}
-          {% set slot = grid.get((d.id, p.id)) %}
-          <td style="vertical-align:top">
-            {% if slot %}
-              <div style="font-weight:600;color:var(--c-navy)">{{ slot.subject.name }}</div>
-              <div class="text-muted" style="font-size:12px">{{ slot.section.grade.name }} / {{ slot.section.name }}</div>
-            {% else %}<span class="text-muted">—</span>{% endif %}
-          </td>
-        {% endfor %}
-      </tr>
+  {# Assigned sections #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">groups</span>فصولي ومقرراتي
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+      {% for item in sections %}
+      <div class="p-space-md rounded-xl bg-surface-container-low border border-outline-variant">
+        <div class="flex items-center gap-2">
+          <div class="w-10 h-10 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined">meeting_room</span>
+          </div>
+          <div>
+            <div class="font-title-md text-primary font-bold">{{ item.section.grade.name }} — {{ item.section.name }}</div>
+            <div class="font-label-xs text-outline">{{ item.section.current_count }} طالب</div>
+          </div>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1">
+          {% for s in item['subjects'] %}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">{{ s.name }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      {% else %}
+      <div class="col-span-full text-center text-on-surface-variant py-space-md">لا فصول مسنَدة لك في السنة الحالية.</div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+  </section>
 </div>
-{% endif %}
 {% endblock %}

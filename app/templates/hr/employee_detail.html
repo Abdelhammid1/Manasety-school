@@ -1,51 +1,88 @@
-{% extends "partials/base.html" %}
-{% block title %}{{ employee.full_name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>{{ employee.full_name }}</h2>
-    <div class="sub">
-      <span class="badge navy">{{ employee.job_title }}</span>
-      الراتب الأساسي: <strong>{{ "%.2f"|format(employee.base_salary) }}</strong>
-    </div>
-  </div>
-  <a href="{{ url_for('hr.employees_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Employee profile — Stitch _27. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ employee.full_name }} — الموظف{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('hr.employees_list') }}" class="hover:text-primary">الموظفون</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ employee.full_name }}</span>
+{% endblock %}
 
-<div class="grid grid-2">
-  <div class="card">
-    <h3>البيانات الشخصية</h3>
-    <table class="data" style="border:0">
-      <tbody>
-        <tr><td>الهاتف</td><td>{{ employee.phone or '—' }}</td></tr>
-        <tr><td>البريد</td><td>{{ employee.email or '—' }}</td></tr>
-        <tr><td>رقم الهوية</td><td>{{ employee.national_id or '—' }}</td></tr>
-        <tr><td>تاريخ التعيين</td><td>{{ employee.hire_date or '—' }}</td></tr>
-        <tr><td>الحساب البنكي</td><td>{{ employee.bank_account or '—' }}</td></tr>
-        <tr><td>حساب المستخدم</td><td>{{ employee.user.username if employee.user else '—' }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <h3>سجلّ الرواتب ({{ employee.payrolls|length }})</h3>
-    {% if employee.payrolls %}
-    <table class="data" style="border:0">
-      <thead><tr><th>الفترة</th><th>الأساسي</th><th>بدلات</th><th>خصومات</th><th>الصافي</th></tr></thead>
-      <tbody>
-        {% for p in employee.payrolls %}
-        <tr>
-          <td>{{ p.period_year }}/{{ "%02d"|format(p.period_month) }}</td>
-          <td>{{ "%.2f"|format(p.base_salary) }}</td>
-          <td>{{ "%.2f"|format(p.allowances) }}</td>
-          <td>{{ "%.2f"|format(p.deductions) }}</td>
-          <td><strong>{{ "%.2f"|format(p.net_pay) }}</strong></td>
-        </tr>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg">
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="relative z-10 p-space-lg flex items-center gap-space-md flex-wrap">
+      <div class="w-24 h-24 rounded-2xl bg-white/15 flex items-center justify-center font-headline-lg font-extrabold">{{ employee.full_name[:1] }}</div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-headline-lg tracking-tight">{{ employee.full_name }}</h1>
+        <div class="flex items-center gap-space-sm flex-wrap mt-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md">
+            <span class="material-symbols-outlined text-sm">work</span>{{ employee.job_title }}
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md tabular-nums">
+            <span class="material-symbols-outlined text-sm">payments</span>{{ employee.base_salary|round(2) }} ر.س
+          </span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">person</span>البيانات الوظيفية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {% for label, val, ltr in [
+          ('الاسم الكامل', employee.full_name, False),
+          ('المسمى الوظيفي', employee.job_title, False),
+          ('رقم الهوية', employee.national_id or '—', True),
+          ('تاريخ التعيين', (employee.hire_date.strftime('%Y-%m-%d') if employee.hire_date else '—'), True),
+          ('الجوال', employee.phone or '—', True),
+          ('البريد', employee.email or '—', True),
+          ('الحساب البنكي', employee.bank_account or '—', True),
+        ] %}
+        <div class="flex flex-col">
+          <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+          <span class="font-body-md text-body-md text-on-surface font-semibold" {% if ltr %}dir="ltr"{% endif %}>{{ val }}</span>
+        </div>
         {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="text-muted">لا توجد رواتب مصروفة بعد.</p>
-    {% endif %}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center justify-between mb-space-md">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">paid</span>سجل الرواتب
+        </h2>
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ employee.payrolls|length if employee.payrolls else 0 }} شهر</span>
+      </div>
+      {% if employee.payrolls %}
+      <div class="flex flex-col gap-2">
+        {% for p in employee.payrolls[:8] %}
+        <div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
+          <div class="flex items-center gap-2">
+            <span class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold">{{ p.period_month }}/{{ p.period_year|string|last }}{{ p.period_year|string|last }}</span>
+            <div class="flex flex-col">
+              <span class="font-label-md font-bold text-primary">{{ p.period_year }}/{{ '%02d'|format(p.period_month) }}</span>
+              <span class="font-label-xs text-outline">{{ p.paid_at.strftime('%Y-%m-%d') if p.paid_at else '' }}</span>
+            </div>
+          </div>
+          <span class="font-title-md text-title-md tabular-nums font-bold text-primary">{{ p.net_pay|round(2) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-center text-on-surface-variant py-space-md">لا رواتب مسجّلة بعد.</p>
+      {% endif %}
+      <div class="mt-space-md">
+        <a href="{{ url_for('hr.payroll_new') }}" class="w-full h-10 rounded-xl bg-primary text-on-primary font-label-lg font-bold flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-lg">add</span><span>صرف راتب جديد</span>
+        </a>
+      </div>
+    </section>
   </div>
 </div>
 {% endblock %}

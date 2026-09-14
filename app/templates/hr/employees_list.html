@@ -1,28 +1,80 @@
-{% extends "partials/base.html" %}
+{# Employees list — Stitch _21. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}الموظفون{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>الموظفون</h2><div class="sub">ملفات الموظفين ورواتبهم وربطهم بحسابات المستخدمين (T-9.3)</div></div>
-  <a href="{{ url_for('hr.employee_new') }}" class="btn btn-primary">+ موظف جديد</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الموظفون</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>الاسم</th><th>الوظيفة</th><th>الراتب الأساسي</th><th>المستخدم</th><th>الحالة</th><th></th></tr></thead>
-  <tbody>
-    {% for e in employees %}
-    <tr>
-      <td><strong>{{ e.full_name }}</strong></td>
-      <td><span class="badge navy">{{ e.job_title }}</span></td>
-      <td>{{ "%.2f"|format(e.base_salary) }}</td>
-      <td class="text-muted">{{ e.user.username if e.user else '—' }}</td>
-      <td>{% if e.is_active %}<span class="badge ok">نشط</span>{% else %}<span class="badge danger">معطّل</span>{% endif %}</td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('hr.employee_detail', employee_id=e.id) }}">عرض</a>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:18px">لا يوجد موظفون.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">هيئة الموظفين</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ employees|length }} موظف</p>
+    </div>
+    <div class="flex items-center gap-space-sm">
+      <a href="{{ url_for('hr.payroll_list') }}" class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">paid</span><span>الرواتب</span>
+      </a>
+      <a href="{{ url_for('hr.employee_new') }}"
+         class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">person_add</span><span>موظف جديد</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">الموظف</th>
+            <th class="px-4 py-3 font-label-lg text-primary">الوظيفة</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">الراتب الأساسي</th>
+            <th class="px-4 py-3 font-label-lg text-primary">جهة الاتصال</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">فتح</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in employees %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-sm">{{ e.full_name[:1] }}</div>
+                <div class="flex flex-col">
+                  <span class="font-label-lg text-label-lg text-primary font-bold">{{ e.full_name }}</span>
+                  {% if e.national_id %}<code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ e.national_id }}</code>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 font-label-md text-on-surface">{{ e.job_title }}</td>
+            <td class="px-4 py-3 text-left font-label-lg text-primary font-bold tabular-nums">{{ e.base_salary|round(2) }}</td>
+            <td class="px-4 py-3">
+              {% if e.phone %}<div class="font-label-xs text-label-xs text-outline" dir="ltr">{{ e.phone }}</div>{% endif %}
+              {% if e.email %}<div class="font-label-xs text-label-xs text-outline" dir="ltr">{{ e.email }}</div>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs font-bold
+                {% if e.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-on-surface-variant{% endif %}">
+                {{ 'نشط' if e.is_active else 'موقوف' }}
+              </span>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <a href="{{ url_for('hr.employee_detail', employee_id=e.id) }}"
+                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20">
+                <span class="material-symbols-outlined text-lg">chevron_left</span>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="px-6 py-8 text-center text-on-surface-variant">لا موظفون بعد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

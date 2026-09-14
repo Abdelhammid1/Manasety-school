@@ -1,41 +1,71 @@
-{% extends "partials/base.html" %}
+{# Academic years — Stitch _24. Cards grid. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}السنوات الدراسية{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>السنوات الدراسية</h2><div class="sub">عمود الفقري الزمني للنظام — كل البيانات تُربط بسنة محددة (T-2.1)</div></div>
-  <a href="{{ url_for('academic.year_new') }}" class="btn btn-primary">+ سنة جديدة</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">السنوات الدراسية</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>السنة</th><th>البداية</th><th>النهاية</th><th>الفترات الدراسية</th><th>الحالة</th><th></th></tr></thead>
-  <tbody>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">إدارة السنوات الدراسية</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ years|length }} سنة مسجّلة</p>
+    </div>
+    <a href="{{ url_for('academic.year_new') }}" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">event</span><span>سنة جديدة</span>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for y in years %}
-    <tr>
-      <td><strong>{{ y.name }}</strong></td>
-      <td>{{ y.start_date }}</td>
-      <td>{{ y.end_date }}</td>
-      <td>
-        <a href="{{ url_for('academic.terms_list', year_id=y.id) }}">
-          {{ y.terms|length }} فترة دراسية
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm relative overflow-hidden">
+      <div class="absolute top-0 right-0 left-0 h-1.5"
+           style="background: {% if y.status == 'active' %}linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%){% else %}#94A3B8{% endif %};"></div>
+      <div class="flex items-start justify-between">
+        <div>
+          <span class="font-label-md text-label-md text-on-surface-variant">السنة</span>
+          <h2 class="font-headline-md text-headline-md text-primary font-bold" dir="ltr">{{ y.name }}</h2>
+        </div>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs font-bold
+                     {% if y.status == 'active' %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-on-surface-variant{% endif %}">
+          <span class="w-1.5 h-1.5 rounded-full {% if y.status == 'active' %}bg-[#10B981]{% else %}bg-outline{% endif %}"></span>
+          {% if y.status == 'active' %}نشطة{% else %}مغلقة{% endif %}
+        </span>
+      </div>
+      <div class="mt-space-md grid grid-cols-2 gap-space-sm">
+        <div class="flex flex-col">
+          <span class="font-label-xs text-label-xs text-outline">تبدأ</span>
+          <span class="font-label-md text-label-md text-on-surface font-bold tabular-nums">{{ y.start_date.strftime('%Y-%m-%d') if y.start_date else '—' }}</span>
+        </div>
+        <div class="flex flex-col">
+          <span class="font-label-xs text-label-xs text-outline">تنتهي</span>
+          <span class="font-label-md text-label-md text-on-surface font-bold tabular-nums">{{ y.end_date.strftime('%Y-%m-%d') if y.end_date else '—' }}</span>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-center gap-2">
+        <a href="{{ url_for('academic.terms_list', year_id=y.id) }}" class="flex-1 h-10 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
+          <span class="material-symbols-outlined text-sm">event_repeat</span><span>الفترات</span>
         </a>
-      </td>
-      <td>
-        {% if y.status == 'active' %}<span class="badge ok">نشطة</span>
-        {% else %}<span class="badge muted">مغلقة (أرشيف)</span>{% endif %}
-      </td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('academic.terms_list', year_id=y.id) }}">الفترات الدراسية</a>
         {% if y.status == 'active' %}
-        <form action="{{ url_for('academic.year_close', year_id=y.id) }}" method="post" onsubmit="return confirm('تأكيد إغلاق السنة؟ ستصبح للأرشيف فقط.')" style="display:inline">
+        <form method="post" action="{{ url_for('academic.year_close', year_id=y.id) }}" class="flex-1"
+              onsubmit="return confirm('إغلاق السنة يجمّد قاعدة النجاح ولا يمكن التراجع. تأكيد؟')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-danger btn-sm" type="submit">إغلاق</button>
+          <button type="submit" class="w-full h-10 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center justify-center gap-1 hover:bg-error-container">
+            <span class="material-symbols-outlined text-sm">lock</span><span>إغلاق</span>
+          </button>
         </form>
         {% endif %}
-      </td>
-    </tr>
+      </div>
+    </div>
     {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لم تُنشأ سنة دراسية بعد.</td></tr>
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">event</span>
+      <p class="mt-3 text-on-surface-variant">لم تُنشأ سنة دراسية بعد.</p>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+</div>
 {% endblock %}

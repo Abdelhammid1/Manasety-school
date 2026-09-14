@@ -1,55 +1,70 @@
-{% extends "partials/base.html" %}
-{% block title %}موظف جديد{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>{% if employee %}تعديل: {{ employee.full_name }}{% else %}موظف جديد{% endif %}</h2></div>
-  <a href="{{ url_for('hr.employees_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Employee form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if employee %}تعديل موظف{% else %}موظف جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('hr.employees_list') }}" class="hover:text-primary">الموظفون</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <h3>البيانات الأساسية</h3>
-    <div class="form-row cols-2">
-      <div class="field"><label>الاسم الكامل</label>
-        <input name="full_name" required value="{{ employee.full_name if employee else '' }}">
+{% block page_content %}
+{% set F = employee %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">{% if F %}تعديل ملف موظف{% else %}تعيين موظف جديد{% endif %}</h1>
+  <form method="post" class="flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">person</span>البيانات الشخصية والوظيفية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">الاسم الكامل <span class="text-error">*</span></label>
+          <input name="full_name" required value="{{ F.full_name if F else '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">المسمى الوظيفي <span class="text-error">*</span></label>
+          <input name="job_title" required value="{{ F.job_title if F else '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">الراتب الأساسي</label>
+          <input name="base_salary" type="number" step="0.01" min="0" value="{{ F.base_salary if F else '0' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">رقم الهوية</label>
+          <input name="national_id" value="{{ F.national_id if F else '' }}" dir="ltr" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">الجوال</label>
+          <input name="phone" value="{{ F.phone if F else '' }}" dir="ltr" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">البريد</label>
+          <input name="email" type="email" value="{{ F.email if F else '' }}" dir="ltr" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ التعيين</label>
+          <input name="hire_date" type="date" value="{{ F.hire_date.strftime('%Y-%m-%d') if F and F.hire_date else '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">رقم الحساب البنكي</label>
+          <input name="bank_account" value="{{ F.bank_account if F else '' }}" dir="ltr" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="font-label-md text-label-md text-on-surface font-bold">حساب المستخدم المرتبط (اختياري)</label>
+          <select name="user_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— بدون ربط —</option>
+            {% for u in users %}<option value="{{ u.id }}" {% if F and F.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
+          </select>
+        </div>
       </div>
-      <div class="field"><label>الوظيفة</label>
-        <input name="job_title" required value="{{ employee.job_title if employee else '' }}">
-      </div>
+    </section>
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('hr.employees_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>{% if F %}حفظ التعديلات{% else %}إنشاء الملف{% endif %}</span>
+      </button>
     </div>
-    <div class="form-row cols-3">
-      <div class="field"><label>الراتب الأساسي</label>
-        <input name="base_salary" type="number" step="0.01" min="0" value="{{ employee.base_salary if employee else '0' }}">
-      </div>
-      <div class="field"><label>رقم الهوية</label>
-        <input name="national_id" value="{{ employee.national_id or '' if employee else '' }}">
-      </div>
-      <div class="field"><label>تاريخ التعيين</label>
-        <input name="hire_date" type="date" value="{{ employee.hire_date or '' if employee else '' }}">
-      </div>
-    </div>
-    <div class="form-row cols-3">
-      <div class="field"><label>الهاتف</label>
-        <input name="phone" value="{{ employee.phone or '' if employee else '' }}">
-      </div>
-      <div class="field"><label>البريد</label>
-        <input name="email" type="email" value="{{ employee.email or '' if employee else '' }}">
-      </div>
-      <div class="field"><label>الحساب البنكي</label>
-        <input name="bank_account" value="{{ employee.bank_account or '' if employee else '' }}">
-      </div>
-    </div>
-    <div class="field"><label>ربط بحساب مستخدم (اختياري)</label>
-      <select name="user_id">
-        <option value="">— لا يوجد —</option>
-        {% for u in users %}<option value="{{ u.id }}">{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
-      </select>
-    </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('hr.employees_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+  </form>
+</div>
 {% endblock %}

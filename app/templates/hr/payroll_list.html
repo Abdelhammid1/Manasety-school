@@ -1,30 +1,61 @@
-{% extends "partials/base.html" %}
+{# Payroll list. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}الرواتب{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>الرواتب</h2><div class="sub">يولّد قيد محاسبي تلقائي عند الصرف (T-9.3)</div></div>
-  <a href="{{ url_for('hr.payroll_new') }}" class="btn btn-primary">+ صرف راتب</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الرواتب</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr>
-    <th>الفترة</th><th>الموظف</th><th>الأساسي</th><th>بدلات</th><th>خصومات</th>
-    <th>الصافي</th><th>تاريخ الصرف</th>
-  </tr></thead>
-  <tbody>
-    {% for p in payrolls %}
-    <tr>
-      <td><strong>{{ p.period_year }}/{{ "%02d"|format(p.period_month) }}</strong></td>
-      <td>{{ p.employee.full_name }}</td>
-      <td>{{ "%.2f"|format(p.base_salary) }}</td>
-      <td>{{ "%.2f"|format(p.allowances) }}</td>
-      <td>{{ "%.2f"|format(p.deductions) }}</td>
-      <td><strong>{{ "%.2f"|format(p.net_pay) }}</strong></td>
-      <td>{{ p.paid_at or '—' }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="7" class="text-muted" style="text-align:center;padding:18px">لم تُصرف رواتب بعد.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block page_content %}
+{% set total_net = payrolls|sum(attribute='net_pay') %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">مسيرات الرواتب</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ payrolls|length }} مسيرة · صافي مصروف: <b class="text-primary tabular-nums">{{ total_net|round(2) }}</b></p>
+    </div>
+    <a href="{{ url_for('hr.payroll_new') }}" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">post_add</span><span>صرف راتب</span>
+    </a>
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">الشهر</th>
+            <th class="px-4 py-3 font-label-lg text-primary">الموظف</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">أساسي</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">بدلات</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">خصومات</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-left">الصافي</th>
+            <th class="px-4 py-3 font-label-lg text-primary">تاريخ الصرف</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in payrolls %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3 font-label-md tabular-nums font-bold text-primary" dir="ltr">{{ p.period_year }}/{{ '%02d'|format(p.period_month) }}</td>
+            <td class="px-4 py-3">
+              <a href="{{ url_for('hr.employee_detail', employee_id=p.employee_id) }}" class="flex items-center gap-2 hover:text-primary">
+                <span class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">{{ p.employee.full_name[:1] }}</span>
+                <span class="font-label-md font-bold">{{ p.employee.full_name }}</span>
+              </a>
+            </td>
+            <td class="px-4 py-3 text-left tabular-nums">{{ p.base_salary|round(2) }}</td>
+            <td class="px-4 py-3 text-left tabular-nums text-[#10B981] font-bold">+{{ p.allowances|round(2) }}</td>
+            <td class="px-4 py-3 text-left tabular-nums text-error font-bold">-{{ p.deductions|round(2) }}</td>
+            <td class="px-4 py-3 text-left tabular-nums font-headline-sm text-primary font-bold">{{ p.net_pay|round(2) }}</td>
+            <td class="px-4 py-3 font-label-md text-outline">{{ p.paid_at.strftime('%Y-%m-%d') if p.paid_at else '' }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="px-6 py-8 text-center text-on-surface-variant">لا رواتب مسجَّلة.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

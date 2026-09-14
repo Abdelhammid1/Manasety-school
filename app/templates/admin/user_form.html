@@ -1,53 +1,66 @@
-{% extends "partials/base.html" %}
+{# User new/edit. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}{% if user %}تعديل مستخدم{% else %}مستخدم جديد{% endif %}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>{% if user %}تعديل: {{ user.full_name }}{% else %}مستخدم جديد{% endif %}</h2></div>
-  <a href="{{ url_for('admin.users_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.users_list') }}" class="hover:text-primary">المستخدمون</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-2">
-      <div class="field"><label>الاسم الكامل</label>
-        <input name="full_name" required value="{{ user.full_name if user else '' }}">
+{% block page_content %}
+{% set U = user %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if U %}تعديل مستخدم: {{ U.full_name }}{% else %}إضافة مستخدم جديد{% endif %}
+  </h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">اسم المستخدم <span class="text-error">*</span></label>
+        <input name="username" required dir="ltr" {% if U %}value="{{ U.username }}" readonly{% endif %}
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono">
       </div>
-      <div class="field"><label>اسم المستخدم</label>
-        <input name="username" required value="{{ user.username if user else '' }}" {% if user %}readonly{% endif %}>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الاسم الكامل <span class="text-error">*</span></label>
+        <input name="full_name" required value="{{ U.full_name if U else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
-    </div>
-    <div class="form-row cols-2">
-      <div class="field"><label>البريد الإلكتروني</label>
-        <input name="email" type="email" value="{{ user.email or '' if user else '' }}">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">البريد الإلكتروني</label>
+        <input name="email" type="email" dir="ltr" value="{{ U.email or '' if U else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
-      <div class="field"><label>الهاتف</label>
-        <input name="phone" value="{{ user.phone or '' if user else '' }}">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الجوال</label>
+        <input name="phone" dir="ltr" value="{{ U.phone or '' if U else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
-    </div>
-    <div class="form-row cols-2">
-      <div class="field"><label>الدور</label>
-        <select name="role_id" required>
-          {% for r in roles %}
-          <option value="{{ r.id }}" {% if user and user.role_id == r.id %}selected{% endif %}>{{ r.name_ar }}</option>
-          {% endfor %}
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الدور <span class="text-error">*</span></label>
+        <select name="role_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر —</option>
+          {% for r in roles %}<option value="{{ r.id }}" {% if U and U.role_id == r.id %}selected{% endif %}>{{ r.name_ar }}</option>{% endfor %}
         </select>
       </div>
-      <div class="field"><label>كلمة المرور {% if user %}<small class="text-muted">(اتركها فارغة للإبقاء)</small>{% endif %}</label>
-        <input name="password" type="password" {% if not user %}required{% endif %} minlength="8">
-        <div class="hint">8 أحرف على الأقل، تُخزّن مشفّرة (bcrypt)</div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">
+          كلمة المرور {% if not U %}<span class="text-error">*</span>{% else %}<span class="font-label-xs text-outline font-normal">(اتركها فارغة للإبقاء)</span>{% endif %}
+        </label>
+        <input name="password" type="password" minlength="8" {% if not U %}required{% endif %} autocomplete="new-password"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
-    <div class="field">
-      <label class="checkbox">
-        <input type="checkbox" name="is_active" {% if not user or user.is_active %}checked{% endif %}>
-        الحساب مفعّل
-      </label>
+    <label class="flex items-center gap-2 cursor-pointer">
+      <input type="checkbox" name="is_active" value="1" {% if (not U) or U.is_active %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+      <span class="font-label-md text-on-surface font-bold">الحساب نشط</span>
+    </label>
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('admin.users_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>{% if U %}حفظ{% else %}إنشاء الحساب{% endif %}</span>
+      </button>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('admin.users_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+  </form>
+</div>
 {% endblock %}

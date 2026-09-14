@@ -1,53 +1,77 @@
-{% extends "partials/base.html" %}
-{% block title %}الفترات الدراسية لسنة {{ year.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>الفترات الدراسية لسنة {{ year.name }}</h2>
-    <div class="sub">عدد مرن (فترتان، ثلاث، أو أكثر) ومجموع الأوزان = 100% (T-2.2)</div>
+{# Terms list — Stitch _28. Weight sum tracked at bottom. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الفترات الدراسية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('academic.years_list') }}" class="hover:text-primary">السنوات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold" dir="ltr">{{ year.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">فترات السنة الدراسية</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">السنة: <b dir="ltr">{{ year.name }}</b></p>
+    </div>
+    <a href="{{ url_for('academic.term_new', year_id=year.id) }}" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">event_repeat</span><span>فترة جديدة</span>
+    </a>
   </div>
-  <div class="flex">
-    <a href="{{ url_for('academic.years_list') }}" class="btn btn-ghost">رجوع</a>
-    {% if year.status == 'active' %}
-    <a href="{{ url_for('academic.term_new', year_id=year.id) }}" class="btn btn-primary">+ فترة دراسية</a>
+
+  {# Timeline visual #}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">timeline</span>الفترات الحالية
+    </h2>
+    {% if year.terms %}
+    <div class="flex flex-col gap-2">
+      {% for t in year.terms|sort(attribute='order_index') %}
+      <div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between gap-space-md flex-wrap">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold">{{ t.order_index }}</div>
+          <div class="flex flex-col">
+            <span class="font-title-md text-title-md text-primary font-bold">{{ t.name }}</span>
+            <span class="font-label-xs text-label-xs text-outline">
+              {% if t.start_date %}{{ t.start_date.strftime('%Y-%m-%d') }}{% endif %}
+              {% if t.end_date %} — {{ t.end_date.strftime('%Y-%m-%d') }}{% endif %}
+            </span>
+          </div>
+        </div>
+        <div class="flex items-center gap-space-sm">
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-fixed text-primary font-label-md font-bold tabular-nums">
+            الوزن: {{ t.weight or 0 }}%
+          </span>
+          <a href="{{ url_for('academic.term_edit', term_id=t.id) }}" class="w-9 h-9 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
+            <span class="material-symbols-outlined text-lg">edit</span>
+          </a>
+          <form method="post" action="{{ url_for('academic.term_delete', term_id=t.id) }}"
+                onsubmit="return confirm('حذف الفترة {{ t.name }}؟')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="w-9 h-9 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="حذف">
+              <span class="material-symbols-outlined text-lg">delete</span>
+            </button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mt-space-md p-space-md rounded-xl flex items-center justify-between
+                {% if total_weight == 100 %}bg-[#ECFDF5]{% elif total_weight > 100 %}bg-error-container/40{% else %}bg-tertiary-fixed{% endif %}">
+      <span class="font-label-lg font-bold
+        {% if total_weight == 100 %}text-[#065F46]{% elif total_weight > 100 %}text-on-error-container{% else %}text-on-tertiary-fixed-variant{% endif %}">
+        مجموع الأوزان
+      </span>
+      <span class="font-headline-sm text-headline-sm font-bold tabular-nums
+        {% if total_weight == 100 %}text-[#065F46]{% elif total_weight > 100 %}text-on-error-container{% else %}text-on-tertiary-fixed-variant{% endif %}">
+        {{ total_weight }}% {% if total_weight == 100 %}✓{% elif total_weight > 100 %}⚠ تجاوز 100%{% else %}(المطلوب 100%){% endif %}
+      </span>
+    </div>
+    {% else %}
+    <p class="text-center text-on-surface-variant py-space-md">لا فترات بعد.</p>
     {% endif %}
   </div>
 </div>
-
-<div class="card" style="margin-bottom:16px">
-  <div class="flex-between">
-    <strong>مجموع الأوزان:</strong>
-    {% if total_weight == 100 %}
-      <span class="badge ok">{{ total_weight }}% ✓</span>
-    {% else %}
-      <span class="badge warn">{{ total_weight }}% (يجب أن يصل إلى 100%)</span>
-    {% endif %}
-  </div>
-</div>
-
-<table class="data">
-  <thead><tr><th>الترتيب</th><th>الاسم</th><th>البداية</th><th>النهاية</th><th>الوزن</th><th></th></tr></thead>
-  <tbody>
-    {% for t in year.terms %}
-    <tr>
-      <td>{{ t.order_index }}</td>
-      <td><strong>{{ t.name }}</strong></td>
-      <td>{{ t.start_date }}</td>
-      <td>{{ t.end_date }}</td>
-      <td>{{ t.weight }}%</td>
-      <td class="actions">
-        {% if year.status == 'active' %}
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('academic.term_edit', term_id=t.id) }}">تعديل</a>
-        <form action="{{ url_for('academic.term_delete', term_id=t.id) }}" method="post" onsubmit="return confirm('حذف الفترة الدراسية؟')" style="display:inline">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-danger btn-sm" type="submit">حذف</button>
-        </form>
-        {% endif %}
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لا توجد فترات دراسية. أضف الفترة الأولى.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
 {% endblock %}

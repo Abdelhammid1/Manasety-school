@@ -1,46 +1,63 @@
-{% extends "partials/base.html" %}
-{% block title %}رفع محتوى{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>رفع محتوى جديد</h2></div>
-  <a href="{{ url_for('portal.materials') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Material upload — Stitch _54. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}رفع محتوى تعليمي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('portal.materials') }}" class="hover:text-primary">المكتبة</a>
+{% endblock %}
 
-{% if not pairs %}
-<div class="alert info">لا توجد فصول/مواد مسنَدة لك. اطلب من المدير إضافة الإسناد.</div>
-{% else %}
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-2">
-      <div class="field"><label>الفصل والمادة</label>
-        <select name="pair" required>
-          {% for p in pairs %}<option value="{{ p.section_id }}|{{ p.subject_id }}">{{ p.label }}</option>{% endfor %}
-        </select>
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">رفع مادة تعليمية جديدة</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الفصل والمادة <span class="text-error">*</span></label>
+      <select name="pair" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر —</option>
+        {% for p in pairs %}<option value="{{ p.section_id }}|{{ p.subject_id }}">{{ p.label }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">العنوان <span class="text-error">*</span></label>
+      <input name="title" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الوصف (اختياري)</label>
+      <textarea name="description" rows="3" class="w-full px-4 py-2 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20"></textarea>
+    </div>
+    <div>
+      <label class="font-label-md text-label-md text-on-surface font-bold block mb-2">نوع المحتوى</label>
+      <div class="grid grid-cols-3 gap-space-sm">
+        {% for value, label, icon, color in [
+            ('link','رابط','link','#2563EB'),
+            ('video','فيديو','play_circle','#EF4444'),
+            ('file','ملف','description','#0099CC'),
+        ] %}
+        <label class="cursor-pointer">
+          <input type="radio" name="kind" value="{{ value }}" class="peer sr-only" {% if value == 'link' %}checked{% endif %}>
+          <div class="p-space-md rounded-xl border-2 border-outline-variant bg-surface-container-low peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:shadow-md flex flex-col items-center gap-2">
+            <div class="w-10 h-10 rounded-lg text-white flex items-center justify-center" style="background: {{ color }}">
+              <span class="material-symbols-outlined">{{ icon }}</span>
+            </div>
+            <span class="font-label-lg font-bold text-primary">{{ label }}</span>
+          </div>
+        </label>
+        {% endfor %}
       </div>
-      <div class="field"><label>نوع المحتوى</label>
-        <select name="kind">
-          <option value="link">رابط</option>
-          <option value="video">فيديو</option>
-          <option value="file">ملف</option>
-        </select>
-      </div>
     </div>
-    <div class="field"><label>العنوان</label>
-      <input name="title" required>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الرابط الخارجي</label>
+      <input name="external_url" type="url" placeholder="https://..." dir="ltr"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      <span class="font-label-xs text-outline">للفيديو/الرابط، ألصق رابطاً كاملاً (YouTube, Google Drive, etc.).</span>
     </div>
-    <div class="field"><label>الوصف (اختياري)</label>
-      <textarea name="description" rows="3"></textarea>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">cloud_upload</span><span>رفع المحتوى</span>
+      </button>
     </div>
-    <div class="field"><label>الرابط الخارجي (للنوع رابط/فيديو)</label>
-      <input name="external_url" type="url" placeholder="https://...">
-      <div class="hint">رفع الملفات مباشرة سيُضاف عند إعداد التخزين السحابي.</div>
-    </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('portal.materials') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
-{% endif %}
+  </form>
+</div>
 {% endblock %}

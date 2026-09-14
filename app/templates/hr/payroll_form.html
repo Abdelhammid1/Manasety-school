@@ -1,53 +1,91 @@
-{% extends "partials/base.html" %}
+{# New payroll — with live net_pay computation. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}صرف راتب{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>صرف راتب شهري</h2></div>
-  <a href="{{ url_for('hr.payroll_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('hr.payroll_list') }}" class="hover:text-primary">الرواتب</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-3">
-      <div class="field"><label>الموظف</label>
-        <select name="employee_id" required onchange="document.getElementById('base').value=this.options[this.selectedIndex].dataset.salary">
-          {% for e in employees %}
-          <option value="{{ e.id }}" data-salary="{{ e.base_salary }}">{{ e.full_name }} — {{ e.job_title }}</option>
-          {% endfor %}
-        </select>
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">صرف راتب شهري</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الموظف <span class="text-error">*</span></label>
+      <select name="employee_id" required onchange="fillBase(this)"
+              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر —</option>
+        {% for e in employees %}<option value="{{ e.id }}" data-base="{{ e.base_salary }}">{{ e.full_name }} — {{ e.job_title }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">السنة</label>
+        <input name="period_year" type="number" min="2020" max="2100" required value="{{ today.year }}"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
-      <div class="field"><label>السنة</label>
-        <input name="period_year" type="number" value="{{ today.year }}" required>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الشهر</label>
+        <input name="period_month" type="number" min="1" max="12" required value="{{ today.month }}"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
-      <div class="field"><label>الشهر</label>
-        <input name="period_month" type="number" min="1" max="12" value="{{ today.month }}" required>
+      <div class="flex flex-col gap-1.5 md:col-span-2">
+        <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ الصرف</label>
+        <input name="paid_at" type="date" value="{{ today.strftime('%Y-%m-%d') }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
-    <div class="form-row cols-3">
-      <div class="field"><label>الراتب الأساسي</label>
-        <input id="base" name="base_salary" type="number" step="0.01" min="0" required>
+    <div class="grid grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الأساسي</label>
+        <input id="base" name="base_salary" type="number" step="0.01" min="0" required oninput="recompute()"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
-      <div class="field"><label>البدلات</label>
-        <input name="allowances" type="number" step="0.01" min="0" value="0">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-[#10B981] font-bold">البدلات</label>
+        <input id="allowances" name="allowances" type="number" step="0.01" min="0" value="0" oninput="recompute()"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
-      <div class="field"><label>الخصومات</label>
-        <input name="deductions" type="number" step="0.01" min="0" value="0">
-      </div>
-    </div>
-    <div class="form-row cols-2">
-      <div class="field"><label>الحساب النقدي (من أين الدفع)</label>
-        <select name="cash_account_id" required>
-          {% for c in cash_accounts %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name }}</option>{% endfor %}
-        </select>
-      </div>
-      <div class="field"><label>تاريخ الصرف</label>
-        <input name="paid_at" type="date" value="{{ today }}" required>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-error font-bold">الخصومات</label>
+        <input id="deductions" name="deductions" type="number" step="0.01" min="0" value="0" oninput="recompute()"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">صرف وقيد محاسبيًا</button>
-  </div>
-</form>
+    <div class="p-space-md rounded-xl text-on-primary flex items-center justify-between"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="font-title-md">الصافي المستحق</span>
+      <span id="net" class="font-display-lg text-display-lg font-extrabold tabular-nums">0.00</span>
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الحساب النقدي (لصرف الراتب) <span class="text-error">*</span></label>
+      <select name="cash_account_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر —</option>
+        {% for a in cash_accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="flex justify-end gap-space-sm">
+      <a href="{{ url_for('hr.payroll_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">check_circle</span><span>صرف وقيده محاسبياً</span>
+      </button>
+    </div>
+  </form>
+</div>
+<script>
+  function fillBase(sel){
+    const b = sel.selectedOptions[0]?.dataset.base || '';
+    if (b) document.getElementById('base').value = b;
+    recompute();
+  }
+  function recompute(){
+    const b = parseFloat(document.getElementById('base').value) || 0;
+    const a = parseFloat(document.getElementById('allowances').value) || 0;
+    const d = parseFloat(document.getElementById('deductions').value) || 0;
+    document.getElementById('net').textContent = (b + a - d).toFixed(2);
+  }
+  recompute();
+</script>
 {% endblock %}

@@ -1,10 +1,23 @@
-{% extends "partials/base.html" %}
-{% block title %}بوابة المعلم{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>بوابة المعلم</h2></div>
-</div>
-<div class="alert warning">
-  حسابك ليس مربوطًا بملف معلم. اطلب من مدير المدرسة ربط حسابك من شاشة <strong>المعلمون</strong>.
+{# Portal not linked — Stitch _55. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}البوابة — الحساب غير مرتبط{% endblock %}
+
+{% block page_content %}
+<div class="max-w-xl mx-auto flex flex-col gap-space-lg items-center text-center py-space-xl">
+  <div class="w-24 h-24 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center">
+    <span class="material-symbols-outlined text-5xl">link_off</span>
+  </div>
+  <h1 class="font-headline-lg text-headline-lg text-primary">الحساب غير مرتبط بمعلّم</h1>
+  <p class="font-body-lg text-body-lg text-on-surface-variant">
+    لا يمكن فتح بوابة المعلم لأن حسابك لم يُربط بعد بملف معلم مسجّل. راجع مدير النظام لربط حسابك.
+  </p>
+  <div class="flex items-center gap-space-sm">
+    <a href="{{ url_for('dashboard.home') }}" class="h-11 px-5 rounded-xl bg-primary text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md">
+      <span class="material-symbols-outlined text-lg">home</span><span>الرئيسية</span>
+    </a>
+    <a href="mailto:support@manasety.ai" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold flex items-center gap-2 hover:bg-surface-container">
+      <span class="material-symbols-outlined text-lg">support_agent</span><span>الدعم</span>
+    </a>
+  </div>
 </div>
 {% endblock %}

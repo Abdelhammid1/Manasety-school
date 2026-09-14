@@ -1,37 +1,63 @@
-{% extends "partials/base.html" %}
-{% block title %}المحتوى التعليمي{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>المحتوى الذي رفعته</h2><div class="sub">يظهر للطلاب وأولياء أمورهم في الفصول المختارة فقط (T-10.1)</div></div>
-  <div class="flex">
-    <a href="{{ url_for('portal.home') }}" class="btn btn-ghost">رجوع</a>
-    <a href="{{ url_for('portal.material_new') }}" class="btn btn-primary">+ رفع محتوى</a>
+{# Materials library — Stitch _52. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}المكتبة الرقمية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('portal.home') }}" class="hover:text-primary">بوابتي</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المكتبة</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">المكتبة الرقمية للمعلم</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ materials|length }} مادة تعليمية</p>
+    </div>
+    <a href="{{ url_for('portal.material_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">upload</span><span>رفع محتوى</span>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    {% for m in materials %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-start gap-3">
+        <div class="w-12 h-12 rounded-xl flex items-center justify-center text-on-primary
+          {% if m.kind == 'video' %}bg-error
+          {% elif m.kind == 'file' %}bg-primary-container
+          {% else %}bg-secondary{% endif %}">
+          <span class="material-symbols-outlined">
+            {% if m.kind == 'video' %}play_circle{% elif m.kind == 'file' %}description{% else %}link{% endif %}
+          </span>
+        </div>
+        <div class="flex flex-col flex-1 min-w-0">
+          <span class="font-title-md text-title-md text-primary font-bold truncate">{{ m.title }}</span>
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">{{ m.section.grade.name }}/{{ m.section.name }}</span>
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">{{ m.subject.name }}</span>
+          </div>
+          {% if m.description %}<p class="mt-2 font-label-md text-label-md text-on-surface-variant line-clamp-2">{{ m.description }}</p>{% endif %}
+          <div class="mt-2 flex items-center justify-between">
+            <span class="font-label-xs text-label-xs text-outline">{{ m.created_at.strftime('%Y-%m-%d') }}</span>
+            {% if m.external_url %}
+            <a href="{{ m.external_url }}" target="_blank" rel="noopener" class="text-primary hover:underline font-label-md font-bold flex items-center gap-1">
+              <span>فتح</span><span class="material-symbols-outlined text-sm">arrow_back</span>
+            </a>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">folder_open</span>
+      <p class="mt-3 text-on-surface-variant">لا محتوى مرفوع بعد.</p>
+    </div>
+    {% endfor %}
   </div>
 </div>
-
-<table class="data">
-  <thead><tr>
-    <th>العنوان</th><th>النوع</th><th>الفصل</th><th>المادة</th><th>الرابط</th><th>التاريخ</th>
-  </tr></thead>
-  <tbody>
-    {% for m in materials %}
-    <tr>
-      <td><strong>{{ m.title }}</strong>{% if m.description %}<div class="text-muted" style="font-size:12px">{{ m.description }}</div>{% endif %}</td>
-      <td>
-        {% if m.kind == 'file' %}<span class="badge muted">ملف</span>
-        {% elif m.kind == 'video' %}<span class="badge ok">فيديو</span>
-        {% else %}<span class="badge navy">رابط</span>{% endif %}
-      </td>
-      <td>{{ m.section.grade.name }} / {{ m.section.name }}</td>
-      <td>{{ m.subject.name }}</td>
-      <td>
-        {% if m.external_url %}<a href="{{ m.external_url }}" target="_blank" class="text-orange">فتح</a>{% else %}—{% endif %}
-      </td>
-      <td class="text-muted">{{ m.created_at.strftime('%Y-%m-%d') }}</td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px">لم ترفع محتوى بعد.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
 {% endblock %}

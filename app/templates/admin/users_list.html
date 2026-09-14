@@ -1,38 +1,83 @@
-{% extends "partials/base.html" %}
+{# Users list. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}المستخدمون{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>المستخدمون</h2><div class="sub">إدارة حسابات المستخدمين وربطهم بالأدوار (T-1.3)</div></div>
-  <a href="{{ url_for('admin.user_new') }}" class="btn btn-primary">+ مستخدم جديد</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المستخدمون</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>البريد</th><th>الحالة</th><th></th></tr></thead>
-  <tbody>
-    {% for u in users %}
-    <tr>
-      <td><strong>{{ u.full_name }}</strong></td>
-      <td class="text-muted">{{ u.username }}</td>
-      <td>{{ u.role.name_ar if u.role else '—' }}</td>
-      <td class="text-muted">{{ u.email or '—' }}</td>
-      <td>
-        {% if u.is_active %}<span class="badge ok">نشط</span>
-        {% else %}<span class="badge danger">معطّل</span>{% endif %}
-        {% if u.is_locked() %}<span class="badge warn">مقفل مؤقتًا</span>{% endif %}
-      </td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.user_edit', user_id=u.id) }}">تعديل</a>
-        <form action="{{ url_for('admin.user_toggle', user_id=u.id) }}" method="post" style="display:inline">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-sm {{ 'btn-danger' if u.is_active else 'btn-navy' }}" type="submit">
-            {{ 'تعطيل' if u.is_active else 'تفعيل' }}
-          </button>
-        </form>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لا يوجد مستخدمون.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">إدارة المستخدمين</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ users|length }} مستخدم</p>
+    </div>
+    <a href="{{ url_for('admin.user_new') }}" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">person_add</span><span>مستخدم جديد</span>
+    </a>
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">المستخدم</th>
+            <th class="px-4 py-3 font-label-lg text-primary">اسم المستخدم</th>
+            <th class="px-4 py-3 font-label-lg text-primary">الدور</th>
+            <th class="px-4 py-3 font-label-lg text-primary">آخر دخول</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-9 h-9 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-sm">{{ u.full_name[:1] if u.full_name else '?' }}</div>
+                <div class="flex flex-col">
+                  <span class="font-label-lg text-primary font-bold">{{ u.full_name }}</span>
+                  {% if u.email %}<span class="font-label-xs text-outline" dir="ltr">{{ u.email }}</span>{% endif %}
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3"><code class="font-mono text-label-md text-primary" dir="ltr">{{ u.username }}</code></td>
+            <td class="px-4 py-3">
+              {% if u.role %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">{{ u.role.name_ar }}</span>{% else %}<span class="text-outline">—</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 font-label-md text-outline tabular-nums">{{ u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else '—' }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if u.locked_until and u.locked_until > (u.created_at.__class__.utcnow() if false else u.created_at) %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold"><span class="material-symbols-outlined text-sm">lock</span>مقفل</span>
+              {% elif u.is_active %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold"><span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>نشط</span>
+              {% else %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs font-bold">موقوف</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <div class="inline-flex items-center gap-1">
+                <a href="{{ url_for('admin.user_edit', user_id=u.id) }}" class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
+                  <span class="material-symbols-outlined text-lg">edit</span>
+                </a>
+                <form method="post" action="{{ url_for('admin.user_toggle', user_id=u.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="w-8 h-8 rounded-lg {% if u.is_active %}text-error hover:bg-error-container/40{% else %}text-secondary hover:bg-secondary-container/40{% endif %} flex items-center justify-center" title="{{ 'إيقاف' if u.is_active else 'تفعيل' }}">
+                    <span class="material-symbols-outlined text-lg">{% if u.is_active %}pause_circle{% else %}play_circle{% endif %}</span>
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="px-6 py-8 text-center text-on-surface-variant">لا مستخدمون بعد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

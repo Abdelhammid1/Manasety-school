@@ -1,41 +1,46 @@
-{% extends "partials/base.html" %}
+{# New academic year. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}سنة دراسية جديدة{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>سنة دراسية جديدة</h2></div>
-  <a href="{{ url_for('academic.years_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('academic.years_list') }}" class="hover:text-primary">السنوات</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-3">
-      <div class="field"><label>اسم السنة</label>
-        <input name="name" required placeholder="مثل: 2025-2026">
+{% block page_content %}
+<div class="max-w-2xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">إضافة سنة دراسية</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">اسم السنة <span class="text-error">*</span></label>
+      <input name="name" required placeholder="مثال: 2025-2026" dir="ltr"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+    <div class="grid grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ البداية <span class="text-error">*</span></label>
+        <input name="start_date" type="date" required
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
-      <div class="field"><label>تاريخ البداية</label>
-        <input name="start_date" type="date" required>
-      </div>
-      <div class="field"><label>تاريخ النهاية</label>
-        <input name="end_date" type="date" required>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ النهاية <span class="text-error">*</span></label>
+        <input name="end_date" type="date" required
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
-    <div class="field">
-      <label>الحالة</label>
-      <select name="status">
-        <option value="active">نشطة (السنة الجارية للعمل اليومي)</option>
-        <option value="closed">مغلقة (أرشيف للقراءة فقط)</option>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الحالة</label>
+      <select name="status" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="active">نشطة</option>
+        <option value="closed">مغلقة</option>
       </select>
-      <div class="hint" style="margin-top:6px;line-height:1.7">
-        <strong>نشطة</strong> = السنة الجارية التي يتم فيها العمل اليومي (تسجيل الحضور، رصد الدرجات، إصدار الفواتير).<br>
-        <strong>مغلقة</strong> = أرشيف — لا يمكن تعديل بياناتها التشغيلية. تُغلق تلقائيًا بعد اعتماد نتائج نهاية العام وإجراء الترقية.<br>
-        <span style="color:var(--c-danger)">⚠️ لا يمكن تفعيل أكثر من سنة في وقت واحد.</span>
-      </div>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('academic.years_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>حفظ السنة</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

@@ -1,30 +1,42 @@
-{% extends "partials/base.html" %}
-{% block title %}صف دراسي{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>{% if grade %}تعديل صف: {{ grade.name }}{% else %}صف جديد{% endif %}</h2></div>
-  <a href="{{ url_for('academic.grades_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Grade form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if grade %}تعديل صف{% else %}صف جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('academic.grades_list') }}" class="hover:text-primary">الصفوف</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-3">
-      <div class="field"><label>الاسم</label>
-        <input name="name" required value="{{ grade.name if grade else '' }}" placeholder="مثل: السادس الابتدائي">
+{% block page_content %}
+<div class="max-w-xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">{% if grade %}تعديل صف: {{ grade.name }}{% else %}إضافة صف{% endif %}</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الاسم <span class="text-error">*</span></label>
+      <input name="name" required value="{{ grade.name if grade else '' }}"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+    <div class="grid grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الترتيب <span class="text-error">*</span></label>
+        <input name="order_index" type="number" min="1" required value="{{ grade.order_index if grade else 1 }}" class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
-      <div class="field"><label>الترتيب التسلسلي</label>
-        <input name="order_index" type="number" min="0" required value="{{ grade.order_index if grade else '' }}">
-        <div class="hint">يُستخدم في الترقية لتحديد الصف الأعلى</div>
-      </div>
-      <div class="field"><label>المرحلة</label>
-        <input name="stage" value="{{ grade.stage if grade else '' }}" placeholder="ابتدائي / إعدادي ...">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المرحلة</label>
+        <select name="stage" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">—</option>
+          {% for s in ['ابتدائي','متوسط','ثانوي'] %}
+          <option value="{{ s }}" {% if grade and grade.stage == s %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
       </div>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('academic.grades_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>{% if grade %}حفظ{% else %}إضافة{% endif %}</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

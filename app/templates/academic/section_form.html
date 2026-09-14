@@ -1,31 +1,42 @@
-{% extends "partials/base.html" %}
-{% block title %}فصل جديد{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>فصل جديد — السنة {{ year.name }}</h2></div>
-  <a href="{{ url_for('academic.sections_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Section form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if section %}تعديل فصل{% else %}فصل جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('academic.sections_list') }}" class="hover:text-primary">الفصول</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-3">
-      <div class="field"><label>الصف</label>
-        <select name="grade_id" required>
-          {% for g in grades %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
-        </select>
+{% block page_content %}
+<div class="max-w-2xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">إضافة فصل جديد</h1>
+  <p class="font-body-md text-body-md text-on-surface-variant">السنة: <b dir="ltr">{{ year.name }}</b></p>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الصف <span class="text-error">*</span></label>
+      <select name="grade_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر —</option>
+        {% for g in grades %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="grid grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">اسم الفصل <span class="text-error">*</span></label>
+        <input name="name" required placeholder="أ / ب / ج"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
-      <div class="field"><label>اسم الفصل</label>
-        <input name="name" required placeholder="مثل: أ أو ب">
-      </div>
-      <div class="field"><label>السعة القصوى</label>
-        <input name="capacity" type="number" min="1" value="30">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">السعة القصوى</label>
+        <input name="capacity" type="number" min="1" max="60" value="30"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('academic.sections_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>إضافة الفصل</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}
