@@ -1,0 +1,202 @@
+{# Assignment detail + submission — ported from Stitch _7. Handles 3 states:
+   pre-submission (dropzone + editor), submitted-not-graded (green banner + edit
+   allowed until deadline), graded (score badge + teacher feedback). #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ assignment.title }} — الواجب{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.assignments_home') }}" class="hover:text-primary">الواجبات</a>
+{% endblock %}
+
+{% block page_content %}
+{% set past_due = assignment.due_at and now > assignment.due_at %}
+{% set graded = submission and submission.score is not none %}
+{% set submitted = submission and not graded %}
+
+<div class="flex flex-col w-full gap-space-lg">
+
+  <!-- Header card -->
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div class="flex flex-col gap-2 min-w-0">
+        <div class="flex items-center gap-space-sm flex-wrap">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
+            <span class="material-symbols-outlined text-sm">assignment</span>
+            {{ assignment.course.title if assignment.course else 'واجب' }}
+          </span>
+          {% if assignment.due_at %}
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-label-md text-label-md font-semibold
+                       {% if past_due %}bg-error-container text-on-error-container
+                       {% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %}">
+            <span class="material-symbols-outlined text-sm">alarm</span>
+            {% if past_due %}تجاوز الموعد النهائي{% else %}يستحق: {{ assignment.due_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+          </span>
+          {% endif %}
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/40 text-secondary font-label-md text-label-md font-semibold">
+            <span class="material-symbols-outlined text-sm">emoji_events</span>
+            الدرجة العظمى: {{ assignment.max_score }}
+          </span>
+          {% if assignment.allow_late %}
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed-variant font-label-xs text-label-xs">مسموح بالتسليم المتأخر</span>
+          {% endif %}
+        </div>
+        <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">{{ assignment.title }}</h1>
+      </div>
+    </div>
+  </section>
+
+  <!-- State banner -->
+  {% if graded %}
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-md">
+    <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
+    <div class="flex items-center justify-between gap-space-md flex-wrap">
+      <div class="flex items-center gap-space-md">
+        <div class="relative w-24 h-24 rounded-full text-on-primary flex flex-col items-center justify-center shadow-lg"
+             style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="font-headline-lg text-headline-lg font-extrabold leading-none">{{ submission.score }}</span>
+          <span class="font-label-xs text-label-xs opacity-90">من {{ assignment.max_score }}</span>
+        </div>
+        <div class="flex flex-col">
+          <h2 class="font-headline-md text-headline-md text-primary font-bold">تم تصحيح الواجب</h2>
+          <p class="font-body-md text-body-md text-on-surface-variant">
+            {% if submission.graded_at %}صُحّح في {{ submission.graded_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+          </p>
+        </div>
+      </div>
+    </div>
+    {% if submission.feedback %}
+    <div class="mt-space-md p-space-md rounded-xl bg-primary-container/10 border border-primary/20">
+      <h4 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined">rate_review</span>
+        ملاحظات المعلم
+      </h4>
+      <p class="mt-2 font-body-md text-body-md text-on-surface leading-relaxed whitespace-pre-line">{{ submission.feedback }}</p>
+    </div>
+    {% endif %}
+  </section>
+  {% elif submitted %}
+  <section class="bg-[#ECFDF5] border border-[#10B981]/30 rounded-2xl p-space-md flex items-center justify-between gap-space-md">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-full bg-[#10B981] text-white flex items-center justify-center">
+        <span class="material-symbols-outlined text-2xl">check_circle</span>
+      </div>
+      <div class="flex flex-col">
+        <h2 class="font-title-md text-title-md text-[#065F46] font-bold">تم تسليم الواجب بنجاح!</h2>
+        <p class="font-body-sm text-body-sm text-[#047857]">
+          تاريخ التسليم: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }} · بانتظار تصحيح المعلم.
+        </p>
+      </div>
+    </div>
+    {% if assignment.due_at and now <= assignment.due_at %}
+    <button type="button" onclick="document.getElementById('editArea').classList.remove('hidden'); this.remove();"
+            class="h-10 px-4 rounded-xl bg-surface-container-lowest text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">
+      تعديل التسليم
+    </button>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  <!-- Instructions -->
+  {% if assignment.instructions %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+      <span class="material-symbols-outlined">description</span>
+      تعليمات الواجب
+    </h2>
+    <div class="mt-3 font-body-lg text-body-lg text-on-surface leading-loose whitespace-pre-line">{{ assignment.instructions }}</div>
+  </section>
+  {% endif %}
+
+  <!-- Submission area (hidden if graded; visible if pre-sub OR editing) -->
+  {% if not graded %}
+  <section id="editArea" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm {% if submitted %}hidden{% endif %}">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">upload_file</span>
+      {% if submitted %}تعديل التسليم{% else %}تسليم الحل{% endif %}
+    </h2>
+    {% if past_due and not assignment.allow_late %}
+    <div class="p-space-md rounded-xl bg-error-container text-on-error-container flex items-center gap-3">
+      <span class="material-symbols-outlined">block</span>
+      <span class="font-label-md text-label-md">انتهى موعد التسليم ولا يُقبل تسليم متأخر لهذا الواجب.</span>
+    </div>
+    {% else %}
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('lms.assignment_submit', aid=assignment.id) }}"
+          class="flex flex-col gap-space-md">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <!-- Rich text area for the answer -->
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">إجابتك (نصّية)</label>
+        <textarea name="body" rows="8"
+                  placeholder="اكتب حلّك أو ملاحظاتك هنا. يمكنك أيضاً إرفاق ملف بالأسفل."
+                  class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors leading-loose font-body-md">{{ submission.body if submission else '' }}</textarea>
+      </div>
+
+      <!-- Dropzone -->
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">ملف مرفق (اختياري)</label>
+        <label for="fileInput"
+               class="border-2 border-dashed border-primary/30 hover:border-primary rounded-2xl p-space-lg flex flex-col items-center justify-center gap-2 cursor-pointer bg-surface-container-low/40 transition-colors"
+               id="dropzone">
+          <span class="material-symbols-outlined text-4xl text-primary">cloud_upload</span>
+          <span class="font-label-lg text-label-lg text-primary font-bold">اسحب الملف هنا أو انقر للتصفح</span>
+          <span class="font-label-md text-label-md text-on-surface-variant">PDF · DOCX · PNG · JPG · ZIP · TXT — حتى ١٠ ميغابايت</span>
+          <input id="fileInput" name="attachment" type="file"
+                 accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.zip,.txt"
+                 class="sr-only" onchange="showFile(this)">
+        </label>
+        <div id="fileChip" class="hidden inline-flex items-center gap-2 self-start px-3 py-1.5 rounded-full bg-secondary-container/40 text-secondary font-label-md text-label-md">
+          <span class="material-symbols-outlined text-sm">description</span>
+          <span id="fileName"></span>
+          <button type="button" onclick="clearFile()" class="text-error hover:bg-error/10 rounded-full p-0.5"><span class="material-symbols-outlined text-sm">close</span></button>
+        </div>
+        {% if submission and submission.file_url %}
+        <p class="font-label-md text-label-md text-on-surface-variant">
+          الملف الحالي:
+          <a href="{{ submission.file_url }}" target="_blank" class="text-primary font-bold underline">{{ submission.file_url.rsplit('/', 1)[-1] }}</a>
+        </p>
+        {% endif %}
+      </div>
+
+      <div class="flex items-center justify-end gap-space-sm">
+        {% if submitted %}
+        <button type="button" onclick="document.getElementById('editArea').classList.add('hidden');"
+                class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">
+          إلغاء
+        </button>
+        {% endif %}
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-xl">send</span>
+          <span>{% if submitted %}تحديث التسليم{% else %}تسليم الحل{% endif %}</span>
+        </button>
+      </div>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+
+<script>
+  function showFile(inp){
+    const f = inp.files && inp.files[0];
+    if (!f) return;
+    document.getElementById('fileName').textContent = f.name + ' · ' + Math.round(f.size/1024) + ' كب';
+    document.getElementById('fileChip').classList.remove('hidden');
+  }
+  function clearFile(){
+    document.getElementById('fileInput').value = '';
+    document.getElementById('fileChip').classList.add('hidden');
+  }
+  // Drag & drop
+  const dz = document.getElementById('dropzone');
+  if (dz) {
+    ['dragenter','dragover'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.add('bg-primary/5'); }));
+    ['dragleave','drop'].forEach(ev => dz.addEventListener(ev, e => { e.preventDefault(); dz.classList.remove('bg-primary/5'); }));
+    dz.addEventListener('drop', e => {
+      const f = e.dataTransfer.files && e.dataTransfer.files[0];
+      if (f) { document.getElementById('fileInput').files = e.dataTransfer.files; showFile(document.getElementById('fileInput')); }
+    });
+  }
+</script>
+{% endblock %}

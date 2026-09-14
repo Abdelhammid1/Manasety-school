@@ -1,34 +1,157 @@
-{% extends "partials/base.html" %}
-{% block title %}{{ lesson.title }}{% endblock %}
-{% block content %}
-<div style="margin-bottom:14px">
-  <a href="{{ url_for('courses.detail', course_id=course.id) }}" style="color:var(--c-blue);font-weight:600">← {{ course.title }}</a>
-</div>
-<div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
-  <div class="card">
-    <h2 style="margin:0 0 10px;color:var(--c-navy)">{{ lesson.title }}</h2>
-    {% if lesson.kind == 'video' and lesson.media_url %}
-      <div style="aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden">
-        <iframe src="{{ lesson.media_url }}" style="width:100%;height:100%;border:0" allowfullscreen></iframe>
+{# Lesson viewer — ported from Stitch _9. Player (or content) area + side rail
+   with the whole course's lesson list (current one highlighted) + notes area.
+#}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ lesson.title }} — {{ course.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="hover:text-primary">{{ course.title }}</a>
+{% endblock %}
+
+{% block page_content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg">
+
+  {# Main: player + content #}
+  <div class="lg:col-span-2 flex flex-col gap-space-md">
+    <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+      {% if lesson.kind == 'video' and lesson.media_url %}
+      <div class="aspect-video bg-black">
+        <iframe src="{{ lesson.media_url }}" class="w-full h-full border-0" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>
       </div>
-    {% elif lesson.kind == 'pdf' and lesson.media_url %}
-      <embed src="{{ lesson.media_url }}" type="application/pdf" style="width:100%;height:70vh;border:0;border-radius:8px">
-    {% elif lesson.kind == 'link' and lesson.media_url %}
-      <a href="{{ lesson.media_url }}" target="_blank" rel="noopener" class="btn"
-         style="background:var(--grad-brand);color:#fff;padding:10px 22px;border-radius:999px;font-weight:700">فتح الرابط</a>
-    {% endif %}
-    {% if lesson.body %}
-    <div style="margin-top:18px;line-height:1.85">{{ lesson.body|safe }}</div>
-    {% endif %}
+      {% elif lesson.kind == 'pdf' and lesson.media_url %}
+      <embed src="{{ lesson.media_url }}" type="application/pdf" class="w-full" style="height:70vh">
+      {% elif lesson.kind == 'embed' and lesson.media_url %}
+      <div class="aspect-video">
+        <iframe src="{{ lesson.media_url }}" class="w-full h-full border-0"></iframe>
+      </div>
+      {% elif lesson.kind == 'link' and lesson.media_url %}
+      <div class="p-space-lg text-center">
+        <a href="{{ lesson.media_url }}" target="_blank" rel="noopener"
+           class="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md hover:shadow-lg transition-all"
+           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">open_in_new</span>
+          <span>فتح المصدر</span>
+        </a>
+      </div>
+      {% else %}
+      <div class="h-24 bg-gradient-to-l from-primary via-primary-container to-secondary flex items-end p-space-md">
+        <span class="text-on-primary font-headline-sm text-headline-sm font-bold">درس نصّي</span>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-space-sm mb-2">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">layers</span>
+          الدرس {{ lesson.order_index }}
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary-container/40 text-on-secondary-container font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">
+            {% if lesson.kind=='video' %}play_circle{% elif lesson.kind=='pdf' %}picture_as_pdf{% elif lesson.kind=='embed' %}code{% elif lesson.kind=='link' %}link{% else %}article{% endif %}
+          </span>
+          {{ {'video':'فيديو','pdf':'PDF','embed':'محتوى مضمّن','link':'رابط','text':'نص'}.get(lesson.kind, lesson.kind) }}
+        </span>
+        {% if lesson.duration_minutes %}
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs">
+          <span class="material-symbols-outlined text-sm">schedule</span>
+          {{ lesson.duration_minutes }} دقيقة
+        </span>
+        {% endif %}
+      </div>
+      <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">{{ lesson.title }}</h1>
+      {% if lesson.body %}
+      <div class="mt-4 font-body-lg text-body-lg text-on-surface leading-loose whitespace-pre-line">{{ lesson.body }}</div>
+      {% else %}
+      <p class="mt-4 font-body-md text-body-md text-on-surface-variant">لا يوجد نص شرح إضافي لهذا الدرس.</p>
+      {% endif %}
+    </div>
+
+    {# Navigation prev/next between lessons #}
+    {% set lessons = course.lessons|list %}
+    {% set idx = lessons.index(lesson) %}
+    <div class="flex items-center justify-between gap-space-sm">
+      {% if idx > 0 %}
+      <a href="{{ url_for('courses.lesson_view', lesson_id=lessons[idx-1].id) }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
+        <span class="material-symbols-outlined text-lg">arrow_forward</span>
+        <span>الدرس السابق</span>
+      </a>
+      {% else %}<span></span>{% endif %}
+      {% if idx < lessons|length - 1 %}
+      <a href="{{ url_for('courses.lesson_view', lesson_id=lessons[idx+1].id) }}"
+         class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span>الدرس التالي</span>
+        <span class="material-symbols-outlined text-lg">arrow_back</span>
+      </a>
+      {% else %}
+      <a href="{{ url_for('courses.detail', course_id=course.id) }}"
+         class="h-11 px-5 rounded-xl bg-secondary-container/60 text-secondary font-label-lg text-label-lg font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">task_alt</span>
+        <span>إنهاء المادة</span>
+      </a>
+      {% endif %}
+    </div>
   </div>
-  <div class="card">
-    <h3 style="border-bottom:1px solid var(--c-border);padding-bottom:10px">دروس المادة</h3>
-    {% for l in course.lessons %}
-    <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
-       style="display:block;padding:8px 0;color:{% if l.id == lesson.id %}var(--c-blue){% else %}var(--c-text){% endif %};font-weight:{% if l.id == lesson.id %}800{% else %}600{% endif %};text-decoration:none">
-      {{ l.order_index }}. {{ l.title }}
-    </a>
-    {% endfor %}
-  </div>
+
+  {# Side rail: course outline + note pad #}
+  <aside class="flex flex-col gap-space-md">
+    <div class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-md">
+      <div class="flex items-center justify-between mb-space-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold">دروس المادة</h3>
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ course.lessons|length }} درس</span>
+      </div>
+      <ul class="flex flex-col gap-1">
+        {% for l in course.lessons %}
+        <li>
+          <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
+             class="flex items-center gap-2 p-2 rounded-lg transition-colors
+                    {% if l.id == lesson.id %}bg-primary-container/40 text-primary font-bold border-r-[3px] border-secondary{% else %}text-on-surface hover:bg-surface-container-low{% endif %}">
+            <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
+                         {% if l.id == lesson.id %}bg-primary text-on-primary{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+              {{ l.order_index }}
+            </span>
+            <span class="flex-1 min-w-0 font-label-md text-label-md truncate">{{ l.title }}</span>
+            {% if l.duration_minutes %}<span class="font-label-xs text-label-xs text-outline">{{ l.duration_minutes }} د</span>{% endif %}
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-md">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-title-md text-title-md text-primary font-bold">دفتر ملاحظاتي</h3>
+        <span id="noteSaveHint" class="font-label-xs text-label-xs text-outline"></span>
+      </div>
+      <textarea id="lessonNotes" rows="6"
+                data-lesson="{{ lesson.id }}"
+                placeholder="اكتب ملاحظاتك على الدرس هنا..."
+                class="w-full px-3 py-2 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors font-body-md text-body-md"></textarea>
+      <p class="mt-2 font-label-xs text-label-xs text-outline">تُحفظ الملاحظات محلياً على متصفحك (خاصة بك).</p>
+    </div>
+  </aside>
 </div>
+
+<script>
+(function(){
+  const KEY = 'notes:lesson:' + {{ lesson.id }};
+  const el = document.getElementById('lessonNotes');
+  const hint = document.getElementById('noteSaveHint');
+  try { el.value = localStorage.getItem(KEY) || ''; } catch(_){}
+  let timer;
+  el.addEventListener('input', () => {
+    clearTimeout(timer);
+    hint.textContent = '…';
+    timer = setTimeout(() => {
+      try { localStorage.setItem(KEY, el.value); hint.textContent = 'تم الحفظ'; }
+      catch(_) { hint.textContent = ''; }
+      setTimeout(() => hint.textContent = '', 1500);
+    }, 500);
+  });
+})();
+</script>
 {% endblock %}

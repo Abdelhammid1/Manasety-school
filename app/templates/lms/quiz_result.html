@@ -1,0 +1,103 @@
+{# Quiz result — post-submission review. Shown after quiz_submit + accessible
+   later by the student. Teachers can view any attempt's review. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نتيجة الاختبار — {{ quiz.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.quizzes_home') }}" class="hover:text-primary">الاختبارات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">النتيجة</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg">
+
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-md">
+    <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
+    <div class="flex items-center gap-space-md flex-wrap">
+      <div class="relative w-28 h-28 rounded-full text-on-primary flex flex-col items-center justify-center shadow-lg shrink-0"
+           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="font-headline-lg text-headline-lg font-extrabold leading-none">{{ attempt.score or 0 }}</span>
+        <span class="font-label-xs text-label-xs opacity-90">من {{ total_max }}</span>
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">{{ quiz.title }}</h1>
+        <p class="font-body-md text-body-md text-on-surface-variant">
+          {% if attempt.submitted_at %}تم التسليم في {{ attempt.submitted_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+          {% if not attempt.auto_graded %}
+          · <span class="text-tertiary font-bold">أسئلة مقالية بانتظار تصحيح المعلم</span>
+          {% endif %}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  {# Per-question review #}
+  <section class="flex flex-col gap-space-md">
+    {% for q in questions %}
+    {% set ans = answers.get(q.id) %}
+    {% set correct = ans and ans.is_correct == True %}
+    {% set wrong   = ans and ans.is_correct == False %}
+    {% set pending = ans is none or ans.is_correct is none %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm relative overflow-hidden">
+      <div class="absolute top-0 right-0 bottom-0 w-1.5"
+           style="background: {% if correct %}#10B981{% elif wrong %}#EF4444{% else %}#94A3B8{% endif %};"></div>
+      <div class="flex items-center justify-between mb-space-sm">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-label-md text-label-md font-semibold
+                     {% if correct %}bg-[#ECFDF5] text-[#065F46]
+                     {% elif wrong %}bg-error-container text-on-error-container
+                     {% else %}bg-surface-container text-on-surface-variant{% endif %}">
+          <span class="material-symbols-outlined text-sm">
+            {% if correct %}check_circle{% elif wrong %}cancel{% else %}hourglass_empty{% endif %}
+          </span>
+          {% if correct %}صحيحة{% elif wrong %}خاطئة{% else %}بانتظار التصحيح{% endif %}
+        </span>
+        <span class="font-label-md text-label-md text-on-surface-variant">
+          {% if ans and ans.awarded_points is not none %}{{ ans.awarded_points }}{% else %}—{% endif %} / {{ q.points }} نقطة
+        </span>
+      </div>
+      <h3 class="font-title-md text-title-md text-primary font-bold leading-relaxed">{{ q.prompt }}</h3>
+      {% if q.kind in ('mcq','tf','multi') %}
+      <div class="mt-space-sm flex flex-col gap-1.5">
+        {% for c in q.choices %}
+        {% set chosen = (ans and ans.choice_id == c.id) or (ans and ans.text_answer and (c.id|string) in ans.text_answer.split(',')) %}
+        <div class="flex items-center gap-2 p-2 rounded-lg
+                    {% if c.is_correct %}bg-[#ECFDF5]/60
+                    {% elif chosen and not c.is_correct %}bg-error-container/40
+                    {% else %}bg-surface-container-low{% endif %}">
+          <span class="material-symbols-outlined text-lg
+                       {% if c.is_correct %}text-[#10B981]{% elif chosen %}text-error{% else %}text-outline{% endif %}">
+            {% if c.is_correct %}check{% elif chosen %}close{% else %}radio_button_unchecked{% endif %}
+          </span>
+          <span class="font-body-md text-body-md text-on-surface">{{ c.label }}</span>
+          {% if chosen %}<span class="ml-auto font-label-xs text-label-xs text-on-surface-variant">إجابتك</span>{% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% elif ans and ans.text_answer %}
+      <div class="mt-space-sm p-space-md rounded-xl bg-surface-container-low">
+        <div class="font-label-md text-label-md text-on-surface-variant font-bold mb-1">إجابتك:</div>
+        <p class="font-body-md text-body-md text-on-surface whitespace-pre-line">{{ ans.text_answer }}</p>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </section>
+
+  <div class="flex items-center justify-between">
+    <a href="{{ url_for('lms.quizzes_home') }}"
+       class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
+      <span class="material-symbols-outlined text-lg">arrow_forward</span>
+      <span>العودة إلى الاختبارات</span>
+    </a>
+    {% if quiz.course %}
+    <a href="{{ url_for('courses.detail', course_id=quiz.course.id) }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span>الرجوع للمادة</span>
+      <span class="material-symbols-outlined text-lg">arrow_back</span>
+    </a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

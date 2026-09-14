@@ -1,0 +1,197 @@
+{# Quiz taking — ported from Stitch _8. Focus-mode (no sidebar) so the student
+   concentrates. Minimal top chrome with countdown timer + exit. All questions
+   render in a single page with a sticky navigation strip; on submit, the auto-
+   grader in blueprints/lms/views.py :: quiz_submit stamps the attempt. #}
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}{{ quiz.title }} — أداء الاختبار{% endblock %}
+
+{% block focus_content %}
+<div class="min-h-screen bg-surface flex flex-col">
+
+  {# Top bar #}
+  <header class="sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl border-b border-outline-variant">
+    <div class="max-w-5xl mx-auto px-space-md py-3 flex items-center justify-between gap-space-md">
+      <div class="flex items-center gap-space-sm min-w-0">
+        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-8 w-8 object-contain bg-white rounded-md p-1 shrink-0">
+        <div class="flex flex-col min-w-0">
+          <span class="font-title-md text-title-md text-primary font-bold truncate">{{ quiz.title }}</span>
+          <span class="font-label-xs text-label-xs text-on-surface-variant truncate">
+            {{ quiz.course.title if quiz.course else '' }} · {{ questions|length }} سؤال · {{ quiz.duration_minutes }} دقيقة
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-space-md">
+        <div id="timerBox" class="flex items-center gap-2 px-4 h-11 rounded-xl bg-primary-container text-on-primary shadow-md">
+          <span class="material-symbols-outlined">timer</span>
+          <span id="timer" class="font-headline-sm text-headline-sm font-extrabold tabular-nums">--:--</span>
+        </div>
+        <button type="button" onclick="if(confirm('الخروج سيفقد الإجابات غير المحفوظة — متأكد؟')) window.location='{{ url_for('lms.quizzes_home') }}'"
+                class="h-11 px-4 rounded-xl bg-surface-container-low text-error font-label-lg text-label-lg font-bold hover:bg-error-container transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">logout</span>
+          <span class="hidden sm:inline">خروج</span>
+        </button>
+      </div>
+    </div>
+    {# Progress strip: one cell per question #}
+    <div class="max-w-5xl mx-auto px-space-md pb-2 overflow-x-auto no-scrollbar">
+      <div class="flex items-center gap-1 py-1" id="progressStrip">
+        {% for q in questions %}
+        <button type="button" onclick="scrollToQ({{ loop.index }})"
+                class="progress-cell w-8 h-8 rounded-lg flex items-center justify-center font-label-md text-label-md font-bold text-on-surface-variant bg-surface-container-low hover:bg-surface-container transition-colors"
+                data-qn="{{ loop.index }}">{{ loop.index }}</button>
+        {% endfor %}
+      </div>
+    </div>
+  </header>
+
+  {# Form #}
+  <form method="post" action="{{ url_for('lms.quiz_submit', qid=quiz.id) }}" id="quizForm"
+        class="flex-1 max-w-3xl w-full mx-auto px-space-md py-space-lg flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+
+    {% for q in questions %}
+    <section id="q{{ loop.index }}" class="question-card bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm scroll-mt-32" data-qn="{{ loop.index }}">
+      <div class="flex items-center justify-between mb-space-sm">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">quiz</span>
+          السؤال {{ loop.index }} من {{ questions|length }}
+        </span>
+        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">
+          {{ q.points }} نقطة
+        </span>
+      </div>
+
+      <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold leading-relaxed whitespace-pre-line">{{ q.prompt }}</h2>
+
+      <div class="mt-space-md flex flex-col gap-2">
+        {% if q.kind in ('mcq','tf') %}
+          {% for c in q.choices %}
+          <label class="choice-row flex items-center gap-3 p-3 rounded-xl border-2 border-transparent bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+            <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}" onchange="markAnswered()"
+                   class="w-5 h-5 accent-primary">
+            <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
+          </label>
+          {% endfor %}
+        {% elif q.kind == 'multi' %}
+          {% for c in q.choices %}
+          <label class="choice-row flex items-center gap-3 p-3 rounded-xl border-2 border-transparent bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+            <input type="checkbox" name="q_{{ q.id }}[]" value="{{ c.id }}" onchange="markAnswered()"
+                   class="w-5 h-5 accent-primary">
+            <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
+          </label>
+          {% endfor %}
+          <p class="font-label-xs text-label-xs text-on-surface-variant">يمكن اختيار أكثر من إجابة.</p>
+        {% elif q.kind == 'short' %}
+          <input type="text" name="q_{{ q.id }}_text" oninput="markAnswered()"
+                 placeholder="أدخل إجابتك القصيرة..."
+                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+        {% else %}{# essay #}
+          <textarea name="q_{{ q.id }}_text" rows="6" oninput="markAnswered()"
+                    placeholder="اكتب إجابتك المقالية هنا. تُصحّح يدوياً بواسطة المعلم."
+                    class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors leading-loose"></textarea>
+        {% endif %}
+      </div>
+    </section>
+    {% endfor %}
+
+    {# Sticky submit bar #}
+    <div class="sticky bottom-4 bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_-4px_20px_rgba(12,36,97,0.10)] flex items-center justify-between gap-space-md z-30">
+      <div class="flex items-center gap-space-sm">
+        <span class="w-3 h-3 rounded-full bg-secondary animate-pulse"></span>
+        <span class="font-label-md text-label-md text-on-surface-variant">
+          <span id="answeredCount">0</span> من {{ questions|length }} سؤالاً تمت الإجابة عليه
+        </span>
+      </div>
+      <button type="button" onclick="openConfirm()"
+              class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">send</span>
+        <span>إنهاء وإرسال الاختبار</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+{# Confirm modal #}
+<div id="confirmModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <div class="flex items-start gap-space-md">
+      <div class="w-12 h-12 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">gpp_maybe</span>
+      </div>
+      <div class="flex-1">
+        <h3 class="font-title-md text-title-md text-primary font-bold">تأكيد إنهاء الاختبار</h3>
+        <p class="mt-1 font-body-md text-body-md text-on-surface-variant">
+          أجبت على <b><span id="mAnswered">0</span></b> من {{ questions|length }} سؤالاً.
+          لن تتمكن من العودة بعد الإرسال.
+        </p>
+      </div>
+      <button type="button" data-modal-close class="text-outline hover:text-primary p-1"><span class="material-symbols-outlined">close</span></button>
+    </div>
+    <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+      <button type="button" data-modal-close
+              class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">
+        متابعة الاختبار
+      </button>
+      <button type="button" onclick="document.getElementById('quizForm').submit()"
+              class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">check_circle</span>
+        <span>إرسال الآن</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const HARD_STOP = new Date("{{ hard_stop_iso }}").getTime();
+  const timer = document.getElementById('timer');
+  const box = document.getElementById('timerBox');
+
+  function tick(){
+    const ms = HARD_STOP - Date.now();
+    if (ms <= 0){
+      timer.textContent = '00:00:00';
+      document.getElementById('quizForm').submit();
+      return;
+    }
+    const s = Math.floor(ms/1000);
+    const hh = String(Math.floor(s/3600)).padStart(2,'0');
+    const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    timer.textContent = `${hh}:${mm}:${ss}`;
+    // Warn colors: amber under 20% of duration remaining, red under 5%.
+    const totalMs = HARD_STOP - {{ ((attempt.started_at.timestamp() * 1000) | int) if attempt.started_at else 0 }};
+    if (ms/totalMs < 0.05) box.style.background = '#EF4444';
+    else if (ms/totalMs < 0.20) box.style.background = '#F59E0B';
+  }
+  tick(); setInterval(tick, 1000);
+
+  window.scrollToQ = function(n){
+    const el = document.getElementById('q'+n);
+    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  };
+
+  const cells = Array.from(document.querySelectorAll('.progress-cell'));
+  function recount(){
+    let n = 0;
+    document.querySelectorAll('.question-card').forEach((sec, idx) => {
+      const hasAns = Array.from(sec.querySelectorAll('input[type="radio"],input[type="checkbox"]')).some(i => i.checked)
+        || Array.from(sec.querySelectorAll('input[type="text"],textarea')).some(i => (i.value||'').trim());
+      const cell = cells[idx];
+      if (hasAns){ n++; cell.classList.add('bg-primary','text-on-primary'); cell.classList.remove('bg-surface-container-low','text-on-surface-variant'); }
+      else { cell.classList.remove('bg-primary','text-on-primary'); cell.classList.add('bg-surface-container-low','text-on-surface-variant'); }
+    });
+    document.getElementById('answeredCount').textContent = n;
+    document.getElementById('mAnswered').textContent = n;
+  }
+  window.markAnswered = recount;
+  recount();
+
+  window.openConfirm = function(){ recount(); openModal('#confirmModal'); };
+})();
+</script>
+{% endblock %}
