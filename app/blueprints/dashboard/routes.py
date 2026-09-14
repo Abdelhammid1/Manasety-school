@@ -17,6 +17,8 @@ from ...extensions import db
 from ...models import (
     AcademicYear, Account, Attendance, Enrollment, Expense, Grade, Installment,
     Invoice, NotificationLog, Payment, Section, Student, Subject, Teacher, User,
+    # LMS
+    Course, Lesson, CourseAssignment, Submission, Quiz, QuizAttempt, Announcement,
 )
 
 
@@ -242,6 +244,125 @@ def _failed_notifications_last_7d(sid: int) -> int:
     )
 
 
+# ── LMS aggregates ─────────────────────────────────────────────────────────
+
+def _lms_kpis(sid: int, yid: int):
+    """One roundtrip's worth of LMS KPIs for the dashboard hero row.
+
+    Every count is scoped by ``school_id``; year-scoped fields (courses) also
+    filter by the active academic year so the numbers match the SIS view.
+    """
+    now = datetime.utcnow()
+
+    courses_q = Course.query.filter_by(school_id=sid)
+    if yid:
+        courses_q = courses_q.filter_by(academic_year_id=yid)
+    courses_total = courses_q.count()
+    courses_published = courses_q.filter_by(is_published=True).count()
+
+    # lessons/assignments/quizzes join to courses to inherit school scope
+    lessons_total = (
+        db.session.query(func.count(Lesson.id))
+        .join(Course, Course.id == Lesson.course_id)
+        .filter(Course.school_id == sid)
+        .scalar() or 0
+    )
+    assignments_open = (
+        db.session.query(func.count(CourseAssignment.id))
+        .join(Course, Course.id == CourseAssignment.course_id)
+        .filter(
+            Course.school_id == sid,
+            CourseAssignment.is_published.is_(True),
+            (CourseAssignment.due_at.is_(None)) | (CourseAssignment.due_at > now),
+        ).scalar() or 0
+    )
+    # Ungraded submissions across the school — the number the teacher sees
+    # in the corner of every screen.
+    submissions_pending = (
+        db.session.query(func.count(Submission.id))
+        .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)
+        .join(Course, Course.id == CourseAssignment.course_id)
+        .filter(Course.school_id == sid, Submission.score.is_(None))
+        .scalar() or 0
+    )
+    quizzes_active = (
+        db.session.query(func.count(Quiz.id))
+        .join(Course, Course.id == Quiz.course_id)
+        .filter(
+            Course.school_id == sid,
+            Quiz.is_published.is_(True),
+            (Quiz.opens_at.is_(None)) | (Quiz.opens_at <= now),
+            (Quiz.closes_at.is_(None)) | (Quiz.closes_at >= now),
+        ).scalar() or 0
+    )
+    quiz_attempts_today = (
+        db.session.query(func.count(QuizAttempt.id))
+        .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
+        .join(Course, Course.id == Quiz.course_id)
+        .filter(
+            Course.school_id == sid,
+            QuizAttempt.started_at >= datetime.combine(date.today(), datetime.min.time()),
+        ).scalar() or 0
+    )
+    announcements_week = (
+        Announcement.query
+        .filter(
+            Announcement.school_id == sid,
+            Announcement.created_at >= datetime.utcnow() - timedelta(days=7),
+        ).count()
+    )
+
+    return {
+        "courses_total": int(courses_total),
+        "courses_published": int(courses_published),
+        "lessons_total": int(lessons_total),
+        "assignments_open": int(assignments_open),
+        "submissions_pending": int(submissions_pending),
+        "quizzes_active": int(quizzes_active),
+        "quiz_attempts_today": int(quiz_attempts_today),
+        "announcements_week": int(announcements_week),
+    }
+
+
+def _top_courses_by_engagement(sid: int, yid: int, cap: int = 5):
+    """Ranks courses by submissions+attempts count in the last 30d — the
+    "hottest" courses. Small N (school-scale), so we compute per-course in
+    Python rather than a nested subquery per course.
+    """
+    since = datetime.utcnow() - timedelta(days=30)
+    q = Course.query.filter_by(school_id=sid)
+    if yid:
+        q = q.filter_by(academic_year_id=yid)
+    rows = []
+    for c in q.limit(200).all():
+        subs = (
+            db.session.query(func.count(Submission.id))
+            .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)
+            .filter(
+                CourseAssignment.course_id == c.id,
+                Submission.submitted_at >= since,
+            ).scalar() or 0
+        )
+        atts = (
+            db.session.query(func.count(QuizAttempt.id))
+            .join(Quiz, Quiz.id == QuizAttempt.quiz_id)
+            .filter(Quiz.course_id == c.id, QuizAttempt.started_at >= since)
+            .scalar() or 0
+        )
+        score = int(subs) + int(atts)
+        if score == 0:
+            continue
+        rows.append({
+            "course_id": c.id,
+            "title": c.title,
+            "submissions": int(subs),
+            "attempts": int(atts),
+            "engagement": score,
+        })
+    rows.sort(key=lambda r: -r["engagement"])
+    return rows[:cap]
+
+
 def _users_locked_now(sid: int) -> int:
     now = datetime.utcnow()
     return int(
@@ -295,6 +416,14 @@ def home():
         lambda: _sections_near_capacity(sid, yid), []) if yid else []
     new_students_month = _safe(lambda: _new_students_this_month(sid), 0)
 
+    # ── LMS snapshot ────────────────────────────────────────────────────────
+    lms = _safe(lambda: _lms_kpis(sid, yid), {
+        "courses_total": 0, "courses_published": 0, "lessons_total": 0,
+        "assignments_open": 0, "submissions_pending": 0, "quizzes_active": 0,
+        "quiz_attempts_today": 0, "announcements_week": 0,
+    })
+    top_courses = _safe(lambda: _top_courses_by_engagement(sid, yid), [])
+
     # ── system health ───────────────────────────────────────────────────────
     users_active = _safe(
         lambda: User.query.filter_by(school_id=sid, is_active=True).count(), 0)
@@ -339,5 +468,8 @@ def home():
         "users_locked": users_locked,
         "notifications_failed": notifications_failed,
         "teachers_active": teachers_active,
+        # LMS
+        "lms": lms,
+        "top_courses": top_courses,
     }
     return render_template("dashboard/home.html", stats=stats, today=today)

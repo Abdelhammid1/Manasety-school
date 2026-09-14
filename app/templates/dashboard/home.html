@@ -230,6 +230,63 @@
        href=url_for('teachers.teachers_list')) }}
 </div>
 
+{# ── 5.5) LMS snapshot ─────────────────────────────────────────────────── #}
+<h3 class="section-head">التعلم (LMS) <span class="gold-accent inline"></span></h3>
+
+<div class="grid grid-4">
+  {{ stat_card(
+       label='المواد المنشورة',
+       value=stats.lms.courses_published,
+       sub=(stats.lms.courses_total ~ ' إجمالي · ' ~ stats.lms.lessons_total ~ ' درس'),
+       tone='navy',
+       icon='📘',
+       href=url_for('courses.list_courses')) }}
+  {{ stat_card(
+       label='واجبات مفتوحة',
+       value=stats.lms.assignments_open,
+       sub=(stats.lms.submissions_pending ~ ' تسليم بانتظار التصحيح'),
+       tone=('amber' if stats.lms.submissions_pending else 'muted'),
+       icon='📝',
+       href=url_for('lms.assignments_home')) }}
+  {{ stat_card(
+       label='اختبارات نشطة الآن',
+       value=stats.lms.quizzes_active,
+       sub=(stats.lms.quiz_attempts_today ~ ' محاولة اليوم'),
+       tone=('green' if stats.lms.quizzes_active else 'muted'),
+       icon='🧪',
+       href=url_for('lms.quizzes_home')) }}
+  {{ stat_card(
+       label='إعلانات هذا الأسبوع',
+       value=stats.lms.announcements_week,
+       tone='navy',
+       icon='📣',
+       href=url_for('lms.announcements_home')) }}
+</div>
+
+{% if stats.top_courses %}
+<div class="card" style="margin-top:16px">
+  <h3 style="border:0;padding:0;margin:0 0 12px">أكثر المواد نشاطاً — آخر ٣٠ يوماً</h3>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    {% for c in stats.top_courses %}
+    <a href="{{ url_for('courses.detail', course_id=c.course_id) }}"
+       style="display:flex;align-items:center;gap:14px;padding:10px 12px;border:1px solid var(--c-border);
+              border-radius:10px;text-decoration:none;color:inherit;transition:.15s all">
+      <div style="width:36px;height:36px;border-radius:50%;background:var(--grad-brand);color:#fff;
+                  display:flex;align-items:center;justify-content:center;font-weight:800">{{ loop.index }}</div>
+      <div style="flex:1">
+        <div style="font-weight:700;color:var(--c-navy)">{{ c.title }}</div>
+        <div style="font-size:12px;color:var(--c-muted)">
+          {{ c.submissions }} تسليماً · {{ c.attempts }} محاولة اختبار
+        </div>
+      </div>
+      <span style="padding:4px 12px;border-radius:999px;background:rgba(37,99,235,.12);color:var(--c-blue);
+                   font-weight:800;font-size:13px">{{ c.engagement }}</span>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
 {# ── 6) System health ──────────────────────────────────────────────────── #}
 <h3 class="section-head">حالة النظام <span class="gold-accent inline"></span></h3>
 
