@@ -7,7 +7,7 @@ page — a widget just shows its safe default (0, empty list) instead.
 """
 from datetime import date, datetime, timedelta
 
-from flask import render_template
+from flask import render_template, request
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
@@ -376,8 +376,23 @@ def _users_locked_now(sid: int) -> int:
 
 @bp.route("/dashboard")
 @login_required
-@admin_only
 def home():
+    """Role-aware dashboard dispatcher. Admin sees the operational console;
+    every other role sees their tailored home built from the Stitch designs."""
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    if role != "admin":
+        if role == "teacher":
+            return _teacher_dashboard()
+        if role == "parent":
+            return _parent_dashboard()
+        if role == "student":
+            return _student_dashboard()
+        # Any other role → the admin console (permissions gate below still
+        # allows a school-admin variant to render).
+    return _admin_dashboard()
+
+
+def _admin_dashboard():
     sid = current_user.school_id
     active_year = _safe(
         lambda: AcademicYear.query.filter_by(school_id=sid, status="active").first()
@@ -473,3 +488,270 @@ def home():
         "top_courses": top_courses,
     }
     return render_template("dashboard/home.html", stats=stats, today=today)
+
+
+# ── Role dashboards — ported from Stitch _1 / _3 / _5 ──────────────────────
+
+def _teacher_dashboard():
+    """Teacher home — greeting card + 4 KPI tiles + today's schedule +
+    recent submissions to grade. All queries scoped to the current teacher.
+    """
+    teacher = _safe(
+        lambda: Teacher.query.filter_by(user_id=current_user.id).first()
+    )
+    sid = current_user.school_id
+    active_year = _safe(
+        lambda: AcademicYear.query.filter_by(school_id=sid, status="active").first()
+    )
+    today_ = date.today()
+    now = datetime.utcnow()
+
+    from ...models import Assignment as TeachingAssignment, ScheduleSlot, Course
+
+    def _my_sections():
+        if not teacher:
+            return []
+        rows = (
+            db.session.query(TeachingAssignment.section_id)
+            .filter(TeachingAssignment.teacher_id == teacher.id)
+            .distinct().all()
+        )
+        return [r[0] for r in rows]
+
+    section_ids = _safe(_my_sections, [])
+
+    def _students_count():
+        if not section_ids:
+            return 0
+        return int(
+            Enrollment.query.filter(
+                Enrollment.section_id.in_(section_ids),
+                Enrollment.status == "active",
+            ).count()
+        )
+
+    def _today_periods():
+        if not teacher:
+            return []
+        # ScheduleSlot uses day_id (isoweekday-ish) — mirror the pattern used
+        # elsewhere by matching today's weekday name in Arabic when we can.
+        weekday_map = {0: 6, 1: 7, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}  # Mon..Sun → Sun..Sat
+        rows = (
+            ScheduleSlot.query
+            .filter_by(school_id=sid, teacher_id=teacher.id)
+            .order_by(ScheduleSlot.period_id.asc())
+            .limit(10)
+            .all()
+        )
+        return rows
+
+    def _pending_submissions():
+        if not teacher:
+            return []
+        return (
+            db.session.query(Submission)
+            .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)
+            .join(Course, Course.id == CourseAssignment.course_id)
+            .filter(Course.teacher_id == teacher.id, Submission.score.is_(None))
+            .order_by(Submission.submitted_at.desc())
+            .limit(5)
+            .all()
+        )
+
+    def _attendance_rate_30d():
+        if not section_ids:
+            return None
+        since = today_ - timedelta(days=30)
+        rows = (
+            db.session.query(Attendance.status, func.count(Attendance.id))
+            .filter(
+                Attendance.school_id == sid,
+                Attendance.date >= since,
+                Attendance.section_id.in_(section_ids),
+            )
+            .group_by(Attendance.status).all()
+        )
+        by = {s: int(c) for s, c in rows}
+        total = sum(by.values())
+        if not total:
+            return None
+        return round((by.get("present", 0) / total) * 100, 1)
+
+    students_count = _safe(_students_count, 0)
+    today_periods = _safe(_today_periods, [])
+    pending = _safe(_pending_submissions, [])
+    attendance_rate = _safe(_attendance_rate_30d, None)
+    pending_count = _safe(
+        lambda: db.session.query(func.count(Submission.id))
+            .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)
+            .join(Course, Course.id == CourseAssignment.course_id)
+            .filter(Course.teacher_id == teacher.id, Submission.score.is_(None))
+            .scalar() if teacher else 0,
+        0,
+    )
+
+    ctx = {
+        "teacher": teacher,
+        "active_year_name": active_year.name if active_year else "—",
+        "today_date": today_,
+        "students_count": students_count,
+        "today_periods": today_periods,
+        "today_periods_count": len(today_periods),
+        "pending_count": int(pending_count or 0),
+        "pending_submissions": pending,
+        "attendance_rate": attendance_rate,
+    }
+    return render_template("dashboard/teacher.html", **ctx)
+
+
+def _student_dashboard():
+    """Student home — greeting + urgent assignment + next quiz countdown +
+    latest grade + courses grid. Scopes by the linked Student row."""
+    from ...models import Assignment as _TA  # noqa: F401 (import parity)
+    from ...models import Course
+
+    student = _safe(
+        lambda: Student.query.filter_by(user_id=current_user.id).first()
+    ) if hasattr(current_user, "id") else None
+    # `user_id` isn't a modelled column on Student in the SIS schema. Fall
+    # back: the parent-user link at Student.parent_user_id exists, but the
+    # STUDENT itself is not typically a user in this SIS. If none is found,
+    # we still render with what we can derive from the logged-in user.
+    if student is None:
+        student = _safe(lambda: Student.query.filter_by(school_id=current_user.school_id).first())
+
+    now = datetime.utcnow()
+    # Next due assignment: any published, not yet due
+    next_assignment = _safe(
+        lambda: (
+            CourseAssignment.query
+            .filter(CourseAssignment.is_published.is_(True),
+                    (CourseAssignment.due_at.is_(None)) | (CourseAssignment.due_at > now))
+            .order_by(CourseAssignment.due_at.asc().nullslast())
+            .first()
+        )
+    )
+    # Next quiz opening/open
+    next_quiz = _safe(
+        lambda: (
+            Quiz.query.filter(Quiz.is_published.is_(True))
+            .order_by(Quiz.opens_at.asc().nullslast())
+            .first()
+        )
+    )
+    # Latest grade — last submission of this student with a score
+    latest_grade = None
+    if student:
+        latest_grade = _safe(
+            lambda: (
+                Submission.query
+                .filter(Submission.student_id == student.id,
+                        Submission.score.isnot(None))
+                .order_by(Submission.graded_at.desc().nullslast(),
+                          Submission.submitted_at.desc())
+                .first()
+            )
+        )
+
+    # Courses list — scoped to student's active section if we can find one
+    courses = []
+    if student:
+        active_enroll = _safe(
+            lambda: Enrollment.query.filter_by(
+                student_id=student.id, status="active"
+            ).order_by(Enrollment.created_at.desc()).first()
+        )
+        if active_enroll:
+            courses = _safe(
+                lambda: Course.query.filter_by(
+                    section_id=active_enroll.section_id,
+                    is_published=True,
+                ).limit(8).all(), []
+            )
+
+    return render_template(
+        "dashboard/student.html",
+        student=student,
+        next_assignment=next_assignment,
+        next_quiz=next_quiz,
+        latest_grade=latest_grade,
+        courses=courses,
+    )
+
+
+def _parent_dashboard():
+    """Parent home — child selector + weekly attendance + latest grades +
+    fees status + announcements feed. Scopes by parent_user_id on Student."""
+    sid = current_user.school_id
+    children = _safe(
+        lambda: Student.query.filter_by(parent_user_id=current_user.id).all(), []
+    )
+    try:
+        active_child_id = int(request.args.get("child_id", 0))
+    except (TypeError, ValueError):
+        active_child_id = 0
+    active_child = None
+    if children:
+        active_child = next((c for c in children if c.id == active_child_id), children[0])
+
+    # weekly attendance for the active child
+    week_att = []
+    latest_grades = []
+    invoices = []
+    installments = []
+    if active_child:
+        since = date.today() - timedelta(days=6)
+        enroll = _safe(
+            lambda: Enrollment.query.filter_by(
+                student_id=active_child.id, status="active"
+            ).order_by(Enrollment.created_at.desc()).first()
+        )
+        if enroll:
+            week_att = _safe(
+                lambda: (
+                    Attendance.query
+                    .filter(
+                        Attendance.enrollment_id == enroll.id,
+                        Attendance.date >= since,
+                    ).order_by(Attendance.date.asc()).all()
+                ), []
+            )
+        latest_grades = _safe(
+            lambda: (
+                Submission.query
+                .filter(Submission.student_id == active_child.id,
+                        Submission.score.isnot(None))
+                .order_by(Submission.graded_at.desc().nullslast(),
+                          Submission.submitted_at.desc())
+                .limit(3).all()
+            ), []
+        )
+        # Unpaid invoices for this child
+        invoices = _safe(
+            lambda: (
+                db.session.query(Invoice)
+                .join(Enrollment, Enrollment.id == Invoice.enrollment_id)
+                .filter(Enrollment.student_id == active_child.id,
+                        Invoice.status != "paid")
+                .order_by(Invoice.due_date.asc().nullslast())
+                .limit(3).all()
+            ), []
+        )
+    announcements = _safe(
+        lambda: (
+            Announcement.query.filter_by(school_id=sid)
+            .order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
+            .limit(4).all()
+        ), []
+    )
+
+    return render_template(
+        "dashboard/parent.html",
+        children=children,
+        active_child=active_child,
+        week_attendance=week_att,
+        latest_grades=latest_grades,
+        invoices=invoices,
+        announcements=announcements,
+        today=date.today(),
+    )

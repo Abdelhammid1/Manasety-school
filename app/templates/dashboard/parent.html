@@ -1,0 +1,160 @@
+{# Parent dashboard — ported from Stitch _5. All data from _parent_dashboard(). #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}صفحة ولي الأمر — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">صفحة ولي الأمر</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+
+  {# Greeting + child selector #}
+  <section class="bg-gradient-to-l from-primary via-primary-container to-secondary rounded-2xl p-space-md shadow-xl text-on-primary">
+    <div class="flex items-center gap-space-sm mb-space-sm">
+      <div class="w-14 h-14 rounded-2xl bg-surface-container-lowest/20 text-on-primary flex items-center justify-center font-bold text-xl shrink-0">
+        {{ current_user.full_name[:1] if current_user.full_name else 'و' }}
+      </div>
+      <div class="flex flex-col min-w-0">
+        <h2 class="font-headline-lg-mobile text-headline-lg-mobile font-extrabold text-on-primary truncate">أهلاً بك، {{ current_user.full_name }}</h2>
+        <p class="font-body-sm text-body-sm text-surface-container-highest/90">ولي أمر موثق · {{ school_name }}</p>
+      </div>
+    </div>
+    {% if children %}
+    <div class="flex items-center gap-space-xs overflow-x-auto no-scrollbar py-1">
+      <span class="font-label-xs text-label-xs text-secondary-fixed shrink-0">الأبناء المسجلون:</span>
+      {% for child in children %}
+      <a href="?child_id={{ child.id }}"
+         class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full transition-all shrink-0
+                {% if active_child and active_child.id == child.id %}bg-surface-container-lowest text-primary font-bold shadow-md{% else %}bg-surface-container-lowest/15 text-on-primary hover:bg-surface-container-lowest/25{% endif %}">
+        <span class="w-6 h-6 rounded-full bg-secondary-fixed text-on-secondary-fixed flex items-center justify-center font-bold text-xs">
+          {{ child.full_name[:1] if child.full_name else '؟' }}
+        </span>
+        <span class="font-label-md text-label-md">{{ child.full_name }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </section>
+
+  {% if not active_child %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg text-center text-on-surface-variant">
+    <span class="material-symbols-outlined text-5xl text-outline">family_restroom</span>
+    <p class="mt-3 font-body-md text-body-md">لم يُربط أي طالب بحسابك بعد. راجع إدارة المدرسة لربط أبنائك.</p>
+  </div>
+  {% else %}
+
+  {# Weekly attendance strip + fees + grades #}
+  <section class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between mb-space-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined text-secondary">fact_check</span>
+          حضور الأسبوع
+        </h3>
+        <a href="{{ url_for('attendance.index') }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
+      </div>
+      <div class="flex justify-between gap-2 mt-2" dir="rtl">
+        {% for day in week_attendance %}
+        <div class="flex flex-col items-center gap-1 flex-1">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center
+              {% if day.status == 'present' %}bg-secondary text-on-secondary
+              {% elif day.status == 'absent' %}bg-error text-on-error
+              {% elif day.status == 'late' %}bg-tertiary-fixed-dim text-on-tertiary-fixed
+              {% else %}bg-surface-container text-on-surface-variant{% endif %}">
+            <span class="material-symbols-outlined text-[16px]">
+              {% if day.status == 'present' %}check{% elif day.status == 'absent' %}close{% elif day.status == 'late' %}schedule{% else %}help{% endif %}
+            </span>
+          </div>
+          <span class="font-label-xs text-label-xs text-on-surface-variant">{{ day.date.strftime('%m/%d') }}</span>
+        </div>
+        {% else %}
+        <p class="text-center w-full text-on-surface-variant font-body-sm text-body-sm">لا سجل حضور لهذا الأسبوع.</p>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between mb-space-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined text-secondary">payments</span>
+          الرسوم والفواتير
+        </h3>
+        <a href="{{ url_for('finance.invoices_list') }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
+      </div>
+      {% if invoices %}
+      <div class="flex flex-col gap-2">
+        {% for inv in invoices %}
+        <div class="p-2 rounded-lg bg-surface-container-low flex items-center justify-between">
+          <div class="flex flex-col">
+            <span class="font-label-md text-label-md text-on-surface font-bold">فاتورة #{{ inv.id }}</span>
+            <span class="font-label-xs text-label-xs text-on-surface-variant">
+              {% if inv.due_date %}يستحق: {{ inv.due_date.strftime('%Y-%m-%d') }}{% endif %}
+            </span>
+          </div>
+          <div class="flex flex-col items-end">
+            <span class="font-label-lg text-label-lg text-primary font-bold">{{ (inv.total_amount - inv.paid_amount)|round(2) }} ر.س</span>
+            <span class="font-label-xs text-label-xs {% if inv.status=='paid' %}text-secondary{% elif inv.due_date and inv.due_date < today %}text-error{% else %}text-on-surface-variant{% endif %} font-bold">
+              {% if inv.status=='paid' %}مدفوعة{% else %}متبقّية{% endif %}
+            </span>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-center text-on-surface-variant font-body-sm text-body-sm py-4">لا فواتير مستحقة حالياً. ✓</p>
+      {% endif %}
+    </div>
+  </section>
+
+  {# Latest grades #}
+  <section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+    <div class="flex items-center justify-between mb-space-sm">
+      <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">grade</span>
+        آخر الدرجات
+      </h3>
+      <a href="{{ url_for('results.grades_index') }}" class="font-label-md text-label-md text-secondary hover:underline">كل الدرجات</a>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+      {% for g in latest_grades %}
+      <div class="p-space-sm rounded-lg bg-surface-container-low">
+        <div class="flex items-baseline justify-between">
+          <span class="font-headline-sm text-headline-sm text-primary font-extrabold">{{ g.score }}</span>
+          <span class="font-label-md text-label-md text-on-surface-variant">/{{ g.assignment.max_score if g.assignment else 100 }}</span>
+        </div>
+        <p class="font-label-md text-label-md text-on-surface font-bold mt-1 truncate">{{ g.assignment.title if g.assignment else '—' }}</p>
+        <p class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ g.assignment.course.title if g.assignment and g.assignment.course else '' }}</p>
+      </div>
+      {% else %}
+      <p class="col-span-full text-center text-on-surface-variant font-body-sm text-body-sm py-3">لا درجات مسجلة بعد.</p>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+
+  {# Announcements #}
+  <section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+    <div class="flex items-center justify-between mb-space-sm">
+      <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">campaign</span>
+        إعلانات المدرسة
+      </h3>
+      <a href="{{ url_for('lms.announcements_home') }}" class="font-label-md text-label-md text-secondary hover:underline">الكل</a>
+    </div>
+    <div class="flex flex-col gap-2">
+      {% for a in announcements %}
+      <div class="p-3 rounded-lg {% if a.is_pinned %}bg-secondary-container/30 border-r-2 border-secondary{% else %}bg-surface-container-low{% endif %}">
+        <div class="flex items-center justify-between">
+          <span class="font-label-lg text-label-lg font-bold text-on-surface">{{ a.title }}</span>
+          <span class="font-label-xs text-label-xs text-on-surface-variant">{{ a.created_at.strftime('%Y-%m-%d') }}</span>
+        </div>
+        <p class="font-body-sm text-body-sm text-on-surface-variant mt-1 line-clamp-2">{{ a.body }}</p>
+      </div>
+      {% else %}
+      <p class="text-center text-on-surface-variant font-body-sm text-body-sm py-3">لا إعلانات حديثة.</p>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

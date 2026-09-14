@@ -1,0 +1,286 @@
+{# Teacher dashboard — ported from Stitch _1. Every value comes from the
+   view context (routes.py :: _teacher_dashboard). No static data. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}لوحة المعلم{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">لوحة المعلم</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+
+  {# ── Greeting hero ── #}
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-space-md shadow-xl text-on-primary">
+    <div class="absolute -top-12 -left-12 w-40 h-40 rounded-full bg-secondary-container/20 blur-2xl pointer-events-none"></div>
+    <div class="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-surface-container-lowest/10 blur-xl pointer-events-none"></div>
+    <div class="relative z-10 flex flex-col gap-space-sm">
+      <div class="flex items-center justify-between gap-space-xs">
+        <div class="flex items-center gap-space-xs bg-surface-container-lowest/15 backdrop-blur-md px-3 py-1 rounded-full">
+          <span class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
+          <span class="font-label-xs text-label-xs text-secondary-fixed">{{ active_year_name }}</span>
+        </div>
+        <span class="font-label-xs text-label-xs text-surface-container-highest/80">{{ today_date.strftime('%Y-%m-%d') }}</span>
+      </div>
+      <div class="flex items-center gap-space-sm mt-1">
+        <div class="w-14 h-14 rounded-2xl bg-surface-container-lowest/20 flex items-center justify-center text-on-primary font-headline-md text-headline-md font-extrabold">
+          {{ current_user.full_name[:1] if current_user.full_name else 'م' }}
+        </div>
+        <div class="flex flex-col min-w-0">
+          <h2 class="font-headline-lg-mobile text-headline-lg-mobile font-extrabold text-on-primary truncate">
+            صباح الخير، {{ current_user.full_name }} 👋
+          </h2>
+          <p class="font-body-sm text-body-sm text-surface-container-highest/90 truncate">
+            {% if teacher %}
+              {% set _subjs = teacher.subjects if teacher.subjects is defined else [] %}
+              {{ _subjs|map(attribute='name')|join(' · ') if _subjs else 'أستاذ/ة' }}
+            {% else %}
+              الحساب غير مرتبط بملف معلم — راجع مدير النظام.
+            {% endif %}
+          </p>
+        </div>
+      </div>
+      <div class="mt-2 flex items-center justify-between pt-2 border-t border-surface-container-lowest/15 text-surface-container-highest">
+        <div class="flex items-center gap-1.5">
+          <span class="material-symbols-outlined text-[18px] text-secondary-container">alarm_on</span>
+          <span class="font-label-md text-label-md">
+            {% if today_periods and today_periods[0].period %}
+              الحصة القادمة: <strong class="text-on-primary font-bold">{{ today_periods[0].period.start_time.strftime('%H:%M') if today_periods[0].period.start_time else '—' }}</strong>
+              {% if today_periods[0].section %} ({{ today_periods[0].section.name }}){% endif %}
+            {% else %}
+              لا حصص مجدولة اليوم
+            {% endif %}
+          </span>
+        </div>
+        <a href="{{ url_for('schedule.index') }}" class="inline-flex items-center gap-1 font-label-xs text-label-xs text-secondary-container bg-surface-container-lowest/15 hover:bg-surface-container-lowest/25 px-2.5 py-1 rounded-lg transition-colors">
+          <span>عرض الجدول</span>
+          <span class="material-symbols-outlined text-[14px]">arrow_back</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {# ── Quick actions ── #}
+  <section class="flex gap-space-xs overflow-x-auto pb-1 no-scrollbar">
+    <a href="{{ url_for('attendance.index') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md shadow-md hover:bg-primary-container active:scale-95 transition-all shrink-0">
+      <span class="material-symbols-outlined text-[20px] text-secondary-container">fact_check</span>
+      <span>رصد الحضور السريع</span>
+    </a>
+    <a href="{{ url_for('lms.assignments_home') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm hover:bg-surface-container-low active:scale-95 transition-all shrink-0">
+      <span class="material-symbols-outlined text-[20px] text-secondary">add_task</span>
+      <span>واجب جديد</span>
+    </a>
+    <a href="{{ url_for('lms.announcements_home') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface font-label-md text-label-md shadow-sm hover:bg-surface-container-low active:scale-95 transition-all shrink-0">
+      <span class="material-symbols-outlined text-[20px] text-secondary">campaign</span>
+      <span>إعلان جديد</span>
+    </a>
+    <a href="{{ url_for('courses.new') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface font-label-md text-label-md shadow-sm hover:bg-surface-container-low active:scale-95 transition-all shrink-0">
+      <span class="material-symbols-outlined text-[20px] text-primary">library_add</span>
+      <span>مادة جديدة</span>
+    </a>
+  </section>
+
+  {# ── 4 KPI tiles ── #}
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-space-sm">
+    {# 1. Students #}
+    <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+      <div class="flex items-start justify-between">
+        <div class="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined text-[22px]">groups</span>
+        </div>
+      </div>
+      <div class="mt-3">
+        <span class="font-display-hero-mobile text-display-hero-mobile text-primary font-extrabold leading-tight block">{{ students_count }}</span>
+        <span class="font-label-md text-label-md text-on-surface-variant">إجمالي الطلاب</span>
+      </div>
+      <div class="w-full h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+        <div class="h-full bg-secondary rounded-full" style="width: {{ [students_count*100//200, 100]|min if students_count else 0 }}%"></div>
+      </div>
+    </div>
+
+    {# 2. Today's periods #}
+    <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+      <div class="flex items-start justify-between">
+        <div class="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center text-secondary">
+          <span class="material-symbols-outlined text-[22px]">calendar_today</span>
+        </div>
+        {% if today_periods_count %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/30 text-on-secondary-container font-label-xs text-label-xs font-bold">نشط اليوم</span>
+        {% endif %}
+      </div>
+      <div class="mt-3">
+        <span class="font-display-hero-mobile text-display-hero-mobile text-secondary font-extrabold leading-tight block">{{ today_periods_count }}</span>
+        <span class="font-label-md text-label-md text-on-surface-variant">حصص اليوم</span>
+      </div>
+      <div class="w-full h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+        <div class="h-full bg-secondary-container rounded-full" style="width: {{ [today_periods_count*100//8, 100]|min if today_periods_count else 0 }}%"></div>
+      </div>
+    </div>
+
+    {# 3. Pending grading #}
+    <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+      <div class="flex items-start justify-between">
+        <div class="w-10 h-10 rounded-xl {% if pending_count %}bg-error-container/60 text-error{% else %}bg-secondary-fixed text-secondary{% endif %} flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">pending_actions</span>
+        </div>
+        {% if pending_count %}
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs text-label-xs font-bold animate-pulse">تنبيه</span>
+        {% else %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/30 text-on-secondary-container font-label-xs text-label-xs font-bold">مكتمل</span>
+        {% endif %}
+      </div>
+      <div class="mt-3">
+        <span class="font-display-hero-mobile text-display-hero-mobile text-on-surface font-extrabold leading-tight block">{{ pending_count }}</span>
+        <span class="font-label-md text-label-md text-on-surface-variant">بانتظار التصحيح</span>
+      </div>
+      <div class="w-full h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+        <div class="h-full {% if pending_count %}bg-error{% else %}bg-secondary{% endif %} rounded-full" style="width: {{ [pending_count*100//20, 100]|min if pending_count else 8 }}%"></div>
+      </div>
+    </div>
+
+    {# 4. Attendance rate #}
+    <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
+      <div class="flex items-start justify-between">
+        <div class="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined text-[22px]">how_to_reg</span>
+        </div>
+        {% if attendance_rate is not none %}
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full {% if attendance_rate >= 90 %}bg-secondary-fixed text-on-secondary-fixed-variant{% elif attendance_rate >= 75 %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% else %}bg-error-container text-on-error-container{% endif %} font-label-xs text-label-xs font-bold">
+          {% if attendance_rate >= 90 %}ممتاز{% elif attendance_rate >= 75 %}جيد{% else %}يحتاج متابعة{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <div class="mt-3">
+        <span class="font-display-hero-mobile text-display-hero-mobile text-primary font-extrabold leading-tight block">
+          {% if attendance_rate is none %}—{% else %}{{ attendance_rate }}٪{% endif %}
+        </span>
+        <span class="font-label-md text-label-md text-on-surface-variant">معدل الحضور (٣٠ يوم)</span>
+      </div>
+      <div class="w-full h-1 bg-surface-container rounded-full mt-2 overflow-hidden">
+        <div class="h-full bg-primary rounded-full" style="width: {{ attendance_rate or 0 }}%"></div>
+      </div>
+    </div>
+  </section>
+
+  {# ── Today's schedule ── #}
+  <section class="flex flex-col gap-space-sm">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+        <h3 class="font-headline-sm text-headline-sm text-primary font-bold">جدول الحصص اليومية</h3>
+      </div>
+      <a href="{{ url_for('schedule.index') }}" class="font-label-sm text-label-md text-secondary hover:underline flex items-center gap-0.5">
+        <span>عرض الأسبوع</span>
+        <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+      </a>
+    </div>
+    <div class="flex flex-col gap-space-xs">
+      {% for slot in today_periods %}
+      <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm relative overflow-hidden">
+        <div class="absolute top-0 right-0 w-1.5 h-full {% if loop.first %}bg-secondary-container{% else %}bg-primary-fixed{% endif %}"></div>
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex flex-col gap-1">
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs text-label-xs font-bold">
+                {% if loop.first %}الحصة القادمة{% else %}الحصة {{ loop.index }}{% endif %}
+              </span>
+              {% if slot.period and slot.period.start_time %}
+                <span class="font-label-xs text-label-xs text-on-surface-variant">
+                  {{ slot.period.start_time.strftime('%H:%M') }} — {{ slot.period.end_time.strftime('%H:%M') if slot.period.end_time else '' }}
+                </span>
+              {% endif %}
+            </div>
+            <h4 class="font-title-md text-title-md {% if loop.first %}text-primary{% else %}text-on-surface{% endif %} font-bold mt-1">
+              {{ slot.subject.name if slot.subject else 'حصة' }}
+            </h4>
+            <div class="flex items-center gap-space-sm text-on-surface-variant font-label-md text-label-md">
+              <span class="flex items-center gap-1"><span class="material-symbols-outlined text-[16px] text-outline">meeting_room</span> {{ slot.section.name if slot.section else '—' }}</span>
+            </div>
+          </div>
+          {% if loop.first %}
+          <a href="{{ url_for('attendance.index') }}" class="shrink-0 flex items-center gap-1.5 bg-gradient-to-l from-primary to-secondary text-on-primary font-label-md text-label-md px-4 py-2.5 rounded-xl shadow-md hover:opacity-95 transition-all">
+            <span class="material-symbols-outlined text-[18px]">videocam</span>
+            <span>فتح الصف</span>
+          </a>
+          {% endif %}
+        </div>
+      </div>
+      {% else %}
+      <div class="bg-surface-container-low rounded-2xl p-space-lg text-center text-on-surface-variant">
+        <span class="material-symbols-outlined text-4xl text-outline">event_available</span>
+        <p class="mt-2 font-body-md text-body-md">لا حصص مجدولة لك اليوم — يوم هادئ للتحضير.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── Pending submissions ── #}
+  <section class="flex flex-col gap-space-sm mt-1">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-2.5 h-2.5 rounded-full bg-secondary"></span>
+        <h3 class="font-headline-sm text-headline-sm text-primary font-bold">تسليمات بانتظار المراجعة</h3>
+      </div>
+      {% if pending_count %}
+      <a href="{{ url_for('lms.assignments_home') }}" class="font-label-xs text-label-xs bg-error-container text-on-error-container font-bold px-2 py-0.5 rounded-full hover:opacity-90">{{ pending_count }} تسليم</a>
+      {% endif %}
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-sm shadow-sm flex flex-col gap-1">
+      {% for sub in pending_submissions %}
+      <div class="flex items-center justify-between p-space-sm rounded-xl hover:bg-surface-container-low transition-colors">
+        <div class="flex items-center gap-3 min-w-0">
+          <div class="w-11 h-11 rounded-full bg-primary-fixed text-primary flex items-center justify-center shrink-0 font-bold">
+            {{ (sub.student.full_name[:1] if sub.student and sub.student.full_name else '؟') }}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <div class="flex items-center gap-1.5">
+              <span class="font-label-lg text-label-lg font-bold text-on-surface truncate">{{ sub.student.full_name if sub.student else 'طالب' }}</span>
+            </div>
+            <div class="flex items-center gap-2 text-on-surface-variant font-label-xs text-label-xs">
+              <span class="text-primary font-semibold">{{ sub.assignment.title if sub.assignment else '—' }}</span>
+              <span>•</span>
+              <span class="text-outline">{{ sub.submitted_at.strftime('%Y-%m-%d %H:%M') if sub.submitted_at else '' }}</span>
+            </div>
+          </div>
+        </div>
+        <a href="{{ url_for('lms.assignments_home') }}#sub-{{ sub.id }}"
+           class="shrink-0 flex items-center gap-1 bg-primary text-on-primary font-label-md text-label-md px-3.5 py-1.5 rounded-xl hover:bg-primary-container transition-all">
+          <span class="material-symbols-outlined text-[16px]">edit_note</span>
+          <span>تصحيح</span>
+        </a>
+      </div>
+      {% if not loop.last %}<div class="w-full h-[1px] bg-surface-container"></div>{% endif %}
+      {% else %}
+      <div class="p-space-lg text-center text-on-surface-variant">
+        <span class="material-symbols-outlined text-4xl text-outline">task_alt</span>
+        <p class="mt-2 font-body-md text-body-md">لا تسليمات بانتظار المراجعة — أحسنت المتابعة!</p>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── AI assistant callout — links to LMS content builder #}
+  <section class="bg-gradient-to-r from-surface-container-low to-surface-container-lowest rounded-2xl p-space-md flex items-center justify-between gap-space-sm">
+    <div class="flex items-center gap-3">
+      <div class="w-12 h-12 rounded-xl bg-secondary-container/30 text-on-secondary-container flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-[26px]">smart_toy</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-label-lg text-label-lg font-bold text-primary">المساعد الذكي لمنصتي</span>
+        <span class="font-body-sm text-body-sm text-on-surface-variant">
+          {% if pending_count > 5 %}
+            لديك {{ pending_count }} تسليماً بانتظار المراجعة — رتّبها الآن.
+          {% elif not today_periods %}
+            يوم هادئ — يمكنك إضافة درس جديد أو مراجعة جدول الأسبوع.
+          {% else %}
+            جميع الحصص وسير التصحيح على المسار الصحيح.
+          {% endif %}
+        </span>
+      </div>
+    </div>
+    <a href="{{ url_for('courses.list_courses') }}" class="shrink-0 px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-sm text-label-md shadow hover:bg-primary-container transition-all">
+      إدارة الموادّ
+    </a>
+  </section>
+</div>
+{% endblock %}
