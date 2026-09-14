@@ -1,50 +1,164 @@
-{% extends "partials/base.html" %}
-{% block title %}{{ teacher.full_name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>{{ teacher.full_name }}</h2>
-    <div class="sub">
-      <span class="badge navy">{{ teacher.specialization }}</span>
-      {% if teacher.is_active %}<span class="badge ok">نشط</span>{% else %}<span class="badge danger">معطّل</span>{% endif %}
-    </div>
-  </div>
-  <div class="flex">
-    <a href="{{ url_for('teachers.teachers_list') }}" class="btn btn-ghost">رجوع</a>
-    <a href="{{ url_for('teachers.teacher_edit', teacher_id=teacher.id) }}" class="btn btn-ghost">تعديل</a>
-    <a href="{{ url_for('schedule.teacher_schedule', teacher_id=teacher.id) }}" class="btn btn-navy">عرض الجدول</a>
-  </div>
-</div>
+{# Teacher profile — Stitch _38. Hero + info tabs + current assignments. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ teacher.full_name }} — ملف المعلم{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('teachers.teachers_list') }}" class="hover:text-primary">المعلمون</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ teacher.full_name }}</span>
+{% endblock %}
 
-<div class="grid grid-2">
-  <div class="card">
-    <h3>بيانات الاتصال</h3>
-    <table class="data" style="border:0">
-      <tbody>
-        <tr><td>الهاتف</td><td>{{ teacher.phone or '—' }}</td></tr>
-        <tr><td>البريد</td><td>{{ teacher.email or '—' }}</td></tr>
-        <tr><td>رقم الهوية</td><td>{{ teacher.national_id or '—' }}</td></tr>
-        <tr><td>تاريخ التعيين</td><td>{{ teacher.hire_date or '—' }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <h3>الإسناد للسنة {{ active_year.name if active_year else '—' }}</h3>
-    {% if assignments %}
-    <table class="data" style="border:0">
-      <thead><tr><th>الفصل</th><th>المادة</th></tr></thead>
-      <tbody>
-        {% for a in assignments %}
-        <tr>
-          <td>{{ a.section.grade.name }} / {{ a.section.name }}</td>
-          <td><strong>{{ a.subject.name }}</strong></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}
-    <p class="text-muted">لا توجد إسنادات لهذا المعلم في السنة الحالية.</p>
-    {% endif %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg">
+  <!-- Hero -->
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="relative z-10 p-space-lg flex items-center gap-space-md flex-wrap">
+      <div class="w-24 h-24 rounded-2xl bg-white/15 flex items-center justify-center font-headline-lg font-extrabold shrink-0">
+        {{ teacher.full_name[:1] }}
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-headline-lg text-on-primary tracking-tight">{{ teacher.full_name }}</h1>
+        <div class="flex items-center gap-space-sm flex-wrap mt-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md text-label-md">
+            <span class="material-symbols-outlined text-sm">school</span>{{ teacher.specialization }}
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-md text-label-md font-bold
+              {% if teacher.is_active %}bg-[#10B981] text-white{% else %}bg-white/15 text-white{% endif %}">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>{{ 'نشط' if teacher.is_active else 'موقوف' }}
+          </span>
+          {% if teacher.hire_date %}
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md text-label-md">
+            <span class="material-symbols-outlined text-sm">event</span>تعيين: {{ teacher.hire_date.strftime('%Y-%m-%d') }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      <a href="{{ url_for('teachers.teacher_edit', teacher_id=teacher.id) }}"
+         class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg text-label-lg font-bold hover:bg-white/25 transition-colors flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">edit</span><span>تعديل الملف</span>
+      </a>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg">
+    <!-- Personal + contact -->
+    <div class="lg:col-span-2 flex flex-col gap-space-md">
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">person</span>البيانات الشخصية والوظيفية
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md mt-space-md">
+          {% for label, val, ltr in [
+            ('الاسم الرباعي', teacher.full_name, False),
+            ('رقم الهوية', teacher.national_id or '—', True),
+            ('التخصص',    teacher.specialization, False),
+            ('الجوال',     teacher.phone or '—', True),
+            ('البريد',     teacher.email or '—', True),
+            ('تاريخ التعيين', (teacher.hire_date.strftime('%Y-%m-%d') if teacher.hire_date else '—'), True),
+          ] %}
+          <div class="flex flex-col">
+            <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+            <span class="font-body-md text-body-md text-on-surface font-semibold" {% if ltr %}dir="ltr"{% endif %}>{{ val }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <div class="flex items-center justify-between mb-space-md">
+          <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">assignment_ind</span>الإسناد الحالي — {{ active_year.name if active_year else 'لا سنة نشطة' }}
+          </h2>
+          <span class="font-label-md text-label-md text-on-surface-variant">{{ assignments|length }} إسناد</span>
+        </div>
+        {% if assignments %}
+        <div class="flex flex-col gap-2">
+          {% for a in assignments %}
+          <div class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+                <span class="material-symbols-outlined">menu_book</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-label-lg text-label-lg text-primary font-bold">{{ a.subject.name }}</span>
+                <span class="font-label-xs text-label-xs text-on-surface-variant">
+                  {{ a.section.grade.name }} — {{ a.section.name }} · {{ a.weekly_periods }} حصص أسبوعياً
+                </span>
+              </div>
+            </div>
+            <a href="{{ url_for('teachers.section_assignments', section_id=a.section_id) }}"
+               class="h-9 px-3 rounded-lg text-primary hover:bg-primary-container/20 flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">arrow_forward</span>
+              <span>تفاصيل الفصل</span>
+            </a>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-center text-on-surface-variant py-space-md">لا إسنادات نشطة في السنة الحالية.</p>
+        {% endif %}
+      </section>
+
+      {% if teacher.notes %}
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">sticky_note_2</span>ملاحظات
+        </h2>
+        <p class="mt-2 font-body-md text-body-md text-on-surface leading-relaxed whitespace-pre-line">{{ teacher.notes }}</p>
+      </section>
+      {% endif %}
+    </div>
+
+    <aside class="flex flex-col gap-space-md">
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">insights</span>مقاييس التدريس
+        </h3>
+        <div class="mt-space-md flex flex-col gap-2">
+          <div class="p-2 rounded-lg bg-surface-container-low flex items-center justify-between">
+            <span class="font-label-md text-label-md text-on-surface-variant">الحصص الأسبوعية</span>
+            <span class="font-title-md text-title-md text-primary font-bold">
+              {{ assignments|sum(attribute='weekly_periods') if assignments else 0 }}
+            </span>
+          </div>
+          <div class="p-2 rounded-lg bg-surface-container-low flex items-center justify-between">
+            <span class="font-label-md text-label-md text-on-surface-variant">عدد المواد</span>
+            <span class="font-title-md text-title-md text-primary font-bold">
+              {{ assignments|map(attribute='subject_id')|unique|list|length if assignments else 0 }}
+            </span>
+          </div>
+          <div class="p-2 rounded-lg bg-surface-container-low flex items-center justify-between">
+            <span class="font-label-md text-label-md text-on-surface-variant">عدد الفصول</span>
+            <span class="font-title-md text-title-md text-primary font-bold">
+              {{ assignments|map(attribute='section_id')|unique|list|length if assignments else 0 }}
+            </span>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">link</span>الحساب المرتبط
+        </h3>
+        {% if teacher.user %}
+        <div class="mt-space-sm p-2 rounded-lg bg-secondary-container/40 flex items-center gap-3">
+          <div class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold">
+            {{ teacher.user.full_name[:1] if teacher.user.full_name else '؟' }}
+          </div>
+          <div class="flex flex-col">
+            <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ teacher.user.full_name }}</span>
+            <code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ teacher.user.username }}</code>
+          </div>
+        </div>
+        {% else %}
+        <p class="mt-space-sm text-outline font-label-md text-label-md">
+          لم يُربط حساب مستخدم — <a href="{{ url_for('teachers.teacher_edit', teacher_id=teacher.id) }}" class="text-primary font-bold underline">ربط الآن</a>.
+        </p>
+        {% endif %}
+      </section>
+    </aside>
   </div>
 </div>
 {% endblock %}

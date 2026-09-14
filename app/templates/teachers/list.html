@@ -1,46 +1,119 @@
-{% extends "partials/base.html" %}
-{% block title %}المعلمون{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>المعلمون</h2>
-    <div class="sub">إدارة بيانات المعلمين وتخصصاتهم (T-4.1)</div>
-  </div>
-  <a href="{{ url_for('teachers.teacher_new') }}" class="btn btn-primary">+ معلم جديد</a>
-</div>
+{# Teachers list — Stitch-styled. Cards grid with photo, specialization,
+   status pill, edit + toggle actions. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}المعلمون — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المعلمون</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr>
-    <th>الاسم</th><th>التخصص</th><th>الهاتف</th><th>البريد</th>
-    <th>تاريخ التعيين</th><th>الحالة</th><th></th>
-  </tr></thead>
-  <tbody>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between gap-space-md flex-wrap">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">هيئة التدريس</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">إدارة المعلمين والاختصاصات وحالات النشاط.</p>
+    </div>
+    <div class="flex items-center gap-space-sm">
+      <a href="{{ url_for('teachers.subjects_list') }}" class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">menu_book</span><span>المواد الدراسية</span>
+      </a>
+      <a href="{{ url_for('teachers.teacher_new') }}"
+         class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">person_add</span><span>معلم جديد</span>
+      </a>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">إجمالي المعلمين</span>
+        <span class="material-symbols-outlined text-primary">groups</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ teachers|length }}</div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">النشطون</span>
+        <span class="material-symbols-outlined text-[#10B981]">check_circle</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
+        {{ teachers|selectattr('is_active')|list|length }}
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">غير نشطين</span>
+        <span class="material-symbols-outlined text-outline">pause_circle</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
+        {{ teachers|rejectattr('is_active')|list|length }}
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">معلمون مرتبطون بحساب</span>
+        <span class="material-symbols-outlined text-secondary">link</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
+        {{ teachers|selectattr('user_id')|list|length }}
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for t in teachers %}
-    <tr>
-      <td><strong>{{ t.full_name }}</strong></td>
-      <td><span class="badge navy">{{ t.specialization }}</span></td>
-      <td class="text-muted">{{ t.phone or '—' }}</td>
-      <td class="text-muted">{{ t.email or '—' }}</td>
-      <td class="text-muted">{{ t.hire_date or '—' }}</td>
-      <td>
-        {% if t.is_active %}<span class="badge ok">نشط</span>
-        {% else %}<span class="badge danger">معطّل</span>{% endif %}
-      </td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('teachers.teacher_detail', teacher_id=t.id) }}">عرض</a>
-        <form action="{{ url_for('teachers.teacher_toggle', teacher_id=t.id) }}" method="post" style="display:inline"
-              onsubmit="return confirm('{{ 'تعطيل المعلم لن يحذف بياناته، لكن سيمنعه من الدخول للمنصة وسيُخفيه من الإسنادات الجديدة. هل تريد المتابعة؟' if t.is_active else 'إعادة تفعيل المعلم؟' }}')">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm relative overflow-hidden">
+      <div class="absolute top-0 right-0 bottom-0 w-1.5 {% if t.is_active %}bg-[#10B981]{% else %}bg-outline{% endif %}"></div>
+      <div class="flex items-start gap-space-md">
+        <div class="w-16 h-16 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center font-headline-sm font-extrabold shrink-0">
+          {{ t.full_name[:1] }}
+        </div>
+        <div class="flex flex-col flex-1 min-w-0">
+          <a href="{{ url_for('teachers.teacher_detail', teacher_id=t.id) }}"
+             class="font-title-md text-title-md text-primary font-bold hover:underline truncate">{{ t.full_name }}</a>
+          <span class="font-label-md text-label-md text-on-surface-variant truncate">{{ t.specialization }}</span>
+          <div class="flex items-center gap-2 mt-1">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs text-label-xs font-bold
+                {% if t.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-on-surface-variant{% endif %}">
+              <span class="w-1.5 h-1.5 rounded-full {% if t.is_active %}bg-[#10B981]{% else %}bg-outline{% endif %}"></span>
+              {{ 'نشط' if t.is_active else 'موقوف' }}
+            </span>
+            {% if t.phone %}<span class="font-label-xs text-label-xs text-outline" dir="ltr">{{ t.phone }}</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-center gap-2">
+        <a href="{{ url_for('teachers.teacher_detail', teacher_id=t.id) }}"
+           class="flex-1 h-10 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition-colors">
+          <span class="material-symbols-outlined text-sm">visibility</span><span>الملف</span>
+        </a>
+        <a href="{{ url_for('teachers.teacher_edit', teacher_id=t.id) }}"
+           class="flex-1 h-10 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition-colors">
+          <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
+        </a>
+        <form method="post" action="{{ url_for('teachers.teacher_toggle', teacher_id=t.id) }}" class="flex-1">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-sm {{ 'btn-danger' if t.is_active else 'btn-navy' }}" type="submit"
-                  title="{{ 'تعطيل الحساب — لن يُحذف السجل' if t.is_active else 'إعادة تفعيل الحساب' }}">
-            {{ '🚫 تعطيل' if t.is_active else '✓ تفعيل' }}
+          <button type="submit" class="w-full h-10 rounded-lg font-label-md font-bold flex items-center justify-center gap-1 transition-colors
+                  {% if t.is_active %}bg-error-container/40 text-error hover:bg-error-container{% else %}bg-secondary-container/40 text-secondary hover:bg-secondary-container/70{% endif %}">
+            <span class="material-symbols-outlined text-sm">{% if t.is_active %}pause_circle{% else %}play_circle{% endif %}</span>
+            <span>{% if t.is_active %}إيقاف{% else %}تفعيل{% endif %}</span>
           </button>
         </form>
-      </td>
-    </tr>
+      </div>
+    </div>
     {% else %}
-    <tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">لا يوجد معلمون.</td></tr>
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">groups</span>
+      <p class="mt-3 text-on-surface-variant">لا معلمون مضافون بعد.</p>
+      <a href="{{ url_for('teachers.teacher_new') }}"
+         class="mt-4 inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-primary text-on-primary font-label-lg font-bold">
+        <span class="material-symbols-outlined text-lg">person_add</span><span>أول معلم</span>
+      </a>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+</div>
 {% endblock %}

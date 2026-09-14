@@ -1,55 +1,76 @@
-{% extends "partials/base.html" %}
-{% block title %}{% if teacher %}تعديل معلم{% else %}معلم جديد{% endif %}{% endblock %}
-{% block content %}
-{% set f = form if form else {} %}
-<div class="page-title">
-  <div><h2>{% if teacher %}تعديل: {{ teacher.full_name }}{% else %}معلم جديد{% endif %}</h2></div>
-  <a href="{{ url_for('teachers.teachers_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Teacher form — new + edit. Stitch-styled 2-column layout. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if teacher %}تعديل ملف المعلم{% else %}معلم جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('teachers.teachers_list') }}" class="hover:text-primary">المعلمون</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <h3>البيانات الأساسية</h3>
-    <div class="form-row cols-2">
-      <div class="field"><label>الاسم الكامل *</label>
-        <input name="full_name" required value="{{ teacher.full_name if teacher else f.get('full_name','') }}">
+{% block page_content %}
+{% set F = teacher if teacher else form %}
+{% macro fld(name, label, value='', kind='text', ph='', required=False) %}
+<div class="flex flex-col gap-1.5">
+  <label class="font-label-md text-label-md text-on-surface font-bold">{{ label }}{% if required %} <span class="text-error">*</span>{% endif %}</label>
+  {% if kind == 'textarea' %}
+  <textarea name="{{ name }}" rows="3" placeholder="{{ ph }}"
+            class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">{{ value }}</textarea>
+  {% else %}
+  <input name="{{ name }}" type="{{ kind }}" value="{{ value }}" placeholder="{{ ph }}" {% if required %}required{% endif %}
+         class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+  {% endif %}
+</div>
+{% endmacro %}
+
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">{% if teacher %}تعديل ملف المعلم{% else %}تعيين معلم جديد{% endif %}</h1>
+
+  <form method="post" class="flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">person</span>البيانات الشخصية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {{ fld('full_name', 'الاسم الرباعي', F.full_name if F else '', required=True) }}
+        {{ fld('national_id', 'رقم الهوية', F.national_id if F else '') }}
+        {{ fld('phone', 'الجوال', F.phone if F else '', kind='tel', ph='+9665...') }}
+        {{ fld('email', 'البريد الإلكتروني', F.email if F else '', kind='email') }}
       </div>
-      <div class="field"><label>التخصص *</label>
-        <input name="specialization" required value="{{ teacher.specialization if teacher else f.get('specialization','') }}" placeholder="رياضيات / لغة عربية / ...">
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">work</span>بيانات وظيفية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {{ fld('specialization', 'التخصص', F.specialization if F else '', required=True, ph='مثال: الرياضيات — المرحلة الثانوية') }}
+        {{ fld('hire_date', 'تاريخ التعيين', F.hire_date.strftime('%Y-%m-%d') if F and F.hire_date else '', kind='date') }}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">حساب المستخدم المرتبط (اختياري)</label>
+          <select name="user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+            <option value="">— بدون ربط —</option>
+            {% for u in users %}
+            <option value="{{ u.id }}" {% if F and F.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
+            {% endfor %}
+          </select>
+        </div>
       </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      {{ fld('notes', 'ملاحظات (اختياري)', F.notes if F else '', kind='textarea') }}
+    </section>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('teachers.teachers_list') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">save</span>
+        <span>{% if teacher %}حفظ التعديلات{% else %}إنشاء ملف المعلم{% endif %}</span>
+      </button>
     </div>
-    <div class="form-row cols-3">
-      <div class="field"><label>رقم الهوية</label>
-        <input name="national_id" value="{{ teacher.national_id or '' if teacher else f.get('national_id','') }}">
-      </div>
-      <div class="field"><label>الهاتف</label>
-        <input name="phone" value="{{ teacher.phone or '' if teacher else f.get('phone','') }}">
-      </div>
-      <div class="field"><label>تاريخ التعيين</label>
-        <input name="hire_date" type="date" value="{{ teacher.hire_date or '' if teacher else f.get('hire_date','') }}">
-      </div>
-    </div>
-    <div class="form-row cols-2">
-      <div class="field"><label>البريد الإلكتروني</label>
-        <input name="email" type="email" value="{{ teacher.email or '' if teacher else f.get('email','') }}">
-      </div>
-      <div class="field"><label>ملاحظات</label>
-        <input name="notes" value="{{ teacher.notes or '' if teacher else f.get('notes','') }}">
-      </div>
-    </div>
-    <div class="field">
-      <label>ربط بحساب مستخدم (للوصول إلى بوابة المعلم وتطبيق الجوال)</label>
-      <select name="user_id">
-        <option value="">— لا يوجد —</option>
-        {% for u in users %}<option value="{{ u.id }}" {% if teacher and teacher.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
-      </select>
-      <div class="hint">يجب أن يكون حساب المستخدم بدور "معلم" لاستخدام البوابة.</div>
-    </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('teachers.teachers_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+  </form>
+</div>
 {% endblock %}

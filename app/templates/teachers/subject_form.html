@@ -1,38 +1,53 @@
-{% extends "partials/base.html" %}
-{% block title %}{% if subject %}تعديل مادة{% else %}مادة جديدة{% endif %}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div><h2>{% if subject %}تعديل: {{ subject.name }}{% else %}مادة جديدة{% endif %}</h2></div>
-  <a href="{{ url_for('teachers.subjects_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Subject new/edit — Stitch-styled. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if subject %}تعديل المادة{% else %}مادة جديدة{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('teachers.subjects_list') }}" class="hover:text-primary">المواد</a>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="form-row cols-2">
-      <div class="field"><label>اسم المادة *</label>
-        <input name="name" required value="{{ subject.name if subject else '' }}">
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">{% if subject %}تعديل مادة: {{ subject.name }}{% else %}مادة جديدة{% endif %}</h1>
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">اسم المادة <span class="text-error">*</span></label>
+        <input name="name" value="{{ subject.name if subject else '' }}" required
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
       </div>
-      <div class="field"><label>الرمز (اختياري)</label>
-        <input name="code" value="{{ subject.code or '' if subject else '' }}">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الكود (اختياري)</label>
+        <input name="code" value="{{ subject.code if subject and subject.code else '' }}" dir="ltr" placeholder="MATH-9"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
       </div>
     </div>
-    <div class="field">
-      <label>الصفوف المرتبطة (يمكن اختيار أكثر من صف)</label>
-      <div class="grid grid-3" style="gap:8px">
-        {% set sel = subject.grades | map(attribute='id') | list if subject else [] %}
+    <div>
+      <label class="font-label-md text-label-md text-on-surface font-bold block mb-2">الصفوف التي تُدرَّس فيها هذه المادة</label>
+      <div class="grid grid-cols-2 md:grid-cols-3 gap-space-sm">
+        {% set current_gids = subject.grades|map(attribute='id')|list if subject else [] %}
         {% for g in grades %}
-        <label class="checkbox">
-          <input type="checkbox" name="grade_ids" value="{{ g.id }}" {% if g.id in sel %}checked{% endif %}>
-          {{ g.name }}
+        <label class="cursor-pointer">
+          <input type="checkbox" name="grade_ids" value="{{ g.id }}" class="peer sr-only" {% if g.id in current_gids %}checked{% endif %}>
+          <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-low text-center transition-all
+                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
+            <span class="font-label-md text-label-md text-primary font-bold">{{ g.name }}</span>
+          </div>
         </label>
         {% endfor %}
       </div>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('teachers.subjects_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('teachers.subjects_list') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">save</span>
+        <span>{% if subject %}حفظ التعديلات{% else %}إضافة المادة{% endif %}</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

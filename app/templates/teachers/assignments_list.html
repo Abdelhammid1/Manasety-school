@@ -1,35 +1,63 @@
-{% extends "partials/base.html" %}
-{% block title %}الإسناد{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>إسناد المعلمين للمواد والفصول</h2>
-    <div class="sub">اختر فصلاً لإدارة إسناداته (T-4.3)</div>
-  </div>
-</div>
+{# Assignments picker — Stitch _35 style. Lists all sections in the active year;
+   each links to per-section assignments editor. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الإسناد الأكاديمي — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('teachers.teachers_list') }}" class="hover:text-primary">المعلمون</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الإسناد</span>
+{% endblock %}
 
-{% if not year %}
-<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
-{% else %}
-<div class="card">
-  <h3>السنة: {{ year.name }}</h3>
-  <table class="data">
-    <thead><tr><th>الصف</th><th>الفصل</th><th>عدد الإسنادات</th><th></th></tr></thead>
-    <tbody>
-      {% for s in sections %}
-      <tr>
-        <td>{{ s.grade.name }}</td>
-        <td><strong>{{ s.name }}</strong></td>
-        <td>{{ s.assignments | selectattr('is_active') | selectattr('year_id', 'equalto', year.id) | list | length }}</td>
-        <td class="actions">
-          <a class="btn btn-navy btn-sm" href="{{ url_for('teachers.section_assignments', section_id=s.id) }}">إدارة</a>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px">لا توجد فصول لهذه السنة.</td></tr>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">إسناد المعلمين للفصول</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {% if year %}السنة الحالية: <b>{{ year.name }}</b>{% else %}لا سنة نشطة{% endif %}
+      </p>
+    </div>
+  </div>
+
+  {% if year %}
+  {% set grouped = {} %}
+  {% for s in sections %}
+    {% if s.grade_id not in grouped %}{% set _ = grouped.update({s.grade_id: {'grade': s.grade, 'sections': []}}) %}{% endif %}
+    {% set _ = grouped[s.grade_id]['sections'].append(s) %}
+  {% endfor %}
+
+  {% for gid, grp in grouped.items() %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">stairs</span>{{ grp.grade.name }}
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm">
+      {% for s in grp.sections %}
+      <a href="{{ url_for('teachers.section_assignments', section_id=s.id) }}"
+         class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container-lowest border-2 border-outline-variant hover:border-primary transition-all group">
+        <div class="flex items-center justify-between">
+          <span class="font-title-md text-title-md text-primary font-bold">{{ s.name }}</span>
+          <span class="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_back</span>
+        </div>
+        <div class="mt-2 font-label-md text-label-md text-on-surface-variant">
+          {{ s.current_count }}/{{ s.capacity }} طالب
+        </div>
+      </a>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+  </section>
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">meeting_room</span>
+    <p class="mt-3 text-on-surface-variant">لا فصول للسنة الحالية. أضف فصولاً من <a href="{{ url_for('academic.sections_list') }}" class="text-primary font-bold underline">إدارة الفصول</a>.</p>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد سنة دراسية نشطة. أنشئ سنة أولاً من <a href="{{ url_for('academic.years_list') }}" class="text-primary font-bold underline">إدارة السنوات</a>.</span>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}

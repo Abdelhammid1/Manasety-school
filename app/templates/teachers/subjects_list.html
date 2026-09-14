@@ -1,42 +1,66 @@
-{% extends "partials/base.html" %}
+{# Subjects list — Stitch _36. Grid cards + inline toggle + edit. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}المواد الدراسية{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>المواد الدراسية</h2>
-    <div class="sub">قائمة قابلة للتوسّع — أضف مادة في أي وقت دون تعديل الكود (T-4.2)</div>
-  </div>
-  <a href="{{ url_for('teachers.subject_new') }}" class="btn btn-primary">+ مادة جديدة</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('teachers.teachers_list') }}" class="hover:text-primary">المعلمون</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المواد</span>
+{% endblock %}
 
-<table class="data">
-  <thead><tr><th>المادة</th><th>الرمز</th><th>الصفوف</th><th>الحالة</th><th></th></tr></thead>
-  <tbody>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">المواد والمناهج الدراسية</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">إدارة المواد وتخصيصها للصفوف.</p>
+    </div>
+    <a href="{{ url_for('teachers.subject_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">library_add</span><span>مادة جديدة</span>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for s in subjects %}
-    <tr {% if not s.is_active %}style="opacity:0.55"{% endif %}>
-      <td><strong>{{ s.name }}</strong></td>
-      <td class="text-muted">{{ s.code or '—' }}</td>
-      <td>
-        {% for g in s.grades %}<span class="badge muted">{{ g.name }}</span> {% else %}—{% endfor %}
-      </td>
-      <td>
-        {% if s.is_active %}<span class="badge ok">نشطة</span>
-        {% else %}<span class="badge danger">معطّلة</span>{% endif %}
-      </td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}">تعديل</a>
-        <form action="{{ url_for('teachers.subject_toggle', subject_id=s.id) }}" method="post" style="display:inline"
-              onsubmit="return confirm('{{ 'تعطيل المادة لن يحذف الدرجات المرصودة عليها لكنه سيمنع رصد درجات جديدة وسيُخفيها من نماذج الإسناد. متابعة؟' if s.is_active else 'إعادة تفعيل المادة؟' }}')">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm relative overflow-hidden">
+      <div class="absolute top-0 right-0 bottom-0 w-1.5 {% if s.is_active %}bg-secondary{% else %}bg-outline{% endif %}"></div>
+      <div class="flex items-start gap-space-sm">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined">menu_book</span>
+        </div>
+        <div class="flex flex-col min-w-0 flex-1">
+          <span class="font-title-md text-title-md text-primary font-bold truncate">{{ s.name }}</span>
+          {% if s.code %}<code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ s.code }}</code>{% endif %}
+          <div class="flex items-center gap-2 mt-1 flex-wrap">
+            {% for g in s.grades %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs text-label-xs">{{ g.name }}</span>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-center gap-2">
+        <a href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}"
+           class="flex-1 h-9 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition-colors">
+          <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
+        </a>
+        <form method="post" action="{{ url_for('teachers.subject_toggle', subject_id=s.id) }}" class="flex-1">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <button class="btn btn-sm {{ 'btn-danger' if s.is_active else 'btn-navy' }}" type="submit">
-            {{ '🚫 تعطيل' if s.is_active else '✓ تفعيل' }}
+          <button type="submit" class="w-full h-9 rounded-lg font-label-md font-bold flex items-center justify-center gap-1
+                  {% if s.is_active %}bg-error-container/40 text-error hover:bg-error-container{% else %}bg-secondary-container/40 text-secondary hover:bg-secondary-container/70{% endif %}">
+            <span class="material-symbols-outlined text-sm">{% if s.is_active %}pause_circle{% else %}play_circle{% endif %}</span>
+            <span>{% if s.is_active %}إيقاف{% else %}تفعيل{% endif %}</span>
           </button>
         </form>
-      </td>
-    </tr>
+      </div>
+    </div>
     {% else %}
-    <tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">لم تُعرّف مواد بعد.</td></tr>
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">menu_book</span>
+      <p class="mt-3 text-on-surface-variant">لا مواد مضافة بعد.</p>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+</div>
 {% endblock %}

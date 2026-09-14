@@ -1,73 +1,122 @@
-{% extends "partials/base.html" %}
-{% block title %}إسناد فصل {{ section.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
+{# Section assignments — the actual editing UI: existing assignments table +
+   quick-add form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}إسناد {{ section.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('teachers.assignments_list') }}" class="hover:text-primary">الإسناد</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ section.grade.name }} — {{ section.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
   <div>
-    <h2>إسناد المعلمين — {{ section.grade.name }} / {{ section.name }}</h2>
-    <div class="sub">السنة: <strong class="text-navy">{{ year.name }}</strong></div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">إسناد فصل: {{ section.grade.name }} — {{ section.name }}</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+      السنة: <b>{{ year.name }}</b> · {{ section.current_count }}/{{ section.capacity }} طالب
+    </p>
   </div>
-  <a href="{{ url_for('teachers.assignments_list') }}" class="btn btn-ghost">رجوع</a>
-</div>
 
-<div class="card">
-  <h3>الإسنادات الحالية</h3>
-  <table class="data">
-    <thead><tr><th>المادة</th><th>المعلم</th><th>حصص/أسبوع</th><th></th></tr></thead>
-    <tbody>
-      {% for a in assignments %}
-      <tr>
-        <td><strong>{{ a.subject.name }}</strong></td>
-        <td>{{ a.teacher.full_name }} <span class="badge muted">{{ a.teacher.specialization }}</span></td>
-        <td>
-          <form action="{{ url_for('teachers.assignment_update', assignment_id=a.id) }}" method="post" style="display:flex;gap:6px;align-items:center">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input name="weekly_periods" type="number" min="1" max="40" value="{{ a.weekly_periods }}" style="width:70px">
-            <button class="btn btn-ghost btn-sm" type="submit">حفظ</button>
-          </form>
-        </td>
-        <td class="actions">
-          <form action="{{ url_for('teachers.assignment_remove', assignment_id=a.id) }}" method="post" onsubmit="return confirm('إلغاء الإسناد؟')" style="display:inline">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button class="btn btn-danger btn-sm" type="submit">إلغاء الإسناد</button>
-          </form>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="4" class="text-muted" style="text-align:center;padding:18px">لا توجد إسنادات لهذا الفصل.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">assignment_ind</span>الإسنادات النشطة
+    </h2>
+    {% if assignments %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">المادة</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">المعلم</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">حصص أسبوعية</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary text-center">إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assignments %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <span class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+                  <span class="material-symbols-outlined text-sm">menu_book</span>
+                </span>
+                <span class="font-label-lg text-label-lg text-primary font-bold">{{ a.subject.name }}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              <a href="{{ url_for('teachers.teacher_detail', teacher_id=a.teacher.id) }}" class="flex items-center gap-2 hover:text-primary">
+                <span class="w-8 h-8 rounded-full bg-secondary-container/40 text-secondary flex items-center justify-center font-bold">{{ a.teacher.full_name[:1] }}</span>
+                <span class="font-label-md text-label-md">{{ a.teacher.full_name }}</span>
+              </a>
+            </td>
+            <td class="px-4 py-3">
+              <form method="post" action="{{ url_for('teachers.assignment_update', assignment_id=a.id) }}" class="flex items-center gap-2">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="number" name="weekly_periods" value="{{ a.weekly_periods }}" min="1" max="30"
+                       class="w-20 h-9 px-2 text-center rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+                <button type="submit" class="h-9 px-3 rounded-lg bg-surface-container-low text-primary font-label-md hover:bg-surface-container">حفظ</button>
+              </form>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <form method="post" action="{{ url_for('teachers.assignment_remove', assignment_id=a.id) }}"
+                    onsubmit="return confirm('إلغاء إسناد {{ a.subject.name }} لـ {{ a.teacher.full_name }}؟')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="w-8 h-8 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="إلغاء الإسناد">
+                  <span class="material-symbols-outlined text-lg">link_off</span>
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-center py-space-lg">
+      <span class="material-symbols-outlined text-4xl text-outline">assignment_late</span>
+      <p class="mt-2 text-on-surface-variant">لا إسناد بعد لهذا الفصل.</p>
+    </div>
+    {% endif %}
+  </section>
 
-<div class="card mt-2">
-  <h3>إضافة إسناد</h3>
-  {% if not subjects %}
-    <div class="alert info">لا توجد مواد مرتبطة بصف {{ section.grade.name }}. أضف مادة وربطها بهذا الصف أولاً.</div>
-  {% elif not teachers %}
-    <div class="alert info">لا يوجد معلمون نشطون.</div>
-  {% else %}
-  <form method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="form-row cols-3">
-      <div class="field"><label>المادة</label>
-        <select name="subject_id" required>
-          {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">add_circle</span>إسناد جديد
+    </h2>
+    <form method="post" class="grid grid-cols-1 md:grid-cols-4 gap-space-md items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1.5 md:col-span-2">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المادة</label>
+        <select name="subject_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+          <option value="">— اختر مادة —</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
         </select>
       </div>
-      <div class="field"><label>المعلم</label>
-        <select name="teacher_id" required>
-          {% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }} — {{ t.specialization }}</option>{% endfor %}
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المعلم</label>
+        <select name="teacher_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+          <option value="">— اختر —</option>
+          {% for t in teachers %}
+          <option value="{{ t.id }}">{{ t.full_name }} — {{ t.specialization }}</option>
+          {% endfor %}
         </select>
       </div>
-      <div class="field"><label>عدد الحصص أسبوعيًا</label>
-        <input name="weekly_periods" type="number" min="1" max="40" value="1" required>
-        <div class="hint">مثال: عربي 8، إنجليزي 4، تربية فنية 1</div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">حصص أسبوعياً</label>
+        <input type="number" name="weekly_periods" value="4" min="1" max="30"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
       </div>
-    </div>
-    <div class="mt-2 flex">
-      <button class="btn btn-primary" type="submit">إسناد</button>
-    </div>
-  </form>
-  {% endif %}
+      <div class="md:col-span-4 flex justify-end">
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-xl">link</span>
+          <span>تأكيد الإسناد</span>
+        </button>
+      </div>
+    </form>
+  </section>
 </div>
 {% endblock %}
