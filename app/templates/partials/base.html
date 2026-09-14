@@ -1,27 +1,37 @@
-<!doctype html>
-<html lang="ar" dir="rtl">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
+{# Backward-compat wrapper: every legacy template does
+   {% extends "partials/base.html" %} — this file forwards them into the
+   new Stitch shell (sidebar + topbar + fonts + palette) automatically.
+   Legacy CSS (.card, .btn, .grid, .stat, ...) is preserved via app.css
+   so old templates keep rendering meaningfully until they're fully ported.
+#}
+{% extends "partials/stitch_base.html" %}
+
+{% block extra_head %}
+  {# Keep the old class system alive for un-ported pages. #}
   <link rel="stylesheet" href="{{ url_for('static', filename='css/app.css') }}">
-  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
-  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
-</head>
-<body>
-<div class="layout">
-  {% include "partials/sidebar.html" %}
-  <div class="main">
-    {% include "partials/topbar.html" %}
-    <div class="content">
-      {% with messages = get_flashed_messages(with_categories=true) %}
-        {% for category, msg in messages %}
-          <div class="alert {{ category }}">{{ msg }}</div>
-        {% endfor %}
-      {% endwith %}
-      {% block content %}{% endblock %}
-    </div>
-  </div>
+  <style>
+    /* Legacy pages render inside the new shell — wrap their content in a
+       card so their old canvas-style body doesn't clash with the new topbar. */
+    .legacy-page{
+      background:#fff;
+      border-radius:16px;
+      padding:24px;
+      box-shadow:0 4px 12px rgba(12,36,97,0.05);
+      margin-top:16px;
+    }
+    /* Neutralize the two shell rules from app.css that would double the shell. */
+    .legacy-page .layout{display:block!important;grid-template-columns:none!important;min-height:auto!important}
+    .legacy-page .sidebar,
+    .legacy-page .topbar{display:none!important}
+    .legacy-page .main{display:block;min-width:0}
+    .legacy-page .content{padding:0}
+  </style>
+{% endblock %}
+
+{# `page_content` slot in stitch_base is the app-shell body. Fill it with
+   the legacy card that hosts the child's `{% block content %}`. #}
+{% block page_content %}
+<div class="legacy-page">
+  {% block content %}{% endblock %}
 </div>
-</body>
-</html>
+{% endblock %}
