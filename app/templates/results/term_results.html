@@ -1,74 +1,88 @@
-{% extends "partials/base.html" %}
+{# Term results — Stitch _46. Matrix of students × subjects with per-cell
+   pass/fail tint. Section + term header. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}نتائج {{ term.name }} — {{ section.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.section_results', section_id=section.id) }}" class="hover:text-primary">{{ section.name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ term.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
   <div>
-    <h2>نتائج {{ term.name }}</h2>
-    <div class="sub">
-      الفصل: <strong class="text-navy">{{ section.grade.name }} / {{ section.name }}</strong>
-      • الفترة: <strong class="text-navy">{{ term.name }}</strong>
-      • حد نجاح المادة: <strong>{{ rule.subject_pass_threshold }}%</strong>
-    </div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">نتائج الفترة — {{ term.name }}</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+      {{ section.grade.name }} · {{ section.name }} · عتبة النجاح للمادة: <b>{{ rule.subject_pass_threshold }}%</b>
+    </p>
   </div>
-  <div class="flex">
-    <a href="{{ url_for('results.section_results', section_id=section.id) }}" class="btn btn-ghost">نتيجة العام</a>
-    <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost">رجوع</a>
-  </div>
-</div>
 
-{% if not subjects %}
-<div class="alert warning">لا توجد مواد مربوطة بصف {{ section.grade.name }}.</div>
-{% elif not enrollments %}
-<div class="alert info">لا يوجد طلاب نشطون في هذا الفصل.</div>
-{% else %}
-
-<div class="card" style="overflow-x:auto">
-  <table class="data" style="min-width:800px">
-    <thead>
-      <tr>
-        <th style="min-width:150px">الطالب</th>
-        {% for s in subjects %}<th style="text-align:center">{{ s.name }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for e in enrollments %}
-        {% set row = matrix[e.id] %}
-        <tr>
-          <td>
-            <strong>{{ e.student.full_name }}</strong>
-            <div class="text-muted" style="font-size:11px">{{ e.student.permanent_code }}</div>
-          </td>
-          {% for subject in subjects %}
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr>
+            <th class="sticky right-0 bg-surface-container-high px-4 py-3 text-right font-label-lg text-primary z-10 min-w-[200px]">الطالب</th>
+            {% for subject in subjects %}
+            <th class="px-3 py-3 text-center font-label-lg text-primary">
+              <div class="flex flex-col">
+                <span class="truncate max-w-[120px]" title="{{ subject.name }}">{{ subject.name }}</span>
+              </div>
+            </th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for e in enrollments %}
+          {% set row = matrix[e.id] %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="sticky right-0 bg-surface-container-lowest px-4 py-3 z-10">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs shrink-0">{{ e.student.full_name[:1] }}</div>
+                <div class="flex flex-col min-w-0">
+                  <span class="font-label-lg text-label-lg text-primary font-bold truncate">{{ e.student.full_name }}</span>
+                  <code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ e.student.permanent_code }}</code>
+                </div>
+              </div>
+            </td>
+            {% for subject in subjects %}
             {% set cell = row.cells[subject.id] %}
-            <td style="text-align:center">
+            <td class="px-3 py-3 text-center
+                       {% if cell.status == 'pass' %}bg-[#ECFDF5]
+                       {% elif cell.status == 'fail' %}bg-error-container/30
+                       {% elif cell.status == 'incomplete' %}bg-tertiary-fixed/30
+                       {% endif %}">
               {% if cell.status == 'no_components' %}
-                <span class="text-muted" title="لم تُعرَّف مكوّنات تقييم">—</span>
-              {% elif cell.status == 'incomplete' %}
-                <span class="badge warn" title="رصد ناقص">
-                  {{ cell.score }} / {{ cell.max }}
+              <span class="text-outline text-xs">—</span>
+              {% else %}
+              <div class="flex flex-col items-center">
+                <span class="font-label-lg text-label-lg font-bold tabular-nums
+                             {% if cell.status == 'pass' %}text-[#065F46]
+                             {% elif cell.status == 'fail' %}text-on-error-container
+                             {% else %}text-on-tertiary-fixed-variant{% endif %}">
+                  {{ cell.score|round(1) }}
                 </span>
-              {% elif cell.status == 'pass' %}
-                <span class="badge ok" title="ناجح">
-                  {{ cell.score }} / {{ cell.max }}
-                  <span style="opacity:0.7">({{ '%.1f'|format(cell.percent) }}%)</span>
-                </span>
-              {% elif cell.status == 'fail' %}
-                <span class="badge danger" title="راسب في المادة">
-                  {{ cell.score }} / {{ cell.max }}
-                  <span style="opacity:0.7">({{ '%.1f'|format(cell.percent) }}%)</span>
-                </span>
+                <span class="font-label-xs text-label-xs text-on-surface-variant">/{{ cell.max }}</span>
+              </div>
               {% endif %}
             </td>
+            {% endfor %}
+          </tr>
+          {% else %}
+          <tr><td colspan="{{ subjects|length + 1 }}" class="px-6 py-8 text-center text-on-surface-variant">لا طلاب في هذا الفصل.</td></tr>
           {% endfor %}
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
+        </tbody>
+      </table>
+    </div>
+  </div>
 
-<div class="alert info mt-2" style="font-size:13px">
-  <strong>ملاحظة:</strong> النتيجة النهائية للعام تُحسب من جميع الفترات الدراسية بأوزانها.
-  انتقل إلى <a href="{{ url_for('results.section_results', section_id=section.id) }}">نتيجة العام</a> لعرض التقدير النهائي واعتماده.
+  <!-- Legend -->
+  <div class="flex items-center gap-space-md flex-wrap font-label-md text-label-md text-on-surface-variant">
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-[#ECFDF5] border border-[#10B981]/40"></span>ناجح</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-error-container/30 border border-error/40"></span>راسب</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-tertiary-fixed/30 border border-tertiary/40"></span>غير مكتمل</span>
+    <span class="flex items-center gap-1.5"><span class="w-3 h-3 rounded bg-surface-container"></span>لا مكوّنات</span>
+  </div>
 </div>
-{% endif %}
 {% endblock %}

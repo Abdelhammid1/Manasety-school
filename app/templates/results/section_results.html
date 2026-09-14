@@ -1,54 +1,114 @@
-{% extends "partials/base.html" %}
-{% block title %}نتائج الفصل {{ section.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>نتائج الفصل — {{ section.grade.name }} / {{ section.name }}</h2>
-    <div class="sub">
-      السنة: <strong class="text-navy">{{ year.name }}</strong>
-      • قاعدة النجاح: {{ {'overall_only':'المعدل العام','per_subject':'نجاح كل مادة','mixed':'مختلطة'}[rule.method] }}
-      ({{ rule.overall_pass_threshold }}% عام / {{ rule.subject_pass_threshold }}% للمادة
-      {% if rule.method == 'mixed' %} • مسموح برسوب حتى {{ rule.allowed_failed_subjects }} مادة{% endif %})
-    </div>
-  </div>
-  <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost">رصد الدرجات</a>
-</div>
+{# Section results — Stitch _45. Final year result per student with pass/fail
+   verdict, and admin approval bulk-action. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نتائج الفصل — {{ section.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.grades_index') }}" class="hover:text-primary">النتائج</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">نتائج {{ section.name }}</span>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card" style="overflow-x:auto">
-    <table class="data" style="min-width:600px">
-      <thead><tr>
-        <th>الطالب</th><th>المعدل</th><th>عدد المواد الراسبة</th><th>النتيجة</th><th>الحالة</th>
-      </tr></thead>
-      <tbody>
-        {% for r in rows %}
-        {% set yr = approved.get(r.enrollment.id) %}
-        <tr>
-          <td>
-            <strong>{{ r.enrollment.student.full_name }}</strong>
-            <div class="text-muted" style="font-size:12px">{{ r.enrollment.student.permanent_code }}</div>
-          </td>
-          <td><strong>{{ r.average }}</strong></td>
-          <td>{{ r.failed_count }}</td>
-          <td>
-            {% if r.incomplete %}<span class="badge warn">غير مكتملة</span>
-            {% elif r.status == 'pass' %}<span class="badge ok">ناجح</span>
-            {% else %}<span class="badge danger">راسب</span>{% endif %}
-          </td>
-          <td>
-            {% if yr %}<span class="badge navy">معتمدة</span>
-            {% else %}<span class="badge muted">قيد المراجعة</span>{% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    <div class="mt-2 flex">
-      <button class="btn btn-primary" type="submit" onclick="return confirm('اعتماد النتائج المكتملة لهذا الفصل؟ بعد الاعتماد لا يمكن التعديل إلا بصلاحية أعلى.')">
-        مراجعة واعتماد النتائج
+{% block page_content %}
+{% set pass_n = rows|selectattr('status','equalto','pass')|list|length %}
+{% set fail_n = rows|selectattr('status','equalto','fail')|list|length %}
+{% set inc_n  = rows|selectattr('incomplete')|list|length %}
+{% set approved_count = approved|length %}
+
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">نتائج الفصل — {{ section.grade.name }} · {{ section.name }}</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        السنة: {{ year.name }} · القاعدة: {{ {'overall_only':'المعدل الكلي','per_subject':'كل مادة','mixed':'مختلطة'}.get(rule.method, rule.method) }}
+      </p>
+    </div>
+    {% if year.status != 'closed' %}
+    <form method="post" onsubmit="return confirm('اعتماد النتائج ينشئ لقطة قاعدة لا يمكن التراجع عنها. متابعة؟')">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">verified</span>
+        <span>اعتماد النتائج المتبقية</span>
       </button>
+    </form>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+    {% for tone, label, count, color, icon in [
+        ('pass',   'ناجحون',        pass_n,         '#10B981', 'check_circle'),
+        ('fail',   'راسبون',        fail_n,         '#EF4444', 'cancel'),
+        ('inc',    'غير مكتملة',    inc_n,          '#F59E0B', 'hourglass_empty'),
+        ('appr',   'معتمدة (Snapshot)', approved_count, '#0099CC', 'verified'),
+    ] %}
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-1.5" style="background: {{ color }}"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+        <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ count }}</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">الطالب</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">المعدل</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">مواد راسبة</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">المعتمد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+          {% set yr_snap = approved.get(row.enrollment.id) %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">{{ row.enrollment.student.full_name[:1] }}</div>
+                <div class="flex flex-col">
+                  <span class="font-label-lg text-label-lg text-primary font-bold">{{ row.enrollment.student.full_name }}</span>
+                  <code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ row.enrollment.student.permanent_code }}</code>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if row.average is not none %}
+              <span class="font-title-md text-title-md text-primary font-bold tabular-nums">{{ row.average|round(1) }}</span>
+              {% else %}<span class="text-outline">—</span>{% endif %}
+            </td>
+            <td class="px-4 py-3 text-center font-label-lg font-bold {% if row.failed_count %}text-error{% else %}text-outline{% endif %}">{{ row.failed_count }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if row.incomplete %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">غير مكتمل</span>
+              {% elif row.status == 'pass' %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">ناجح</span>
+              {% else %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">راسب</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              {% if yr_snap %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+                <span class="material-symbols-outlined text-sm">verified</span>معتمد
+              </span>
+              {% else %}
+              <span class="font-label-md text-label-md text-outline">—</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="5" class="px-6 py-8 text-center text-on-surface-variant">لا نتائج بعد.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
     </div>
   </div>
-</form>
+</div>
 {% endblock %}

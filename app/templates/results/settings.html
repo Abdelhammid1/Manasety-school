@@ -1,45 +1,97 @@
-{% extends "partials/base.html" %}
-{% block title %}قاعدة النجاح{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>قاعدة النجاح المرنة</h2>
-    <div class="sub">حد نجاح المادة + المعدل العام + طريقة الدمج. تُجمَّد عند إغلاق السنة (T-7.1)</div>
-  </div>
-</div>
+{# Pass rule settings — Stitch _44. Configure the year's pass thresholds. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}قاعدة النجاح — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.grades_index') }}" class="hover:text-primary">النتائج</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">قاعدة النجاح</span>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <h3>السنة: {{ year.name }} {% if rule.is_frozen %}<span class="badge muted">مجمَّدة</span>{% endif %}</h3>
-    <div class="form-row cols-2">
-      <div class="field"><label>حد نجاح المادة (%)</label>
-        <input name="subject_pass_threshold" type="number" step="0.01" min="0" max="100"
-               value="{{ rule.subject_pass_threshold }}" {% if rule.is_frozen %}disabled{% endif %}>
-      </div>
-      <div class="field"><label>حد المعدل العام (%)</label>
-        <input name="overall_pass_threshold" type="number" step="0.01" min="0" max="100"
-               value="{{ rule.overall_pass_threshold }}" {% if rule.is_frozen %}disabled{% endif %}>
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">قواعد ومعايير النجاح والرسوب</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+      السنة الحالية: <b>{{ year.name }}</b>
+      {% if rule.is_frozen %}
+      · <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold"><span class="material-symbols-outlined text-sm">lock</span>مجمَّدة</span>
+      {% endif %}
+    </p>
+  </div>
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div>
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">tune</span>طريقة تحديد النجاح
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+        {% for value, label, icon, help in [
+            ('overall_only', 'المعدل الكلي فقط', 'summarize',        'الطالب ينجح إذا كان المعدل ≥ العتبة العامة'),
+            ('per_subject',  'كل مادة على حدة',  'reorder',          'الطالب ينجح إذا نجح في كل مادة (فوق عتبة المادة)'),
+            ('mixed',        'مختلطة',           'auto_awesome',     'المعدل الكلي + عدد المواد المسموح رسوبها'),
+        ] %}
+        <label class="cursor-pointer">
+          <input type="radio" name="method" value="{{ value }}" class="peer sr-only"
+                 {% if rule.method == value %}checked{% endif %} {% if rule.is_frozen %}disabled{% endif %}>
+          <div class="p-space-md rounded-xl border-2 transition-all
+                      border-outline-variant bg-surface-container-low hover:border-primary
+                      peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:shadow-md
+                      peer-disabled:opacity-60 peer-disabled:cursor-not-allowed">
+            <div class="w-10 h-10 rounded-lg bg-primary-fixed text-primary flex items-center justify-center mb-2">
+              <span class="material-symbols-outlined">{{ icon }}</span>
+            </div>
+            <span class="font-title-md text-title-md text-primary font-bold">{{ label }}</span>
+            <p class="mt-1 font-label-xs text-label-xs text-on-surface-variant">{{ help }}</p>
+          </div>
+        </label>
+        {% endfor %}
       </div>
     </div>
-    <div class="form-row cols-2">
-      <div class="field"><label>طريقة الدمج</label>
-        <select name="method" {% if rule.is_frozen %}disabled{% endif %}>
-          <option value="overall_only" {% if rule.method == 'overall_only' %}selected{% endif %}>المعدل العام فقط</option>
-          <option value="per_subject" {% if rule.method == 'per_subject' %}selected{% endif %}>النجاح في كل مادة على حدة</option>
-          <option value="mixed" {% if rule.method == 'mixed' %}selected{% endif %}>الاثنان معًا (مع السماح بالرسوب في عدد محدد)</option>
-        </select>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">عتبة نجاح المادة (٪)</label>
+        <input name="subject_pass_threshold" type="number" min="1" max="100" step="0.5"
+               value="{{ rule.subject_pass_threshold }}" required {% if rule.is_frozen %}disabled{% endif %}
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+        <span class="font-label-xs text-label-xs text-on-surface-variant">الحد الأدنى لعدم رسوب المادة (مثال: 50)</span>
       </div>
-      <div class="field"><label>عدد المواد المسموح بالرسوب فيها (للطريقة المختلطة فقط)</label>
-        <input name="allowed_failed_subjects" type="number" min="0"
-               value="{{ rule.allowed_failed_subjects }}" {% if rule.is_frozen %}disabled{% endif %}>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">عتبة المعدل الكلي (٪)</label>
+        <input name="overall_pass_threshold" type="number" min="1" max="100" step="0.5"
+               value="{{ rule.overall_pass_threshold }}" required {% if rule.is_frozen %}disabled{% endif %}
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+        <span class="font-label-xs text-label-xs text-on-surface-variant">مطبقة على المعدل السنوي الكلي</span>
+      </div>
+      <div class="flex flex-col gap-1.5 md:col-span-2">
+        <label class="font-label-md text-label-md text-on-surface font-bold">عدد المواد المسموح رسوبها (طريقة مختلطة)</label>
+        <input name="allowed_failed_subjects" type="number" min="0" max="10"
+               value="{{ rule.allowed_failed_subjects }}" {% if rule.is_frozen %}disabled{% endif %}
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors max-w-xs">
+        <span class="font-label-xs text-label-xs text-on-surface-variant">لا يُحتسب إلا في طريقة "المختلطة".</span>
       </div>
     </div>
-  </div>
-  {% if not rule.is_frozen %}
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-  </div>
-  {% endif %}
-</form>
+
+    <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start gap-3">
+      <span class="material-symbols-outlined">info</span>
+      <p class="font-body-md text-body-md">
+        تُخزَّن هذه القاعدة كلقطة (<code>rule_snapshot</code>) داخل كل نتيجة سنوية معتمدة —
+        لذا تغييرات مستقبلية لن تؤثر على النتائج المعتمدة سابقاً.
+      </p>
+    </div>
+
+    {% if not rule.is_frozen %}
+    <div class="flex items-center justify-end gap-space-sm">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">save</span>
+        <span>حفظ قاعدة النجاح</span>
+      </button>
+    </div>
+    {% endif %}
+  </form>
+</div>
 {% endblock %}

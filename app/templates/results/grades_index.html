@@ -1,75 +1,125 @@
-{% extends "partials/base.html" %}
-{% block title %}رصد الدرجات{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>رصد درجات الطلاب</h2>
-    <div class="sub">اختر الفصل، الفترة الدراسية، والمادة لرصد الدرجات (T-7.3 / T-7.4)</div>
-  </div>
-</div>
+{# Grades index — pick section + term + subject → open grade_sheet. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}رصد الدرجات — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">رصد الدرجات</span>
+{% endblock %}
 
-<form method="get" action="" id="picker" class="card" style="padding:14px;margin-bottom:16px">
-  <div class="form-row cols-3" style="margin-bottom:0">
-    <div class="field"><label>الفصل</label>
-      <select name="section_id" required>
-        <option value="">—</option>
-        {% for s in sections %}<option value="{{ s.id }}">{{ s.grade.name }} / {{ s.name }}</option>{% endfor %}
-      </select>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">رصد الدرجات الأكاديمية</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {% if year %}السنة الحالية: <b>{{ year.name }}</b>{% else %}لا سنة نشطة{% endif %}
+      </p>
     </div>
-    <div class="field"><label>الفترة الدراسية</label>
-      <select name="term_id" required>
-        <option value="">—</option>
-        {% for t in terms %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
-      </select>
-    </div>
-    <div class="field"><label>المادة</label>
-      <select name="subject_id" required>
-        <option value="">—</option>
-        {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
-      </select>
+    <div class="flex items-center gap-space-sm">
+      <a href="{{ url_for('results.components') }}" class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">grading</span><span>مكوّنات التقييم</span>
+      </a>
+      <a href="{{ url_for('results.settings') }}" class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">tune</span><span>قاعدة النجاح</span>
+      </a>
     </div>
   </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-navy" type="submit">فتح ورقة الرصد</button>
+
+  {% if not year %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا سنة نشطة. أنشئ سنة أولاً من <a href="{{ url_for('academic.years_list') }}" class="text-primary font-bold underline">إدارة السنوات</a>.</span>
   </div>
-</form>
-
-<script>
-document.getElementById('picker').addEventListener('submit', function(ev){
-  ev.preventDefault();
-  var s = this.section_id.value, t = this.term_id.value, sub = this.subject_id.value;
-  if (s && t && sub) window.location = '/results/grades/' + s + '/' + t + '/' + sub;
-});
-</script>
-
-{% if not year %}
-<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
-{% endif %}
-
-{% if sections %}
-<div class="card mt-2">
-  <h3>عرض النتائج بحسب الفترة الدراسية أو نتيجة العام</h3>
-  <p class="text-muted" style="margin:6px 0 12px">اختر فصلًا لعرض نتيجة كل فترة على حدة، أو اذهب مباشرةً لنتيجة العام لاعتمادها.</p>
-  <table class="data">
-    <thead><tr><th>الفصل</th><th>نتائج الفترات الدراسية</th><th>نتيجة العام</th></tr></thead>
-    <tbody>
-      {% for s in sections %}
-      <tr>
-        <td><strong>{{ s.grade.name }} / {{ s.name }}</strong></td>
-        <td class="actions">
-          {% for t in terms %}
-          <a class="btn btn-ghost btn-sm" href="{{ url_for('results.term_results', section_id=s.id, term_id=t.id) }}">{{ t.name }}</a>
-          {% else %}
-          <span class="text-muted">لم تُعرَّف فترات</span>
+  {% elif sections and subjects and terms %}
+  <form method="get" action="#" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md" onsubmit="goSheet(event)">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الفصل</label>
+        <select id="pick_section" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر —</option>
+          {% for s in sections %}
+          <option value="{{ s.id }}">{{ s.grade.name }} — {{ s.name }}</option>
           {% endfor %}
-        </td>
-        <td class="actions">
-          <a class="btn btn-navy btn-sm" href="{{ url_for('results.section_results', section_id=s.id) }}">نتيجة العام</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الفترة الدراسية</label>
+        <select id="pick_term" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر —</option>
+          {% for t in terms %}
+          <option value="{{ t.id }}">{{ t.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المادة</label>
+        <select id="pick_subject" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر —</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}">{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="flex items-center justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">edit_note</span>
+        <span>فتح دفتر الدرجات</span>
+      </button>
+    </div>
+  </form>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined">groups</span>
+        </div>
+        <div>
+          <div class="font-headline-sm text-headline-sm text-primary font-bold">{{ sections|length }}</div>
+          <div class="font-label-md text-label-md text-on-surface-variant">فصل متاح للرصد</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-secondary-container/40 text-secondary flex items-center justify-center">
+          <span class="material-symbols-outlined">menu_book</span>
+        </div>
+        <div>
+          <div class="font-headline-sm text-headline-sm text-primary font-bold">{{ subjects|length }}</div>
+          <div class="font-label-md text-label-md text-on-surface-variant">مادة</div>
+        </div>
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center">
+          <span class="material-symbols-outlined">event</span>
+        </div>
+        <div>
+          <div class="font-headline-sm text-headline-sm text-primary font-bold">{{ terms|length }}</div>
+          <div class="font-label-md text-label-md text-on-surface-variant">فترة دراسية</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">grading</span>
+    <p class="mt-3 text-on-surface-variant">لا فصول/مواد/فترات متاحة لك للرصد.</p>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
+<script>
+  function goSheet(e){
+    e.preventDefault();
+    const s = document.getElementById('pick_section').value;
+    const t = document.getElementById('pick_term').value;
+    const sub = document.getElementById('pick_subject').value;
+    if (!s || !t || !sub) return;
+    window.location = '/results/grades/' + s + '/' + t + '/' + sub;
+  }
+</script>
 {% endblock %}

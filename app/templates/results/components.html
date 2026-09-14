@@ -1,78 +1,113 @@
-{% extends "partials/base.html" %}
-{% block title %}مكوّنات التقييم{% endblock %}
-{% block content %}
-<div class="page-title">
+{# Assessment components — Stitch _43. Pick term + subject; manage components. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}مكوّنات التقييم — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.grades_index') }}" class="hover:text-primary">النتائج</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">مكوّنات التقييم</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
   <div>
-    <h2>مكوّنات التقييم</h2>
-    <div class="sub">تعريف مكوّنات تقييم كل مادة في الفترة الدراسية (T-7.2). مجموع الحد الأقصى يجب أن يساوي 100.</div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">مكوّنات التقييم الأكاديمي</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+      عرّف مكوّنات درجة كل مادة داخل كل فترة دراسية (مثال: مشاركة، اختبار قصير، اختبار نصفي، اختبار نهائي).
+    </p>
   </div>
-</div>
 
-<form method="get" class="card" style="padding:14px;margin-bottom:16px">
-  <div class="form-row cols-3" style="margin-bottom:0">
-    <div class="field"><label>الفترة الدراسية</label>
-      <select name="term_id">
-        <option value="">—</option>
-        {% for t in terms %}<option value="{{ t.id }}" {% if term_id == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+  <form method="get" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-space-md items-end">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الفترة الدراسية</label>
+      <select name="term_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر —</option>
+        {% for t in terms %}
+        <option value="{{ t.id }}" {% if term_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+        {% endfor %}
       </select>
     </div>
-    <div class="field"><label>المادة</label>
-      <select name="subject_id">
-        <option value="">—</option>
-        {% for s in subjects %}<option value="{{ s.id }}" {% if subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">المادة</label>
+      <select name="subject_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر —</option>
+        {% for s in subjects %}
+        <option value="{{ s.id }}" {% if subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
       </select>
     </div>
-    <div class="field" style="align-self:end"><button class="btn btn-navy" type="submit">عرض</button></div>
-  </div>
-</form>
+    <button type="submit" class="h-12 px-5 rounded-xl bg-primary text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md">
+      <span class="material-symbols-outlined text-xl">search</span>
+      <span>عرض</span>
+    </button>
+  </form>
 
-{% if term_id and subject_id %}
-<div class="card">
-  <div class="flex-between" style="margin-bottom:14px">
-    <h3 style="margin:0;border:0">المكوّنات</h3>
-    {% if total == 100 %}
-      <span class="badge ok">مجموع الحد الأقصى = {{ total }} ✓</span>
-    {% else %}
-      <span class="badge warn">المجموع = {{ total }} (يجب 100)</span>
-    {% endif %}
-  </div>
-  <table class="data">
-    <thead><tr><th>الاسم</th><th>الحد الأقصى</th><th></th></tr></thead>
-    <tbody>
+  {% if term_id and subject_id %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between mb-space-md">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined">grading</span>المكوّنات
+      </h2>
+      <div class="flex items-center gap-space-sm">
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-bold">
+          <span class="material-symbols-outlined text-sm">star</span>
+          مجموع الدرجات: {{ total or 0 }}
+        </span>
+      </div>
+    </div>
+
+    {% if components %}
+    <div class="flex flex-col gap-2 mb-space-md">
       {% for c in components %}
-      <tr>
-        <td><strong>{{ c.name }}</strong></td>
-        <td>{{ c.max_score }}</td>
-        <td class="actions">
-          <form method="post" style="display:inline">
+      <div class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined">assignment</span>
+          </div>
+          <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ c.name }}</span>
+        </div>
+        <div class="flex items-center gap-space-sm">
+          <span class="font-title-md text-title-md text-primary font-bold tabular-nums">/{{ c.max_score }}</span>
+          <form method="post" onsubmit="return confirm('حذف مكوّن {{ c.name }}؟')">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="delete">
             <input type="hidden" name="component_id" value="{{ c.id }}">
-            <button class="btn btn-danger btn-sm" onclick="return confirm('حذف المكوّن؟')">حذف</button>
+            <input type="hidden" name="term_id" value="{{ term_id }}">
+            <input type="hidden" name="subject_id" value="{{ subject_id }}">
+            <button type="submit" class="w-8 h-8 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="حذف">
+              <span class="material-symbols-outlined text-lg">delete</span>
+            </button>
           </form>
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="text-muted" style="text-align:center;padding:18px">لا توجد مكوّنات.</td></tr>
+        </div>
+      </div>
       {% endfor %}
-    </tbody>
-  </table>
-
-  <form method="post" class="mt-2">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="action" value="add">
-    <div class="form-row cols-3">
-      <div class="field"><label>اسم المكوّن</label>
-        <input name="name" required placeholder="أعمال سنة / نهاية الفترة ...">
-      </div>
-      <div class="field"><label>الحد الأقصى</label>
-        <input name="max_score" type="number" step="0.01" min="0" max="100" required>
-      </div>
-      <div class="field" style="align-self:end">
-        <button class="btn btn-primary" type="submit">+ إضافة</button>
-      </div>
     </div>
-  </form>
+    {% else %}
+    <p class="text-center text-on-surface-variant py-space-md">لا مكوّنات معرّفة بعد.</p>
+    {% endif %}
+
+    <form method="post" class="mt-space-md pt-space-md border-t border-outline-variant grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-space-md items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <input type="hidden" name="term_id" value="{{ term_id }}">
+      <input type="hidden" name="subject_id" value="{{ subject_id }}">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">اسم المكوّن</label>
+        <input name="name" required placeholder="مثال: اختبار قصير"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الدرجة القصوى</label>
+        <input name="max_score" type="number" min="1" max="100" step="0.5" value="10" required
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <button type="submit" class="h-12 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">add</span>
+        <span>إضافة</span>
+      </button>
+    </form>
+  </section>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}
