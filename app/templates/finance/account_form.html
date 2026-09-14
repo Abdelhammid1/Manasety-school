@@ -1,0 +1,41 @@
+{% extends "partials/base.html" %}
+{% block title %}حساب جديد{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>حساب فرعي جديد</h2></div>
+  <a href="{{ url_for('finance.accounts') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-3">
+      <div class="field"><label>الكود</label>
+        <input name="code" required placeholder="مثل: 1110">
+      </div>
+      <div class="field"><label>الاسم</label>
+        <input name="name" required>
+      </div>
+      <div class="field"><label>التصنيف</label>
+        <select name="type" required>
+          <option value="asset">أصول</option>
+          <option value="liability">خصوم</option>
+          <option value="equity">حقوق ملكية</option>
+          <option value="revenue">إيرادات</option>
+          <option value="expense">مصروفات</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>الحساب الأب (اختياري)</label>
+      <select name="parent_id">
+        <option value="">— لا يوجد —</option>
+        {% for p in parents %}<option value="{{ p.id }}">{{ p.code }} — {{ p.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('finance.accounts') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

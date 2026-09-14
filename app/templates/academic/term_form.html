@@ -1,0 +1,46 @@
+{% extends "partials/base.html" %}
+{% block title %}{% if term %}تعديل فترة دراسية{% else %}فترة دراسية جديدة{% endif %}{% endblock %}
+{% block content %}
+{% set f = form if form else {} %}
+<div class="page-title">
+  <div>
+    <h2>{% if term %}تعديل: {{ term.name }}{% else %}فترة دراسية جديدة{% endif %} — السنة {{ year.name }}</h2>
+  </div>
+  <a href="{{ url_for('academic.terms_list', year_id=year.id) }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-2">
+      <div class="field"><label>اسم الفترة</label>
+        <input name="name" required placeholder="مثل: الفترة الدراسية الأولى"
+               value="{{ f.get('name') or (term.name if term else '') }}">
+      </div>
+      <div class="field"><label>الترتيب</label>
+        <input name="order_index" type="number" min="1" required
+               value="{{ f.get('order_index') or (term.order_index if term else '') }}">
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field"><label>تاريخ البداية</label>
+        <input name="start_date" type="date" required
+               value="{{ f.get('start_date') or (term.start_date if term else '') }}">
+      </div>
+      <div class="field"><label>تاريخ النهاية</label>
+        <input name="end_date" type="date" required
+               value="{{ f.get('end_date') or (term.end_date if term else '') }}">
+      </div>
+      <div class="field"><label>الوزن (%)</label>
+        <input name="weight" type="number" step="0.01" min="0" max="100" required
+               value="{{ f.get('weight') or (term.weight if term else '') }}">
+        <div class="hint">يدخل في حساب نتيجة السنة — مجموع الأوزان يجب أن يساوي 100%</div>
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">{% if term %}حفظ التعديلات{% else %}حفظ{% endif %}</button>
+    <a href="{{ url_for('academic.terms_list', year_id=year.id) }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,53 @@
+{# Reusable dashboard widgets — stat cards, alert rows, bar chart rows. #}
+
+{# stat_card — a labeled number tile. Renders as <a> when href is set. #}
+{% macro stat_card(label, value, sub=None, tone="navy", icon=None, href=None) %}
+  {% set klass = "stat " ~ tone ~ (" stat-link" if href else "") %}
+  {% if href %}
+    <a class="{{ klass }}" href="{{ href }}">
+  {% else %}
+    <div class="{{ klass }}">
+  {% endif %}
+      <div>
+        <div class="label">{{ label }}</div>
+        <div class="value">{{ value }}</div>
+        {% if sub %}<div class="text-muted" style="font-size:12px;margin-top:4px">{{ sub }}</div>{% endif %}
+      </div>
+      {% if icon %}<div class="icon">{{ icon }}</div>{% endif %}
+  {% if href %}
+    </a>
+  {% else %}
+    </div>
+  {% endif %}
+{% endmacro %}
+
+
+{# alert_row — one line inside an alerts panel; optional trailing chevron. #}
+{% macro alert_row(icon, title, meta=None, href=None, tone="warn") %}
+  {% set inner %}
+    <div class="alert-icon alert-{{ tone }}">{{ icon }}</div>
+    <div class="alert-body">
+      <div class="alert-title">{{ title }}</div>
+      {% if meta %}<div class="alert-meta">{{ meta }}</div>{% endif %}
+    </div>
+    {% if href %}<div class="alert-cta">←</div>{% endif %}
+  {% endset %}
+  {% if href %}
+    <a class="alert-row" href="{{ href }}">{{ inner|safe }}</a>
+  {% else %}
+    <div class="alert-row">{{ inner|safe }}</div>
+  {% endif %}
+{% endmacro %}
+
+
+{# bar — one horizontal CSS bar with label + count. #}
+{% macro bar(label, value, max, tone="navy") %}
+  <div class="bar-row">
+    <div class="bar-label">{{ label }}</div>
+    <div class="bar-track">
+      <div class="bar-fill bar-{{ tone }}"
+           style="width: {{ ((value / max * 100) if max else 0) | round(1) }}%"></div>
+    </div>
+    <div class="bar-count">{{ value }}</div>
+  </div>
+{% endmacro %}

@@ -1,0 +1,97 @@
+{% extends "partials/base.html" %}
+{% block title %}إعدادات الجدول{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>إعدادات الجدول (الأيام والحصص)</h2>
+    <div class="sub">القالب الزمني الذي تُبنى عليه جداول الفصول (T-5.1)</div>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>أيام الدراسة</h3>
+    <form action="{{ url_for('schedule.day_new') }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row cols-2">
+        <div class="field"><label>اسم اليوم</label>
+          <input name="name" required placeholder="الأحد / الإثنين ...">
+        </div>
+        <div class="field"><label>الترتيب</label>
+          <input name="order_index" type="number" min="1" required>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">+ إضافة يوم</button>
+    </form>
+    <table class="data mt-2">
+      <thead><tr><th>الترتيب</th><th>اليوم</th><th></th></tr></thead>
+      <tbody>
+        {% for d in days %}
+        <tr>
+          <td>{{ d.order_index }}</td>
+          <td><strong>{{ d.name }}</strong></td>
+          <td class="actions">
+            <form action="{{ url_for('schedule.day_delete', day_id=d.id) }}" method="post" onsubmit="return confirm('حذف اليوم؟')" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm">حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-muted" style="text-align:center;padding:14px">لم تُضف أيام بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>الحصص اليومية</h3>
+    <form action="{{ url_for('schedule.period_new') }}" method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="form-row cols-2">
+        <div class="field"><label>الاسم</label>
+          <input name="name" required placeholder="الحصة الأولى / استراحة ...">
+        </div>
+        <div class="field"><label>الترتيب</label>
+          <input name="order_index" type="number" min="1" required>
+        </div>
+      </div>
+      <div class="form-row cols-3">
+        <div class="field"><label>البداية</label>
+          <input name="start_time" type="time" required>
+        </div>
+        <div class="field"><label>النهاية</label>
+          <input name="end_time" type="time" required>
+        </div>
+        <div class="field" style="align-self:end">
+          <label class="checkbox"><input type="checkbox" name="is_break"> استراحة</label>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" type="submit">+ إضافة حصة</button>
+    </form>
+    <table class="data mt-2">
+      <thead><tr><th>#</th><th>الاسم</th><th>الوقت</th><th></th></tr></thead>
+      <tbody>
+        {% for p in periods %}
+        <tr>
+          <td>{{ p.order_index }}</td>
+          <td>
+            <strong>{{ p.name }}</strong>
+            {% if p.is_break %}<span class="badge muted">استراحة</span>{% endif %}
+          </td>
+          <td class="text-muted">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</td>
+          <td class="actions">
+            <form action="{{ url_for('schedule.period_delete', period_id=p.id) }}" method="post" onsubmit="return confirm('حذف الحصة؟')" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn btn-danger btn-sm">حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-muted" style="text-align:center;padding:14px">لم تُضف حصص بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

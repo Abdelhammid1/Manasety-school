@@ -1,0 +1,228 @@
+{% extends "partials/base.html" %}
+{% block title %}الترقية الرأسية{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>الترقية الرأسية (آلية بناءً على نتيجة كل طالب)</h2>
+    <div class="sub">
+      يقرأ النظام <strong>نتائج الطلاب المعتمدة</strong> ويُقسّمهم آليًا إلى ناجحين وراسبين.
+      كل طالب يُرقّى وفق نتيجته الفعلية — لا حاجة لاختيار يدوي.
+      {% if target_year %}<span class="badge ok">السنة المستقبلة: {{ target_year.name }}</span>{% endif %}
+    </div>
+  </div>
+  <a href="{{ url_for('students.students_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="form-row cols-3" style="margin-bottom:0">
+    <div class="field"><label>السنة المصدر</label>
+      <select name="from_year_id">
+        <option value="">—</option>
+        {% for y in years %}
+        <option value="{{ y.id }}" {% if from_year_id == y.id %}selected{% endif %}>{{ y.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>الصف الحالي</label>
+      <select name="grade_id">
+        <option value="">—</option>
+        {% for g in grades %}
+        <option value="{{ g.id }}" {% if grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field" style="align-self:end"><button class="btn btn-navy" type="submit">تحليل النتائج</button></div>
+  </div>
+</form>
+
+{% if from_year_id and grade_id %}
+
+{% if not target_year %}
+  <div class="alert warning">لا توجد سنة نشطة لاستقبال الترقية. أنشئ سنة جديدة وفعّلها.</div>
+{% endif %}
+
+{# ────────────────── الملخص ────────────────── #}
+<div class="card" style="margin-bottom:16px">
+  <h3>ملخص التحليل</h3>
+  <div class="grid grid-4" style="gap:12px;margin-top:8px">
+    <div style="padding:14px;border:1px solid var(--c-success);background:rgba(22,163,74,0.08);border-radius:10px">
+      <div class="text-muted" style="font-size:12px">ناجحون</div>
+      <div style="font-size:26px;color:var(--c-success);font-weight:800">{{ passes|length }}</div>
+      {% if next_grade %}
+      <div class="text-muted" style="font-size:11px">سيتم نقلهم إلى: <strong>{{ next_grade.name }}</strong></div>
+      {% else %}
+      <div class="text-muted" style="font-size:11px">لا يوجد صف أعلى</div>
+      {% endif %}
+    </div>
+
+    <div style="padding:14px;border:1px solid var(--c-danger);background:rgba(220,38,38,0.08);border-radius:10px">
+      <div class="text-muted" style="font-size:12px">راسبون</div>
+      <div style="font-size:26px;color:var(--c-danger);font-weight:800">{{ fails|length }}</div>
+      <div class="text-muted" style="font-size:11px">يبقون في نفس الصف</div>
+    </div>
+
+    <div style="padding:14px;border:1px solid var(--c-gold);background:rgba(212,175,55,0.10);border-radius:10px">
+      <div class="text-muted" style="font-size:12px">نتائج غير معتمدة</div>
+      <div style="font-size:26px;color:var(--c-gold-dark);font-weight:800">{{ incomplete_no_yr|length }}</div>
+      <div class="text-muted" style="font-size:11px">يحتاجون اعتماد النتيجة أولًا</div>
+    </div>
+
+    <div style="padding:14px;border:1px solid var(--c-muted);background:var(--c-bg);border-radius:10px">
+      <div class="text-muted" style="font-size:12px">نتائج ناقصة</div>
+      <div style="font-size:26px;color:var(--c-muted);font-weight:800">{{ incomplete_status|length }}</div>
+      <div class="text-muted" style="font-size:11px">درجات غير مكتملة</div>
+    </div>
+  </div>
+</div>
+
+{% if incomplete_no_yr or incomplete_status %}
+<div class="alert warning" style="margin-bottom:16px">
+  <strong>تنبيه:</strong>
+  يوجد {{ (incomplete_no_yr|length) + (incomplete_status|length) }} طالبًا
+  بدون نتيجة معتمدة — لن يُدرجوا في الترقية.
+  اذهب إلى <a href="{{ url_for('results.grades_index') }}"><strong>رصد الدرجات</strong></a>
+  ثم شاشة <strong>اعتماد النتائج للفصل</strong> أولًا.
+</div>
+{% endif %}
+
+{% if passes or fails %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="from_year_id" value="{{ from_year_id }}">
+  <input type="hidden" name="grade_id" value="{{ grade_id }}">
+
+  {# ────────────────── قائمتا الناجحين والراسبين ────────────────── #}
+  <div class="grid grid-2" style="gap:16px">
+
+    {# قائمة الناجحين #}
+    <div class="card" style="border-top:3px solid var(--c-success)">
+      <h3 style="color:var(--c-success)">
+        سيتم ترقيتهم <span class="badge ok">{{ passes|length }}</span>
+      </h3>
+      {% if next_grade %}
+        <div class="sub" style="margin-bottom:10px">إلى الصف: <strong>{{ next_grade.name }}</strong></div>
+        <div class="field" style="margin-bottom:10px">
+          <label>الفصل المستهدف للناجحين</label>
+          <select name="promote_section_id" {% if not passes %}disabled{% endif %}>
+            <option value="">— اختر —</option>
+            {% for s in next_grade_sections %}
+            <option value="{{ s.id }}" {% if s.is_full %}disabled{% endif %}>
+              {{ s.name }} — {{ s.current_count }}/{{ s.capacity }}{% if s.is_full %} (ممتلئ){% endif %}
+            </option>
+            {% else %}
+            <option value="">لا توجد فصول في {{ next_grade.name }} في {{ target_year.name if target_year else '' }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      {% else %}
+        <div class="alert warning" style="margin-top:8px">
+          لا يوجد صف أعلى — تعذّر ترقية الناجحين. راجع تسلسل الصفوف.
+        </div>
+      {% endif %}
+
+      {% if passes %}
+      <table class="data">
+        <thead><tr><th>الكود</th><th>الاسم</th><th>المعدّل</th></tr></thead>
+        <tbody>
+          {% for e, yr in passes %}
+          <tr>
+            <td><span class="badge muted">{{ e.student.permanent_code }}</span></td>
+            <td><strong>{{ e.student.full_name }}</strong></td>
+            <td><span class="text-navy" style="font-weight:700">{{ yr.average }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted" style="padding:12px 0">لا يوجد طلاب ناجحون في هذا الصف.</p>
+      {% endif %}
+    </div>
+
+    {# قائمة الراسبين #}
+    <div class="card" style="border-top:3px solid var(--c-danger)">
+      <h3 style="color:var(--c-danger)">
+        سيبقون في نفس الصف <span class="badge danger">{{ fails|length }}</span>
+      </h3>
+      <div class="sub" style="margin-bottom:10px">في الصف الحالي في السنة الجديدة</div>
+      <div class="field" style="margin-bottom:10px">
+        <label>الفصل المستهدف للراسبين</label>
+        <select name="retain_section_id" {% if not fails %}disabled{% endif %}>
+          <option value="">— اختر —</option>
+          {% for s in same_grade_sections %}
+          <option value="{{ s.id }}" {% if s.is_full %}disabled{% endif %}>
+            {{ s.name }} — {{ s.current_count }}/{{ s.capacity }}{% if s.is_full %} (ممتلئ){% endif %}
+          </option>
+          {% else %}
+          <option value="">لا توجد فصول لنفس الصف في السنة الجديدة</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      {% if fails %}
+      <table class="data">
+        <thead><tr><th>الكود</th><th>الاسم</th><th>المعدّل</th></tr></thead>
+        <tbody>
+          {% for e, yr in fails %}
+          <tr>
+            <td><span class="badge muted">{{ e.student.permanent_code }}</span></td>
+            <td><strong>{{ e.student.full_name }}</strong></td>
+            <td><span style="color:var(--c-danger);font-weight:700">{{ yr.average }}</span></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+      <p class="text-muted" style="padding:12px 0">لا يوجد طلاب راسبون في هذا الصف.</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ────────────────── زرّ الاعتماد ────────────────── #}
+  <div class="card" style="margin-top:16px">
+    <div class="flex-between">
+      <div class="text-muted" style="font-size:13px">
+        سيتم تنفيذ الترقية داخل معاملة واحدة (Transaction).
+        عند حدوث أي خطأ ستُلغى جميع التغييرات تلقائيًا.
+      </div>
+      <button type="submit" class="btn btn-primary"
+              onclick="return confirm('تأكيد اعتماد الترقية لجميع الطلاب المعروضين ({{ passes|length }} ناجح + {{ fails|length }} راسب)؟')"
+              {% if not target_year %}disabled{% endif %}>
+        اعتماد وتنفيذ الترقية
+      </button>
+    </div>
+  </div>
+</form>
+
+{% else %}
+<div class="alert info">
+  {% if incomplete_no_yr or incomplete_status %}
+    لا يوجد أي طالب بنتيجة معتمدة في هذا الصف. اعتمد النتائج أولاً.
+  {% else %}
+    لا يوجد طلاب نشطون في هذا الصف لهذه السنة.
+  {% endif %}
+</div>
+{% endif %}
+
+{# قائمة الطلاب بدون نتيجة (اختيارية للاطلاع) #}
+{% if incomplete_no_yr %}
+<div class="card mt-2" style="border:1px solid var(--c-gold)">
+  <h3 style="color:var(--c-gold-dark)">طلاب بدون نتيجة معتمدة ({{ incomplete_no_yr|length }})</h3>
+  <p class="text-muted" style="margin-bottom:8px">هؤلاء لن يُدرجوا في الترقية حتى يتم اعتماد نتائجهم.</p>
+  <table class="data">
+    <thead><tr><th>الكود</th><th>الاسم</th><th>الفصل</th></tr></thead>
+    <tbody>
+      {% for e in incomplete_no_yr %}
+      <tr>
+        <td><span class="badge muted">{{ e.student.permanent_code }}</span></td>
+        <td>{{ e.student.full_name }}</td>
+        <td>{{ e.section.name }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+{% endif %}
+{% endblock %}

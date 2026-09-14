@@ -1,0 +1,41 @@
+{% extends "partials/base.html" %}
+{% block title %}نقل أفقي{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>نقل أفقي — {{ enrollment.student.full_name }}</h2>
+    <div class="sub">
+      من فصل <strong>{{ enrollment.section.name }}</strong> داخل {{ enrollment.grade.name }} ({{ enrollment.year.name }})
+    </div>
+  </div>
+  <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+{% if not siblings %}
+<div class="alert info">لا توجد فصول أخرى ضمن {{ enrollment.grade.name }} في هذه السنة.</div>
+{% else %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="field">
+      <label>الفصل المستهدف</label>
+      <select name="to_section_id" required>
+        {% for s in siblings %}
+        <option value="{{ s.id }}" {% if s.is_full %}disabled{% endif %}>
+          {{ s.name }} — {{ s.current_count }}/{{ s.capacity }}{% if s.is_full %} (ممتلئ){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="field">
+      <label>ملاحظات (اختياري)</label>
+      <textarea name="notes" rows="2" placeholder="سبب النقل..."></textarea>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">تنفيذ النقل</button>
+    <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

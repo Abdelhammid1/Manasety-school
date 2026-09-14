@@ -1,0 +1,30 @@
+{% extends "partials/base.html" %}
+{% block title %}الرواتب{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>الرواتب</h2><div class="sub">يولّد قيد محاسبي تلقائي عند الصرف (T-9.3)</div></div>
+  <a href="{{ url_for('hr.payroll_new') }}" class="btn btn-primary">+ صرف راتب</a>
+</div>
+
+<table class="data">
+  <thead><tr>
+    <th>الفترة</th><th>الموظف</th><th>الأساسي</th><th>بدلات</th><th>خصومات</th>
+    <th>الصافي</th><th>تاريخ الصرف</th>
+  </tr></thead>
+  <tbody>
+    {% for p in payrolls %}
+    <tr>
+      <td><strong>{{ p.period_year }}/{{ "%02d"|format(p.period_month) }}</strong></td>
+      <td>{{ p.employee.full_name }}</td>
+      <td>{{ "%.2f"|format(p.base_salary) }}</td>
+      <td>{{ "%.2f"|format(p.allowances) }}</td>
+      <td>{{ "%.2f"|format(p.deductions) }}</td>
+      <td><strong>{{ "%.2f"|format(p.net_pay) }}</strong></td>
+      <td>{{ p.paid_at or '—' }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-muted" style="text-align:center;padding:18px">لم تُصرف رواتب بعد.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

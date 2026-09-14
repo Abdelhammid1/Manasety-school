@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>فاتورة {{ inv.number }}</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: sans-serif; color: #111827; direction: rtl; background: white; }
+
+    .print-toolbar { padding: 10px 14px; background: #F7F8FA; border-bottom: 1px solid #E5E7EB; margin-bottom: 24px; text-align: center; }
+    .print-toolbar button, .print-toolbar a {
+      padding: 8px 20px; border-radius: 6px; text-decoration: none;
+      display: inline-block; margin: 0 4px; font-weight: 700; cursor: pointer; border: none;
+    }
+    .print-toolbar .btn-print { background: #001556; color: white; }
+    .print-toolbar .btn-download { background: #D4AF37; color: white; }
+    .print-toolbar .btn-back { background: transparent; color: #6B7280; border: 1px solid #E5E7EB; }
+    @media print { .print-toolbar { display: none; } }
+
+    .invoice { max-width: 780px; margin: 0 auto; padding: 20px; }
+    .brand { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #D4AF37; padding-bottom: 16px; margin-bottom: 24px; }
+    .brand-name { color: #001556; font-size: 20px; font-weight: 800; }
+    .brand-sub { color: #6B7280; font-size: 12px; margin-top: 4px; }
+    .doc-title { text-align: left; color: #001556; font-size: 24px; font-weight: 800; }
+    .doc-number { color: #D4AF37; font-family: monospace; margin-top: 4px; }
+
+    .meta { display: flex; justify-content: space-between; margin-bottom: 24px; }
+    .meta-box { padding: 10px 14px; background: #F7F8FA; border-radius: 6px; }
+    .meta-box .label { color: #6B7280; font-size: 11px; text-transform: uppercase; }
+    .meta-box .value { color: #001556; font-weight: 700; margin-top: 2px; }
+
+    table.lines { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    table.lines th { background: #001556; color: white; padding: 8px 10px; text-align: right; font-size: 12px; }
+    table.lines td { padding: 8px 10px; border-bottom: 1px solid #E5E7EB; font-size: 13px; }
+    table.lines .amount { text-align: left; font-family: monospace; direction: ltr; }
+
+    .totals { margin-top: 20px; border: 2px solid #001556; border-radius: 8px; padding: 14px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
+    .totals-row.grand { border-top: 2px solid #D4AF37; padding-top: 10px; margin-top: 10px; font-size: 18px; }
+    .totals-row .value { font-family: monospace; font-weight: 700; color: #001556; }
+    .totals-row.grand .value { color: #D4AF37; font-size: 22px; }
+
+    .footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid #E5E7EB; text-align: center; font-size: 11px; color: #6B7280; }
+    .status-badge { display: inline-block; padding: 4px 10px; border-radius: 4px; font-size: 12px; font-weight: 700; }
+    .status-badge.paid { background: rgba(22,163,74,0.12); color: #16A34A; }
+    .status-badge.partial { background: rgba(212,175,55,0.18); color: #B8941F; }
+    .status-badge.pending { background: rgba(107,114,128,0.12); color: #6B7280; }
+    .status-badge.overdue { background: rgba(220,38,38,0.12); color: #DC2626; }
+  </style>
+</head>
+<body>
+  {% if not download %}
+  <div class="print-toolbar">
+    <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
+    <a class="btn-download" href="?download=1">📥 تنزيل PDF</a>
+    <a class="btn-back" href="/finance/invoices/{{ inv.id }}">رجوع</a>
+  </div>
+  {% endif %}
+
+  <div class="invoice">
+    <div class="brand">
+      <div>
+        <div class="brand-name">مؤسسة الشيخ صالح الشريف للتعليم القرآني</div>
+        <div class="brand-sub">منظومة إدارة المؤسسة — منصتي</div>
+      </div>
+      <div>
+        <div class="doc-title">فاتورة</div>
+        <div class="doc-number">{{ inv.number }}</div>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="meta-box">
+        <div class="label">الطالب</div>
+        <div class="value">{{ inv.enrollment.student.full_name }}</div>
+        <div class="brand-sub">{{ inv.enrollment.student.permanent_code }} • {{ inv.enrollment.grade.name }} / {{ inv.enrollment.section.name }}</div>
+      </div>
+      <div class="meta-box">
+        <div class="label">تاريخ الإصدار</div>
+        <div class="value">{{ inv.issue_date }}</div>
+        <div class="brand-sub">الاستحقاق: {{ inv.due_date }}</div>
+      </div>
+      <div class="meta-box">
+        <div class="label">الحالة</div>
+        <div class="value">
+          {% if inv.status == 'paid' %}<span class="status-badge paid">مدفوعة</span>
+          {% elif inv.status == 'partial' %}<span class="status-badge partial">مدفوعة جزئيًا</span>
+          {% elif inv.status == 'overdue' %}<span class="status-badge overdue">متأخّرة</span>
+          {% else %}<span class="status-badge pending">معلّقة</span>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <table class="lines">
+      <thead>
+        <tr>
+          <th>البند</th>
+          <th style="width:120px">الكمية</th>
+          <th style="width:140px">سعر الوحدة</th>
+          <th style="width:140px">المجموع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in inv.lines %}
+        <tr>
+          <td>{{ line.fee_type.name }}{% if line.notes %} — <span style="color:#6B7280;font-size:12px">{{ line.notes }}</span>{% endif %}</td>
+          <td class="amount">{{ line.quantity }}</td>
+          <td class="amount">{{ "%.2f"|format(line.unit_price) }}</td>
+          <td class="amount">{{ "%.2f"|format(line.amount) }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div class="totals">
+      <div class="totals-row">
+        <div>الإجمالي</div>
+        <div class="value">{{ "%.2f"|format(inv.total_amount) }} ج.س</div>
+      </div>
+      <div class="totals-row">
+        <div>المدفوع</div>
+        <div class="value" style="color:#16A34A">{{ "%.2f"|format(inv.paid_amount) }} ج.س</div>
+      </div>
+      <div class="totals-row grand">
+        <div>المتبقّي</div>
+        <div class="value">{{ "%.2f"|format(inv.remaining) }} ج.س</div>
+      </div>
+    </div>
+
+    <div class="footer">
+      شكراً لتعاونكم — مؤسسة الشيخ صالح الشريف للتعليم القرآني
+    </div>
+  </div>
+
+  {% if not download %}
+  <script>
+    // Auto-open the print dialog once the page is fully rendered.
+    // Users can cancel to browse the layout.
+    setTimeout(function() { try { window.print(); } catch (e) {} }, 300);
+  </script>
+  {% endif %}
+</body>
+</html>

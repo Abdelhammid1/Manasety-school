@@ -1,0 +1,20 @@
+{% extends "partials/base.html" %}
+{% block title %}الإعلانات{% endblock %}
+{% block content %}
+<div class="page-title"><h2>الإعلانات</h2></div>
+{% if items %}
+{% for a in items %}
+<div class="card" style="margin-bottom:14px;{% if a.is_pinned %}border-right:3px solid var(--c-blue){% endif %}">
+  <div style="display:flex;justify-content:space-between;align-items:start">
+    <h3 style="border:0;padding:0;margin:0">{{ a.title }}</h3>
+    <small style="color:var(--c-muted)">{{ a.created_at.strftime('%Y-%m-%d') }}</small>
+  </div>
+  <div style="margin-top:8px;line-height:1.8">{{ a.body }}</div>
+</div>
+{% endfor %}
+{% else %}
+<div class="card" style="text-align:center;padding:36px;color:var(--c-muted)">
+  <div style="font-size:44px">📣</div><p>لا توجد إعلانات.</p>
+</div>
+{% endif %}
+{% endblock %}

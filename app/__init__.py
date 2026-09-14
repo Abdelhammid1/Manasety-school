@@ -1,0 +1,87 @@
+from flask import Flask, redirect, render_template, url_for
+
+from .config import Config
+from .extensions import db, migrate, login_manager, bcrypt, csrf
+
+
+def create_app(config_class=Config):
+    app = Flask(__name__, instance_relative_config=False)
+    app.config.from_object(config_class)
+
+    db.init_app(app)
+    migrate.init_app(app, db)
+    login_manager.init_app(app)
+    bcrypt.init_app(app)
+    csrf.init_app(app)
+
+    from .models import User
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return db.session.get(User, int(user_id))
+
+    from .blueprints.auth import bp as auth_bp
+    from .blueprints.dashboard import bp as dashboard_bp
+    from .blueprints.admin import bp as admin_bp
+    from .blueprints.academic import bp as academic_bp
+    from .blueprints.students import bp as students_bp
+    from .blueprints.teachers import bp as teachers_bp
+    from .blueprints.schedule import bp as schedule_bp
+    from .blueprints.attendance import bp as attendance_bp
+    from .blueprints.results import bp as results_bp
+    from .blueprints.finance import bp as finance_bp
+    from .blueprints.hr import bp as hr_bp
+    from .blueprints.portal import bp as portal_bp
+    from .blueprints.api import bp as api_bp
+    from .blueprints.courses import bp as courses_bp
+    from .blueprints.lms import bp as lms_bp
+
+    app.register_blueprint(auth_bp, url_prefix="/auth")
+    app.register_blueprint(dashboard_bp, url_prefix="/")
+    app.register_blueprint(admin_bp, url_prefix="/admin")
+    app.register_blueprint(academic_bp, url_prefix="/academic")
+    app.register_blueprint(students_bp, url_prefix="/students")
+    app.register_blueprint(teachers_bp, url_prefix="/teachers")
+    app.register_blueprint(schedule_bp, url_prefix="/schedule")
+    app.register_blueprint(attendance_bp, url_prefix="/attendance")
+    app.register_blueprint(results_bp, url_prefix="/results")
+    app.register_blueprint(finance_bp, url_prefix="/finance")
+    app.register_blueprint(hr_bp, url_prefix="/hr")
+    app.register_blueprint(portal_bp, url_prefix="/portal")
+    app.register_blueprint(api_bp, url_prefix="/api")
+    app.register_blueprint(courses_bp, url_prefix="/courses")
+    app.register_blueprint(lms_bp, url_prefix="/lms")
+
+    @app.route("/")
+    def index():
+        return render_template("landing.html")
+
+    @app.context_processor
+    def inject_globals():
+        return {
+            "app_name": "منصتي",
+            "app_name_en": "Manasety",
+            "app_tagline": "منصة التعلم الذكية للمدارس",
+            "school_name": app.config["DEFAULT_SCHOOL_NAME"],
+        }
+
+    @app.errorhandler(401)
+    def err_401(_):
+        return redirect(url_for("auth.login"))
+
+    @app.errorhandler(403)
+    def err_403(_):
+        return render_template("errors/error.html", code=403,
+                               title="غير مصرّح", msg="لا تملك صلاحية الوصول إلى هذه الصفحة."), 403
+
+    @app.errorhandler(404)
+    def err_404(_):
+        return render_template("errors/error.html", code=404,
+                               title="الصفحة غير موجودة", msg="تعذّر العثور على ما تبحث عنه."), 404
+
+    @app.errorhandler(500)
+    def err_500(_):
+        return render_template("errors/error.html", code=500,
+                               title="خطأ داخلي", msg="حدث خطأ في الخادم. تواصل مع الدعم الفنّي."), 500
+
+    return app

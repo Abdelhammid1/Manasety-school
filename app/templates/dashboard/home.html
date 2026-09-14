@@ -1,0 +1,263 @@
+{% extends "partials/base.html" %}
+{% from "partials/dashboard_widgets.html" import stat_card, alert_row, bar %}
+
+{% block title %}لوحة الإدارة{% endblock %}
+
+{% block content %}
+
+{# ── 1) Hero card ────────────────────────────────────────────────────────── #}
+<div class="hero-card">
+  <div class="hero-inner">
+    <div class="hero-body">
+      <div class="hero-eyebrow">لوحة إدارة المدرسة</div>
+      <h2 class="hero-title">مرحبًا، {{ current_user.full_name }}</h2>
+      <div class="hero-sub">
+        {{ stats.active_year }}
+        <span class="hero-dot">•</span>
+        {{ stats.students_active }} طالب مسجَّل
+        {% if stats.students_total > stats.students_active %}
+          <span class="hero-dot">•</span>
+          {{ stats.students_total }} إجمالي الملفات
+        {% endif %}
+      </div>
+      <div class="gold-accent"></div>
+    </div>
+    <div class="hero-pill">{{ today.strftime('%Y-%m-%d') }}</div>
+  </div>
+</div>
+
+{# ── 2) Quick actions ──────────────────────────────────────────────────── #}
+<div class="quick-actions">
+  <a class="qa-btn" href="{{ url_for('finance.invoice_new') }}">
+    <span class="qa-icon">＋</span> فاتورة
+  </a>
+  <a class="qa-btn" href="{{ url_for('finance.expense_new') }}">
+    <span class="qa-icon">＋</span> مصروف
+  </a>
+  <a class="qa-btn" href="{{ url_for('students.student_new') }}">
+    <span class="qa-icon">＋</span> طالب
+  </a>
+  <a class="qa-btn" href="{{ url_for('admin.user_new') }}">
+    <span class="qa-icon">＋</span> مستخدم
+  </a>
+  <a class="qa-btn qa-solid" href="{{ url_for('attendance.index') }}">
+    تسجيل الحضور
+  </a>
+  <a class="qa-btn" href="{{ url_for('finance.reports') }}">
+    التقارير المالية
+  </a>
+  <a class="qa-btn" href="{{ url_for('hr.payroll_new') }}">
+    إنشاء الرواتب
+  </a>
+</div>
+
+{# ── 3) Daily operations ─────────────────────────────────────────────── #}
+<h3 class="section-head">اليوم <span class="gold-accent inline"></span></h3>
+
+<div class="grid grid-4">
+  {{ stat_card(
+       label='الحضور اليوم',
+       value=stats.attendance_today.rate ~ '%',
+       sub=(stats.attendance_today.present ~ ' حاضر / '
+            ~ stats.attendance_today.absent ~ ' غائب / '
+            ~ stats.attendance_today.late ~ ' متأخّر'),
+       tone='green',
+       icon='✓',
+       href=url_for('attendance.index')) }}
+  {{ stat_card(
+       label='فصول لم تسجّل الحضور',
+       value=stats.sections_unmarked | length,
+       sub='من ' ~ stats.sections_count ~ ' فصلاً',
+       tone=('red' if stats.sections_unmarked else 'muted'),
+       icon='!',
+       href=url_for('attendance.index')) }}
+  {{ stat_card(
+       label='أقساط خلال ٧ أيام',
+       value=stats.installments_due_7d | length,
+       sub=(stats.installments_due_7d_total | round | int) ~ ' ج.س',
+       tone='amber',
+       icon='◷',
+       href=url_for('finance.invoices_list')) }}
+  {{ stat_card(
+       label='فواتير متأخّرة',
+       value=stats.overdue_invoices,
+       tone=('red' if stats.overdue_invoices else 'muted'),
+       icon='⚠',
+       href=url_for('finance.invoices_list')) }}
+</div>
+
+<div class="grid grid-2 mt-3">
+  {# Sections not yet marked #}
+  <div class="alerts-panel">
+    <div class="alerts-head">
+      <h4>الفصول التي لم تسجَّل بعد</h4>
+      <a class="alerts-link" href="{{ url_for('attendance.index') }}">عرض الكل ←</a>
+    </div>
+    {% if stats.sections_unmarked %}
+      {% for row in stats.sections_unmarked[:5] %}
+        {{ alert_row(
+             icon='!',
+             title=row.section_name ~ ' — ' ~ row.grade_name,
+             meta=row.students_count ~ ' طالب مسجَّل',
+             href=url_for('attendance.mark', section_id=row.section_id),
+             tone='warn') }}
+      {% endfor %}
+    {% else %}
+      <div class="alerts-empty">✓ كل الفصول سجّلت الحضور اليوم.</div>
+    {% endif %}
+  </div>
+
+  {# Installments due next 7 days #}
+  <div class="alerts-panel">
+    <div class="alerts-head">
+      <h4>أقساط قريبة الاستحقاق</h4>
+      <a class="alerts-link" href="{{ url_for('finance.invoices_list') }}">عرض الكل ←</a>
+    </div>
+    {% if stats.installments_due_7d %}
+      {% for row in stats.installments_due_7d[:5] %}
+        {{ alert_row(
+             icon='◷',
+             title=row.student_name,
+             meta='الاستحقاق: ' ~ row.due_date.strftime('%Y-%m-%d')
+                  ~ ' • ' ~ (row.amount | round | int) ~ ' ج.س',
+             href=url_for('finance.invoice_new'),
+             tone='amber') }}
+      {% endfor %}
+    {% else %}
+      <div class="alerts-empty">لا توجد أقساط تستحق خلال الأسبوع القادم.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── 4) Money snapshot ────────────────────────────────────────────────── #}
+<h3 class="section-head">المالية <span class="gold-accent inline"></span></h3>
+
+<div class="grid grid-4">
+  {{ stat_card(
+       label='الرصيد في الخزينة',
+       value=(stats.cash_on_hand | round | int) ~ ' ج.س',
+       tone='green',
+       icon='●',
+       href=url_for('finance.accounts')) }}
+  {{ stat_card(
+       label='مستحقّات مفتوحة (AR)',
+       value=(stats.outstanding_ar | round | int) ~ ' ج.س',
+       tone='navy',
+       icon='◆',
+       href=url_for('finance.invoices_list')) }}
+  {{ stat_card(
+       label='المتحصّلات هذا الشهر',
+       value=(stats.collections_mtd | round | int) ~ ' ج.س',
+       sub='اليوم: ' ~ (stats.collections_today | round | int) ~ ' ج.س',
+       tone='green',
+       icon='↑',
+       href=url_for('finance.reports')) }}
+  {{ stat_card(
+       label='المصروفات هذا الشهر',
+       value=(stats.expenses_mtd | round | int) ~ ' ج.س',
+       tone='amber',
+       icon='↓',
+       href=url_for('finance.expenses_list')) }}
+</div>
+
+{# ── 5) Academic snapshot ────────────────────────────────────────────── #}
+<h3 class="section-head">الأكاديمية <span class="gold-accent inline"></span></h3>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>الطلاب حسب الصف</h3>
+    {% if stats.students_by_grade %}
+      {% for row in stats.students_by_grade %}
+        {{ bar(row.grade_name, row.count, stats.students_by_grade_max, tone='navy') }}
+      {% endfor %}
+    {% else %}
+      <div class="text-muted" style="padding:8px">لا توجد بيانات لهذه السنة.</div>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h3>فصول ممتلئة أو قاربت</h3>
+    {% if stats.sections_at_capacity %}
+      <table class="data">
+        <thead>
+          <tr>
+            <th>الفصل</th>
+            <th>الصف</th>
+            <th>الإشغال</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in stats.sections_at_capacity %}
+            <tr>
+              <td>{{ row.section_name }}</td>
+              <td>{{ row.grade_name }}</td>
+              <td>
+                <strong>{{ row.current_count }}</strong> / {{ row.capacity }}
+                <span class="badge {{ 'danger' if row.pct >= 100 else 'warn' }}">
+                  {{ row.pct }}%
+                </span>
+              </td>
+              <td class="actions">
+                <a class="btn btn-sm btn-navy"
+                   href="{{ url_for('students.students_list') }}?section_id={{ row.section_id }}">
+                  عرض
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="text-muted" style="padding:8px">لا توجد فصول قرب الإشغال الكامل.</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="grid grid-2 mt-3">
+  {{ stat_card(
+       label='طلاب جدد هذا الشهر',
+       value=stats.new_students_month,
+       tone='navy',
+       icon='+',
+       href=url_for('students.students_list')) }}
+  {{ stat_card(
+       label='المعلمون النشطون',
+       value=stats.teachers_active,
+       sub=stats.subjects_count ~ ' مادة',
+       tone='navy',
+       icon='★',
+       href=url_for('teachers.teachers_list')) }}
+</div>
+
+{# ── 6) System health ──────────────────────────────────────────────────── #}
+<h3 class="section-head">حالة النظام <span class="gold-accent inline"></span></h3>
+
+<div class="grid grid-4">
+  {{ stat_card(
+       label='المستخدمون النشطون',
+       value=stats.users_active,
+       tone='navy',
+       icon='●',
+       href=url_for('admin.users_list')) }}
+  {{ stat_card(
+       label='الحسابات المقفلة',
+       value=stats.users_locked,
+       tone=('red' if stats.users_locked else 'muted'),
+       icon='🔒',
+       href=url_for('admin.users_list')) }}
+  {{ stat_card(
+       label='إشعارات فاشلة (٧ أيام)',
+       value=stats.notifications_failed,
+       tone=('amber' if stats.notifications_failed else 'muted'),
+       icon='⚠',
+       href=url_for('admin.users_list')) }}
+  {{ stat_card(
+       label='عدد الصفوف',
+       value=stats.grades_count,
+       tone='muted',
+       icon='▣',
+       href=url_for('academic.grades_list')) }}
+</div>
+
+{% endblock %}

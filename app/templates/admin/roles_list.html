@@ -1,0 +1,47 @@
+{% extends "partials/base.html" %}
+{% block title %}الأدوار{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>الأدوار والصلاحيات</h2><div class="sub">يحدد كل دور صلاحياته على كل وحدة من النظام (T-1.2)</div></div>
+  <a href="{{ url_for('admin.role_new') }}" class="btn btn-primary">+ دور جديد</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>الدور</th><th>الاسم البرمجي</th><th>عدد المستخدمين</th><th>الصلاحيات</th><th>النوع</th><th></th></tr></thead>
+  <tbody>
+    {% for r in roles %}
+    <tr>
+      <td><strong>{{ r.name_ar }}</strong></td>
+      <td class="text-muted">{{ r.name }}</td>
+      <td>{{ r.users|length }}</td>
+      <td>
+        {% set perms = r.permissions or {} %}
+        {% if perms %}
+          <div style="display:flex;flex-wrap:wrap;gap:4px;max-width:340px">
+          {% for module, actions in perms.items() %}
+            <span class="badge navy" title="{{ actions|join(', ') }}" style="font-size:11px">
+              {{ module }} <span style="opacity:0.7">({{ actions|length }})</span>
+            </span>
+          {% endfor %}
+          </div>
+        {% else %}
+          <span class="text-muted">— لا توجد صلاحيات —</span>
+        {% endif %}
+      </td>
+      <td>{% if r.is_system %}<span class="badge navy">نظامي</span>{% else %}<span class="badge muted">مخصص</span>{% endif %}</td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.role_edit', role_id=r.id) }}">تعديل</a>
+        {% if not r.is_system %}
+        <form action="{{ url_for('admin.role_delete', role_id=r.id) }}" method="post" onsubmit="return confirm('تأكيد حذف الدور؟')" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-sm" type="submit">حذف</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لا توجد أدوار. أنشئ دورًا جديدًا.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

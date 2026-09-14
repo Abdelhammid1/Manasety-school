@@ -1,0 +1,44 @@
+{% extends "partials/base.html" %}
+{% block title %}الفواتير{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>الفواتير</h2>
+    <div class="sub">{% if year %}السنة: <strong class="text-navy">{{ year.name }}</strong>{% endif %} — لكل سنة رسومها المستقلّة (T-8.3)</div>
+  </div>
+  <a href="{{ url_for('finance.invoice_new') }}" class="btn btn-primary">+ فاتورة جديدة</a>
+</div>
+
+<table class="data">
+  <thead><tr>
+    <th>الرقم</th><th>الطالب</th><th>التاريخ</th><th>الاستحقاق</th>
+    <th>الإجمالي</th><th>المدفوع</th><th>المتبقّي</th><th>الحالة</th><th></th>
+  </tr></thead>
+  <tbody>
+    {% for i in invoices %}
+    <tr>
+      <td><strong>{{ i.number }}</strong></td>
+      <td>{{ i.enrollment.student.full_name }}<div class="text-muted" style="font-size:12px">{{ i.enrollment.student.permanent_code }}</div></td>
+      <td>{{ i.issue_date }}</td>
+      <td>{{ i.due_date }}</td>
+      <td>{{ "%.2f"|format(i.total_amount) }}</td>
+      <td>{{ "%.2f"|format(i.paid_amount) }}</td>
+      <td><strong>{{ "%.2f"|format(i.remaining) }}</strong></td>
+      <td>
+        {% if i.status == 'paid' %}<span class="badge ok">مدفوعة</span>
+        {% elif i.status == 'partial' %}<span class="badge warn">جزئية</span>
+        {% elif i.status == 'overdue' %}<span class="badge danger">متأخرة</span>
+        {% elif i.status == 'refunded' %}<span class="badge muted">مستردة</span>
+        {% elif i.status == 'sent' %}<span class="badge navy">مرسلة</span>
+        {% else %}<span class="badge muted">{{ i.status }}</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('finance.invoice_detail', invoice_id=i.id) }}">عرض</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="9" class="text-muted" style="text-align:center;padding:18px">لا توجد فواتير.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

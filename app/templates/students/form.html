@@ -1,0 +1,91 @@
+{% extends "partials/base.html" %}
+{% block title %}{% if student %}تعديل ملف طالب{% else %}ملف طالب جديد{% endif %}{% endblock %}
+{% block content %}
+{% set f = form if form else {} %}
+<div class="page-title">
+  <div>
+    <h2>{% if student %}تعديل: {{ student.full_name }}{% else %}ملف طالب جديد{% endif %}</h2>
+    {% if student %}<div class="sub">الكود الدائم: <span class="badge muted">{{ student.permanent_code }}</span></div>{% endif %}
+  </div>
+  <a href="{{ url_for('students.students_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if dup %}<input type="hidden" name="confirm_dup" value="1">{% endif %}
+
+  <div class="card">
+    <h3>البيانات الأساسية</h3>
+    <div class="form-row cols-2">
+      <div class="field"><label>الاسم الكامل *</label>
+        <input name="full_name" required value="{{ student.full_name if student else f.get('full_name','') }}">
+      </div>
+      <div class="field"><label>رقم الهوية / الرقم الوطني</label>
+        <input name="national_id" value="{{ student.national_id or '' if student else f.get('national_id','') }}">
+        <div class="hint">إن كان موجودًا لطالب آخر سيتم التنبيه قبل الحفظ.</div>
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field"><label>تاريخ الميلاد</label>
+        <input name="dob" type="date" value="{{ student.dob if student else f.get('dob','') }}">
+      </div>
+      <div class="field"><label>الجنس</label>
+        <select name="gender">
+          <option value="">—</option>
+          <option value="M" {% if (student and student.gender=='M') or f.get('gender')=='M' %}selected{% endif %}>ذكر</option>
+          <option value="F" {% if (student and student.gender=='F') or f.get('gender')=='F' %}selected{% endif %}>أنثى</option>
+        </select>
+      </div>
+      <div class="field"><label>العنوان</label>
+        <input name="address" value="{{ student.address or '' if student else f.get('address','') }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-2">
+    <h3>بيانات ولي الأمر</h3>
+    <div class="form-row cols-3">
+      <div class="field"><label>الاسم</label>
+        <input name="parent_name" value="{{ student.parent_name or '' if student else f.get('parent_name','') }}">
+      </div>
+      <div class="field"><label>الهاتف (واتساب)</label>
+        <input name="parent_phone" value="{{ student.parent_phone or '' if student else f.get('parent_phone','') }}">
+      </div>
+      <div class="field"><label>البريد الإلكتروني</label>
+        <input name="parent_email" type="email" value="{{ student.parent_email or '' if student else f.get('parent_email','') }}">
+      </div>
+    </div>
+    <div class="field"><label>ملاحظات</label>
+      <textarea name="notes" rows="2">{{ student.notes or '' if student else f.get('notes','') }}</textarea>
+    </div>
+    <div class="field">
+      <label>ربط ولي الأمر بحساب مستخدم (لتطبيق ولي الأمر)</label>
+      <select name="parent_user_id">
+        <option value="">— لا يوجد —</option>
+        {% for u in parent_users %}<option value="{{ u.id }}" {% if student and student.parent_user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
+      </select>
+      <div class="hint">ولي أمر مرتبط بحساب يستطيع رؤية حضور أبنائه ونتائجهم وفواتيرهم.</div>
+    </div>
+  </div>
+
+  <div class="card mt-2">
+    <h3>بيانات الأم <span class="badge muted" style="font-size:11px;margin-right:8px">اختياري</span></h3>
+    <div class="hint" style="margin-bottom:10px">تُستخدم للتفريق بين الأبناء في الحالات التي يحمل فيها أبناء الأب نفسه أسماء متطابقة.</div>
+    <div class="form-row cols-2">
+      <div class="field"><label>اسم الأم</label>
+        <input name="mother_name" value="{{ student.mother_name or '' if student else f.get('mother_name','') }}">
+      </div>
+      <div class="field"><label>هاتف الأم (واتساب)</label>
+        <input name="mother_phone" value="{{ student.mother_phone or '' if student else f.get('mother_phone','') }}">
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">
+      {% if dup %}تأكيد الحفظ رغم تكرار رقم الهوية{% else %}حفظ{% endif %}
+    </button>
+    <a href="{{ url_for('students.students_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

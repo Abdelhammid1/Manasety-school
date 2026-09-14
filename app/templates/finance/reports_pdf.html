@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>التقرير المالي</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: sans-serif; color: #111827; direction: rtl; }
+    .brand { border-bottom: 3px solid #D4AF37; padding-bottom: 12px; margin-bottom: 20px; }
+    .brand h1 { color: #001556; margin: 0; font-size: 22px; }
+    .brand .sub { color: #6B7280; font-size: 12px; margin-top: 4px; }
+    .period { background: #F7F8FA; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
+    h2 { color: #001556; font-size: 16px; margin: 20px 0 8px; border-right: 4px solid #D4AF37; padding-right: 10px; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
+    th { background: #001556; color: white; padding: 6px 8px; font-size: 12px; text-align: right; }
+    td { padding: 6px 8px; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
+    tr.total td { background: #F7F8FA; font-weight: 700; }
+    .amount { text-align: left; direction: ltr; font-family: monospace; }
+    .net {
+      margin-top: 20px; padding: 14px; border: 2px solid #001556;
+      border-radius: 8px; text-align: center;
+      background: linear-gradient(135deg, #001556 0%, #1A2D6C 100%);
+      color: white;
+    }
+    .net .label { font-size: 12px; opacity: 0.8; }
+    .net .value { font-size: 28px; font-weight: 800; margin-top: 4px; color: #D4AF37; }
+    .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #6B7280; }
+  </style>
+</head>
+<body>
+  <div class="brand">
+    <h1>التقرير المالي</h1>
+    <div class="sub">مؤسسة الشيخ صالح الشريف للتعليم القرآني — منظومة منصتي</div>
+  </div>
+
+  <div class="period">
+    <strong>الفترة:</strong> من {{ start }} إلى {{ end }}
+  </div>
+
+  {% for key in ['asset', 'liability', 'equity', 'revenue', 'expense'] %}
+  {% if grouped[key] %}
+  <h2>{{ label_ar[key] }}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:18%">الرمز</th>
+        <th>الاسم</th>
+        <th style="width:22%">الرصيد</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for row in grouped[key] %}
+      <tr>
+        <td>{{ row.code }}</td>
+        <td>{{ row.name }}</td>
+        <td class="amount">{{ "%.2f"|format(row.balance) }}</td>
+      </tr>
+      {% endfor %}
+      <tr class="total">
+        <td colspan="2"><strong>إجمالي {{ label_ar[key] }}</strong></td>
+        <td class="amount"><strong>{{ "%.2f"|format(totals[key]) }}</strong></td>
+      </tr>
+    </tbody>
+  </table>
+  {% endif %}
+  {% endfor %}
+
+  <div class="net">
+    <div class="label">صافي الدخل</div>
+    <div class="value">{{ "%.2f"|format(net_income) }}</div>
+  </div>
+
+  <div class="footer">
+    صدر بتاريخ {{ end }} • منصتي © 2026
+  </div>
+</body>
+</html>

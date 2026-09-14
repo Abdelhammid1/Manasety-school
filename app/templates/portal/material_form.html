@@ -1,0 +1,46 @@
+{% extends "partials/base.html" %}
+{% block title %}رفع محتوى{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>رفع محتوى جديد</h2></div>
+  <a href="{{ url_for('portal.materials') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+{% if not pairs %}
+<div class="alert info">لا توجد فصول/مواد مسنَدة لك. اطلب من المدير إضافة الإسناد.</div>
+{% else %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-2">
+      <div class="field"><label>الفصل والمادة</label>
+        <select name="pair" required>
+          {% for p in pairs %}<option value="{{ p.section_id }}|{{ p.subject_id }}">{{ p.label }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>نوع المحتوى</label>
+        <select name="kind">
+          <option value="link">رابط</option>
+          <option value="video">فيديو</option>
+          <option value="file">ملف</option>
+        </select>
+      </div>
+    </div>
+    <div class="field"><label>العنوان</label>
+      <input name="title" required>
+    </div>
+    <div class="field"><label>الوصف (اختياري)</label>
+      <textarea name="description" rows="3"></textarea>
+    </div>
+    <div class="field"><label>الرابط الخارجي (للنوع رابط/فيديو)</label>
+      <input name="external_url" type="url" placeholder="https://...">
+      <div class="hint">رفع الملفات مباشرة سيُضاف عند إعداد التخزين السحابي.</div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('portal.materials') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endif %}
+{% endblock %}

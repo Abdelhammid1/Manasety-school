@@ -1,0 +1,35 @@
+{% extends "partials/base.html" %}
+{% block title %}الإسناد{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>إسناد المعلمين للمواد والفصول</h2>
+    <div class="sub">اختر فصلاً لإدارة إسناداته (T-4.3)</div>
+  </div>
+</div>
+
+{% if not year %}
+<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
+{% else %}
+<div class="card">
+  <h3>السنة: {{ year.name }}</h3>
+  <table class="data">
+    <thead><tr><th>الصف</th><th>الفصل</th><th>عدد الإسنادات</th><th></th></tr></thead>
+    <tbody>
+      {% for s in sections %}
+      <tr>
+        <td>{{ s.grade.name }}</td>
+        <td><strong>{{ s.name }}</strong></td>
+        <td>{{ s.assignments | selectattr('is_active') | selectattr('year_id', 'equalto', year.id) | list | length }}</td>
+        <td class="actions">
+          <a class="btn btn-navy btn-sm" href="{{ url_for('teachers.section_assignments', section_id=s.id) }}">إدارة</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="4" class="text-muted" style="text-align:center;padding:20px">لا توجد فصول لهذه السنة.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

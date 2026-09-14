@@ -1,0 +1,11 @@
+# Dart / Flutter package artifacts
+.dart_tool/
+.packages
+build/
+.pub-cache/
+.pub/
+
+# IDE noise
+.idea/
+.vscode/
+*.iml

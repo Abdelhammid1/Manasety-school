@@ -1,0 +1,51 @@
+{% extends "partials/base.html" %}
+{% block title %}تقرير حضور {{ section.name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>تقرير الحضور — {{ section.grade.name }} / {{ section.name }}</h2>
+    <div class="sub">ملخص انتظام طلاب الفصل خلال الفترة (T-6.3)</div>
+  </div>
+  <a href="{{ url_for('attendance.index') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="flex" style="gap:12px;align-items:end">
+    <div class="field" style="margin:0"><label>من</label>
+      <input name="start" type="date" value="{{ start }}">
+    </div>
+    <div class="field" style="margin:0"><label>إلى</label>
+      <input name="end" type="date" value="{{ end }}">
+    </div>
+    <button class="btn btn-navy btn-sm" type="submit">تحديث</button>
+  </div>
+</form>
+
+<table class="data">
+  <thead><tr>
+    <th>الطالب</th><th>حاضر</th><th>غائب</th><th>متأخر</th>
+    <th>إجمالي</th><th>نسبة الحضور</th>
+  </tr></thead>
+  <tbody>
+    {% for r in summaries %}
+    <tr>
+      <td>
+        <strong>{{ r.enrollment.student.full_name }}</strong>
+        <div class="text-muted" style="font-size:12px">{{ r.enrollment.student.permanent_code }}</div>
+      </td>
+      <td><span class="badge ok">{{ r.present }}</span></td>
+      <td><span class="badge danger">{{ r.absent }}</span></td>
+      <td><span class="badge warn">{{ r.late }}</span></td>
+      <td>{{ r.total }}</td>
+      <td>
+        {% if r.rate >= 90 %}<span class="badge ok">{{ r.rate }}%</span>
+        {% elif r.rate >= 75 %}<span class="badge warn">{{ r.rate }}%</span>
+        {% else %}<span class="badge danger">{{ r.rate }}%</span>{% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px">لا بيانات.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

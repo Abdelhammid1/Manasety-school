@@ -1,0 +1,8 @@
+<div class="topbar">
+  <div class="school-name">{{ school_name }}</div>
+  <div class="user-chip">
+    <span class="name">{{ current_user.full_name }}</span>
+    <span class="badge navy">{{ current_user.role.name_ar if current_user.role else '' }}</span>
+    <a href="{{ url_for('auth.logout') }}" class="btn btn-ghost btn-sm">خروج</a>
+  </div>
+</div>

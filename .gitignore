@@ -1,0 +1,37 @@
+__pycache__/
+*.pyc
+.venv/
+.venv-*/
+venv/
+.env
+instance/
+*.sqlite
+.DS_Store
+node_modules/
+test-results/
+playwright-report/
+playwright/.cache/
+migrations/versions/*.pyc
+.claude/
+.idea/
+.vscode/
+*.log
+
+AppIcons.zip
+AppIcons/
+
+# Sprint 10 — teacher-uploaded materials + Firebase service account
+app/static/uploads/materials/
+!app/static/uploads/.gitkeep
+manasety-fcm-service-account.json
+mobile/*/ios/Runner/GoogleService-Info.plist
+mobile/*/android/app/google-services.json
+
+# Android upload keystore passwords — never commit
+mobile/*/android/key.properties
+*.jks
+*.keystore
+*.sql
+backups/
+db_backups/
+audit-*.txt

@@ -1,0 +1,36 @@
+{% extends "partials/base.html" %}
+{% block title %}نوع رسم جديد{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>نوع رسم جديد</h2></div>
+  <a href="{{ url_for('finance.fee_types') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-2">
+      <div class="field"><label>الاسم</label>
+        <input name="name" required placeholder="رسوم تسجيل / دراسة / مواصلات ...">
+      </div>
+      <div class="field"><label>القيمة الافتراضية</label>
+        <input name="default_amount" type="number" step="0.01" min="0" value="0" required>
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field"><label>حساب الإيراد</label>
+        <select name="revenue_account_id" required>
+          {% for r in revenues %}<option value="{{ r.id }}">{{ r.code }} — {{ r.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field" style="align-self:end">
+        <label class="checkbox"><input type="checkbox" name="installable" checked> قابل للتقسيط</label>
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('finance.fee_types') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

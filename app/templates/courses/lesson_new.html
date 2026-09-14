@@ -1,0 +1,33 @@
+{% extends "partials/base.html" %}
+{% block title %}درس جديد{% endblock %}
+{% block content %}
+<div class="page-title"><h2>درس جديد — {{ course.title }}</h2></div>
+<form method="post" class="card" style="max-width:720px">
+  <label style="display:block;margin-bottom:14px">
+    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">عنوان الدرس</span>
+    <input name="title" required style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px">
+  </label>
+  <div class="grid grid-2">
+    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">النوع</span>
+      <select name="kind" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px">
+        <option value="text">نص</option><option value="video">فيديو</option>
+        <option value="pdf">PDF</option><option value="embed">تضمين</option><option value="link">رابط</option>
+      </select></label>
+    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">المدة (دقيقة)</span>
+      <input name="duration_minutes" type="number" value="10" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
+  </div>
+  <label style="display:block;margin:14px 0">
+    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">رابط الوسيط (فيديو/PDF/إمبد)</span>
+    <input name="media_url" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px" dir="ltr">
+  </label>
+  <label style="display:block;margin-bottom:14px">
+    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">محتوى الدرس</span>
+    <textarea name="body" rows="8" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px"></textarea>
+  </label>
+  <div style="text-align:left">
+    <button type="submit" style="background:var(--grad-brand);color:#fff;padding:10px 26px;border:0;border-radius:999px;font-weight:700;cursor:pointer">
+      حفظ الدرس
+    </button>
+  </div>
+</form>
+{% endblock %}

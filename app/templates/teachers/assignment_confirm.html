@@ -1,0 +1,26 @@
+{% extends "partials/base.html" %}
+{% block title %}تأكيد التدريس المشترك{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>تأكيد التدريس المشترك</h2>
+    <div class="sub">المادة مسنَدة بالفعل إلى: <strong>{{ others }}</strong></div>
+  </div>
+  <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="btn btn-ghost">إلغاء</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="confirm_coteach" value="1">
+  <input type="hidden" name="subject_id" value="{{ subject_id }}">
+  <input type="hidden" name="teacher_id" value="{{ teacher_id }}">
+  <input type="hidden" name="weekly_periods" value="{{ weekly_periods }}">
+  <div class="card">
+    <p>هل تريد إضافة معلم آخر لنفس المادة في هذا الفصل (تدريس مشترك)؟</p>
+    <div class="mt-2 flex">
+      <button class="btn btn-primary" type="submit">تأكيد الإضافة</button>
+      <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="btn btn-ghost">إلغاء</a>
+    </div>
+  </div>
+</form>
+{% endblock %}

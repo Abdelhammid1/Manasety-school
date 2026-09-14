@@ -1,0 +1,24 @@
+{% extends "partials/base.html" %}
+{% block title %}أنواع الرسوم{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>أنواع الرسوم</h2><div class="sub">قابلة للإضافة دون تدخل برمجي (T-8.2)</div></div>
+  <a href="{{ url_for('finance.fee_type_new') }}" class="btn btn-primary">+ نوع رسم</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>الاسم</th><th>القيمة الافتراضية</th><th>قابل للتقسيط</th><th>حساب الإيراد</th></tr></thead>
+  <tbody>
+    {% for f in fee_types %}
+    <tr>
+      <td><strong>{{ f.name }}</strong></td>
+      <td>{{ f.default_amount }}</td>
+      <td>{% if f.installable %}<span class="badge ok">نعم</span>{% else %}<span class="badge muted">لا</span>{% endif %}</td>
+      <td class="text-muted">{{ f.revenue_account.code }} — {{ f.revenue_account.name }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="4" class="text-muted" style="text-align:center;padding:18px">لا توجد أنواع رسوم.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

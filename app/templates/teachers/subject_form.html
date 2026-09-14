@@ -1,0 +1,38 @@
+{% extends "partials/base.html" %}
+{% block title %}{% if subject %}تعديل مادة{% else %}مادة جديدة{% endif %}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>{% if subject %}تعديل: {{ subject.name }}{% else %}مادة جديدة{% endif %}</h2></div>
+  <a href="{{ url_for('teachers.subjects_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-2">
+      <div class="field"><label>اسم المادة *</label>
+        <input name="name" required value="{{ subject.name if subject else '' }}">
+      </div>
+      <div class="field"><label>الرمز (اختياري)</label>
+        <input name="code" value="{{ subject.code or '' if subject else '' }}">
+      </div>
+    </div>
+    <div class="field">
+      <label>الصفوف المرتبطة (يمكن اختيار أكثر من صف)</label>
+      <div class="grid grid-3" style="gap:8px">
+        {% set sel = subject.grades | map(attribute='id') | list if subject else [] %}
+        {% for g in grades %}
+        <label class="checkbox">
+          <input type="checkbox" name="grade_ids" value="{{ g.id }}" {% if g.id in sel %}checked{% endif %}>
+          {{ g.name }}
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('teachers.subjects_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

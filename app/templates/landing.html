@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{ app_name }} — منصة إدارة المدارس المتكاملة</title>
+  <meta name="description" content="منصة {{ app_name }} لإدارة المدارس: أكاديمي، حضور، درجات، جداول، مالية، موارد بشرية، وبوابة أولياء الأمور.">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  <style>
+    @font-face{font-family:"Baloo Bhaijaan 2";src:url("{{ url_for('static', filename='fonts/BalooBhaijaan2.ttf') }}") format("truetype-variations"),url("{{ url_for('static', filename='fonts/BalooBhaijaan2.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
+    @font-face{font-family:"Nunito";src:url("{{ url_for('static', filename='fonts/Nunito.ttf') }}") format("truetype-variations"),url("{{ url_for('static', filename='fonts/Nunito.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
+    :root{
+      --c-navy:#0C2461;
+      --c-navy-dark:#081A47;
+      --c-navy-soft:#1E3A8A;
+      --c-gold:#2563EB;        /* legacy alias — now our accent blue */
+      --c-gold-dark:#1E3A8A;
+      --c-blue:#2563EB;
+      --c-sky:#0099CC;
+      --grad-brand:linear-gradient(135deg,#1E3A8A 0%,#2563EB 55%,#0099CC 100%);
+      --c-surface:#F5F7FA;
+      --c-surface-2:#EAEEF4;
+      --c-border:#E1E6EE;
+      --c-text:#1F2937;
+      --c-muted:#6B7280;
+      --c-white:#FFFFFF;
+      --radius:12px;
+      --shadow-sm:0 1px 2px rgba(12,36,97,.06);
+      --shadow:0 8px 24px rgba(12,36,97,.10);
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0}
+    body{
+      font-family:"Baloo Bhaijaan 2","Nunito","Segoe UI",system-ui,sans-serif;
+      background:var(--c-surface);
+      color:var(--c-text);
+      direction:rtl;
+      font-size:16px;
+      line-height:1.7;
+    }
+    a{color:var(--c-navy-soft);text-decoration:none}
+    a:hover{color:var(--c-gold)}
+    img{max-width:100%;display:block}
+
+    /* Navbar */
+    .nav{
+      position:sticky;top:0;z-index:20;
+      background:rgba(255,255,255,.92);
+      backdrop-filter:saturate(140%) blur(8px);
+      border-bottom:1px solid var(--c-border);
+    }
+    .nav-inner{
+      max-width:1180px;margin:0 auto;
+      padding:14px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px;
+    }
+    .brand{display:flex;align-items:center;gap:12px;color:var(--c-navy);font-weight:800;font-size:19px;line-height:1.2}
+    .brand .logo{width:44px;height:44px;border-radius:10px;background:#fff;border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+    .brand .logo img{width:34px;height:34px;object-fit:contain}
+    .brand-text{display:flex;flex-direction:column}
+    .brand-text .school{color:var(--c-navy);font-weight:800;font-size:16px}
+    .brand-text .by{color:var(--c-muted);font-weight:600;font-size:11.5px;margin-top:2px}
+    .brand-text .by b{color:var(--c-gold-dark);font-weight:800}
+    /* Every "منصتي" mention links to manasety.ai */
+    .manasety-link{color:var(--c-gold-dark);font-weight:800;text-decoration:none;border-bottom:1px dashed rgba(184,148,31,.45);transition:.15s all}
+    .manasety-link:hover{color:var(--c-navy);border-bottom-color:var(--c-navy)}
+    .nav-links{display:flex;gap:22px;align-items:center}
+    .nav-links a{color:var(--c-text);font-weight:600;font-size:14px}
+    .nav-links a:hover{color:var(--c-navy)}
+    .btn{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:11px 22px;border-radius:999px;font-weight:700;font-size:14px;
+      border:1px solid transparent;cursor:pointer;transition:.18s all;
+      line-height:1;white-space:nowrap;
+    }
+    .btn-primary{
+      background:var(--c-navy);color:#fff;
+      box-shadow:0 4px 12px rgba(0,21,86,.18);
+    }
+    .btn-primary:hover{background:var(--c-navy-dark);color:#fff;transform:translateY(-1px);box-shadow:0 6px 16px rgba(0,21,86,.25)}
+    .btn-gold{
+      background:linear-gradient(180deg,var(--c-gold) 0%,var(--c-gold-dark) 100%);
+      color:#111;border-color:var(--c-gold-dark);
+      box-shadow:0 4px 14px rgba(212,175,55,.35);
+    }
+    .btn-gold:hover{filter:brightness(1.05);color:#111;transform:translateY(-1px);box-shadow:0 6px 18px rgba(212,175,55,.45)}
+    .btn-ghost{background:transparent;color:var(--c-navy);border-color:var(--c-border)}
+    .btn-ghost:hover{background:var(--c-surface-2);color:var(--c-navy)}
+    .btn-lg{padding:15px 30px;font-size:16px}
+
+    /* Nav-specific login button — small, high-contrast, gold accent */
+    .nav-links .btn-nav{
+      background:linear-gradient(180deg,var(--c-gold) 0%,var(--c-gold-dark) 100%);
+      color:#111;border:1px solid var(--c-gold-dark);
+      padding:10px 20px;font-weight:800;letter-spacing:.2px;
+      box-shadow:0 3px 10px rgba(212,175,55,.35);
+    }
+    .nav-links .btn-nav:hover{filter:brightness(1.06);color:#111;transform:translateY(-1px)}
+
+    /* Hero */
+    .hero{
+      position:relative;overflow:hidden;
+      background:
+        radial-gradient(1200px 500px at 20% -10%, rgba(212,175,55,.18), transparent 60%),
+        radial-gradient(900px 500px at 90% 10%, rgba(26,45,108,.12), transparent 55%),
+        linear-gradient(180deg, #fff 0%, var(--c-surface) 100%);
+      padding:64px 24px 80px;
+    }
+    .hero-inner{max-width:1180px;margin:0 auto;display:grid;grid-template-columns:1.15fr .85fr;gap:48px;align-items:center}
+    .eyebrow{
+      display:inline-flex;align-items:center;gap:8px;
+      background:rgba(0,21,86,.06);color:var(--c-navy);
+      padding:6px 12px;border-radius:999px;font-size:13px;font-weight:600;
+    }
+    .eyebrow .dot{width:6px;height:6px;border-radius:50%;background:var(--c-gold)}
+    h1.hero-title{
+      margin:16px 0 12px;color:var(--c-navy);
+      font-size:44px;line-height:1.25;font-weight:800;letter-spacing:-.2px;
+    }
+    h1.hero-title span{color:var(--c-gold-dark)}
+    .hero p{color:var(--c-muted);font-size:17px;max-width:560px;margin:0 0 24px}
+    .hero-cta{display:flex;gap:12px;flex-wrap:wrap}
+    .hero-badges{display:flex;gap:22px;margin-top:26px;color:var(--c-muted);font-size:13px;flex-wrap:wrap}
+    .hero-badges span{display:flex;align-items:center;gap:6px}
+    .hero-badges .check{color:#22C55E;font-weight:800}
+
+    /* Hero mock */
+    .mock{
+      background:#fff;border:1px solid var(--c-border);
+      border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
+    }
+    .mock-bar{background:var(--c-navy);color:#fff;padding:10px 14px;display:flex;gap:6px;align-items:center;font-size:12px}
+    .mock-bar .d{width:10px;height:10px;border-radius:50%;background:rgba(255,255,255,.35)}
+    .mock-body{padding:18px}
+    .mock-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px}
+    .mock-stat{background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:12px}
+    .mock-stat .lbl{font-size:11px;color:var(--c-muted)}
+    .mock-stat .val{font-size:20px;font-weight:800;color:var(--c-navy)}
+    .mock-bars{display:flex;align-items:flex-end;gap:8px;height:110px;padding:10px;background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px}
+    .mock-bars .b{flex:1;background:linear-gradient(180deg,var(--c-navy) 0%,var(--c-navy-soft) 100%);border-radius:6px 6px 0 0;opacity:.85}
+    .mock-bars .b.g{background:linear-gradient(180deg,var(--c-gold) 0%,var(--c-gold-dark) 100%)}
+
+    /* Section */
+    section{padding:72px 24px}
+    .container{max-width:1180px;margin:0 auto}
+    .section-head{text-align:center;max-width:720px;margin:0 auto 44px}
+    .section-head .kicker{color:var(--c-gold-dark);font-weight:700;letter-spacing:1.5px;font-size:12px;text-transform:uppercase}
+    .section-head h2{color:var(--c-navy);font-size:32px;margin:8px 0 10px;font-weight:800}
+    .section-head p{color:var(--c-muted);font-size:16px;margin:0}
+
+    /* Feature grid */
+    .features{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+    .feature{
+      background:#fff;border:1px solid var(--c-border);border-radius:var(--radius);
+      padding:22px;box-shadow:var(--shadow-sm);transition:.15s all;
+    }
+    .feature:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:#D0D8E4}
+    .feature .fi{
+      width:44px;height:44px;border-radius:12px;
+      display:flex;align-items:center;justify-content:center;font-size:22px;
+      background:rgba(212,175,55,.15);color:var(--c-gold-dark);margin-bottom:14px;
+    }
+    .feature h3{margin:0 0 6px;color:var(--c-navy);font-size:17px}
+    .feature p{margin:0;color:var(--c-muted);font-size:14.5px;line-height:1.65}
+
+    /* Roles */
+    .roles-wrap{background:linear-gradient(180deg,#fff 0%,var(--c-surface) 100%);border-top:1px solid var(--c-border);border-bottom:1px solid var(--c-border)}
+    .roles{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+    .role{
+      background:#fff;border:1px solid var(--c-border);border-radius:var(--radius);
+      padding:20px;text-align:center;
+    }
+    .role .emoji{font-size:28px;margin-bottom:6px}
+    .role h4{margin:0 0 4px;color:var(--c-navy);font-size:16px}
+    .role p{margin:0;color:var(--c-muted);font-size:13.5px}
+
+    /* CTA */
+    .cta{
+      background:linear-gradient(135deg,var(--c-navy) 0%, var(--c-navy-soft) 100%);
+      color:#fff;border-radius:18px;padding:44px;text-align:center;
+      box-shadow:var(--shadow);position:relative;overflow:hidden;
+    }
+    .cta::after{
+      content:"";position:absolute;inset:auto -80px -120px auto;width:280px;height:280px;
+      background:radial-gradient(circle,var(--c-gold) 0%,transparent 70%);opacity:.35;
+    }
+    .cta h2{margin:0 0 8px;font-size:28px;font-weight:800}
+    .cta p{margin:0 0 22px;color:#CBD7E8;font-size:16px}
+    .cta .btn-gold{box-shadow:0 6px 18px rgba(212,175,55,.35)}
+
+    /* Footer */
+    footer{padding:28px 24px;color:var(--c-muted);border-top:1px solid var(--c-border);background:#fff}
+    .footer-inner{max-width:1180px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;font-size:13.5px}
+    .foot-brand{display:flex;align-items:center;gap:12px}
+    .foot-brand img{width:36px;height:36px;object-fit:contain;border:1px solid var(--c-border);border-radius:8px;padding:3px;background:#fff}
+    .foot-school{color:var(--c-text);font-weight:600;font-size:13.5px}
+    .foot-by{color:var(--c-muted);font-size:12.5px;margin-top:2px}
+    .foot-by b{color:var(--c-gold-dark);font-weight:800}
+
+    /* Responsive */
+    @media(max-width:960px){
+      .hero{padding:44px 20px 56px}
+      .hero-inner{grid-template-columns:1fr;gap:28px}
+      h1.hero-title{font-size:34px}
+      .features{grid-template-columns:repeat(2,1fr)}
+      .roles{grid-template-columns:repeat(2,1fr)}
+      section{padding:56px 20px}
+    }
+    @media(max-width:600px){
+      .nav-links a:not(.btn){display:none}
+      .features{grid-template-columns:1fr}
+      h1.hero-title{font-size:28px}
+      .cta{padding:32px 22px}
+      .brand-text .school{font-size:14px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .brand-text .by{font-size:10.5px}
+    }
+  </style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="nav-inner">
+    <div class="brand">
+      <a href="{{ url_for('index') }}" class="logo" aria-label="{{ school_name }}">
+        <img src="{{ url_for('static', filename='img/logo-emblem.png') }}" alt="{{ school_name }}">
+      </a>
+      <div class="brand-text">
+        <a href="{{ url_for('index') }}" class="school" style="color:inherit;text-decoration:none">{{ school_name }}</a>
+        <span class="by">بتطوير من <a class="manasety-link" href="https://manasety.ai" target="_blank" rel="noopener">{{ app_name }}</a></span>
+      </div>
+    </div>
+    <nav class="nav-links">
+      <a href="#features">المزايا</a>
+      <a href="#roles">من يستخدمها</a>
+      <a href="#cta">ابدأ الآن</a>
+      {% if current_user.is_authenticated %}
+        <a class="btn btn-nav" href="{{ url_for('dashboard.home') }}">فتح لوحة التحكم</a>
+      {% else %}
+        <a class="btn btn-nav" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="hero-inner">
+    <div>
+      <span class="eyebrow"><span class="dot"></span> منصّة <a class="manasety-link" href="https://manasety.ai" target="_blank" rel="noopener" style="margin:0 3px">{{ app_name }}</a> · نظام مدرسي متكامل باللغة العربية</span>
+      <h1 class="hero-title">
+        أهلاً بكم في <span>{{ school_name }}</span>
+        <br>أدر مدرستك بالكامل من مكان واحد.
+      </h1>
+      <p>
+        هذه المنصّة من تطوير <a class="manasety-link" href="https://manasety.ai" target="_blank" rel="noopener">{{ app_name }}</a> — تجمع الأكاديمي والحضور والدرجات
+        والمالية والموارد البشرية وبوابة أولياء الأمور في نظام واحد سهل ومصمّم للمدارس العربية.
+      </p>
+      <div class="hero-cta">
+        {% if current_user.is_authenticated %}
+          <a class="btn btn-primary btn-lg" href="{{ url_for('dashboard.home') }}">فتح لوحة التحكم ←</a>
+          <a class="btn btn-ghost btn-lg" href="#features">استعرض المزايا</a>
+        {% else %}
+          <a class="btn btn-primary btn-lg" href="{{ url_for('auth.login') }}">تسجيل الدخول ←</a>
+          <a class="btn btn-ghost btn-lg" href="#features">تعرّف على المزايا</a>
+        {% endif %}
+      </div>
+      <div class="hero-badges">
+        <span><span class="check">✓</span> واجهة عربية كاملة (RTL)</span>
+        <span><span class="check">✓</span> جاهز للجوال</span>
+        <span><span class="check">✓</span> صلاحيات متعددة الأدوار</span>
+      </div>
+    </div>
+
+    <div class="mock" aria-hidden="true">
+      <div class="mock-bar">
+        <span class="d"></span><span class="d"></span><span class="d"></span>
+        <span style="margin-inline-start:auto;opacity:.7">لوحة التحكم — {{ school_name }}</span>
+      </div>
+      <div class="mock-body">
+        <div class="mock-row">
+          <div class="mock-stat"><div class="lbl">الطلاب</div><div class="val">1,248</div></div>
+          <div class="mock-stat"><div class="lbl">الحضور اليوم</div><div class="val">96%</div></div>
+          <div class="mock-stat"><div class="lbl">المعلمون</div><div class="val">84</div></div>
+        </div>
+        <div class="mock-bars">
+          <div class="b" style="height:40%"></div>
+          <div class="b g" style="height:70%"></div>
+          <div class="b" style="height:55%"></div>
+          <div class="b" style="height:85%"></div>
+          <div class="b g" style="height:60%"></div>
+          <div class="b" style="height:75%"></div>
+          <div class="b g" style="height:92%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">المزايا</div>
+      <h2>كل ما تحتاجه المدرسة في مكان واحد</h2>
+      <p>وحدات مترابطة تُغطّي دورة العمل الكاملة — من قبول الطلاب حتى إصدار الشهادات.</p>
+    </div>
+
+    <div class="features">
+      <div class="feature">
+        <div class="fi">🎓</div>
+        <h3>الشؤون الأكاديمية</h3>
+        <p>إدارة السنوات الدراسية، المراحل، الصفوف، الشُعب، والمواد بضغطة واحدة.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">🧑‍🎓</div>
+        <h3>سجلّات الطلاب</h3>
+        <p>ملف كامل لكل طالب: البيانات، الأسرة، السجل الأكاديمي، والمرفقات.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">👨‍🏫</div>
+        <h3>المعلمون والموظفون</h3>
+        <p>إسناد المواد، الجداول، الرواتب، والإجازات لكل عضو في فريق المدرسة.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">📅</div>
+        <h3>الجداول الدراسية</h3>
+        <p>بناء الجدول الأسبوعي لكل صف وشُعبة مع كشف التعارضات تلقائياً.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">📋</div>
+        <h3>الحضور اليومي</h3>
+        <p>تسجيل الحضور بلمسة، وإشعارات فورية لأولياء الأمور عند الغياب.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">🏅</div>
+        <h3>الاختبارات والدرجات</h3>
+        <p>إدخال الدرجات، حساب المعدّلات، وإصدار كشوف الدرجات جاهزة للطباعة.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">💳</div>
+        <h3>الإدارة المالية</h3>
+        <p>الرسوم الدراسية، سندات القبض والصرف، وتتبّع المتأخّرات بدقّة.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">🧾</div>
+        <h3>الموارد البشرية</h3>
+        <p>ملفات الموظفين، العقود، الرواتب الشهرية، والحضور والانصراف.</p>
+      </div>
+      <div class="feature">
+        <div class="fi">📱</div>
+        <h3>بوابة الأهل والمعلم</h3>
+        <p>تطبيق جوال يتيح للأهل متابعة أبنائهم، وللمعلم إدارة صفوفه من هاتفه.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="roles" class="roles-wrap">
+  <div class="container">
+    <div class="section-head">
+      <div class="kicker">لكل دور واجهته</div>
+      <h2>مصمّمة لكل من في المدرسة</h2>
+      <p>صلاحيات وواجهات مخصّصة لكل مستخدم بحسب دوره.</p>
+    </div>
+
+    <div class="roles">
+      <div class="role"><div class="emoji">🏫</div><h4>الإدارة</h4><p>إشراف كامل على المدرسة بمؤشرات وتقارير فورية.</p></div>
+      <div class="role"><div class="emoji">👨‍🏫</div><h4>المعلم</h4><p>حضور، درجات، جداول، وتواصل مع الأهل من مكان واحد.</p></div>
+      <div class="role"><div class="emoji">👨‍👩‍👧</div><h4>ولي الأمر</h4><p>متابعة الأبناء، الإشعارات، الرسوم، والدرجات لحظياً.</p></div>
+      <div class="role"><div class="emoji">💼</div><h4>المحاسبة والموارد</h4><p>إدارة الرسوم والرواتب والمصروفات باحترافية.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="container">
+    <div class="cta">
+      <h2>جاهز للبدء؟</h2>
+      <p>سجّل دخولك الآن وابدأ إدارة مدرستك من لوحة تحكّم واحدة.</p>
+      {% if current_user.is_authenticated %}
+        <a class="btn btn-gold btn-lg" href="{{ url_for('dashboard.home') }}">فتح لوحة التحكم</a>
+      {% else %}
+        <a class="btn btn-gold btn-lg" href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+      {% endif %}
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="footer-inner">
+    <div class="foot-brand">
+      <img src="{{ url_for('static', filename='img/logo-emblem.png') }}" alt="{{ school_name }}">
+      <div>
+        <div class="foot-school">© {{ school_name }} — جميع الحقوق محفوظة.</div>
+        <div class="foot-by">بتطوير من <a class="manasety-link" href="https://manasety.ai" target="_blank" rel="noopener">{{ app_name }}</a> · منصّة إدارة المدارس المتكاملة</div>
+      </div>
+    </div>
+    <div class="foot-links">
+      {% if current_user.is_authenticated %}
+        <a href="{{ url_for('dashboard.home') }}">لوحة التحكم</a>
+      {% else %}
+        <a href="{{ url_for('auth.login') }}">تسجيل الدخول</a>
+      {% endif %}
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

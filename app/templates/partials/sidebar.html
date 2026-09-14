@@ -1,0 +1,128 @@
+<aside class="sidebar">
+  <div class="brand" style="background:#fff;padding:18px 14px;border-radius:12px;margin:0 14px 14px;text-align:center">
+    <img src="{{ url_for('static', filename='img/logo.svg') }}"
+         alt="منصتي — Manasety"
+         style="max-width:170px;height:auto;display:block;margin:0 auto">
+    <small style="display:block;color:var(--c-muted);margin-top:10px;font-size:11px;letter-spacing:.4px">منصة التعلم الذكية للمدارس</small>
+  </div>
+  <div style="padding:0 22px 8px">
+    <a href="{{ url_for('courses.list_courses') }}"
+       style="display:block;padding:10px 14px;background:var(--grad-brand);color:#fff;border-radius:999px;text-align:center;font-weight:700;font-size:13px;box-shadow:var(--shadow-sm)">
+      + مادة جديدة
+    </a>
+  </div>
+  <nav>
+    <div class="nav-group">الرئيسية</div>
+    <a href="{{ url_for('dashboard.home') }}" class="{% if request.endpoint == 'dashboard.home' %}active{% endif %}">
+      <span>◆</span> لوحة المعلومات
+    </a>
+    {% if current_user.can('portal','view') %}
+    <a href="{{ url_for('portal.home') }}" class="{% if request.endpoint and request.endpoint.startswith('portal.') %}active{% endif %}">
+      <span>◆</span> بوابة المعلم
+    </a>
+    {% endif %}
+
+    <div class="nav-group">المستخدمون</div>
+    <a href="{{ url_for('admin.users_list') }}" class="{% if request.endpoint and request.endpoint.startswith('admin.user') %}active{% endif %}">
+      <span>●</span> المستخدمون
+    </a>
+    <a href="{{ url_for('admin.roles_list') }}" class="{% if request.endpoint and request.endpoint.startswith('admin.role') %}active{% endif %}">
+      <span>●</span> الأدوار والصلاحيات
+    </a>
+
+    <div class="nav-group">البنية الأكاديمية</div>
+    <a href="{{ url_for('academic.years_list') }}" class="{% if request.endpoint and 'year' in request.endpoint %}active{% endif %}">
+      <span>●</span> السنوات الدراسية
+    </a>
+    <a href="{{ url_for('academic.grades_list') }}" class="{% if request.endpoint and 'grade' in request.endpoint %}active{% endif %}">
+      <span>●</span> الصفوف
+    </a>
+    <a href="{{ url_for('academic.sections_list') }}" class="{% if request.endpoint and 'section' in request.endpoint %}active{% endif %}">
+      <span>●</span> الفصول
+    </a>
+
+    <div class="nav-group">الطلاب</div>
+    <a href="{{ url_for('students.students_list') }}" class="{% if request.endpoint and request.endpoint.startswith('students.') and request.endpoint != 'students.promotion' %}active{% endif %}">
+      <span>●</span> الطلاب
+    </a>
+    <a href="{{ url_for('students.promotion') }}" class="{% if request.endpoint == 'students.promotion' %}active{% endif %}">
+      <span>●</span> الترقية الرأسية
+    </a>
+
+    <div class="nav-group">المعلمون والجداول</div>
+    <a href="{{ url_for('teachers.teachers_list') }}" class="{% if request.endpoint and request.endpoint.startswith('teachers.teacher') %}active{% endif %}">
+      <span>●</span> المعلمون
+    </a>
+    <a href="{{ url_for('teachers.subjects_list') }}" class="{% if request.endpoint and 'subject' in request.endpoint %}active{% endif %}">
+      <span>●</span> المواد الدراسية
+    </a>
+    <a href="{{ url_for('teachers.assignments_list') }}" class="{% if request.endpoint and 'assignment' in request.endpoint %}active{% endif %}">
+      <span>●</span> الإسناد
+    </a>
+    <a href="{{ url_for('schedule.index') }}" class="{% if request.endpoint and request.endpoint.startswith('schedule.') and request.endpoint != 'schedule.settings' %}active{% endif %}">
+      <span>●</span> الجداول
+    </a>
+    <a href="{{ url_for('schedule.settings') }}" class="{% if request.endpoint == 'schedule.settings' %}active{% endif %}">
+      <span>●</span> إعدادات الجدول
+    </a>
+
+    <div class="nav-group">التعلم (LMS)</div>
+    <a href="{{ url_for('courses.list_courses') }}" class="{% if request.endpoint and request.endpoint.startswith('courses.') %}active{% endif %}">
+      <span>●</span> المواد والدروس
+    </a>
+    <a href="{{ url_for('lms.assignments_home') }}" class="{% if request.endpoint and request.endpoint.startswith('lms.assignment') %}active{% endif %}">
+      <span>●</span> الواجبات
+    </a>
+    <a href="{{ url_for('lms.quizzes_home') }}" class="{% if request.endpoint and request.endpoint.startswith('lms.quiz') %}active{% endif %}">
+      <span>●</span> الاختبارات
+    </a>
+    <a href="{{ url_for('lms.announcements_home') }}" class="{% if request.endpoint and request.endpoint.startswith('lms.announcement') %}active{% endif %}">
+      <span>●</span> الإعلانات
+    </a>
+
+    <div class="nav-group">الحضور والنتائج</div>
+    <a href="{{ url_for('attendance.index') }}" class="{% if request.endpoint and request.endpoint.startswith('attendance.') %}active{% endif %}">
+      <span>●</span> الحضور
+    </a>
+    <a href="{{ url_for('results.grades_index') }}" class="{% if request.endpoint and request.endpoint in ('results.grades_index', 'results.grade_sheet') %}active{% endif %}">
+      <span>●</span> رصد الدرجات
+    </a>
+    <a href="{{ url_for('results.components') }}" class="{% if request.endpoint == 'results.components' %}active{% endif %}">
+      <span>●</span> مكوّنات التقييم
+    </a>
+    <a href="{{ url_for('results.settings') }}" class="{% if request.endpoint == 'results.settings' %}active{% endif %}">
+      <span>●</span> قاعدة النجاح
+    </a>
+
+    <div class="nav-group">المالية (ERP)</div>
+    <a href="{{ url_for('finance.invoices_list') }}" class="{% if request.endpoint and request.endpoint in ('finance.invoices_list','finance.invoice_new','finance.invoice_detail') %}active{% endif %}">
+      <span>●</span> الفواتير
+    </a>
+    <a href="{{ url_for('finance.expenses_list') }}" class="{% if request.endpoint and 'expense' in request.endpoint %}active{% endif %}">
+      <span>●</span> المصروفات
+    </a>
+    <a href="{{ url_for('finance.vendors_list') }}" class="{% if request.endpoint and 'vendor' in request.endpoint %}active{% endif %}">
+      <span>●</span> الموردون
+    </a>
+    <a href="{{ url_for('finance.fee_types') }}" class="{% if request.endpoint and 'fee_type' in request.endpoint %}active{% endif %}">
+      <span>●</span> أنواع الرسوم
+    </a>
+    <a href="{{ url_for('finance.accounts') }}" class="{% if request.endpoint and 'account' in request.endpoint %}active{% endif %}">
+      <span>●</span> دليل الحسابات
+    </a>
+    <a href="{{ url_for('finance.journal') }}" class="{% if request.endpoint == 'finance.journal' %}active{% endif %}">
+      <span>●</span> دفتر اليومية
+    </a>
+    <a href="{{ url_for('finance.reports') }}" class="{% if request.endpoint == 'finance.reports' %}active{% endif %}">
+      <span>●</span> التقارير المالية
+    </a>
+
+    <div class="nav-group">الموارد البشرية</div>
+    <a href="{{ url_for('hr.employees_list') }}" class="{% if request.endpoint and request.endpoint.startswith('hr.employee') %}active{% endif %}">
+      <span>●</span> الموظفون
+    </a>
+    <a href="{{ url_for('hr.payroll_list') }}" class="{% if request.endpoint and 'payroll' in request.endpoint %}active{% endif %}">
+      <span>●</span> الرواتب
+    </a>
+  </nav>
+</aside>

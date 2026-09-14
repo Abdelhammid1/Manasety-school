@@ -1,0 +1,35 @@
+{% extends "partials/base.html" %}
+{% block title %}الحضور{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>تسجيل الحضور</h2>
+    <div class="sub">اختر فصلاً لتسجيل الحضور أو عرض التقارير (T-6.1 / T-6.3)</div>
+  </div>
+</div>
+
+{% if not year %}
+<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
+{% else %}
+<div class="card">
+  <h3>الفصول — السنة {{ year.name }}</h3>
+  <table class="data">
+    <thead><tr><th>الصف</th><th>الفصل</th><th></th></tr></thead>
+    <tbody>
+      {% for s in sections %}
+      <tr>
+        <td>{{ s.grade.name }}</td>
+        <td><strong>{{ s.name }}</strong></td>
+        <td class="actions">
+          <a class="btn btn-primary btn-sm" href="{{ url_for('attendance.mark', section_id=s.id) }}">تسجيل اليوم</a>
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('attendance.section_report', section_id=s.id) }}">تقرير</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="text-muted" style="text-align:center;padding:18px">لا توجد فصول.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,78 @@
+{% extends "partials/base.html" %}
+{% block title %}مكوّنات التقييم{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>مكوّنات التقييم</h2>
+    <div class="sub">تعريف مكوّنات تقييم كل مادة في الفترة الدراسية (T-7.2). مجموع الحد الأقصى يجب أن يساوي 100.</div>
+  </div>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="form-row cols-3" style="margin-bottom:0">
+    <div class="field"><label>الفترة الدراسية</label>
+      <select name="term_id">
+        <option value="">—</option>
+        {% for t in terms %}<option value="{{ t.id }}" {% if term_id == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>المادة</label>
+      <select name="subject_id">
+        <option value="">—</option>
+        {% for s in subjects %}<option value="{{ s.id }}" {% if subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field" style="align-self:end"><button class="btn btn-navy" type="submit">عرض</button></div>
+  </div>
+</form>
+
+{% if term_id and subject_id %}
+<div class="card">
+  <div class="flex-between" style="margin-bottom:14px">
+    <h3 style="margin:0;border:0">المكوّنات</h3>
+    {% if total == 100 %}
+      <span class="badge ok">مجموع الحد الأقصى = {{ total }} ✓</span>
+    {% else %}
+      <span class="badge warn">المجموع = {{ total }} (يجب 100)</span>
+    {% endif %}
+  </div>
+  <table class="data">
+    <thead><tr><th>الاسم</th><th>الحد الأقصى</th><th></th></tr></thead>
+    <tbody>
+      {% for c in components %}
+      <tr>
+        <td><strong>{{ c.name }}</strong></td>
+        <td>{{ c.max_score }}</td>
+        <td class="actions">
+          <form method="post" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="component_id" value="{{ c.id }}">
+            <button class="btn btn-danger btn-sm" onclick="return confirm('حذف المكوّن؟')">حذف</button>
+          </form>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="text-muted" style="text-align:center;padding:18px">لا توجد مكوّنات.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="post" class="mt-2">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="add">
+    <div class="form-row cols-3">
+      <div class="field"><label>اسم المكوّن</label>
+        <input name="name" required placeholder="أعمال سنة / نهاية الفترة ...">
+      </div>
+      <div class="field"><label>الحد الأقصى</label>
+        <input name="max_score" type="number" step="0.01" min="0" max="100" required>
+      </div>
+      <div class="field" style="align-self:end">
+        <button class="btn btn-primary" type="submit">+ إضافة</button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

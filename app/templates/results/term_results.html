@@ -1,0 +1,74 @@
+{% extends "partials/base.html" %}
+{% block title %}نتائج {{ term.name }} — {{ section.name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>نتائج {{ term.name }}</h2>
+    <div class="sub">
+      الفصل: <strong class="text-navy">{{ section.grade.name }} / {{ section.name }}</strong>
+      • الفترة: <strong class="text-navy">{{ term.name }}</strong>
+      • حد نجاح المادة: <strong>{{ rule.subject_pass_threshold }}%</strong>
+    </div>
+  </div>
+  <div class="flex">
+    <a href="{{ url_for('results.section_results', section_id=section.id) }}" class="btn btn-ghost">نتيجة العام</a>
+    <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost">رجوع</a>
+  </div>
+</div>
+
+{% if not subjects %}
+<div class="alert warning">لا توجد مواد مربوطة بصف {{ section.grade.name }}.</div>
+{% elif not enrollments %}
+<div class="alert info">لا يوجد طلاب نشطون في هذا الفصل.</div>
+{% else %}
+
+<div class="card" style="overflow-x:auto">
+  <table class="data" style="min-width:800px">
+    <thead>
+      <tr>
+        <th style="min-width:150px">الطالب</th>
+        {% for s in subjects %}<th style="text-align:center">{{ s.name }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for e in enrollments %}
+        {% set row = matrix[e.id] %}
+        <tr>
+          <td>
+            <strong>{{ e.student.full_name }}</strong>
+            <div class="text-muted" style="font-size:11px">{{ e.student.permanent_code }}</div>
+          </td>
+          {% for subject in subjects %}
+            {% set cell = row.cells[subject.id] %}
+            <td style="text-align:center">
+              {% if cell.status == 'no_components' %}
+                <span class="text-muted" title="لم تُعرَّف مكوّنات تقييم">—</span>
+              {% elif cell.status == 'incomplete' %}
+                <span class="badge warn" title="رصد ناقص">
+                  {{ cell.score }} / {{ cell.max }}
+                </span>
+              {% elif cell.status == 'pass' %}
+                <span class="badge ok" title="ناجح">
+                  {{ cell.score }} / {{ cell.max }}
+                  <span style="opacity:0.7">({{ '%.1f'|format(cell.percent) }}%)</span>
+                </span>
+              {% elif cell.status == 'fail' %}
+                <span class="badge danger" title="راسب في المادة">
+                  {{ cell.score }} / {{ cell.max }}
+                  <span style="opacity:0.7">({{ '%.1f'|format(cell.percent) }}%)</span>
+                </span>
+              {% endif %}
+            </td>
+          {% endfor %}
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="alert info mt-2" style="font-size:13px">
+  <strong>ملاحظة:</strong> النتيجة النهائية للعام تُحسب من جميع الفترات الدراسية بأوزانها.
+  انتقل إلى <a href="{{ url_for('results.section_results', section_id=section.id) }}">نتيجة العام</a> لعرض التقدير النهائي واعتماده.
+</div>
+{% endif %}
+{% endblock %}

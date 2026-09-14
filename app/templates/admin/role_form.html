@@ -1,0 +1,49 @@
+{% extends "partials/base.html" %}
+{% block title %}{% if role %}تعديل دور{% else %}دور جديد{% endif %}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>{% if role %}تعديل الدور: {{ role.name_ar }}{% else %}إنشاء دور جديد{% endif %}</h2></div>
+  <a href="{{ url_for('admin.roles_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <h3>بيانات الدور</h3>
+    <div class="form-row cols-2">
+      <div class="field"><label>الاسم العربي</label>
+        <input name="name_ar" value="{{ role.name_ar if role else '' }}" required>
+      </div>
+      <div class="field"><label>الاسم البرمجي (إنجليزي)</label>
+        <input name="name" value="{{ role.name if role else '' }}" required pattern="[a-z_]+">
+        <div class="hint">حروف صغيرة وشرطة سفلية فقط</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mt-2">
+    <h3>الصلاحيات</h3>
+    <table class="perm-matrix">
+      <thead>
+        <tr><th>الوحدة</th>{% for a in actions %}<th>{{ {'view':'عرض','add':'إضافة','edit':'تعديل','delete':'حذف'}[a] }}</th>{% endfor %}</tr>
+      </thead>
+      <tbody>
+        {% for m in modules %}
+        {% set granted = (role.permissions.get(m) if role else []) or [] %}
+        <tr>
+          <td>{{ m }}</td>
+          {% for a in actions %}
+          <td><input type="checkbox" name="perm_{{ m }}_{{ a }}" {% if a in granted %}checked{% endif %}></td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('admin.roles_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

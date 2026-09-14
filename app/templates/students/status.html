@@ -1,0 +1,34 @@
+{% extends "partials/base.html" %}
+{% block title %}تغيير حالة قيد{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>تغيير حالة القيد — {{ enrollment.student.full_name }}</h2>
+    <div class="sub">{{ enrollment.year.name }} • {{ enrollment.grade.name }} / {{ enrollment.section.name }}</div>
+  </div>
+  <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="field">
+      <label>الحالة الجديدة</label>
+      <select name="status" required>
+        <option value="active" {% if enrollment.status == 'active' %}selected{% endif %}>نشط</option>
+        <option value="withdrawn" {% if enrollment.status == 'withdrawn' %}selected{% endif %}>منسحب</option>
+        <option value="transferred" {% if enrollment.status == 'transferred' %}selected{% endif %}>محوّل لمدرسة أخرى</option>
+      </select>
+      <div class="hint">يبقى السجل في الأرشيف للتقارير، ولن يظهر في الكشوف النشطة (T-3.5).</div>
+    </div>
+    <div class="field">
+      <label>سبب التغيير (اختياري)</label>
+      <textarea name="reason" rows="2">{{ enrollment.status_reason or '' }}</textarea>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

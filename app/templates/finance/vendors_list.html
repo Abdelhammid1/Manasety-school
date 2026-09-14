@@ -1,0 +1,25 @@
+{% extends "partials/base.html" %}
+{% block title %}الموردون{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>الموردون</h2><div class="sub">إدارة بيانات الموردين وربط المصروفات بهم (T-9.1)</div></div>
+  <a href="{{ url_for('finance.vendor_new') }}" class="btn btn-primary">+ مورد جديد</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>الاسم</th><th>الهاتف</th><th>البريد</th><th>العنوان</th><th>المصروفات</th></tr></thead>
+  <tbody>
+    {% for v in vendors %}
+    <tr>
+      <td><strong>{{ v.name }}</strong></td>
+      <td class="text-muted">{{ v.phone or '—' }}</td>
+      <td class="text-muted">{{ v.email or '—' }}</td>
+      <td class="text-muted">{{ v.address or '—' }}</td>
+      <td>{{ v.expenses|length }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-muted" style="text-align:center;padding:18px">لا يوجد موردون.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

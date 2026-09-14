@@ -1,0 +1,71 @@
+{% extends "partials/base.html" %}
+{% block title %}الجداول{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>جداول الحصص</h2>
+    <div class="sub">عرض جداول الفصول والمعلمين (T-5.4)</div>
+  </div>
+  <div class="flex">
+    <a href="{{ url_for('schedule.settings') }}" class="btn btn-ghost">إعدادات الأيام والحصص</a>
+    {% if year %}
+    <form action="{{ url_for('schedule.auto_generate') }}" method="post"
+          onsubmit="return confirm('سيتم توليد جدول أسبوعي كامل من الإسنادات الحالية، وحذف الحصص المسجّلة يدويًا. هل تريد المتابعة؟')"
+          style="display:inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="btn btn-primary">⚡ توليد الجدول تلقائيًا</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+{% if not year %}
+<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
+{% else %}
+<div class="alert info" style="margin-bottom:16px">
+  <strong>توليد تلقائي:</strong> عرّف عدد الحصص الأسبوعية لكل إسناد من صفحة الإسناد،
+  ثم اضغط زرّ التوليد أعلاه. الجدول يظل قابلًا للتعديل يدويًا بعد التوليد.
+</div>
+<div class="grid grid-2">
+  <div class="card">
+    <h3>جدول الفصول — السنة {{ year.name }}</h3>
+    <table class="data">
+      <thead><tr><th>الصف</th><th>الفصل</th><th></th></tr></thead>
+      <tbody>
+        {% for s in sections %}
+        <tr>
+          <td>{{ s.grade.name }}</td>
+          <td><strong>{{ s.name }}</strong></td>
+          <td class="actions">
+            <a class="btn btn-navy btn-sm" href="{{ url_for('schedule.section_schedule', section_id=s.id) }}">الجدول</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-muted" style="text-align:center;padding:14px">لا توجد فصول.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div class="card">
+    <h3>جدول المعلمين</h3>
+    <table class="data">
+      <thead><tr><th>المعلم</th><th>التخصص</th><th></th></tr></thead>
+      <tbody>
+        {% for t in teachers %}
+        <tr>
+          <td><strong>{{ t.full_name }}</strong></td>
+          <td><span class="badge muted">{{ t.specialization }}</span></td>
+          <td class="actions">
+            <a class="btn btn-navy btn-sm" href="{{ url_for('schedule.teacher_schedule', teacher_id=t.id) }}">الجدول</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="text-muted" style="text-align:center;padding:14px">لا يوجد معلمون.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

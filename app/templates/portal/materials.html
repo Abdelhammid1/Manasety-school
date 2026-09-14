@@ -1,0 +1,37 @@
+{% extends "partials/base.html" %}
+{% block title %}المحتوى التعليمي{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>المحتوى الذي رفعته</h2><div class="sub">يظهر للطلاب وأولياء أمورهم في الفصول المختارة فقط (T-10.1)</div></div>
+  <div class="flex">
+    <a href="{{ url_for('portal.home') }}" class="btn btn-ghost">رجوع</a>
+    <a href="{{ url_for('portal.material_new') }}" class="btn btn-primary">+ رفع محتوى</a>
+  </div>
+</div>
+
+<table class="data">
+  <thead><tr>
+    <th>العنوان</th><th>النوع</th><th>الفصل</th><th>المادة</th><th>الرابط</th><th>التاريخ</th>
+  </tr></thead>
+  <tbody>
+    {% for m in materials %}
+    <tr>
+      <td><strong>{{ m.title }}</strong>{% if m.description %}<div class="text-muted" style="font-size:12px">{{ m.description }}</div>{% endif %}</td>
+      <td>
+        {% if m.kind == 'file' %}<span class="badge muted">ملف</span>
+        {% elif m.kind == 'video' %}<span class="badge ok">فيديو</span>
+        {% else %}<span class="badge navy">رابط</span>{% endif %}
+      </td>
+      <td>{{ m.section.grade.name }} / {{ m.section.name }}</td>
+      <td>{{ m.subject.name }}</td>
+      <td>
+        {% if m.external_url %}<a href="{{ m.external_url }}" target="_blank" class="text-orange">فتح</a>{% else %}—{% endif %}
+      </td>
+      <td class="text-muted">{{ m.created_at.strftime('%Y-%m-%d') }}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px">لم ترفع محتوى بعد.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

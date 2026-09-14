@@ -1,0 +1,22 @@
+name: manasety_ui
+description: Shared UI (theme, brand widgets, palette, transitive helpers) for Manasety Flutter apps.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+  flutter: ">=3.19.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  google_fonts: ^6.2.1
+  intl: ^0.20.2
+  shimmer: ^3.0.0
+  url_launcher: ^6.3.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - lib/assets/images/

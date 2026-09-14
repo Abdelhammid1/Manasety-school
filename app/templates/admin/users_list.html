@@ -1,0 +1,38 @@
+{% extends "partials/base.html" %}
+{% block title %}المستخدمون{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>المستخدمون</h2><div class="sub">إدارة حسابات المستخدمين وربطهم بالأدوار (T-1.3)</div></div>
+  <a href="{{ url_for('admin.user_new') }}" class="btn btn-primary">+ مستخدم جديد</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>الاسم</th><th>اسم المستخدم</th><th>الدور</th><th>البريد</th><th>الحالة</th><th></th></tr></thead>
+  <tbody>
+    {% for u in users %}
+    <tr>
+      <td><strong>{{ u.full_name }}</strong></td>
+      <td class="text-muted">{{ u.username }}</td>
+      <td>{{ u.role.name_ar if u.role else '—' }}</td>
+      <td class="text-muted">{{ u.email or '—' }}</td>
+      <td>
+        {% if u.is_active %}<span class="badge ok">نشط</span>
+        {% else %}<span class="badge danger">معطّل</span>{% endif %}
+        {% if u.is_locked() %}<span class="badge warn">مقفل مؤقتًا</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('admin.user_edit', user_id=u.id) }}">تعديل</a>
+        <form action="{{ url_for('admin.user_toggle', user_id=u.id) }}" method="post" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm {{ 'btn-danger' if u.is_active else 'btn-navy' }}" type="submit">
+            {{ 'تعطيل' if u.is_active else 'تفعيل' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لا يوجد مستخدمون.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

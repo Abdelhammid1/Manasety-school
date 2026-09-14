@@ -1,0 +1,53 @@
+{% extends "partials/base.html" %}
+{% block title %}{% if user %}تعديل مستخدم{% else %}مستخدم جديد{% endif %}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>{% if user %}تعديل: {{ user.full_name }}{% else %}مستخدم جديد{% endif %}</h2></div>
+  <a href="{{ url_for('admin.users_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-2">
+      <div class="field"><label>الاسم الكامل</label>
+        <input name="full_name" required value="{{ user.full_name if user else '' }}">
+      </div>
+      <div class="field"><label>اسم المستخدم</label>
+        <input name="username" required value="{{ user.username if user else '' }}" {% if user %}readonly{% endif %}>
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field"><label>البريد الإلكتروني</label>
+        <input name="email" type="email" value="{{ user.email or '' if user else '' }}">
+      </div>
+      <div class="field"><label>الهاتف</label>
+        <input name="phone" value="{{ user.phone or '' if user else '' }}">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field"><label>الدور</label>
+        <select name="role_id" required>
+          {% for r in roles %}
+          <option value="{{ r.id }}" {% if user and user.role_id == r.id %}selected{% endif %}>{{ r.name_ar }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>كلمة المرور {% if user %}<small class="text-muted">(اتركها فارغة للإبقاء)</small>{% endif %}</label>
+        <input name="password" type="password" {% if not user %}required{% endif %} minlength="8">
+        <div class="hint">8 أحرف على الأقل، تُخزّن مشفّرة (bcrypt)</div>
+      </div>
+    </div>
+    <div class="field">
+      <label class="checkbox">
+        <input type="checkbox" name="is_active" {% if not user or user.is_active %}checked{% endif %}>
+        الحساب مفعّل
+      </label>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('admin.users_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

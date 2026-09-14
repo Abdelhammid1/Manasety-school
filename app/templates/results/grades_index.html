@@ -1,0 +1,75 @@
+{% extends "partials/base.html" %}
+{% block title %}رصد الدرجات{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>رصد درجات الطلاب</h2>
+    <div class="sub">اختر الفصل، الفترة الدراسية، والمادة لرصد الدرجات (T-7.3 / T-7.4)</div>
+  </div>
+</div>
+
+<form method="get" action="" id="picker" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="form-row cols-3" style="margin-bottom:0">
+    <div class="field"><label>الفصل</label>
+      <select name="section_id" required>
+        <option value="">—</option>
+        {% for s in sections %}<option value="{{ s.id }}">{{ s.grade.name }} / {{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>الفترة الدراسية</label>
+      <select name="term_id" required>
+        <option value="">—</option>
+        {% for t in terms %}<option value="{{ t.id }}">{{ t.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field"><label>المادة</label>
+      <select name="subject_id" required>
+        <option value="">—</option>
+        {% for s in subjects %}<option value="{{ s.id }}">{{ s.name }}</option>{% endfor %}
+      </select>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-navy" type="submit">فتح ورقة الرصد</button>
+  </div>
+</form>
+
+<script>
+document.getElementById('picker').addEventListener('submit', function(ev){
+  ev.preventDefault();
+  var s = this.section_id.value, t = this.term_id.value, sub = this.subject_id.value;
+  if (s && t && sub) window.location = '/results/grades/' + s + '/' + t + '/' + sub;
+});
+</script>
+
+{% if not year %}
+<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
+{% endif %}
+
+{% if sections %}
+<div class="card mt-2">
+  <h3>عرض النتائج بحسب الفترة الدراسية أو نتيجة العام</h3>
+  <p class="text-muted" style="margin:6px 0 12px">اختر فصلًا لعرض نتيجة كل فترة على حدة، أو اذهب مباشرةً لنتيجة العام لاعتمادها.</p>
+  <table class="data">
+    <thead><tr><th>الفصل</th><th>نتائج الفترات الدراسية</th><th>نتيجة العام</th></tr></thead>
+    <tbody>
+      {% for s in sections %}
+      <tr>
+        <td><strong>{{ s.grade.name }} / {{ s.name }}</strong></td>
+        <td class="actions">
+          {% for t in terms %}
+          <a class="btn btn-ghost btn-sm" href="{{ url_for('results.term_results', section_id=s.id, term_id=t.id) }}">{{ t.name }}</a>
+          {% else %}
+          <span class="text-muted">لم تُعرَّف فترات</span>
+          {% endfor %}
+        </td>
+        <td class="actions">
+          <a class="btn btn-navy btn-sm" href="{{ url_for('results.section_results', section_id=s.id) }}">نتيجة العام</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleDisplayName</key>
+		<string>بوابة المعلم</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundleName</key>
+		<string>manasety_teacher</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>$(FLUTTER_BUILD_NAME)</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIMainStoryboardFile</key>
+		<string>Main</string>
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+			<string>UIInterfaceOrientationLandscapeLeft</string>
+			<string>UIInterfaceOrientationLandscapeRight</string>
+		</array>
+		<key>CADisableMinimumFrameDurationOnPhone</key>
+		<true/>
+		<key>UIApplicationSupportsIndirectInputEvents</key>
+		<true/>
+		<!-- Required by Apple App Review (ITMS-90683) because image_picker + file_picker
+		     reference the Photos / Camera / Microphone APIs even when not actively used.
+		     App Store Connect rejects the upload without these purpose strings. -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>يحتاج التطبيق للوصول إلى مكتبة الصور لرفع صور المواد التعليمية والملفات المرفقة.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>يحتاج التطبيق للوصول إلى الكاميرا لالتقاط صور المواد التعليمية.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>يحتاج التطبيق للوصول إلى الميكروفون عند تسجيل ملاحظات صوتية على المواد التعليمية.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>يحتاج التطبيق لحفظ الصور والمرفقات في مكتبة صور الجهاز.</string>
+		<!-- Sprint 10 — allow http://localhost + LAN IP for dev builds against local Flask -->
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsLocalNetworking</key>
+			<true/>
+			<key>NSExceptionDomains</key>
+			<dict>
+				<key>localhost</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<true/>
+					<key>NSIncludesSubdomains</key>
+					<true/>
+				</dict>
+			</dict>
+		</dict>
+		<key>UIStatusBarHidden</key>
+		<false/>
+		<!-- ITMS-90683 — usage descriptions required by Apple review for image picker / camera / mic APIs used inside the app -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>يحتاج التطبيق للوصول إلى مكتبة الصور لاختيار صورة الملف الشخصي أو إرفاق صور مع سجلات الطلاب والواجبات.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>يحتاج التطبيق لصلاحية حفظ الصور والمستندات (مثل كشوف الحضور والدرجات) إلى مكتبة الصور.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>يحتاج التطبيق إلى استخدام الكاميرا لالتقاط صورة الملف الشخصي أو تصوير مستندات الفصل والمرفقات.</string>
+		<key>NSMicrophoneUsageDescription</key>
+		<string>يحتاج التطبيق إلى الميكروفون لتسجيل الملاحظات الصوتية والتواصل مع أولياء الأمور.</string>
+	</dict>
+</plist>

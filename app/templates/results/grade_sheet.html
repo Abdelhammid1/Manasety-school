@@ -1,0 +1,71 @@
+{% extends "partials/base.html" %}
+{% block title %}رصد {{ subject.name }} — {{ section.name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>ورقة الرصد — {{ subject.name }}</h2>
+    <div class="sub">
+      الفصل: <strong class="text-navy">{{ section.grade.name }} / {{ section.name }}</strong>
+      • الفترة الدراسية: <strong class="text-navy">{{ term.name }}</strong>
+      {% if locked %}<span class="badge danger">معتمدة — للقراءة فقط</span>{% endif %}
+    </div>
+  </div>
+  <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+{% if not components %}
+<div class="alert info">
+  لم تُعرّف مكوّنات تقييم لهذه المادة في هذه الفترة الدراسية.
+  <a href="{{ url_for('results.components', term_id=term.id, subject_id=subject.id) }}">تعريف المكوّنات</a>.
+</div>
+{% else %}
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card" style="overflow-x:auto">
+    <table class="data" style="min-width:700px">
+      <thead>
+        <tr>
+          <th>الطالب</th>
+          {% for c in components %}<th>{{ c.name }} <span class="text-muted">/ {{ c.max_score }}</span></th>{% endfor %}
+          <th>المجموع</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in enrollments %}
+        {% set tt = term_totals[e.id] %}
+        <tr>
+          <td>
+            <strong>{{ e.student.full_name }}</strong>
+            <div class="text-muted" style="font-size:12px">{{ e.student.permanent_code }}</div>
+          </td>
+          {% for c in components %}
+          {% set ge = entries.get((e.id, c.id)) %}
+          <td>
+            <input type="number" name="score_{{ e.id }}_{{ c.id }}" step="0.01" min="0" max="{{ c.max_score }}"
+                   value="{{ ge.score if ge else '' }}"
+                   style="width:80px;padding:6px;border:1px solid var(--c-border);border-radius:6px"
+                   {% if locked %}disabled{% endif %}>
+          </td>
+          {% endfor %}
+          <td>
+            {% if tt.complete %}
+              <span class="badge ok">{{ tt.score }}</span>
+            {% elif tt.score > 0 %}
+              <span class="badge warn">{{ tt.score }} (ناقص)</span>
+            {% else %}
+              <span class="badge muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% if not locked %}
+    <div class="mt-2 flex">
+      <button class="btn btn-primary" type="submit">حفظ الدرجات</button>
+    </div>
+    {% endif %}
+  </div>
+</form>
+{% endif %}
+{% endblock %}

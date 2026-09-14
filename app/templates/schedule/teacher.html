@@ -1,0 +1,47 @@
+{% extends "partials/base.html" %}
+{% block title %}جدول {{ teacher.full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>جدول المعلم — {{ teacher.full_name }}</h2>
+    <div class="sub">
+      <span class="badge navy">{{ teacher.specialization }}</span>
+      {% if year %}<span class="badge muted">{{ year.name }}</span>{% endif %}
+      <span style="color:var(--c-muted)">— خالٍ من التعارضات (T-5.3)</span>
+    </div>
+  </div>
+  <a href="{{ url_for('schedule.index') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<div class="card" style="overflow-x:auto">
+  <table class="data" style="min-width:700px">
+    <thead>
+      <tr>
+        <th>الحصة / الوقت</th>
+        {% for d in days %}<th>{{ d.name }}</th>{% endfor %}
+      </tr>
+    </thead>
+    <tbody>
+      {% for p in periods %}
+      <tr>
+        <td>
+          <strong>{{ p.name }}</strong>
+          <div class="text-muted" style="font-size:12px">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</div>
+        </td>
+        {% for d in days %}
+          {% set slot = grid.get((d.id, p.id)) %}
+          <td style="vertical-align:top;{% if p.is_break %}background:var(--c-surface-2){% endif %}">
+            {% if slot %}
+              <div style="font-weight:600;color:var(--c-navy)">{{ slot.subject.name }}</div>
+              <div class="text-muted" style="font-size:12px">{{ slot.section.grade.name }} / {{ slot.section.name }}</div>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        {% endfor %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

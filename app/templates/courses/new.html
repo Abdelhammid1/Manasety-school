@@ -1,0 +1,28 @@
+{% extends "partials/base.html" %}
+{% block title %}مادة جديدة{% endblock %}
+{% block content %}
+<div class="page-title"><h2>مادة جديدة</h2></div>
+<form method="post" class="card" style="max-width:640px">
+  <label style="display:block;margin-bottom:14px">
+    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">عنوان المادة</span>
+    <input name="title" required style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px">
+  </label>
+  <label style="display:block;margin-bottom:14px">
+    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">وصف مختصر</span>
+    <textarea name="description" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px"></textarea>
+  </label>
+  <div class="grid grid-3">
+    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">السنة الدراسية</span>
+      <input name="academic_year_id" type="number" value="1" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
+    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">الفصل</span>
+      <input name="section_id" type="number" value="1" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
+    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">المادة</span>
+      <input name="subject_id" type="number" value="1" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
+  </div>
+  <div style="margin-top:18px;text-align:left">
+    <button type="submit" style="background:var(--grad-brand);color:#fff;padding:10px 26px;border:0;border-radius:999px;font-weight:700;cursor:pointer">
+      إنشاء المادة
+    </button>
+  </div>
+</form>
+{% endblock %}

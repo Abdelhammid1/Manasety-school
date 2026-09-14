@@ -1,0 +1,46 @@
+{% extends "partials/base.html" %}
+{% block title %}المعلمون{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>المعلمون</h2>
+    <div class="sub">إدارة بيانات المعلمين وتخصصاتهم (T-4.1)</div>
+  </div>
+  <a href="{{ url_for('teachers.teacher_new') }}" class="btn btn-primary">+ معلم جديد</a>
+</div>
+
+<table class="data">
+  <thead><tr>
+    <th>الاسم</th><th>التخصص</th><th>الهاتف</th><th>البريد</th>
+    <th>تاريخ التعيين</th><th>الحالة</th><th></th>
+  </tr></thead>
+  <tbody>
+    {% for t in teachers %}
+    <tr>
+      <td><strong>{{ t.full_name }}</strong></td>
+      <td><span class="badge navy">{{ t.specialization }}</span></td>
+      <td class="text-muted">{{ t.phone or '—' }}</td>
+      <td class="text-muted">{{ t.email or '—' }}</td>
+      <td class="text-muted">{{ t.hire_date or '—' }}</td>
+      <td>
+        {% if t.is_active %}<span class="badge ok">نشط</span>
+        {% else %}<span class="badge danger">معطّل</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('teachers.teacher_detail', teacher_id=t.id) }}">عرض</a>
+        <form action="{{ url_for('teachers.teacher_toggle', teacher_id=t.id) }}" method="post" style="display:inline"
+              onsubmit="return confirm('{{ 'تعطيل المعلم لن يحذف بياناته، لكن سيمنعه من الدخول للمنصة وسيُخفيه من الإسنادات الجديدة. هل تريد المتابعة؟' if t.is_active else 'إعادة تفعيل المعلم؟' }}')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm {{ 'btn-danger' if t.is_active else 'btn-navy' }}" type="submit"
+                  title="{{ 'تعطيل الحساب — لن يُحذف السجل' if t.is_active else 'إعادة تفعيل الحساب' }}">
+            {{ '🚫 تعطيل' if t.is_active else '✓ تفعيل' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="text-muted" style="text-align:center;padding:24px">لا يوجد معلمون.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

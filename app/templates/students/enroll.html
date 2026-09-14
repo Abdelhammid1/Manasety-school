@@ -1,0 +1,32 @@
+{% extends "partials/base.html" %}
+{% block title %}قيد طالب{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>قيد الطالب — {{ student.full_name }}</h2>
+    <div class="sub">السنة <strong class="text-navy">{{ year.name }}</strong> — يُنشأ سجل قيد مستقل لكل سنة (T-3.2)</div>
+  </div>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="field">
+      <label>الصف والفصل</label>
+      <select name="section_id" required>
+        {% for s in sections %}
+        <option value="{{ s.id }}" {% if s.is_full %}disabled{% endif %}>
+          {{ s.grade.name }} / {{ s.name }} — {{ s.current_count }}/{{ s.capacity }}{% if s.is_full %} (ممتلئ){% endif %}
+        </option>
+        {% endfor %}
+      </select>
+      <div class="hint">الفصول الممتلئة معطّلة. سعة كل فصل تُحسب من الطلاب النشطين.</div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ القيد</button>
+    <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

@@ -1,0 +1,28 @@
+{% extends "partials/base.html" %}
+{% block title %}الموظفون{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>الموظفون</h2><div class="sub">ملفات الموظفين ورواتبهم وربطهم بحسابات المستخدمين (T-9.3)</div></div>
+  <a href="{{ url_for('hr.employee_new') }}" class="btn btn-primary">+ موظف جديد</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>الاسم</th><th>الوظيفة</th><th>الراتب الأساسي</th><th>المستخدم</th><th>الحالة</th><th></th></tr></thead>
+  <tbody>
+    {% for e in employees %}
+    <tr>
+      <td><strong>{{ e.full_name }}</strong></td>
+      <td><span class="badge navy">{{ e.job_title }}</span></td>
+      <td>{{ "%.2f"|format(e.base_salary) }}</td>
+      <td class="text-muted">{{ e.user.username if e.user else '—' }}</td>
+      <td>{% if e.is_active %}<span class="badge ok">نشط</span>{% else %}<span class="badge danger">معطّل</span>{% endif %}</td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('hr.employee_detail', employee_id=e.id) }}">عرض</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:18px">لا يوجد موظفون.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

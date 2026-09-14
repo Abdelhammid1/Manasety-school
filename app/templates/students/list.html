@@ -1,0 +1,60 @@
+{% extends "partials/base.html" %}
+{% block title %}الطلاب{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>الطلاب{% if section_ctx %} — فصل {{ section_ctx.grade.name }} / {{ section_ctx.name }}{% endif %}</h2>
+    <div class="sub">
+      {% if section_ctx %}
+        عرض طلاب الفصل النشطين في السنة {{ section_ctx.year.name }}.
+        <a href="{{ url_for('students.students_list') }}">إزالة الفلترة</a>
+      {% else %}
+        الملف الدائم للطالب — لا يتغيّر عبر السنوات (T-3.1)
+      {% endif %}
+    </div>
+  </div>
+  <div class="flex">
+    <a href="{{ url_for('students.promotion') }}" class="btn btn-ghost">الترقية بين الصفوف</a>
+    <a href="{{ url_for('students.student_new') }}" class="btn btn-primary">+ ملف طالب جديد</a>
+  </div>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="flex" style="gap:8px">
+    <input name="q" value="{{ q }}" placeholder="ابحث بالاسم أو الكود الدائم..." style="flex:1;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px">
+    <button class="btn btn-navy" type="submit">بحث</button>
+    {% if q %}<a class="btn btn-ghost" href="{{ url_for('students.students_list') }}">إلغاء</a>{% endif %}
+  </div>
+</form>
+
+<table class="data">
+  <thead><tr>
+    <th>الكود الدائم</th><th>الاسم</th><th>رقم الهوية</th><th>الجنس</th>
+    <th>القيد للسنة النشطة</th><th></th>
+  </tr></thead>
+  <tbody>
+    {% for s in students %}
+    {% set active = s.enrollments | selectattr('status', 'equalto', 'active') | list %}
+    {% set cur = active[0] if active else None %}
+    <tr>
+      <td><span class="badge muted">{{ s.permanent_code }}</span></td>
+      <td><strong>{{ s.full_name }}</strong></td>
+      <td class="text-muted">{{ s.national_id or '—' }}</td>
+      <td>{{ {'M':'ذكر','F':'أنثى'}.get(s.gender, '—') }}</td>
+      <td>
+        {% if cur and active_year and cur.year_id == active_year.id %}
+          <span class="badge ok">{{ cur.grade.name }} / {{ cur.section.name }}</span>
+        {% else %}
+          <span class="badge muted">غير مقيّد</span>
+        {% endif %}
+      </td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('students.student_detail', student_id=s.id) }}">عرض</a>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لا توجد ملفات طلاب.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

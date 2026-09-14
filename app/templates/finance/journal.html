@@ -1,0 +1,53 @@
+{% extends "partials/base.html" %}
+{% block title %}دفتر اليومية{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>دفتر اليومية</h2><div class="sub">قيود تلقائية متوازنة (مدين = دائن)</div></div>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="form-row cols-4" style="margin-bottom:0">
+    <div class="field"><label>من</label><input name="start" type="date" value="{{ start }}"></div>
+    <div class="field"><label>إلى</label><input name="end" type="date" value="{{ end }}"></div>
+    <div class="field"><label>حساب</label>
+      <select name="account_id">
+        <option value="">كل الحسابات</option>
+        {% for a in accounts %}<option value="{{ a.id }}" {% if account_id == a.id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>{% endfor %}
+      </select>
+    </div>
+    <div class="field" style="align-self:end"><button class="btn btn-navy" type="submit">تحديث</button></div>
+  </div>
+</form>
+
+{% for e in entries %}
+<div class="card" style="margin-bottom:12px">
+  <div class="flex-between">
+    <div>
+      <strong>{{ e.entry_date }}</strong>
+      <span class="badge muted">#{{ e.id }}</span>
+      {% if e.reference %}<span class="badge navy">{{ e.reference }}</span>{% endif %}
+      — {{ e.description }}
+    </div>
+    <div>
+      <span class="badge ok">مدين: {{ "%.2f"|format(e.total_debit) }}</span>
+      <span class="badge ok">دائن: {{ "%.2f"|format(e.total_credit) }}</span>
+    </div>
+  </div>
+  <table class="data mt-2" style="border:0">
+    <thead><tr><th>الحساب</th><th style="text-align:left">مدين</th><th style="text-align:left">دائن</th><th>وصف</th></tr></thead>
+    <tbody>
+      {% for l in e.lines %}
+      <tr>
+        <td>{{ l.account.code }} — {{ l.account.name }}</td>
+        <td style="text-align:left">{% if l.debit > 0 %}{{ "%.2f"|format(l.debit) }}{% endif %}</td>
+        <td style="text-align:left">{% if l.credit > 0 %}{{ "%.2f"|format(l.credit) }}{% endif %}</td>
+        <td class="text-muted">{{ l.description or '—' }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="alert info">لا توجد قيود في هذه الفترة.</div>
+{% endfor %}
+{% endblock %}

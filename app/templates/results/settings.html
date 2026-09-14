@@ -1,0 +1,45 @@
+{% extends "partials/base.html" %}
+{% block title %}قاعدة النجاح{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>قاعدة النجاح المرنة</h2>
+    <div class="sub">حد نجاح المادة + المعدل العام + طريقة الدمج. تُجمَّد عند إغلاق السنة (T-7.1)</div>
+  </div>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <h3>السنة: {{ year.name }} {% if rule.is_frozen %}<span class="badge muted">مجمَّدة</span>{% endif %}</h3>
+    <div class="form-row cols-2">
+      <div class="field"><label>حد نجاح المادة (%)</label>
+        <input name="subject_pass_threshold" type="number" step="0.01" min="0" max="100"
+               value="{{ rule.subject_pass_threshold }}" {% if rule.is_frozen %}disabled{% endif %}>
+      </div>
+      <div class="field"><label>حد المعدل العام (%)</label>
+        <input name="overall_pass_threshold" type="number" step="0.01" min="0" max="100"
+               value="{{ rule.overall_pass_threshold }}" {% if rule.is_frozen %}disabled{% endif %}>
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field"><label>طريقة الدمج</label>
+        <select name="method" {% if rule.is_frozen %}disabled{% endif %}>
+          <option value="overall_only" {% if rule.method == 'overall_only' %}selected{% endif %}>المعدل العام فقط</option>
+          <option value="per_subject" {% if rule.method == 'per_subject' %}selected{% endif %}>النجاح في كل مادة على حدة</option>
+          <option value="mixed" {% if rule.method == 'mixed' %}selected{% endif %}>الاثنان معًا (مع السماح بالرسوب في عدد محدد)</option>
+        </select>
+      </div>
+      <div class="field"><label>عدد المواد المسموح بالرسوب فيها (للطريقة المختلطة فقط)</label>
+        <input name="allowed_failed_subjects" type="number" min="0"
+               value="{{ rule.allowed_failed_subjects }}" {% if rule.is_frozen %}disabled{% endif %}>
+      </div>
+    </div>
+  </div>
+  {% if not rule.is_frozen %}
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+  </div>
+  {% endif %}
+</form>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends "partials/base.html" %}
+{% block title %}دليل الحسابات{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>دليل الحسابات</h2><div class="sub">شجرة الحسابات. كل عملية مالية تولّد قيدًا متوازنًا تلقائيًا (T-8.1).</div></div>
+  <a href="{{ url_for('finance.account_new') }}" class="btn btn-primary">+ حساب فرعي</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>الكود</th><th>الاسم</th><th>التصنيف</th><th>الأب</th><th>الرصيد</th><th></th></tr></thead>
+  <tbody>
+    {% for a in accounts %}
+    <tr>
+      <td><strong>{{ a.code }}</strong></td>
+      <td style="padding-right:{{ (a.code|length - 1) * 12 }}px">{{ a.name }} {% if a.is_system %}<span class="badge muted">نظامي</span>{% endif %}</td>
+      <td><span class="badge navy">{{ {'asset':'أصول','liability':'خصوم','equity':'حقوق ملكية','revenue':'إيرادات','expense':'مصروفات'}[a.type] }}</span></td>
+      <td class="text-muted">{{ a.parent.code if a.parent else '—' }}</td>
+      <td><strong>{{ "%.2f"|format(a.balance) }}</strong></td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('finance.journal', account_id=a.id) }}">دفتر اليومية</a>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

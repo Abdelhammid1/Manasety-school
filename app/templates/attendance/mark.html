@@ -1,0 +1,69 @@
+{% extends "partials/base.html" %}
+{% block title %}تسجيل حضور {{ section.name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>تسجيل الحضور — {{ section.grade.name }} / {{ section.name }}</h2>
+    <div class="sub">السنة: <strong class="text-navy">{{ year.name }}</strong> — يُرسل إشعار واتساب تلقائيًا عند تسجيل الغياب (T-6.2)</div>
+  </div>
+  <div class="flex">
+    <a href="{{ url_for('attendance.index') }}" class="btn btn-ghost">رجوع</a>
+    <a href="{{ url_for('attendance.section_report', section_id=section.id) }}" class="btn btn-ghost">تقرير الفصل</a>
+  </div>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="flex" style="gap:8px">
+    <label class="text-navy" style="font-weight:600">التاريخ:</label>
+    <input name="date" type="date" value="{{ on_date }}" style="padding:8px;border:1px solid var(--c-border);border-radius:8px">
+    <button class="btn btn-navy btn-sm" type="submit">تحميل</button>
+  </div>
+</form>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <h3>قائمة الطلاب ({{ enrollments|length }})</h3>
+    {% if not enrollments %}
+    <p class="text-muted">لا يوجد طلاب نشطون في هذا الفصل.</p>
+    {% else %}
+    <table class="data">
+      <thead><tr>
+        <th>#</th><th>الطالب</th>
+        <th style="width:80px">حاضر</th>
+        <th style="width:80px">غائب</th>
+        <th style="width:80px">متأخر</th>
+        <th>ملاحظات</th>
+      </tr></thead>
+      <tbody>
+        {% for e in enrollments %}
+        {% set rec = existing.get(e.id) %}
+        {% set st = rec.status if rec else 'present' %}
+        <tr>
+          <td class="text-muted">{{ loop.index }}</td>
+          <td>
+            <strong>{{ e.student.full_name }}</strong>
+            <div class="text-muted" style="font-size:12px">{{ e.student.permanent_code }}</div>
+            {% if rec %}<span class="badge muted">سُجّل سابقًا — يمكن التعديل</span>{% endif %}
+          </td>
+          <td style="text-align:center">
+            <input type="radio" name="status_{{ e.id }}" value="present" {% if st == 'present' %}checked{% endif %}>
+          </td>
+          <td style="text-align:center;background:rgba(232,69,69,.04)">
+            <input type="radio" name="status_{{ e.id }}" value="absent" {% if st == 'absent' %}checked{% endif %}>
+          </td>
+          <td style="text-align:center;background:rgba(244,185,66,.04)">
+            <input type="radio" name="status_{{ e.id }}" value="late" {% if st == 'late' %}checked{% endif %}>
+          </td>
+          <td><input name="note_{{ e.id }}" value="{{ rec.notes or '' if rec else '' }}" placeholder="—"></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="mt-2 flex">
+      <button class="btn btn-primary" type="submit">حفظ الحضور</button>
+    </div>
+    {% endif %}
+  </div>
+</form>
+{% endblock %}

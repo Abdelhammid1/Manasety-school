@@ -1,0 +1,30 @@
+{% extends "partials/base.html" %}
+{% block title %}صف دراسي{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>{% if grade %}تعديل صف: {{ grade.name }}{% else %}صف جديد{% endif %}</h2></div>
+  <a href="{{ url_for('academic.grades_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-3">
+      <div class="field"><label>الاسم</label>
+        <input name="name" required value="{{ grade.name if grade else '' }}" placeholder="مثل: السادس الابتدائي">
+      </div>
+      <div class="field"><label>الترتيب التسلسلي</label>
+        <input name="order_index" type="number" min="0" required value="{{ grade.order_index if grade else '' }}">
+        <div class="hint">يُستخدم في الترقية لتحديد الصف الأعلى</div>
+      </div>
+      <div class="field"><label>المرحلة</label>
+        <input name="stage" value="{{ grade.stage if grade else '' }}" placeholder="ابتدائي / إعدادي ...">
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('academic.grades_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

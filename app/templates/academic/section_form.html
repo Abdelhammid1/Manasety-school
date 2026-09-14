@@ -1,0 +1,31 @@
+{% extends "partials/base.html" %}
+{% block title %}فصل جديد{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>فصل جديد — السنة {{ year.name }}</h2></div>
+  <a href="{{ url_for('academic.sections_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-3">
+      <div class="field"><label>الصف</label>
+        <select name="grade_id" required>
+          {% for g in grades %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>اسم الفصل</label>
+        <input name="name" required placeholder="مثل: أ أو ب">
+      </div>
+      <div class="field"><label>السعة القصوى</label>
+        <input name="capacity" type="number" min="1" value="30">
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('academic.sections_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

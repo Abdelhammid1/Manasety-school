@@ -1,0 +1,34 @@
+{% extends "partials/base.html" %}
+{% block title %}{{ lesson.title }}{% endblock %}
+{% block content %}
+<div style="margin-bottom:14px">
+  <a href="{{ url_for('courses.detail', course_id=course.id) }}" style="color:var(--c-blue);font-weight:600">← {{ course.title }}</a>
+</div>
+<div class="grid" style="grid-template-columns:2fr 1fr;gap:20px">
+  <div class="card">
+    <h2 style="margin:0 0 10px;color:var(--c-navy)">{{ lesson.title }}</h2>
+    {% if lesson.kind == 'video' and lesson.media_url %}
+      <div style="aspect-ratio:16/9;background:#000;border-radius:8px;overflow:hidden">
+        <iframe src="{{ lesson.media_url }}" style="width:100%;height:100%;border:0" allowfullscreen></iframe>
+      </div>
+    {% elif lesson.kind == 'pdf' and lesson.media_url %}
+      <embed src="{{ lesson.media_url }}" type="application/pdf" style="width:100%;height:70vh;border:0;border-radius:8px">
+    {% elif lesson.kind == 'link' and lesson.media_url %}
+      <a href="{{ lesson.media_url }}" target="_blank" rel="noopener" class="btn"
+         style="background:var(--grad-brand);color:#fff;padding:10px 22px;border-radius:999px;font-weight:700">فتح الرابط</a>
+    {% endif %}
+    {% if lesson.body %}
+    <div style="margin-top:18px;line-height:1.85">{{ lesson.body|safe }}</div>
+    {% endif %}
+  </div>
+  <div class="card">
+    <h3 style="border-bottom:1px solid var(--c-border);padding-bottom:10px">دروس المادة</h3>
+    {% for l in course.lessons %}
+    <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
+       style="display:block;padding:8px 0;color:{% if l.id == lesson.id %}var(--c-blue){% else %}var(--c-text){% endif %};font-weight:{% if l.id == lesson.id %}800{% else %}600{% endif %};text-decoration:none">
+      {{ l.order_index }}. {{ l.title }}
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

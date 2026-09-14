@@ -1,0 +1,41 @@
+{% extends "partials/base.html" %}
+{% block title %}السنوات الدراسية{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>السنوات الدراسية</h2><div class="sub">عمود الفقري الزمني للنظام — كل البيانات تُربط بسنة محددة (T-2.1)</div></div>
+  <a href="{{ url_for('academic.year_new') }}" class="btn btn-primary">+ سنة جديدة</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>السنة</th><th>البداية</th><th>النهاية</th><th>الفترات الدراسية</th><th>الحالة</th><th></th></tr></thead>
+  <tbody>
+    {% for y in years %}
+    <tr>
+      <td><strong>{{ y.name }}</strong></td>
+      <td>{{ y.start_date }}</td>
+      <td>{{ y.end_date }}</td>
+      <td>
+        <a href="{{ url_for('academic.terms_list', year_id=y.id) }}">
+          {{ y.terms|length }} فترة دراسية
+        </a>
+      </td>
+      <td>
+        {% if y.status == 'active' %}<span class="badge ok">نشطة</span>
+        {% else %}<span class="badge muted">مغلقة (أرشيف)</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('academic.terms_list', year_id=y.id) }}">الفترات الدراسية</a>
+        {% if y.status == 'active' %}
+        <form action="{{ url_for('academic.year_close', year_id=y.id) }}" method="post" onsubmit="return confirm('تأكيد إغلاق السنة؟ ستصبح للأرشيف فقط.')" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-danger btn-sm" type="submit">إغلاق</button>
+        </form>
+        {% endif %}
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لم تُنشأ سنة دراسية بعد.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

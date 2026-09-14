@@ -1,0 +1,42 @@
+{% extends "partials/base.html" %}
+{% block title %}المواد الدراسية{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>المواد الدراسية</h2>
+    <div class="sub">قائمة قابلة للتوسّع — أضف مادة في أي وقت دون تعديل الكود (T-4.2)</div>
+  </div>
+  <a href="{{ url_for('teachers.subject_new') }}" class="btn btn-primary">+ مادة جديدة</a>
+</div>
+
+<table class="data">
+  <thead><tr><th>المادة</th><th>الرمز</th><th>الصفوف</th><th>الحالة</th><th></th></tr></thead>
+  <tbody>
+    {% for s in subjects %}
+    <tr {% if not s.is_active %}style="opacity:0.55"{% endif %}>
+      <td><strong>{{ s.name }}</strong></td>
+      <td class="text-muted">{{ s.code or '—' }}</td>
+      <td>
+        {% for g in s.grades %}<span class="badge muted">{{ g.name }}</span> {% else %}—{% endfor %}
+      </td>
+      <td>
+        {% if s.is_active %}<span class="badge ok">نشطة</span>
+        {% else %}<span class="badge danger">معطّلة</span>{% endif %}
+      </td>
+      <td class="actions">
+        <a class="btn btn-ghost btn-sm" href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}">تعديل</a>
+        <form action="{{ url_for('teachers.subject_toggle', subject_id=s.id) }}" method="post" style="display:inline"
+              onsubmit="return confirm('{{ 'تعطيل المادة لن يحذف الدرجات المرصودة عليها لكنه سيمنع رصد درجات جديدة وسيُخفيها من نماذج الإسناد. متابعة؟' if s.is_active else 'إعادة تفعيل المادة؟' }}')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn btn-sm {{ 'btn-danger' if s.is_active else 'btn-navy' }}" type="submit">
+            {{ '🚫 تعطيل' if s.is_active else '✓ تفعيل' }}
+          </button>
+        </form>
+      </td>
+    </tr>
+    {% else %}
+    <tr><td colspan="5" class="text-muted" style="text-align:center;padding:24px">لم تُعرّف مواد بعد.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

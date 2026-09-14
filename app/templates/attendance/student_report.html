@@ -1,0 +1,51 @@
+{% extends "partials/base.html" %}
+{% block title %}تقرير حضور {{ student.full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>تقرير حضور — {{ student.full_name }}</h2>
+    <div class="sub">
+      <span class="badge muted">{{ student.permanent_code }}</span>
+      نسبة الحضور خلال الفترة وأيام الغياب
+    </div>
+  </div>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="btn btn-ghost">رجوع لملف الطالب</a>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="flex" style="gap:12px;align-items:end">
+    <div class="field" style="margin:0"><label>من</label><input name="start" type="date" value="{{ start }}"></div>
+    <div class="field" style="margin:0"><label>إلى</label><input name="end" type="date" value="{{ end }}"></div>
+    <button class="btn btn-navy btn-sm" type="submit">تحديث</button>
+  </div>
+</form>
+
+<div class="grid grid-4">
+  <div class="stat green"><div><div class="label">حاضر</div><div class="value">{{ present }}</div></div><div class="icon">✓</div></div>
+  <div class="stat red"><div><div class="label">غائب</div><div class="value">{{ absent }}</div></div><div class="icon">✕</div></div>
+  <div class="stat"><div><div class="label">متأخر</div><div class="value">{{ late }}</div></div><div class="icon">!</div></div>
+  <div class="stat navy"><div><div class="label">نسبة الحضور</div><div class="value">{{ rate }}%</div></div><div class="icon">%</div></div>
+</div>
+
+<div class="card mt-3">
+  <h3>السجل التفصيلي ({{ total }} يوم)</h3>
+  <table class="data">
+    <thead><tr><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td>{{ r.date }}</td>
+        <td>
+          {% if r.status == 'present' %}<span class="badge ok">حاضر</span>
+          {% elif r.status == 'absent' %}<span class="badge danger">غائب</span>
+          {% else %}<span class="badge warn">متأخر</span>{% endif %}
+        </td>
+        <td class="text-muted">{{ r.notes or '—' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3" class="text-muted" style="text-align:center;padding:20px">لا سجلات في هذه الفترة.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "partials/base.html" %}
+{% block title %}نتائج الفصل {{ section.name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>نتائج الفصل — {{ section.grade.name }} / {{ section.name }}</h2>
+    <div class="sub">
+      السنة: <strong class="text-navy">{{ year.name }}</strong>
+      • قاعدة النجاح: {{ {'overall_only':'المعدل العام','per_subject':'نجاح كل مادة','mixed':'مختلطة'}[rule.method] }}
+      ({{ rule.overall_pass_threshold }}% عام / {{ rule.subject_pass_threshold }}% للمادة
+      {% if rule.method == 'mixed' %} • مسموح برسوب حتى {{ rule.allowed_failed_subjects }} مادة{% endif %})
+    </div>
+  </div>
+  <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost">رصد الدرجات</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card" style="overflow-x:auto">
+    <table class="data" style="min-width:600px">
+      <thead><tr>
+        <th>الطالب</th><th>المعدل</th><th>عدد المواد الراسبة</th><th>النتيجة</th><th>الحالة</th>
+      </tr></thead>
+      <tbody>
+        {% for r in rows %}
+        {% set yr = approved.get(r.enrollment.id) %}
+        <tr>
+          <td>
+            <strong>{{ r.enrollment.student.full_name }}</strong>
+            <div class="text-muted" style="font-size:12px">{{ r.enrollment.student.permanent_code }}</div>
+          </td>
+          <td><strong>{{ r.average }}</strong></td>
+          <td>{{ r.failed_count }}</td>
+          <td>
+            {% if r.incomplete %}<span class="badge warn">غير مكتملة</span>
+            {% elif r.status == 'pass' %}<span class="badge ok">ناجح</span>
+            {% else %}<span class="badge danger">راسب</span>{% endif %}
+          </td>
+          <td>
+            {% if yr %}<span class="badge navy">معتمدة</span>
+            {% else %}<span class="badge muted">قيد المراجعة</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="mt-2 flex">
+      <button class="btn btn-primary" type="submit" onclick="return confirm('اعتماد النتائج المكتملة لهذا الفصل؟ بعد الاعتماد لا يمكن التعديل إلا بصلاحية أعلى.')">
+        مراجعة واعتماد النتائج
+      </button>
+    </div>
+  </div>
+</form>
+{% endblock %}

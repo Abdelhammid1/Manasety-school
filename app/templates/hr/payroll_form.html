@@ -1,0 +1,53 @@
+{% extends "partials/base.html" %}
+{% block title %}صرف راتب{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>صرف راتب شهري</h2></div>
+  <a href="{{ url_for('hr.payroll_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <div class="form-row cols-3">
+      <div class="field"><label>الموظف</label>
+        <select name="employee_id" required onchange="document.getElementById('base').value=this.options[this.selectedIndex].dataset.salary">
+          {% for e in employees %}
+          <option value="{{ e.id }}" data-salary="{{ e.base_salary }}">{{ e.full_name }} — {{ e.job_title }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>السنة</label>
+        <input name="period_year" type="number" value="{{ today.year }}" required>
+      </div>
+      <div class="field"><label>الشهر</label>
+        <input name="period_month" type="number" min="1" max="12" value="{{ today.month }}" required>
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field"><label>الراتب الأساسي</label>
+        <input id="base" name="base_salary" type="number" step="0.01" min="0" required>
+      </div>
+      <div class="field"><label>البدلات</label>
+        <input name="allowances" type="number" step="0.01" min="0" value="0">
+      </div>
+      <div class="field"><label>الخصومات</label>
+        <input name="deductions" type="number" step="0.01" min="0" value="0">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field"><label>الحساب النقدي (من أين الدفع)</label>
+        <select name="cash_account_id" required>
+          {% for c in cash_accounts %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="field"><label>تاريخ الصرف</label>
+        <input name="paid_at" type="date" value="{{ today }}" required>
+      </div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">صرف وقيد محاسبيًا</button>
+  </div>
+</form>
+{% endblock %}

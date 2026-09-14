@@ -1,0 +1,44 @@
+{% extends "partials/base.html" %}
+{% block title %}المواد والدروس{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>المواد والدروس</h2>
+    <div class="sub">كل المواد الدراسية المفتوحة في المنصة</div>
+  </div>
+  <a href="{{ url_for('courses.new') }}" class="btn btn-primary"
+     style="background:var(--grad-brand);color:#fff;padding:10px 20px;border-radius:999px;font-weight:700;text-decoration:none">
+    + مادة جديدة
+  </a>
+</div>
+
+{% if courses %}
+<div class="grid grid-3">
+  {% for c in courses %}
+  <a href="{{ url_for('courses.detail', course_id=c.id) }}" class="card"
+     style="text-decoration:none;color:inherit;display:block;transition:.18s all">
+    <div style="height:80px;border-radius:8px;background:var(--grad-brand);margin:-6px -6px 12px;position:relative">
+      {% if not c.is_published %}
+      <span style="position:absolute;top:8px;left:8px;background:#fff;color:var(--c-navy);font-size:11px;
+                   padding:3px 8px;border-radius:999px;font-weight:700">مسودة</span>
+      {% endif %}
+    </div>
+    <h3 style="border:0;padding:0;margin:0 0 6px">{{ c.title }}</h3>
+    <div style="color:var(--c-muted);font-size:13px">
+      {{ c.lessons|length }} درس · {{ c.assignments|length }} واجب · {{ c.quizzes|length }} اختبار
+    </div>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:40px">
+  <div style="font-size:48px;margin-bottom:12px">📘</div>
+  <h3 style="border:0;padding:0">لا توجد مواد بعد</h3>
+  <p style="color:var(--c-muted)">ابدأ بإنشاء أول مادة دراسية لتظهر هنا مع دروسها وواجباتها.</p>
+  <a href="{{ url_for('courses.new') }}" class="btn btn-primary"
+     style="background:var(--grad-brand);color:#fff;padding:10px 22px;border-radius:999px;font-weight:700;text-decoration:none;display:inline-block;margin-top:8px">
+    إنشاء أول مادة
+  </a>
+</div>
+{% endif %}
+{% endblock %}

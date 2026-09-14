@@ -1,0 +1,18 @@
+{
+  "name": "manasety-lms",
+  "version": "0.1.0",
+  "description": "منصتي (Manasety) — LMS for K-12 Arabic schools · courses, lessons, assignments, quizzes, gradebook, attendance, finance",
+  "main": "flask_app.py",
+  "directories": { "test": "tests" },
+  "scripts": {
+    "test": "playwright test"
+  },
+  "keywords": ["lms", "manasety", "manasety-lms", "school", "arabic", "rtl", "flask"],
+  "author": "Manasety",
+  "license": "UNLICENSED",
+  "private": true,
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1"
+  }
+}

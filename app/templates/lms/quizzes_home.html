@@ -1,0 +1,23 @@
+{% extends "partials/base.html" %}
+{% block title %}الاختبارات{% endblock %}
+{% block content %}
+<div class="page-title"><h2>الاختبارات</h2><div class="sub">قائمة الاختبارات القادمة والحالية</div></div>
+{% if items %}
+<div class="grid grid-2">
+  {% for q in items %}
+  <div class="card">
+    <h3 style="border:0;padding:0">{{ q.title }}</h3>
+    <div style="color:var(--c-muted);font-size:13px">{{ q.course.title if q.course else '—' }} · {{ q.duration_minutes }} دقيقة</div>
+    <div style="margin-top:10px;font-size:12px">
+      {% if q.opens_at %}يفتح: {{ q.opens_at.strftime('%Y-%m-%d %H:%M') }}<br>{% endif %}
+      {% if q.closes_at %}يغلق: {{ q.closes_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card" style="text-align:center;padding:36px;color:var(--c-muted)">
+  <div style="font-size:44px">🧪</div><p>لا توجد اختبارات مجدولة.</p>
+</div>
+{% endif %}
+{% endblock %}

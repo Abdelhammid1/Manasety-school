@@ -1,0 +1,127 @@
+{% extends "partials/base.html" %}
+{% block title %}فاتورة {{ inv.number }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>الفاتورة {{ inv.number }}</h2>
+    <div class="sub">
+      الطالب: <strong>{{ inv.enrollment.student.full_name }}</strong>
+      • {{ inv.enrollment.grade.name }} / {{ inv.enrollment.section.name }}
+      • {{ inv.enrollment.year.name }}
+    </div>
+  </div>
+  <div class="flex" style="gap:8px">
+    <a href="{{ url_for('finance.invoice_print', invoice_id=inv.id) }}" target="_blank" class="btn btn-primary">
+      🖨️ طباعة / PDF
+    </a>
+    <a href="{{ url_for('finance.invoices_list') }}" class="btn btn-ghost">رجوع</a>
+  </div>
+</div>
+
+<div class="grid grid-4">
+  <div class="stat navy"><div><div class="label">الإجمالي</div><div class="value">{{ "%.2f"|format(inv.total_amount) }}</div></div><div class="icon">∑</div></div>
+  <div class="stat green"><div><div class="label">المدفوع</div><div class="value">{{ "%.2f"|format(inv.paid_amount) }}</div></div><div class="icon">✓</div></div>
+  <div class="stat red"><div><div class="label">المتبقّي</div><div class="value">{{ "%.2f"|format(inv.remaining) }}</div></div><div class="icon">!</div></div>
+  <div class="stat">
+    <div>
+      <div class="label">الحالة</div>
+      <div class="value" style="font-size:20px">
+        {% if inv.status == 'paid' %}<span class="badge ok">مدفوعة</span>
+        {% elif inv.status == 'partial' %}<span class="badge warn">جزئية</span>
+        {% elif inv.status == 'refunded' %}<span class="badge muted">مستردة</span>
+        {% elif inv.status == 'overdue' %}<span class="badge danger">متأخرة</span>
+        {% elif inv.status == 'draft' %}<span class="badge muted">مسوّدة</span>
+        {% else %}<span class="badge navy">مرسلة</span>{% endif %}
+      </div>
+    </div>
+    <div class="icon">●</div>
+  </div>
+</div>
+
+<div class="grid grid-2 mt-2">
+  <div class="card">
+    <h3>البنود</h3>
+    <table class="data">
+      <thead><tr><th>الوصف</th><th style="text-align:left">المبلغ</th></tr></thead>
+      <tbody>
+        {% for l in inv.lines %}
+        <tr><td>{{ l.description }}</td><td style="text-align:left">{{ "%.2f"|format(l.amount) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>الأقساط</h3>
+    <table class="data">
+      <thead><tr><th>التاريخ</th><th>المبلغ</th><th>المدفوع</th><th>المتبقّي</th></tr></thead>
+      <tbody>
+        {% for ins in inv.installments %}
+        <tr>
+          <td>{{ ins.due_date }}</td>
+          <td>{{ "%.2f"|format(ins.amount) }}</td>
+          <td>{{ "%.2f"|format(ins.paid_amount) }}</td>
+          <td><strong>{{ "%.2f"|format(ins.remaining) }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mt-2">
+  <h3>تسجيل دفعة / استرداد</h3>
+  <form method="post" action="{{ url_for('finance.invoice_pay', invoice_id=inv.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="form-row cols-3">
+      <div class="field"><label>المبلغ</label>
+        <input name="amount" type="number" step="0.01" min="0.01" required>
+      </div>
+      <div class="field"><label>التاريخ</label>
+        <input name="payment_date" type="date" value="{{ inv.issue_date }}">
+      </div>
+      <div class="field"><label>الحساب النقدي</label>
+        <select name="cash_account_id" required>
+          {% for c in cash_accounts %}<option value="{{ c.id }}">{{ c.code }} — {{ c.name }}</option>{% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field"><label>الطريقة</label>
+        <select name="method">
+          <option value="cash">نقدي</option>
+          <option value="bank">بنكي</option>
+          <option value="transfer">حوالة</option>
+        </select>
+      </div>
+      <div class="field"><label>مرجع</label>
+        <input name="reference">
+      </div>
+      <div class="field" style="align-self:end">
+        <label class="checkbox"><input type="checkbox" name="is_refund" value="1"> استرداد</label>
+      </div>
+    </div>
+    <div class="mt-2 flex">
+      <button class="btn btn-primary" type="submit">تنفيذ</button>
+    </div>
+  </form>
+</div>
+
+{% if inv.payments %}
+<div class="card mt-2">
+  <h3>سجلّ المدفوعات</h3>
+  <table class="data">
+    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>القيد</th></tr></thead>
+    <tbody>
+      {% for p in inv.payments %}
+      <tr>
+        <td>{{ p.payment_date }}</td>
+        <td>{% if p.is_refund %}<span class="badge muted">استرداد</span> {% endif %}{{ "%.2f"|format(p.amount) }}</td>
+        <td><span class="badge navy">{{ {'cash':'نقدي','bank':'بنكي','transfer':'حوالة'}.get(p.method, p.method) }}</span></td>
+        <td><a href="{{ url_for('finance.journal') }}?account_id=">قيد #{{ p.journal_entry_id }}</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+{% endblock %}

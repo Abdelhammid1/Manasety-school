@@ -1,0 +1,50 @@
+{% extends "partials/base.html" %}
+{% block title %}{{ teacher.full_name }}{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div>
+    <h2>{{ teacher.full_name }}</h2>
+    <div class="sub">
+      <span class="badge navy">{{ teacher.specialization }}</span>
+      {% if teacher.is_active %}<span class="badge ok">نشط</span>{% else %}<span class="badge danger">معطّل</span>{% endif %}
+    </div>
+  </div>
+  <div class="flex">
+    <a href="{{ url_for('teachers.teachers_list') }}" class="btn btn-ghost">رجوع</a>
+    <a href="{{ url_for('teachers.teacher_edit', teacher_id=teacher.id) }}" class="btn btn-ghost">تعديل</a>
+    <a href="{{ url_for('schedule.teacher_schedule', teacher_id=teacher.id) }}" class="btn btn-navy">عرض الجدول</a>
+  </div>
+</div>
+
+<div class="grid grid-2">
+  <div class="card">
+    <h3>بيانات الاتصال</h3>
+    <table class="data" style="border:0">
+      <tbody>
+        <tr><td>الهاتف</td><td>{{ teacher.phone or '—' }}</td></tr>
+        <tr><td>البريد</td><td>{{ teacher.email or '—' }}</td></tr>
+        <tr><td>رقم الهوية</td><td>{{ teacher.national_id or '—' }}</td></tr>
+        <tr><td>تاريخ التعيين</td><td>{{ teacher.hire_date or '—' }}</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>الإسناد للسنة {{ active_year.name if active_year else '—' }}</h3>
+    {% if assignments %}
+    <table class="data" style="border:0">
+      <thead><tr><th>الفصل</th><th>المادة</th></tr></thead>
+      <tbody>
+        {% for a in assignments %}
+        <tr>
+          <td>{{ a.section.grade.name }} / {{ a.section.name }}</td>
+          <td><strong>{{ a.subject.name }}</strong></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-muted">لا توجد إسنادات لهذا المعلم في السنة الحالية.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

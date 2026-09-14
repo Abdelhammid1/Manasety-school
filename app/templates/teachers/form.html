@@ -1,0 +1,55 @@
+{% extends "partials/base.html" %}
+{% block title %}{% if teacher %}تعديل معلم{% else %}معلم جديد{% endif %}{% endblock %}
+{% block content %}
+{% set f = form if form else {} %}
+<div class="page-title">
+  <div><h2>{% if teacher %}تعديل: {{ teacher.full_name }}{% else %}معلم جديد{% endif %}</h2></div>
+  <a href="{{ url_for('teachers.teachers_list') }}" class="btn btn-ghost">رجوع</a>
+</div>
+
+<form method="post">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="card">
+    <h3>البيانات الأساسية</h3>
+    <div class="form-row cols-2">
+      <div class="field"><label>الاسم الكامل *</label>
+        <input name="full_name" required value="{{ teacher.full_name if teacher else f.get('full_name','') }}">
+      </div>
+      <div class="field"><label>التخصص *</label>
+        <input name="specialization" required value="{{ teacher.specialization if teacher else f.get('specialization','') }}" placeholder="رياضيات / لغة عربية / ...">
+      </div>
+    </div>
+    <div class="form-row cols-3">
+      <div class="field"><label>رقم الهوية</label>
+        <input name="national_id" value="{{ teacher.national_id or '' if teacher else f.get('national_id','') }}">
+      </div>
+      <div class="field"><label>الهاتف</label>
+        <input name="phone" value="{{ teacher.phone or '' if teacher else f.get('phone','') }}">
+      </div>
+      <div class="field"><label>تاريخ التعيين</label>
+        <input name="hire_date" type="date" value="{{ teacher.hire_date or '' if teacher else f.get('hire_date','') }}">
+      </div>
+    </div>
+    <div class="form-row cols-2">
+      <div class="field"><label>البريد الإلكتروني</label>
+        <input name="email" type="email" value="{{ teacher.email or '' if teacher else f.get('email','') }}">
+      </div>
+      <div class="field"><label>ملاحظات</label>
+        <input name="notes" value="{{ teacher.notes or '' if teacher else f.get('notes','') }}">
+      </div>
+    </div>
+    <div class="field">
+      <label>ربط بحساب مستخدم (للوصول إلى بوابة المعلم وتطبيق الجوال)</label>
+      <select name="user_id">
+        <option value="">— لا يوجد —</option>
+        {% for u in users %}<option value="{{ u.id }}" {% if teacher and teacher.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
+      </select>
+      <div class="hint">يجب أن يكون حساب المستخدم بدور "معلم" لاستخدام البوابة.</div>
+    </div>
+  </div>
+  <div class="mt-2 flex">
+    <button class="btn btn-primary" type="submit">حفظ</button>
+    <a href="{{ url_for('teachers.teachers_list') }}" class="btn btn-ghost">إلغاء</a>
+  </div>
+</form>
+{% endblock %}

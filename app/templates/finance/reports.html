@@ -1,0 +1,83 @@
+{% extends "partials/base.html" %}
+{% block title %}التقارير المالية{% endblock %}
+{% block content %}
+<div class="page-title">
+  <div><h2>التقارير المالية</h2><div class="sub">عرض مبسّط لغير المختصّين (T-9.2)</div></div>
+  <div class="flex" style="gap:8px">
+    <a class="btn btn-primary" href="{{ url_for('finance.reports_export', format='pdf', start=start, end=end) }}">
+      📄 تصدير PDF
+    </a>
+    <a class="btn btn-ghost" style="border:1px solid var(--c-gold);color:var(--c-gold-dark)"
+       href="{{ url_for('finance.reports_export', format='excel', start=start, end=end) }}">
+      📊 تصدير Excel
+    </a>
+  </div>
+</div>
+
+<form method="get" class="card" style="padding:14px;margin-bottom:16px">
+  <div class="flex" style="gap:12px;align-items:end">
+    <div class="field" style="margin:0"><label>من</label><input name="start" type="date" value="{{ start }}"></div>
+    <div class="field" style="margin:0"><label>إلى</label><input name="end" type="date" value="{{ end }}"></div>
+    <button class="btn btn-navy btn-sm" type="submit">تحديث</button>
+  </div>
+</form>
+
+<div class="grid grid-3">
+  <div class="stat green"><div><div class="label">الإيرادات</div><div class="value">{{ "%.2f"|format(totals.revenue) }}</div></div><div class="icon">↑</div></div>
+  <div class="stat red"><div><div class="label">المصروفات</div><div class="value">{{ "%.2f"|format(totals.expense) }}</div></div><div class="icon">↓</div></div>
+  <div class="stat navy">
+    <div>
+      <div class="label">صافي الدخل</div>
+      <div class="value" style="color:{% if net_income >= 0 %}var(--c-green){% else %}var(--c-red){% endif %}">
+        {{ "%.2f"|format(net_income) }}
+      </div>
+    </div>
+    <div class="icon">=</div>
+  </div>
+</div>
+
+<div class="grid grid-2 mt-3">
+  <div class="card">
+    <h3>الميزانية العمومية (مبسّطة)</h3>
+    <table class="data" style="border:0">
+      <thead><tr><th colspan="2" style="background:var(--c-surface-2);color:var(--c-navy)">الأصول</th></tr></thead>
+      <tbody>
+        {% for a in grouped.asset %}
+        <tr><td>{{ a.code }} — {{ a.name }}</td><td style="text-align:left">{{ "%.2f"|format(a.balance) }}</td></tr>
+        {% endfor %}
+        <tr style="background:rgba(34,197,94,.08)"><td><strong>إجمالي الأصول</strong></td><td style="text-align:left"><strong>{{ "%.2f"|format(totals.asset) }}</strong></td></tr>
+      </tbody>
+      <thead><tr><th colspan="2" style="background:var(--c-surface-2);color:var(--c-navy)">الخصوم وحقوق الملكية</th></tr></thead>
+      <tbody>
+        {% for a in grouped.liability %}
+        <tr><td>{{ a.code }} — {{ a.name }}</td><td style="text-align:left">{{ "%.2f"|format(a.balance) }}</td></tr>
+        {% endfor %}
+        {% for a in grouped.equity %}
+        <tr><td>{{ a.code }} — {{ a.name }}</td><td style="text-align:left">{{ "%.2f"|format(a.balance) }}</td></tr>
+        {% endfor %}
+        <tr style="background:rgba(27,58,92,.05)"><td><strong>إجمالي الخصوم + حقوق الملكية</strong></td><td style="text-align:left"><strong>{{ "%.2f"|format(totals.liability + totals.equity) }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="card">
+    <h3>قائمة الدخل (مبسّطة)</h3>
+    <table class="data" style="border:0">
+      <thead><tr><th colspan="2" style="background:var(--c-surface-2);color:var(--c-navy)">الإيرادات</th></tr></thead>
+      <tbody>
+        {% for a in grouped.revenue %}
+        <tr><td>{{ a.code }} — {{ a.name }}</td><td style="text-align:left">{{ "%.2f"|format(a.balance) }}</td></tr>
+        {% endfor %}
+        <tr style="background:rgba(34,197,94,.08)"><td><strong>إجمالي الإيرادات</strong></td><td style="text-align:left"><strong>{{ "%.2f"|format(totals.revenue) }}</strong></td></tr>
+      </tbody>
+      <thead><tr><th colspan="2" style="background:var(--c-surface-2);color:var(--c-navy)">المصروفات</th></tr></thead>
+      <tbody>
+        {% for a in grouped.expense %}
+        <tr><td>{{ a.code }} — {{ a.name }}</td><td style="text-align:left">{{ "%.2f"|format(a.balance) }}</td></tr>
+        {% endfor %}
+        <tr style="background:rgba(232,69,69,.08)"><td><strong>إجمالي المصروفات</strong></td><td style="text-align:left"><strong>{{ "%.2f"|format(totals.expense) }}</strong></td></tr>
+        <tr style="background:rgba(27,58,92,.10)"><td><strong>صافي الدخل</strong></td><td style="text-align:left"><strong style="color:{% if net_income >= 0 %}var(--c-green){% else %}var(--c-red){% endif %}">{{ "%.2f"|format(net_income) }}</strong></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
