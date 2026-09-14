@@ -1,28 +1,60 @@
-{% extends "partials/base.html" %}
+{# New course form. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}مادة جديدة{% endblock %}
-{% block content %}
-<div class="page-title"><h2>مادة جديدة</h2></div>
-<form method="post" class="card" style="max-width:640px">
-  <label style="display:block;margin-bottom:14px">
-    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">عنوان المادة</span>
-    <input name="title" required style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px">
-  </label>
-  <label style="display:block;margin-bottom:14px">
-    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">وصف مختصر</span>
-    <textarea name="description" rows="4" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px"></textarea>
-  </label>
-  <div class="grid grid-3">
-    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">السنة الدراسية</span>
-      <input name="academic_year_id" type="number" value="1" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
-    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">الفصل</span>
-      <input name="section_id" type="number" value="1" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
-    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">المادة</span>
-      <input name="subject_id" type="number" value="1" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
-  </div>
-  <div style="margin-top:18px;text-align:left">
-    <button type="submit" style="background:var(--grad-brand);color:#fff;padding:10px 26px;border:0;border-radius:999px;font-weight:700;cursor:pointer">
-      إنشاء المادة
-    </button>
-  </div>
-</form>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">مادة جديدة</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">إنشاء مادة دراسية جديدة</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">عنوان المادة <span class="text-error">*</span></label>
+      <input name="title" required placeholder="مثال: الرياضيات المتقدمة"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">وصف مختصر</label>
+      <textarea name="description" rows="4" placeholder="نبذة تعريفية عن المادة، أهدافها التعليمية..."
+                class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 leading-loose"></textarea>
+    </div>
+    <div class="grid grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">السنة الدراسية</label>
+        <input name="academic_year_id" type="number" value="1"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الفصل</label>
+        <input name="section_id" type="number" value="1"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المادة</label>
+        <input name="subject_id" type="number" value="1"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+      </div>
+    </div>
+
+    <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-3">
+      <span class="material-symbols-outlined">info</span>
+      <p class="font-body-md text-body-md">
+        بعد إنشاء المادة، يمكنك إضافة الدروس والواجبات والاختبارات من صفحة المادة.
+      </p>
+    </div>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('courses.list_courses') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">rocket_launch</span><span>إنشاء المادة</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

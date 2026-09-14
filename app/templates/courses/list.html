@@ -1,44 +1,84 @@
-{% extends "partials/base.html" %}
+{# Courses list — Stitch-styled with brand gradient cover per card. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}المواد والدروس{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>المواد والدروس</h2>
-    <div class="sub">كل المواد الدراسية المفتوحة في المنصة</div>
-  </div>
-  <a href="{{ url_for('courses.new') }}" class="btn btn-primary"
-     style="background:var(--grad-brand);color:#fff;padding:10px 20px;border-radius:999px;font-weight:700;text-decoration:none">
-    + مادة جديدة
-  </a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المواد والدروس</span>
+{% endblock %}
 
-{% if courses %}
-<div class="grid grid-3">
-  {% for c in courses %}
-  <a href="{{ url_for('courses.detail', course_id=c.id) }}" class="card"
-     style="text-decoration:none;color:inherit;display:block;transition:.18s all">
-    <div style="height:80px;border-radius:8px;background:var(--grad-brand);margin:-6px -6px 12px;position:relative">
-      {% if not c.is_published %}
-      <span style="position:absolute;top:8px;left:8px;background:#fff;color:var(--c-navy);font-size:11px;
-                   padding:3px 8px;border-radius:999px;font-weight:700">مسودة</span>
-      {% endif %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">المكتبة الدراسية</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {{ courses|length }} مادة — كل مادة تحتوي على دروس، واجبات، واختبارات.
+      </p>
     </div>
-    <h3 style="border:0;padding:0;margin:0 0 6px">{{ c.title }}</h3>
-    <div style="color:var(--c-muted);font-size:13px">
-      {{ c.lessons|length }} درس · {{ c.assignments|length }} واجب · {{ c.quizzes|length }} اختبار
+    <a href="{{ url_for('courses.new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">library_add</span><span>مادة جديدة</span>
+    </a>
+  </div>
+
+  {% if courses %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    {% for c in courses %}
+    <a href="{{ url_for('courses.detail', course_id=c.id) }}"
+       class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all block">
+      <div class="h-24 relative"
+           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 20% 40%, white 0px, transparent 12px), radial-gradient(circle at 80% 60%, white 0px, transparent 15px)"></div>
+        {% if not c.is_published %}
+        <span class="absolute top-3 left-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white text-primary font-label-xs text-label-xs font-bold">
+          <span class="material-symbols-outlined text-sm">edit</span>مسودة
+        </span>
+        {% endif %}
+        <span class="absolute bottom-3 right-3 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/20 backdrop-blur text-on-primary font-label-xs font-bold">
+          <span class="material-symbols-outlined text-sm">school</span>
+          {% if c.subject %}{{ c.subject.name }}{% else %}مادة{% endif %}
+        </span>
+      </div>
+      <div class="p-space-md">
+        <h3 class="font-title-md text-title-md text-primary font-bold truncate">{{ c.title }}</h3>
+        {% if c.description %}
+        <p class="mt-1 font-label-md text-label-md text-on-surface-variant line-clamp-2">{{ c.description }}</p>
+        {% endif %}
+        <div class="mt-3 flex items-center gap-space-sm">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
+            <span class="material-symbols-outlined text-sm">play_lesson</span>{{ c.lessons|length }} درس
+          </span>
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+            <span class="material-symbols-outlined text-sm">assignment</span>{{ c.assignments|length }} واجب
+          </span>
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">
+            <span class="material-symbols-outlined text-sm">quiz</span>{{ c.quizzes|length }}
+          </span>
+        </div>
+        {% if c.teacher %}
+        <div class="mt-3 pt-3 border-t border-outline-variant flex items-center gap-2">
+          <div class="w-7 h-7 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">{{ c.teacher.full_name[:1] }}</div>
+          <span class="font-label-md text-label-md text-on-surface-variant">{{ c.teacher.full_name }}</span>
+        </div>
+        {% endif %}
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <div class="w-20 h-20 rounded-full bg-primary-fixed text-primary flex items-center justify-center mx-auto">
+      <span class="material-symbols-outlined text-4xl">auto_stories</span>
     </div>
-  </a>
-  {% endfor %}
+    <h3 class="mt-space-md font-headline-sm text-headline-sm text-primary font-bold">لا مواد منشورة بعد</h3>
+    <p class="mt-2 font-body-md text-on-surface-variant max-w-md mx-auto">ابدأ بإنشاء أول مادة دراسية لتظهر هنا مع دروسها وواجباتها.</p>
+    <a href="{{ url_for('courses.new') }}"
+       class="mt-space-md inline-flex items-center gap-2 h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">rocket_launch</span><span>إنشاء أول مادة</span>
+    </a>
+  </div>
+  {% endif %}
 </div>
-{% else %}
-<div class="card" style="text-align:center;padding:40px">
-  <div style="font-size:48px;margin-bottom:12px">📘</div>
-  <h3 style="border:0;padding:0">لا توجد مواد بعد</h3>
-  <p style="color:var(--c-muted)">ابدأ بإنشاء أول مادة دراسية لتظهر هنا مع دروسها وواجباتها.</p>
-  <a href="{{ url_for('courses.new') }}" class="btn btn-primary"
-     style="background:var(--grad-brand);color:#fff;padding:10px 22px;border-radius:999px;font-weight:700;text-decoration:none;display:inline-block;margin-top:8px">
-    إنشاء أول مادة
-  </a>
-</div>
-{% endif %}
 {% endblock %}

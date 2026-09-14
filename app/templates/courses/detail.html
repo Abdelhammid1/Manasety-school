@@ -1,39 +1,133 @@
-{% extends "partials/base.html" %}
-{% block title %}{{ course.title }}{% endblock %}
-{% block content %}
-<div class="card" style="padding:0;overflow:hidden;margin-bottom:18px">
-  <div style="height:140px;background:var(--grad-brand);padding:22px;color:#fff;display:flex;flex-direction:column;justify-content:flex-end">
-    <div style="font-size:12px;opacity:.85;letter-spacing:.4px">المادة</div>
-    <h2 style="margin:6px 0 0;color:#fff;font-size:24px">{{ course.title }}</h2>
-  </div>
-  {% if course.description %}
-  <div style="padding:16px 22px;color:var(--c-muted)">{{ course.description }}</div>
-  {% endif %}
-</div>
+{# Course detail — Stitch-styled cover + tabs + lesson list. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ course.title }} — المادة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold truncate max-w-xs">{{ course.title }}</span>
+{% endblock %}
 
-<div class="page-title">
-  <h2 style="font-size:18px">الدروس</h2>
-  <a href="{{ url_for('courses.lesson_new', course_id=course.id) }}"
-     style="background:var(--grad-brand);color:#fff;padding:8px 18px;border-radius:999px;font-weight:700;text-decoration:none;font-size:13px">
-    + درس جديد
-  </a>
-</div>
-
-{% if lessons %}
-<div class="card" style="padding:0">
-  {% for l in lessons %}
-  <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
-     style="display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--c-border);text-decoration:none;color:inherit">
-    <div style="width:36px;height:36px;border-radius:50%;background:rgba(37,99,235,.1);color:var(--c-blue);
-                display:flex;align-items:center;justify-content:center;font-weight:800">{{ l.order_index }}</div>
-    <div style="flex:1">
-      <div style="font-weight:700;color:var(--c-navy)">{{ l.title }}</div>
-      <div style="font-size:12px;color:var(--c-muted)">{{ l.kind }} · {{ l.duration_minutes }} د</div>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <!-- Cover banner -->
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-tertiary-fixed-dim/20 blur-xl"></div>
+    <div class="relative p-space-lg flex items-start justify-between gap-space-md flex-wrap">
+      <div class="flex items-start gap-space-md min-w-0 flex-1">
+        <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-3xl">auto_stories</span>
+        </div>
+        <div class="flex flex-col min-w-0">
+          <div class="flex items-center gap-space-sm flex-wrap mb-2">
+            {% if course.subject %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md">
+              <span class="material-symbols-outlined text-sm">menu_book</span>{{ course.subject.name }}
+            </span>
+            {% endif %}
+            {% if course.section %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md">
+              {{ course.section.grade.name }} — {{ course.section.name }}
+            </span>
+            {% endif %}
+            {% if course.is_published %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#10B981] text-white font-label-md font-bold">
+              <span class="w-1.5 h-1.5 rounded-full bg-white"></span>منشور
+            </span>
+            {% else %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/15 font-label-md font-bold">مسودة</span>
+            {% endif %}
+          </div>
+          <h1 class="font-headline-lg text-headline-lg text-on-primary tracking-tight">{{ course.title }}</h1>
+          {% if course.description %}
+          <p class="mt-2 font-body-md text-body-md opacity-90 max-w-2xl leading-relaxed">{{ course.description }}</p>
+          {% endif %}
+        </div>
+      </div>
+      {% if course.teacher %}
+      <div class="flex items-center gap-space-sm bg-white/10 backdrop-blur rounded-xl p-space-sm">
+        <div class="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center font-bold">{{ course.teacher.full_name[:1] }}</div>
+        <div class="flex flex-col">
+          <span class="font-label-xs opacity-80">أستاذ المادة</span>
+          <span class="font-label-lg font-bold">{{ course.teacher.full_name }}</span>
+        </div>
+      </div>
+      {% endif %}
     </div>
-  </a>
-  {% endfor %}
+  </section>
+
+  <!-- Tabs / stats strip -->
+  <div class="grid grid-cols-3 gap-space-sm">
+    {% for icon, label, count, tone in [
+        ('play_lesson', 'الدروس', course.lessons|length,     '#1E3A8A'),
+        ('assignment',  'الواجبات', course.assignments|length, '#2563EB'),
+        ('quiz',        'الاختبارات', course.quizzes|length,   '#0099CC'),
+    ] %}
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center gap-space-sm">
+      <div class="w-10 h-10 rounded-lg text-white flex items-center justify-center" style="background: {{ tone }}">
+        <span class="material-symbols-outlined">{{ icon }}</span>
+      </div>
+      <div class="flex flex-col">
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+        <span class="font-headline-sm text-headline-sm text-primary font-bold tabular-nums">{{ count }}</span>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Lessons -->
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between mb-space-md">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">play_lesson</span>الدروس
+      </h2>
+      <a href="{{ url_for('courses.lesson_new', course_id=course.id) }}"
+         class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-lg">add</span><span>درس جديد</span>
+      </a>
+    </div>
+    {% if lessons %}
+    <div class="flex flex-col gap-2">
+      {% for l in lessons %}
+      <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
+         class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors group">
+        <div class="w-12 h-12 rounded-xl bg-primary-container/20 text-primary flex items-center justify-center font-bold text-lg tabular-nums shrink-0">{{ l.order_index }}</div>
+        <div class="w-10 h-10 rounded-lg
+                    {% if l.kind == 'video' %}bg-error text-white
+                    {% elif l.kind == 'pdf' %}bg-[#0099CC] text-white
+                    {% elif l.kind == 'link' %}bg-secondary-container text-secondary
+                    {% elif l.kind == 'embed' %}bg-primary-container text-on-primary
+                    {% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %} flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined">
+            {% if l.kind == 'video' %}play_circle
+            {% elif l.kind == 'pdf' %}picture_as_pdf
+            {% elif l.kind == 'link' %}link
+            {% elif l.kind == 'embed' %}code
+            {% else %}article{% endif %}
+          </span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-title-md text-title-md text-primary font-bold truncate">{{ l.title }}</div>
+          <div class="font-label-xs text-outline flex items-center gap-2">
+            <span>{{ {'video':'فيديو','pdf':'PDF','link':'رابط','embed':'مضمّن','text':'نص'}.get(l.kind, l.kind) }}</span>
+            {% if l.duration_minutes %}<span>·</span><span class="tabular-nums">{{ l.duration_minutes }} دقيقة</span>{% endif %}
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-primary group-hover:-translate-x-1 transition-transform">arrow_back</span>
+      </a>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-space-xl">
+      <div class="w-16 h-16 rounded-full bg-primary-fixed text-primary flex items-center justify-center mx-auto">
+        <span class="material-symbols-outlined text-3xl">play_lesson</span>
+      </div>
+      <p class="mt-3 font-body-md text-on-surface-variant">لا دروس مضافة بعد.</p>
+    </div>
+    {% endif %}
+  </section>
 </div>
-{% else %}
-<div class="card" style="text-align:center;padding:32px;color:var(--c-muted)">لا توجد دروس بعد.</div>
-{% endif %}
 {% endblock %}

@@ -1,33 +1,84 @@
-{% extends "partials/base.html" %}
-{% block title %}درس جديد{% endblock %}
-{% block content %}
-<div class="page-title"><h2>درس جديد — {{ course.title }}</h2></div>
-<form method="post" class="card" style="max-width:720px">
-  <label style="display:block;margin-bottom:14px">
-    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">عنوان الدرس</span>
-    <input name="title" required style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px">
-  </label>
-  <div class="grid grid-2">
-    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">النوع</span>
-      <select name="kind" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px">
-        <option value="text">نص</option><option value="video">فيديو</option>
-        <option value="pdf">PDF</option><option value="embed">تضمين</option><option value="link">رابط</option>
-      </select></label>
-    <label><span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">المدة (دقيقة)</span>
-      <input name="duration_minutes" type="number" value="10" style="width:100%;padding:10px;border:1px solid var(--c-border);border-radius:8px"></label>
+{# New lesson form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}درس جديد — {{ course.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="hover:text-primary">{{ course.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">درس جديد</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">إضافة درس جديد</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">إلى مادة: <b>{{ course.title }}</b></p>
   </div>
-  <label style="display:block;margin:14px 0">
-    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">رابط الوسيط (فيديو/PDF/إمبد)</span>
-    <input name="media_url" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px" dir="ltr">
-  </label>
-  <label style="display:block;margin-bottom:14px">
-    <span style="display:block;font-weight:700;color:var(--c-navy);margin-bottom:6px">محتوى الدرس</span>
-    <textarea name="body" rows="8" style="width:100%;padding:10px 12px;border:1px solid var(--c-border);border-radius:8px"></textarea>
-  </label>
-  <div style="text-align:left">
-    <button type="submit" style="background:var(--grad-brand);color:#fff;padding:10px 26px;border:0;border-radius:999px;font-weight:700;cursor:pointer">
-      حفظ الدرس
-    </button>
-  </div>
-</form>
+
+  <form method="post" class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">عنوان الدرس <span class="text-error">*</span></label>
+        <input name="title" required placeholder="مثال: مقدمة في المصفوفات"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <label class="font-label-md text-label-md text-on-surface font-bold block mb-space-md">نوع الدرس</label>
+      <div class="grid grid-cols-2 md:grid-cols-5 gap-space-sm">
+        {% for value, label, icon, color in [
+            ('text',  'نص',       'article',      '#94A3B8'),
+            ('video', 'فيديو',    'play_circle',  '#EF4444'),
+            ('pdf',   'PDF',      'picture_as_pdf', '#0099CC'),
+            ('embed', 'مضمّن',    'code',         '#1E3A8A'),
+            ('link',  'رابط',     'link',         '#2563EB'),
+        ] %}
+        <label class="cursor-pointer">
+          <input type="radio" name="kind" value="{{ value }}" class="peer sr-only" {% if value == 'text' %}checked{% endif %}>
+          <div class="p-space-md rounded-xl border-2 border-outline-variant bg-surface-container-low peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:shadow-md flex flex-col items-center gap-2 transition-all">
+            <div class="w-10 h-10 rounded-lg text-white flex items-center justify-center" style="background: {{ color }}">
+              <span class="material-symbols-outlined">{{ icon }}</span>
+            </div>
+            <span class="font-label-lg font-bold text-primary">{{ label }}</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+        <div class="md:col-span-2 flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">رابط الوسيط</label>
+          <input name="media_url" dir="ltr" placeholder="https://youtube.com/... أو PDF URL"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <span class="font-label-xs text-outline">للفيديو استخدم رابط تضمين (embed) — YouTube أو Vimeo.</span>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md text-on-surface font-bold">المدة (بالدقائق)</label>
+          <input name="duration_minutes" type="number" min="0" value="10"
+                 class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        </div>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">محتوى الدرس (نصّي)</label>
+        <textarea name="body" rows="8" placeholder="اكتب شرح الدرس هنا — يظهر تحت مشغّل الوسيط في صفحة العرض."
+                  class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 leading-loose"></textarea>
+      </div>
+    </section>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>حفظ الدرس</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}
