@@ -1,51 +1,94 @@
-{% extends "partials/base.html" %}
+{# Student attendance report — Stitch _42. Hero + KPIs + timeline of records. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}تقرير حضور {{ student.full_name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>تقرير حضور — {{ student.full_name }}</h2>
-    <div class="sub">
-      <span class="badge muted">{{ student.permanent_code }}</span>
-      نسبة الحضور خلال الفترة وأيام الغياب
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تقرير الحضور</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <!-- Hero -->
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="relative z-10 p-space-lg flex items-center gap-space-md flex-wrap">
+      <div class="w-20 h-20 rounded-2xl bg-white/15 flex items-center justify-center font-headline-md font-extrabold">
+        {{ student.full_name[:1] }}
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-headline-lg tracking-tight">{{ student.full_name }}</h1>
+        <p class="font-body-md text-body-md opacity-90">
+          <code dir="ltr">{{ student.permanent_code }}</code> · تقرير الفترة {{ start.strftime('%Y-%m-%d') }} → {{ end.strftime('%Y-%m-%d') }}
+        </p>
+      </div>
+      <form method="get" class="flex items-end gap-space-sm">
+        <input type="date" name="start" value="{{ start.strftime('%Y-%m-%d') }}"
+               class="h-10 px-3 rounded-lg bg-white/15 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40">
+        <input type="date" name="end" value="{{ end.strftime('%Y-%m-%d') }}"
+               class="h-10 px-3 rounded-lg bg-white/15 text-white placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-white/40">
+        <button type="submit" class="h-10 px-3 rounded-lg bg-white text-primary font-label-md font-bold">تحديث</button>
+      </form>
     </div>
+  </section>
+
+  <div class="grid grid-cols-2 lg:grid-cols-5 gap-space-md">
+    {% for tone, label, val, color, icon in [
+        ('rate',    'نسبة الحضور',  (rate|string + '%'), '#10B981', 'trending_up'),
+        ('present', 'حاضر',         present,             '#10B981', 'check'),
+        ('absent',  'غائب',         absent,              '#EF4444', 'close'),
+        ('late',    'متأخر',        late,                '#F59E0B', 'schedule'),
+        ('total',   'إجمالي الأيام',total,               '#0099CC', 'summarize'),
+    ] %}
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-1.5" style="background: {{ color }}"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+        <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ val }}</div>
+    </div>
+    {% endfor %}
   </div>
-  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="btn btn-ghost">رجوع لملف الطالب</a>
-</div>
 
-<form method="get" class="card" style="padding:14px;margin-bottom:16px">
-  <div class="flex" style="gap:12px;align-items:end">
-    <div class="field" style="margin:0"><label>من</label><input name="start" type="date" value="{{ start }}"></div>
-    <div class="field" style="margin:0"><label>إلى</label><input name="end" type="date" value="{{ end }}"></div>
-    <button class="btn btn-navy btn-sm" type="submit">تحديث</button>
-  </div>
-</form>
-
-<div class="grid grid-4">
-  <div class="stat green"><div><div class="label">حاضر</div><div class="value">{{ present }}</div></div><div class="icon">✓</div></div>
-  <div class="stat red"><div><div class="label">غائب</div><div class="value">{{ absent }}</div></div><div class="icon">✕</div></div>
-  <div class="stat"><div><div class="label">متأخر</div><div class="value">{{ late }}</div></div><div class="icon">!</div></div>
-  <div class="stat navy"><div><div class="label">نسبة الحضور</div><div class="value">{{ rate }}%</div></div><div class="icon">%</div></div>
-</div>
-
-<div class="card mt-3">
-  <h3>السجل التفصيلي ({{ total }} يوم)</h3>
-  <table class="data">
-    <thead><tr><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th></tr></thead>
-    <tbody>
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">history</span>سجل الأيام
+    </h2>
+    {% if records %}
+    <div class="flex flex-col gap-1">
       {% for r in records %}
-      <tr>
-        <td>{{ r.date }}</td>
-        <td>
-          {% if r.status == 'present' %}<span class="badge ok">حاضر</span>
-          {% elif r.status == 'absent' %}<span class="badge danger">غائب</span>
-          {% else %}<span class="badge warn">متأخر</span>{% endif %}
-        </td>
-        <td class="text-muted">{{ r.notes or '—' }}</td>
-      </tr>
-      {% else %}
-      <tr><td colspan="3" class="text-muted" style="text-align:center;padding:20px">لا سجلات في هذه الفترة.</td></tr>
+      <div class="flex items-center justify-between p-2 rounded-lg
+                  {% if r.status == 'present' %}bg-[#ECFDF5]
+                  {% elif r.status == 'absent' %}bg-error-container/40
+                  {% elif r.status == 'late' %}bg-tertiary-fixed/50
+                  {% else %}bg-surface-container-low{% endif %}">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white"
+               style="background: {% if r.status == 'present' %}#10B981{% elif r.status == 'absent' %}#EF4444{% elif r.status == 'late' %}#F59E0B{% else %}#64748B{% endif %}">
+            <span class="material-symbols-outlined text-lg">
+              {% if r.status == 'present' %}check{% elif r.status == 'absent' %}close{% elif r.status == 'late' %}schedule{% else %}medical_information{% endif %}
+            </span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ r.date.strftime('%Y-%m-%d') }}</span>
+            {% if r.notes %}<span class="font-label-xs text-label-xs text-on-surface-variant">📝 {{ r.notes }}</span>{% endif %}
+          </div>
+        </div>
+        <span class="font-label-md text-label-md font-bold">
+          {% if r.status == 'present' %}<span class="text-[#065F46]">حاضر</span>
+          {% elif r.status == 'absent' %}<span class="text-on-error-container">غائب</span>
+          {% elif r.status == 'late' %}<span class="text-on-tertiary-fixed-variant">متأخر</span>
+          {% else %}<span class="text-on-surface-variant">مستأذن</span>{% endif %}
+        </span>
+      </div>
       {% endfor %}
-    </tbody>
-  </table>
+    </div>
+    {% else %}
+    <p class="text-center text-on-surface-variant py-space-md">لا سجلات حضور في هذه الفترة.</p>
+    {% endif %}
+  </section>
 </div>
 {% endblock %}

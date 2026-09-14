@@ -1,51 +1,113 @@
-{% extends "partials/base.html" %}
+{# Section attendance report — Stitch _41. Date range picker + per-student rows
+   with present/absent/late counts and attendance rate. #}
+{% extends "partials/stitch_base.html" %}
 {% block title %}تقرير حضور {{ section.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>تقرير الحضور — {{ section.grade.name }} / {{ section.name }}</h2>
-    <div class="sub">ملخص انتظام طلاب الفصل خلال الفترة (T-6.3)</div>
-  </div>
-  <a href="{{ url_for('attendance.index') }}" class="btn btn-ghost">رجوع</a>
-</div>
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('attendance.index') }}" class="hover:text-primary">الحضور</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تقرير {{ section.name }}</span>
+{% endblock %}
 
-<form method="get" class="card" style="padding:14px;margin-bottom:16px">
-  <div class="flex" style="gap:12px;align-items:end">
-    <div class="field" style="margin:0"><label>من</label>
-      <input name="start" type="date" value="{{ start }}">
-    </div>
-    <div class="field" style="margin:0"><label>إلى</label>
-      <input name="end" type="date" value="{{ end }}">
-    </div>
-    <button class="btn btn-navy btn-sm" type="submit">تحديث</button>
-  </div>
-</form>
+{% block page_content %}
+{% set tot_p = summaries|sum(attribute='present') %}
+{% set tot_a = summaries|sum(attribute='absent') %}
+{% set tot_l = summaries|sum(attribute='late') %}
+{% set tot = tot_p + tot_a + tot_l %}
+{% set avg_rate = ((tot_p / tot * 100)|round(1)) if tot else 0 %}
 
-<table class="data">
-  <thead><tr>
-    <th>الطالب</th><th>حاضر</th><th>غائب</th><th>متأخر</th>
-    <th>إجمالي</th><th>نسبة الحضور</th>
-  </tr></thead>
-  <tbody>
-    {% for r in summaries %}
-    <tr>
-      <td>
-        <strong>{{ r.enrollment.student.full_name }}</strong>
-        <div class="text-muted" style="font-size:12px">{{ r.enrollment.student.permanent_code }}</div>
-      </td>
-      <td><span class="badge ok">{{ r.present }}</span></td>
-      <td><span class="badge danger">{{ r.absent }}</span></td>
-      <td><span class="badge warn">{{ r.late }}</span></td>
-      <td>{{ r.total }}</td>
-      <td>
-        {% if r.rate >= 90 %}<span class="badge ok">{{ r.rate }}%</span>
-        {% elif r.rate >= 75 %}<span class="badge warn">{{ r.rate }}%</span>
-        {% else %}<span class="badge danger">{{ r.rate }}%</span>{% endif %}
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:20px">لا بيانات.</td></tr>
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">تقرير الحضور والانضباط</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {{ section.grade.name }} — {{ section.name }} · الفترة {{ start.strftime('%Y-%m-%d') }} → {{ end.strftime('%Y-%m-%d') }}
+      </p>
+    </div>
+    <form method="get" class="flex items-end gap-space-sm">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-label-md text-on-surface font-bold">من</label>
+        <input type="date" name="start" value="{{ start.strftime('%Y-%m-%d') }}"
+               class="h-10 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-label-md text-on-surface font-bold">إلى</label>
+        <input type="date" name="end" value="{{ end.strftime('%Y-%m-%d') }}"
+               class="h-10 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">تحديث</button>
+    </form>
+  </div>
+
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+    {% for tone, label, count, color, icon in [
+        ('rate',    'معدل الحضور',       (avg_rate|string + '%'), '#10B981', 'trending_up'),
+        ('present', 'إجمالي الحضور',     tot_p,                    '#10B981', 'check'),
+        ('absent',  'إجمالي الغياب',     tot_a,                    '#EF4444', 'close'),
+        ('late',    'إجمالي التأخير',    tot_l,                    '#F59E0B', 'schedule'),
+    ] %}
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
+      <div class="absolute right-0 top-0 bottom-0 w-1.5" style="background: {{ color }}"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+        <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ count }}</div>
+    </div>
     {% endfor %}
-  </tbody>
-</table>
+  </div>
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-primary">الطالب</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">حاضر</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">غائب</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">متأخر</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">المجموع</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">نسبة الحضور</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">تفاصيل</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in summaries %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2">
+                <div class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs">{{ row.enrollment.student.full_name[:1] }}</div>
+                <div class="flex flex-col">
+                  <span class="font-label-lg text-label-lg text-primary font-bold">{{ row.enrollment.student.full_name }}</span>
+                  <code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ row.enrollment.student.permanent_code }}</code>
+                </div>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center font-label-lg text-[#10B981] font-bold">{{ row.present }}</td>
+            <td class="px-4 py-3 text-center font-label-lg text-error font-bold">{{ row.absent }}</td>
+            <td class="px-4 py-3 text-center font-label-lg text-[#F59E0B] font-bold">{{ row.late }}</td>
+            <td class="px-4 py-3 text-center font-label-lg text-on-surface-variant">{{ row.total }}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-2 justify-center">
+                <div class="h-2 w-20 rounded-full bg-surface-container overflow-hidden">
+                  <div class="h-full" style="width: {{ row.rate }}%; background: {% if row.rate >= 90 %}#10B981{% elif row.rate >= 75 %}#F59E0B{% else %}#EF4444{% endif %}"></div>
+                </div>
+                <span class="font-label-md text-label-md text-primary font-bold tabular-nums">{{ row.rate }}%</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-center">
+              <a href="{{ url_for('attendance.student_report', student_id=row.enrollment.student_id) }}"
+                 class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 inline-flex items-center justify-center" title="تقرير الطالب">
+                <span class="material-symbols-outlined text-lg">chevron_left</span>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="px-6 py-8 text-center text-on-surface-variant">لا سجلات حضور لهذه الفترة.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 {% endblock %}

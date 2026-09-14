@@ -1,71 +1,67 @@
-{% extends "partials/base.html" %}
-{% block title %}الجداول{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>جداول الحصص</h2>
-    <div class="sub">عرض جداول الفصول والمعلمين (T-5.4)</div>
-  </div>
-  <div class="flex">
-    <a href="{{ url_for('schedule.settings') }}" class="btn btn-ghost">إعدادات الأيام والحصص</a>
-    {% if year %}
-    <form action="{{ url_for('schedule.auto_generate') }}" method="post"
-          onsubmit="return confirm('سيتم توليد جدول أسبوعي كامل من الإسنادات الحالية، وحذف الحصص المسجّلة يدويًا. هل تريد المتابعة؟')"
-          style="display:inline">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <button type="submit" class="btn btn-primary">⚡ توليد الجدول تلقائيًا</button>
-    </form>
-    {% endif %}
-  </div>
-</div>
+{# Schedule picker — pick a section to view/edit its weekly schedule. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الجدول المدرسي — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الجدول المدرسي</span>
+{% endblock %}
 
-{% if not year %}
-<div class="alert warning">لا توجد سنة دراسية نشطة.</div>
-{% else %}
-<div class="alert info" style="margin-bottom:16px">
-  <strong>توليد تلقائي:</strong> عرّف عدد الحصص الأسبوعية لكل إسناد من صفحة الإسناد،
-  ثم اضغط زرّ التوليد أعلاه. الجدول يظل قابلًا للتعديل يدويًا بعد التوليد.
-</div>
-<div class="grid grid-2">
-  <div class="card">
-    <h3>جدول الفصول — السنة {{ year.name }}</h3>
-    <table class="data">
-      <thead><tr><th>الصف</th><th>الفصل</th><th></th></tr></thead>
-      <tbody>
-        {% for s in sections %}
-        <tr>
-          <td>{{ s.grade.name }}</td>
-          <td><strong>{{ s.name }}</strong></td>
-          <td class="actions">
-            <a class="btn btn-navy btn-sm" href="{{ url_for('schedule.section_schedule', section_id=s.id) }}">الجدول</a>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3" class="text-muted" style="text-align:center;padding:14px">لا توجد فصول.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">الجدول الأكاديمي</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {% if year %}السنة الحالية: <b>{{ year.name }}</b>{% else %}لا سنة نشطة{% endif %}
+        {% if sections %} · <b>{{ sections|length }}</b> فصل{% endif %}
+      </p>
+    </div>
+    <a href="{{ url_for('schedule.settings') }}"
+       class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors flex items-center gap-2">
+      <span class="material-symbols-outlined text-lg">tune</span>
+      <span>إعدادات الجدول</span>
+    </a>
   </div>
 
-  <div class="card">
-    <h3>جدول المعلمين</h3>
-    <table class="data">
-      <thead><tr><th>المعلم</th><th>التخصص</th><th></th></tr></thead>
-      <tbody>
-        {% for t in teachers %}
-        <tr>
-          <td><strong>{{ t.full_name }}</strong></td>
-          <td><span class="badge muted">{{ t.specialization }}</span></td>
-          <td class="actions">
-            <a class="btn btn-navy btn-sm" href="{{ url_for('schedule.teacher_schedule', teacher_id=t.id) }}">الجدول</a>
-          </td>
-        </tr>
-        {% else %}
-        <tr><td colspan="3" class="text-muted" style="text-align:center;padding:14px">لا يوجد معلمون.</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  {% if not year %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد سنة دراسية نشطة. أنشئ سنة أولاً من <a href="{{ url_for('academic.years_list') }}" class="text-primary font-bold underline">إدارة السنوات</a>.</span>
   </div>
+  {% elif sections %}
+  {% set grouped = {} %}
+  {% for s in sections %}
+    {% if s.grade_id not in grouped %}{% set _ = grouped.update({s.grade_id: {'grade': s.grade, 'sections': []}}) %}{% endif %}
+    {% set _ = grouped[s.grade_id]['sections'].append(s) %}
+  {% endfor %}
+  {% for gid, grp in grouped.items() %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">stairs</span>{{ grp.grade.name }}
+    </h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm">
+      {% for s in grp.sections %}
+      <a href="{{ url_for('schedule.section_schedule', section_id=s.id) }}"
+         class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container-lowest border-2 border-outline-variant hover:border-primary transition-all group">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="w-10 h-10 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+              <span class="material-symbols-outlined">calendar_month</span>
+            </div>
+            <span class="font-title-md text-title-md text-primary font-bold">{{ s.name }}</span>
+          </div>
+          <span class="material-symbols-outlined text-primary group-hover:translate-x-1 transition-transform">arrow_back</span>
+        </div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">calendar_month</span>
+    <p class="mt-3 text-on-surface-variant">لا فصول للسنة الحالية بعد.</p>
+  </div>
+  {% endif %}
 </div>
-{% endif %}
 {% endblock %}

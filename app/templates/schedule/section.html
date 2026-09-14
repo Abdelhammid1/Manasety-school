@@ -1,112 +1,146 @@
-{% extends "partials/base.html" %}
-{% block title %}جدول فصل {{ section.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>جدول الفصل — {{ section.grade.name }} / {{ section.name }}</h2>
-    <div class="sub">السنة: <strong class="text-navy">{{ year.name }}</strong> — استخدم زرّي <strong>تعديل</strong> و<strong>إضافة</strong> على كل خانة</div>
+{# Weekly schedule editor — the grid. Rows = periods, columns = days. Each
+   cell either shows an assigned slot (subject + teacher + delete button) or a
+   quick-add form. Uses schedule.slot_save + schedule.slot_delete. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}جدول {{ section.grade.name }} — {{ section.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('schedule.index') }}" class="hover:text-primary">الجدول</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ section.grade.name }} — {{ section.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+{# Build a subject_id -> teachers list from active assignments so quick-add
+   only offers valid (subject, teacher) pairs for this section. #}
+{% set subj_teachers = {} %}
+{% for a in assignments %}
+  {% if a.subject_id not in subj_teachers %}{% set _ = subj_teachers.update({a.subject_id: {'subject': a.subject, 'teachers': []}}) %}{% endif %}
+  {% set _ = subj_teachers[a.subject_id]['teachers'].append(a.teacher) %}
+{% endfor %}
+
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">الجدول الأسبوعي — {{ section.name }}</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {{ section.grade.name }} · السنة: {{ year.name }} · {{ days|length }} يوم × {{ periods|length }} حصص
+      </p>
+    </div>
+    <div class="flex items-center gap-space-sm">
+      <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}"
+         class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">assignment_ind</span><span>إسناد الفصل</span>
+      </a>
+      <button type="button" onclick="window.print()"
+              class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">print</span><span>طباعة</span>
+      </button>
+    </div>
   </div>
-  <a href="{{ url_for('schedule.index') }}" class="btn btn-ghost">رجوع</a>
-</div>
 
-{% if not days or not periods %}
-<div class="alert warning">
-  لم تُعرّف الأيام والحصص بعد.
-  <a href="{{ url_for('schedule.settings') }}">اذهب لإعدادات الجدول</a>.
-</div>
-{% elif not assignments %}
-<div class="alert info">
-  لا توجد إسنادات لهذا الفصل بعد.
-  <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}">أنشئ الإسنادات أولاً</a>.
-</div>
-{% endif %}
+  {% if not days or not periods %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد أيام/حصص معرّفة. أضفها من <a href="{{ url_for('schedule.settings') }}" class="text-primary font-bold underline">إعدادات الجدول</a>.</span>
+  </div>
+  {% elif not assignments %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">warning</span>
+    <span>لا يوجد إسناد لهذا الفصل بعد. أضف الإسناد من <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="text-primary font-bold underline">صفحة الإسناد</a>.</span>
+  </div>
+  {% endif %}
 
-<style>
-  /* Sprint 9 TC-5.2.2: visible edit/add affordance on every schedule cell */
-  .slot-cell { position: relative; min-height: 70px; }
-  .slot-cell .slot-actions { margin-top: 6px; display: flex; gap: 4px; }
-  .slot-cell .slot-btn {
-    padding: 4px 10px; font-size: 12px; border-radius: 6px;
-    cursor: pointer; border: 1px solid;
-    background: white; font-weight: 600;
-  }
-  .slot-cell .slot-btn.edit { color: var(--c-navy); border-color: var(--c-navy); }
-  .slot-cell .slot-btn.add  { color: var(--c-gold-dark); border-color: var(--c-gold); background: rgba(212,175,55,0.08); }
-  .slot-cell .slot-btn.del  { color: var(--c-danger); border-color: var(--c-danger); }
-  .slot-cell details[open] { border: 1px solid var(--c-navy); padding: 6px; border-radius: 6px; margin-top: 4px; background: white; }
-  .slot-cell summary { list-style: none; }
-  .slot-cell summary::-webkit-details-marker { display: none; }
-</style>
-
-<div class="card" style="overflow-x:auto">
-  <table class="data" style="min-width:700px">
-    <thead>
-      <tr>
-        <th>الحصة / الوقت</th>
-        {% for d in days %}<th>{{ d.name }}</th>{% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for p in periods %}
-      <tr>
-        <td>
-          <strong>{{ p.name }}</strong>
-          <div class="text-muted" style="font-size:12px">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</div>
-          {% if p.is_break %}<span class="badge muted">استراحة</span>{% endif %}
-        </td>
-        {% for d in days %}
-          {% set slot = grid.get((d.id, p.id)) %}
-          <td class="slot-cell" style="vertical-align:top;{% if p.is_break %}background:var(--c-surface-2){% endif %}">
-            {% if p.is_break %}
-              <span class="text-muted">—</span>
-            {% else %}
-              {% if slot %}
-                <div style="font-weight:700;color:var(--c-navy)">{{ slot.subject.name }}</div>
-                <div class="text-muted" style="font-size:12px">{{ slot.teacher.full_name }}</div>
-              {% else %}
-                <div class="text-muted" style="font-size:12px;font-style:italic">— فارغة —</div>
-              {% endif %}
-
-              <div class="slot-actions">
-                <details style="flex:1">
-                  <summary>
-                    <span class="slot-btn {{ 'edit' if slot else 'add' }}">
-                      {% if slot %}✏️ تعديل{% else %}➕ إضافة{% endif %}
-                    </span>
-                  </summary>
-                  <form action="{{ url_for('schedule.slot_save', section_id=section.id) }}" method="post" style="margin-top:6px">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="day_id" value="{{ d.id }}">
-                    <input type="hidden" name="period_id" value="{{ p.id }}">
-                    <select name="subject_id" required style="width:100%;padding:4px;font-size:12px;margin-bottom:4px">
-                      <option value="">— مادة —</option>
-                      {% for a in assignments %}
-                      <option value="{{ a.subject_id }}" {% if slot and slot.subject_id == a.subject_id %}selected{% endif %}>{{ a.subject.name }}</option>
-                      {% endfor %}
-                    </select>
-                    <select name="teacher_id" required style="width:100%;padding:4px;font-size:12px;margin-bottom:4px">
-                      <option value="">— معلم —</option>
-                      {% for a in assignments %}
-                      <option value="{{ a.teacher_id }}" {% if slot and slot.teacher_id == a.teacher_id %}selected{% endif %}>{{ a.teacher.full_name }}</option>
-                      {% endfor %}
-                    </select>
-                    <button type="submit" class="btn btn-primary btn-sm" style="width:100%;font-size:12px">حفظ</button>
-                  </form>
-                </details>
-                {% if slot %}
-                <form action="{{ url_for('schedule.slot_delete', section_id=section.id, slot_id=slot.id) }}" method="post"
-                      onsubmit="return confirm('حذف هذه الحصة؟')">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button class="slot-btn del" type="submit">🗑</button>
-                </form>
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr>
+            <th class="px-3 py-3 text-right font-label-lg text-primary sticky right-0 bg-surface-container-high z-10">الحصة</th>
+            {% for d in days %}
+            <th class="px-3 py-3 text-center font-label-lg text-primary">{{ d.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-3 sticky right-0 bg-surface-container-lowest z-10">
+              <div class="flex flex-col items-center">
+                <span class="font-label-lg text-label-lg text-primary font-bold">{{ p.name }}</span>
+                {% if p.start_time and p.end_time %}
+                <span class="font-label-xs text-label-xs text-outline" dir="ltr">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</span>
                 {% endif %}
               </div>
-            {% endif %}
-          </td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+            </td>
+            {% for d in days %}
+            {% set slot = grid.get((d.id, p.id)) %}
+            <td class="p-2 align-top" style="min-width:160px">
+              {% if slot %}
+              <div class="p-3 rounded-lg bg-primary-container/10 border-2 border-primary/30 relative group">
+                <div class="font-label-lg text-label-lg text-primary font-bold">{{ slot.subject.name }}</div>
+                <div class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ slot.teacher.full_name }}</div>
+                <form method="post" action="{{ url_for('schedule.slot_delete', section_id=section.id, slot_id=slot.id) }}"
+                      onsubmit="return confirm('حذف حصة {{ slot.subject.name }} ({{ d.name }} - {{ p.name }})؟')"
+                      class="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="w-6 h-6 rounded-lg text-error hover:bg-error-container flex items-center justify-center" title="حذف">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </form>
+              </div>
+              {% else %}
+              <details class="rounded-lg border-2 border-dashed border-outline-variant hover:border-primary">
+                <summary class="p-3 cursor-pointer text-center text-outline hover:text-primary font-label-md list-none">
+                  <span class="material-symbols-outlined text-sm">add</span>
+                </summary>
+                <form method="post" action="{{ url_for('schedule.slot_save', section_id=section.id) }}" class="p-2 flex flex-col gap-1">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="day_id" value="{{ d.id }}">
+                  <input type="hidden" name="period_id" value="{{ p.id }}">
+                  <select name="subject_id" required onchange="onSubjChange(this)"
+                          class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <option value="">— المادة —</option>
+                    {% for sid, entry in subj_teachers.items() %}
+                    <option value="{{ sid }}" data-teachers="{{ entry.teachers|map(attribute='id')|join(',') }}">{{ entry.subject.name }}</option>
+                    {% endfor %}
+                  </select>
+                  <select name="teacher_id" required
+                          class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <option value="">— المعلم —</option>
+                    {% for sid, entry in subj_teachers.items() %}
+                      {% for t in entry.teachers %}
+                    <option value="{{ t.id }}" data-subject="{{ sid }}">{{ t.full_name }}</option>
+                      {% endfor %}
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="h-9 rounded-lg bg-primary text-on-primary font-label-md font-bold flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">save</span><span>حفظ</span>
+                  </button>
+                </form>
+              </details>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
 </div>
+
+<script>
+  function onSubjChange(sel){
+    // Filter teacher options in the sibling teacher select to match the subject
+    const form = sel.closest('form');
+    const teachers = (sel.selectedOptions[0]?.dataset.teachers || '').split(',').filter(Boolean);
+    form.querySelectorAll('select[name=teacher_id] option').forEach(o => {
+      if (!o.value) { o.hidden = false; return; }
+      o.hidden = !teachers.includes(o.dataset.subject);
+    });
+    const tSel = form.querySelector('select[name=teacher_id]');
+    tSel.value = '';
+  }
+</script>
 {% endblock %}
