@@ -130,7 +130,7 @@ def mark(section_id):
         absent_notifs = 0
         for e in enrollments:
             status = request.form.get(f"status_{e.id}")
-            if status not in ("present", "absent", "late"):
+            if status not in ("present", "absent", "late", "excused"):
                 continue
             note = (request.form.get(f"note_{e.id}") or "").strip() or None
 

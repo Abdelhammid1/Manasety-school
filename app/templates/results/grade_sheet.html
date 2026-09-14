@@ -1,71 +1,271 @@
-{% extends "partials/base.html" %}
-{% block title %}رصد {{ subject.name }} — {{ section.name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>ورقة الرصد — {{ subject.name }}</h2>
-    <div class="sub">
-      الفصل: <strong class="text-navy">{{ section.grade.name }} / {{ section.name }}</strong>
-      • الفترة الدراسية: <strong class="text-navy">{{ term.name }}</strong>
-      {% if locked %}<span class="badge danger">معتمدة — للقراءة فقط</span>{% endif %}
+{# Gradebook — ported from Stitch _10. Sticky first column (student), inline
+   editable cells, color-coded by pass/fail, live sum per row, class average row.
+   Submits score_<enrollment_id>_<component_id> per non-empty cell. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}دفتر الدرجات — {{ subject.name }} · {{ section.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.grades_index') }}" class="hover:text-primary">رصد الدرجات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ subject.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+
+  <!-- Header -->
+  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+    <div class="flex flex-col gap-space-xs">
+      <div class="flex items-center gap-space-sm flex-wrap">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">menu_book</span>
+          {{ subject.name }}
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">groups</span>
+          {{ section.grade.name }} — {{ section.name }}
+        </span>
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-md text-label-md">
+          <span class="material-symbols-outlined text-sm">event</span>
+          {{ term.name }}
+        </span>
+        {% if locked %}
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-error-container text-on-error-container font-label-md text-label-md font-bold">
+          <span class="material-symbols-outlined text-sm">lock</span>
+          معتمدة — للقراءة فقط
+        </span>
+        {% endif %}
+      </div>
+      <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight mt-1">دفتر الدرجات الأكاديمي</h1>
+    </div>
+    <div class="flex items-center gap-space-sm">
+      <a href="{{ url_for('results.components', term_id=term.id, subject_id=subject.id) }}"
+         class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
+        <span class="material-symbols-outlined text-lg">tune</span>
+        <span>مكوّنات التقييم</span>
+      </a>
+      <a href="{{ url_for('results.section_results', section_id=section.id) }}"
+         class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
+        <span class="material-symbols-outlined text-lg">insights</span>
+        <span>نتائج الفصل</span>
+      </a>
     </div>
   </div>
-  <a href="{{ url_for('results.grades_index') }}" class="btn btn-ghost">رجوع</a>
+
+  {% if not components %}
+    <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-xl p-space-lg flex items-center justify-between">
+      <div class="flex items-center gap-space-sm">
+        <span class="material-symbols-outlined text-2xl">info</span>
+        <span class="font-body-md">لم تُعرّف مكوّنات تقييم لهذه المادة في هذه الفترة الدراسية.</span>
+      </div>
+      <a href="{{ url_for('results.components', term_id=term.id, subject_id=subject.id) }}"
+         class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-lg text-label-lg font-bold flex items-center gap-2">
+        <span>تعريف المكوّنات</span>
+        <span class="material-symbols-outlined text-lg">arrow_back</span>
+      </a>
+    </div>
+  {% else %}
+
+    <!-- KPI strip -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+      {% set total_max = components|sum(attribute='max_score') %}
+      {% set complete_rows = enrollments|map(attribute='id')|select('in', term_totals.keys())|list %}
+      <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">إجمالي الطلاب</span>
+          <span class="material-symbols-outlined text-primary">groups</span>
+        </div>
+        <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ enrollments|length }}</div>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">عدد المكوّنات</span>
+          <span class="material-symbols-outlined text-secondary">grading</span>
+        </div>
+        <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ components|length }}</div>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">الدرجة العظمى</span>
+          <span class="material-symbols-outlined text-tertiary">star</span>
+        </div>
+        <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ total_max or 0 }}</div>
+      </div>
+      <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-label-md text-on-surface-variant">متوسط الصف</span>
+          <span class="material-symbols-outlined text-[#10B981]">trending_up</span>
+        </div>
+        <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2"><span id="classAvg">—</span></div>
+      </div>
+    </div>
+
+    <form method="post" id="gradebookForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+      <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="min-w-full">
+            <thead class="bg-surface-container-high sticky top-16 z-10">
+              <tr>
+                <th class="sticky right-0 bg-surface-container-high px-4 py-3 text-right font-label-lg text-label-lg text-primary z-20 min-w-[200px]">الطالب</th>
+                {% for c in components %}
+                <th class="px-3 py-3 text-center font-label-lg text-label-lg text-primary">
+                  <div class="flex flex-col">
+                    <span class="truncate max-w-[140px]" title="{{ c.name }}">{{ c.name }}</span>
+                    <span class="font-label-xs text-label-xs text-outline">/ {{ c.max_score }}</span>
+                  </div>
+                </th>
+                {% endfor %}
+                <th class="px-3 py-3 text-center font-label-lg text-label-lg text-primary bg-primary-fixed">
+                  <div class="flex flex-col"><span>المجموع</span><span class="font-label-xs text-label-xs text-on-primary-fixed-variant">/ {{ total_max }}</span></div>
+                </th>
+              </tr>
+            </thead>
+            <tbody id="gradeRows">
+              {% for e in enrollments %}
+              {% set tt = term_totals[e.id] %}
+              <tr class="border-t border-outline-variant hover:bg-surface-container-low transition-colors" data-enrollment="{{ e.id }}">
+                <td class="sticky right-0 bg-surface-container-lowest px-4 py-3 z-10">
+                  <div class="flex items-center gap-2">
+                    <div class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs shrink-0">
+                      {{ e.student.full_name[:1] }}
+                    </div>
+                    <div class="flex flex-col min-w-0">
+                      <span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">{{ e.student.full_name }}</span>
+                      <span class="font-label-xs text-label-xs text-outline">{{ e.student.permanent_code }}</span>
+                    </div>
+                  </div>
+                </td>
+                {% for c in components %}
+                {% set ge = entries.get((e.id, c.id)) %}
+                <td class="px-2 py-2 text-center">
+                  <input type="number" step="0.25" min="0" max="{{ c.max_score }}"
+                         name="score_{{ e.id }}_{{ c.id }}"
+                         value="{{ ge.score if ge is not none else '' }}"
+                         data-max="{{ c.max_score }}"
+                         data-row="{{ e.id }}"
+                         onchange="recomputeRow({{ e.id }}); recomputeClassAvg();"
+                         oninput="colorCell(this)"
+                         {% if locked %}disabled{% endif %}
+                         placeholder="—"
+                         class="score-cell w-20 h-9 text-center font-label-lg text-label-lg rounded-lg border-2 border-transparent bg-surface-container-low focus:bg-surface-container-lowest focus:border-primary/40 focus:outline-none transition-colors">
+                </td>
+                {% endfor %}
+                <td class="px-3 py-2 text-center font-title-md text-title-md font-bold" data-total-row="{{ e.id }}">
+                  {{ tt.score if tt.score is not none else '—' }}
+                </td>
+              </tr>
+              {% else %}
+              <tr><td colspan="{{ (components|length) + 2 }}" class="px-6 py-8 text-center text-on-surface-variant">لا يوجد طلاب في هذا الفصل.</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="bg-primary-container">
+              <tr>
+                <td class="sticky right-0 bg-primary-container px-4 py-3 text-on-primary font-title-md text-title-md font-bold">متوسط المكوّن</td>
+                {% for c in components %}
+                <td class="px-3 py-3 text-center text-on-primary font-title-md text-title-md font-bold" data-comp-avg="{{ c.id }}">—</td>
+                {% endfor %}
+                <td class="px-3 py-3 text-center bg-navy text-on-primary font-title-md text-title-md font-extrabold" id="totalAvg">—</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      </div>
+
+      {% if not locked %}
+      <div class="sticky bottom-0 mt-space-lg bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_-4px_20px_rgba(12,36,97,0.08)] flex items-center justify-between gap-space-md z-30">
+        <div class="flex items-center gap-space-sm">
+          <span class="material-symbols-outlined text-secondary">save_as</span>
+          <span class="font-label-md text-label-md text-on-surface-variant">
+            الخلايا الفارغة تُتجاهل عند الحفظ · الخلايا الملوّنة بالأحمر أقل من ٦٠٪
+          </span>
+        </div>
+        <div class="flex items-center gap-space-sm">
+          <button type="reset"
+                  class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
+            <span class="material-symbols-outlined text-lg">restart_alt</span>
+            <span>إلغاء التعديلات</span>
+          </button>
+          <button type="submit"
+                  class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+            <span class="material-symbols-outlined text-xl">save</span>
+            <span>حفظ الدرجات</span>
+          </button>
+        </div>
+      </div>
+      {% else %}
+      <div class="mt-space-lg bg-error-container text-on-error-container rounded-2xl p-space-md flex items-center gap-space-sm">
+        <span class="material-symbols-outlined">lock</span>
+        <span>النتائج مغلقة لهذه السنة الدراسية — التعديل يتطلب فك الاعتماد من مدير النظام.</span>
+      </div>
+      {% endif %}
+    </form>
+  {% endif %}
 </div>
 
-{% if not components %}
-<div class="alert info">
-  لم تُعرّف مكوّنات تقييم لهذه المادة في هذه الفترة الدراسية.
-  <a href="{{ url_for('results.components', term_id=term.id, subject_id=subject.id) }}">تعريف المكوّنات</a>.
-</div>
-{% else %}
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card" style="overflow-x:auto">
-    <table class="data" style="min-width:700px">
-      <thead>
-        <tr>
-          <th>الطالب</th>
-          {% for c in components %}<th>{{ c.name }} <span class="text-muted">/ {{ c.max_score }}</span></th>{% endfor %}
-          <th>المجموع</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for e in enrollments %}
-        {% set tt = term_totals[e.id] %}
-        <tr>
-          <td>
-            <strong>{{ e.student.full_name }}</strong>
-            <div class="text-muted" style="font-size:12px">{{ e.student.permanent_code }}</div>
-          </td>
-          {% for c in components %}
-          {% set ge = entries.get((e.id, c.id)) %}
-          <td>
-            <input type="number" name="score_{{ e.id }}_{{ c.id }}" step="0.01" min="0" max="{{ c.max_score }}"
-                   value="{{ ge.score if ge else '' }}"
-                   style="width:80px;padding:6px;border:1px solid var(--c-border);border-radius:6px"
-                   {% if locked %}disabled{% endif %}>
-          </td>
-          {% endfor %}
-          <td>
-            {% if tt.complete %}
-              <span class="badge ok">{{ tt.score }}</span>
-            {% elif tt.score > 0 %}
-              <span class="badge warn">{{ tt.score }} (ناقص)</span>
-            {% else %}
-              <span class="badge muted">—</span>
-            {% endif %}
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% if not locked %}
-    <div class="mt-2 flex">
-      <button class="btn btn-primary" type="submit">حفظ الدرجات</button>
-    </div>
-    {% endif %}
-  </div>
-</form>
-{% endif %}
+<script>
+(function(){
+  function colorCell(inp){
+    const v = parseFloat(inp.value);
+    const max = parseFloat(inp.dataset.max) || 100;
+    inp.classList.remove('bg-[#ECFDF5]','bg-[#FEF2F2]','text-[#065F46]','text-[#991B1B]','border-red-300','border-green-300');
+    if (!isFinite(v)) return;
+    const pct = v/max*100;
+    if (pct >= 90){ inp.style.background='rgba(16,185,129,.12)'; inp.style.color='#065F46'; }
+    else if (pct < 60){ inp.style.background='rgba(239,68,68,.10)'; inp.style.color='#991B1B'; }
+    else { inp.style.background=''; inp.style.color=''; }
+  }
+  window.colorCell = colorCell;
+
+  function recomputeRow(rowId){
+    let sum = 0, has = false;
+    document.querySelectorAll('input[data-row="'+rowId+'"]').forEach(i => {
+      const v = parseFloat(i.value);
+      if (isFinite(v)) { sum += v; has = true; }
+    });
+    const cell = document.querySelector('td[data-total-row="'+rowId+'"]');
+    if (cell) cell.textContent = has ? sum.toFixed(2) : '—';
+  }
+  window.recomputeRow = recomputeRow;
+
+  function recomputeClassAvg(){
+    // per-component averages
+    document.querySelectorAll('[data-comp-avg]').forEach(td => {
+      const cid = td.getAttribute('data-comp-avg');
+      const inputs = Array.from(document.querySelectorAll('input[name$="_'+cid+'"]'));
+      const values = inputs.map(i => parseFloat(i.value)).filter(v => isFinite(v));
+      td.textContent = values.length ? (values.reduce((a,b)=>a+b,0)/values.length).toFixed(2) : '—';
+    });
+    // grand class average = mean of row totals
+    const totals = Array.from(document.querySelectorAll('[data-total-row]'))
+      .map(t => parseFloat(t.textContent)).filter(v => isFinite(v));
+    const avg = totals.length ? (totals.reduce((a,b)=>a+b,0)/totals.length).toFixed(2) : '—';
+    document.getElementById('classAvg').textContent = avg;
+    document.getElementById('totalAvg').textContent = avg;
+  }
+  window.recomputeClassAvg = recomputeClassAvg;
+
+  // Initialize on load
+  document.querySelectorAll('input.score-cell').forEach(colorCell);
+  document.querySelectorAll('tr[data-enrollment]').forEach(r => recomputeRow(r.dataset.enrollment));
+  recomputeClassAvg();
+
+  // Enter → next cell down, Shift+Enter → up
+  document.querySelectorAll('input.score-cell').forEach(inp => {
+    inp.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        const rows = Array.from(document.querySelectorAll('tr[data-enrollment]'));
+        const currRow = inp.closest('tr');
+        const idx = rows.indexOf(currRow);
+        const cellIdx = Array.from(currRow.querySelectorAll('input.score-cell')).indexOf(inp);
+        const next = rows[e.shiftKey ? idx-1 : idx+1];
+        if (next) next.querySelectorAll('input.score-cell')[cellIdx].focus();
+      }
+    });
+  });
+})();
+</script>
 {% endblock %}
