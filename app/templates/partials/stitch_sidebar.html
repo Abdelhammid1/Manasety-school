@@ -77,9 +77,7 @@
     <nav class="flex flex-col gap-0.5 px-space-xs mt-space-xs" aria-label="التنقل الرئيسي">
 
       {% if _role in ('admin', 'admin_full', 'system_admin') or (current_user.is_authenticated and current_user.can('users','view')) %}
-        {% call group('admin-home', 'الرئيسية', 'home') %}
-          {{ nav_item('dashboard.home', 'لوحة التحكم العامة', 'dashboard') }}
-        {% endcall %}
+        {{ nav_item('dashboard.home', 'لوحة التحكم', 'dashboard') }}
 
         {% call group('admin-academic', 'البنية الأكاديمية', 'stairs') %}
           {{ nav_item('academic.years_list',    'السنوات الدراسية', 'event') }}
@@ -135,18 +133,16 @@
         {% endcall %}
 
       {% elif _role == 'parent' %}
-        {% call group('parent-home', 'صفحتي', 'family_restroom') %}
-          {{ nav_item('dashboard.home', 'صفحة ولي الأمر', 'family_restroom') }}
-        {% endcall %}
+        {{ nav_item('dashboard.home', 'صفحة ولي الأمر', 'family_restroom') }}
+
         {% call group('parent-updates', 'المتابعة والرسوم', 'campaign') %}
           {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
           {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long') }}
         {% endcall %}
 
       {% elif _role == 'student' %}
-        {% call group('student-home', 'الرئيسية', 'home') %}
-          {{ nav_item('dashboard.home', 'صفحتي', 'home') }}
-        {% endcall %}
+        {{ nav_item('dashboard.home', 'صفحتي', 'home') }}
+
         {% call group('student-learning', 'دراستي', 'auto_stories') %}
           {{ nav_item('courses.list_courses',  'موادي',       'auto_stories') }}
           {{ nav_item('lms.assignments_home',  'واجباتي',      'assignment') }}
