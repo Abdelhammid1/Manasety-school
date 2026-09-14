@@ -1,60 +1,158 @@
-{% extends "partials/base.html" %}
-{% block title %}الطلاب{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>الطلاب{% if section_ctx %} — فصل {{ section_ctx.grade.name }} / {{ section_ctx.name }}{% endif %}</h2>
-    <div class="sub">
-      {% if section_ctx %}
-        عرض طلاب الفصل النشطين في السنة {{ section_ctx.year.name }}.
-        <a href="{{ url_for('students.students_list') }}">إزالة الفلترة</a>
-      {% else %}
-        الملف الدائم للطالب — لا يتغيّر عبر السنوات (T-3.1)
-      {% endif %}
+{# Students list — ported from Stitch _14. Real Flask query params:
+   ?q=... search, ?section_id=... filter. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الطلاب — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الطلاب</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md">
+    <div class="flex flex-col gap-space-xs">
+      <div class="flex items-center gap-space-sm flex-wrap">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">groups</span>
+          {{ active_year.name if active_year else '—' }}
+        </span>
+        {% if section_ctx %}
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary font-label-md text-label-md font-semibold">
+          <span class="material-symbols-outlined text-sm">meeting_room</span>
+          {{ section_ctx.grade.name }} — {{ section_ctx.name }}
+        </span>
+        {% endif %}
+      </div>
+      <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">سجلات الطلاب</h1>
+    </div>
+    <a href="{{ url_for('students.student_new') }}"
+       class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">person_add</span>
+      <span>قبول طالب جديد</span>
+    </a>
+  </div>
+
+  {# KPI strip #}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">إجمالي الطلاب</span>
+        <span class="material-symbols-outlined text-primary">groups</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">{{ students|length }}</div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">ذكور</span>
+        <span class="material-symbols-outlined text-[#0099CC]">man</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
+        {{ students|selectattr('gender','equalto','male')|list|length }}
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">إناث</span>
+        <span class="material-symbols-outlined text-[#EC4899]">woman</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
+        {{ students|selectattr('gender','equalto','female')|list|length }}
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant">نشط في السنة</span>
+        <span class="material-symbols-outlined text-[#10B981]">how_to_reg</span>
+      </div>
+      <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
+        {% set act = namespace(n=0) %}
+        {% for s in students %}{% if s.enrollments %}{% for e in s.enrollments %}{% if e.status == 'active' %}{% set act.n = act.n + 1 %}{% endif %}{% endfor %}{% endif %}{% endfor %}
+        {{ act.n }}
+      </div>
     </div>
   </div>
-  <div class="flex">
-    <a href="{{ url_for('students.promotion') }}" class="btn btn-ghost">الترقية بين الصفوف</a>
-    <a href="{{ url_for('students.student_new') }}" class="btn btn-primary">+ ملف طالب جديد</a>
+
+  {# Search bar #}
+  <form method="get" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-center gap-space-sm">
+    <div class="relative flex-1">
+      <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+      <input name="q" value="{{ q or '' }}" type="search"
+             placeholder="بحث بالاسم أو رقم القيد الدائم..."
+             class="w-full h-11 pr-10 pl-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+    </div>
+    {% if section_ctx %}<input type="hidden" name="section_id" value="{{ section_ctx.id }}">{% endif %}
+    <button type="submit" class="h-11 px-5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold">بحث</button>
+    {% if q %}<a href="{{ url_for('students.students_list') }}" class="h-11 px-4 rounded-xl bg-surface-container-low text-on-surface-variant font-label-lg text-label-lg flex items-center gap-2">
+      <span class="material-symbols-outlined text-lg">close</span><span>مسح</span>
+    </a>{% endif %}
+  </form>
+
+  {# Table #}
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr class="text-right">
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">الطالب</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">كود القيد</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">الجنس</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">ولي الأمر</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">الحالة</th>
+            <th class="px-4 py-3 font-label-lg text-label-lg text-primary text-center">إجراء</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in students %}
+          {% set act_e = (s.enrollments|selectattr('status','equalto','active')|list)[0] if (s.enrollments and s.enrollments|selectattr('status','equalto','active')|list) else None %}
+          <tr class="border-t border-outline-variant hover:bg-surface-container-low transition-colors">
+            <td class="px-4 py-3">
+              <a href="{{ url_for('students.student_detail', student_id=s.id) }}"
+                 class="flex items-center gap-3 min-w-0">
+                <div class="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold shrink-0">{{ s.full_name[:1] }}</div>
+                <div class="flex flex-col min-w-0">
+                  <span class="font-label-lg text-label-lg text-primary font-bold truncate">{{ s.full_name }}</span>
+                  {% if act_e %}<span class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ act_e.grade.name }} — {{ act_e.section.name }}</span>{% endif %}
+                </div>
+              </a>
+            </td>
+            <td class="px-4 py-3"><code class="font-mono text-label-md text-on-surface-variant">{{ s.permanent_code }}</code></td>
+            <td class="px-4 py-3">
+              {% if s.gender == 'male' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs">ذكر</span>
+              {% elif s.gender == 'female' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs">أنثى</span>
+              {% else %}<span class="text-outline">—</span>{% endif %}
+            </td>
+            <td class="px-4 py-3">
+              <div class="flex flex-col">
+                <span class="font-label-md text-label-md text-on-surface">{{ s.parent_name or '—' }}</span>
+                {% if s.parent_phone %}<span class="font-label-xs text-label-xs text-outline" dir="ltr">{{ s.parent_phone }}</span>{% endif %}
+              </div>
+            </td>
+            <td class="px-4 py-3">
+              {% if act_e %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">
+                <span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>نشط
+              </span>
+              {% else %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs">غير مقيد</span>
+              {% endif %}
+            </td>
+            <td class="px-4 py-3 text-center">
+              <a href="{{ url_for('students.student_detail', student_id=s.id) }}"
+                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/40" title="فتح ملف الطالب">
+                <span class="material-symbols-outlined text-lg">chevron_left</span>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr><td colspan="6" class="px-6 py-12 text-center text-on-surface-variant">
+            <span class="material-symbols-outlined text-5xl text-outline">group_off</span>
+            <p class="mt-3">لا يوجد طلاب مطابقون{% if q %} للبحث "{{ q }}"{% endif %}.</p>
+          </td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
-
-<form method="get" class="card" style="padding:14px;margin-bottom:16px">
-  <div class="flex" style="gap:8px">
-    <input name="q" value="{{ q }}" placeholder="ابحث بالاسم أو الكود الدائم..." style="flex:1;padding:9px 12px;border:1px solid var(--c-border);border-radius:8px">
-    <button class="btn btn-navy" type="submit">بحث</button>
-    {% if q %}<a class="btn btn-ghost" href="{{ url_for('students.students_list') }}">إلغاء</a>{% endif %}
-  </div>
-</form>
-
-<table class="data">
-  <thead><tr>
-    <th>الكود الدائم</th><th>الاسم</th><th>رقم الهوية</th><th>الجنس</th>
-    <th>القيد للسنة النشطة</th><th></th>
-  </tr></thead>
-  <tbody>
-    {% for s in students %}
-    {% set active = s.enrollments | selectattr('status', 'equalto', 'active') | list %}
-    {% set cur = active[0] if active else None %}
-    <tr>
-      <td><span class="badge muted">{{ s.permanent_code }}</span></td>
-      <td><strong>{{ s.full_name }}</strong></td>
-      <td class="text-muted">{{ s.national_id or '—' }}</td>
-      <td>{{ {'M':'ذكر','F':'أنثى'}.get(s.gender, '—') }}</td>
-      <td>
-        {% if cur and active_year and cur.year_id == active_year.id %}
-          <span class="badge ok">{{ cur.grade.name }} / {{ cur.section.name }}</span>
-        {% else %}
-          <span class="badge muted">غير مقيّد</span>
-        {% endif %}
-      </td>
-      <td class="actions">
-        <a class="btn btn-ghost btn-sm" href="{{ url_for('students.student_detail', student_id=s.id) }}">عرض</a>
-      </td>
-    </tr>
-    {% else %}
-    <tr><td colspan="6" class="text-muted" style="text-align:center;padding:24px">لا توجد ملفات طلاب.</td></tr>
-    {% endfor %}
-  </tbody>
-</table>
 {% endblock %}

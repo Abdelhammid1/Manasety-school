@@ -1,154 +1,197 @@
-{% extends "partials/base.html" %}
-{% block title %}{{ student.full_name }}{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>{{ student.full_name }}</h2>
-    <div class="sub">
-      <span class="badge muted">{{ student.permanent_code }}</span>
-      {% if student.national_id %}<span class="badge navy">رقم الهوية: {{ student.national_id }}</span>{% endif %}
-    </div>
-  </div>
-  <div class="flex">
-    <a href="{{ url_for('students.students_list') }}" class="btn btn-ghost">رجوع</a>
-    <a href="{{ url_for('students.student_edit', student_id=student.id) }}" class="btn btn-ghost">تعديل الملف</a>
-    {% if active_year and not has_active_enrollment %}
-    <a href="{{ url_for('students.enroll', student_id=student.id) }}" class="btn btn-primary">قيد للسنة {{ active_year.name }}</a>
-    {% endif %}
-  </div>
-</div>
+{# Student profile — ported from Stitch _15. Hero header + vertical tabs
+   (personal / guardian / enrollment / attendance / grades / fees / documents /
+   transfer log). All data from routes.py :: student_detail. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ student.full_name }} — ملف الطالب{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.students_list') }}" class="hover:text-primary">الطلاب</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ student.full_name }}</span>
+{% endblock %}
 
-<div class="grid grid-2">
-  <div class="card">
-    <h3>البيانات الشخصية</h3>
-    <table class="data" style="border:0">
-      <tbody>
-        <tr><td>الاسم</td><td><strong>{{ student.full_name }}</strong></td></tr>
-        <tr><td>تاريخ الميلاد</td><td>{{ student.dob or '—' }}</td></tr>
-        <tr><td>الجنس</td><td>{{ {'M':'ذكر','F':'أنثى'}.get(student.gender, '—') }}</td></tr>
-        <tr><td>العنوان</td><td>{{ student.address or '—' }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-  <div class="card">
-    <h3>ولي الأمر</h3>
-    <table class="data" style="border:0">
-      <tbody>
-        <tr><td>الاسم</td><td>{{ student.parent_name or '—' }}</td></tr>
-        <tr><td>الهاتف</td><td>{{ student.parent_phone or '—' }}</td></tr>
-        <tr><td>البريد</td><td>{{ student.parent_email or '—' }}</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
+{% block page_content %}
+{% set active_e = None %}
+{% for e in student.enrollments %}{% if e.status == 'active' %}{% set active_e = e %}{% endif %}{% endfor %}
 
-{% if student.mother_name or student.mother_phone %}
-<div class="card mt-2">
-  <h3>بيانات الأم</h3>
-  <table class="data" style="border:0">
-    <tbody>
-      <tr><td>الاسم</td><td>{{ student.mother_name or '—' }}</td></tr>
-      <tr><td>الهاتف</td><td>{{ student.mother_phone or '—' }}</td></tr>
-    </tbody>
-  </table>
-</div>
-{% endif %}
+<div class="flex flex-col w-full gap-space-lg">
 
-{# Sprint 9 Improvement F.2 — student's full financial picture in one card #}
-{% if invoices %}
-<div class="card mt-2" style="border-top:3px solid var(--c-gold)">
-  <h3>الوضع المالي</h3>
-  <div class="grid grid-3" style="gap:10px;margin-bottom:12px">
-    <div class="stat navy"><div><div class="label">إجمالي الفواتير</div><div class="value">{{ "%.2f"|format(fin_totals.invoiced) }}</div></div><div class="icon">∑</div></div>
-    <div class="stat green"><div><div class="label">المدفوع</div><div class="value">{{ "%.2f"|format(fin_totals.paid) }}</div></div><div class="icon">✓</div></div>
-    <div class="stat red"><div><div class="label">المتبقّي</div><div class="value">{{ "%.2f"|format(fin_totals.remaining) }}</div></div><div class="icon">!</div></div>
-  </div>
-  <table class="data">
-    <thead><tr>
-      <th>رقم الفاتورة</th><th>السنة</th><th>الإصدار</th><th>الاستحقاق</th>
-      <th>الإجمالي</th><th>المدفوع</th><th>المتبقّي</th><th>الحالة</th><th></th>
-    </tr></thead>
-    <tbody>
-      {% for inv in invoices %}
-      <tr>
-        <td><strong>{{ inv.number }}</strong></td>
-        <td>{{ inv.enrollment.year.name }}</td>
-        <td>{{ inv.issue_date }}</td>
-        <td>{{ inv.due_date }}</td>
-        <td>{{ "%.2f"|format(inv.total_amount) }}</td>
-        <td class="text-green">{{ "%.2f"|format(inv.paid_amount) }}</td>
-        <td class="{% if inv.remaining > 0 %}text-red{% endif %}">{{ "%.2f"|format(inv.remaining) }}</td>
-        <td>
-          {% if inv.status == 'paid' %}<span class="badge ok">مدفوعة</span>
-          {% elif inv.status == 'partial' %}<span class="badge warn">جزئي</span>
-          {% elif inv.status == 'overdue' %}<span class="badge danger">متأخّرة</span>
-          {% else %}<span class="badge muted">معلّقة</span>{% endif %}
-        </td>
-        <td>
-          <a class="btn btn-ghost btn-sm" href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}">فتح</a>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-
-<div class="card mt-2">
-  <h3>تاريخ القيد (T-3.2 / T-3.5)</h3>
-  <table class="data">
-    <thead>
-      <tr>
-        <th>السنة</th><th>الصف</th><th>الفصل</th>
-        <th>تاريخ القيد</th><th>الحالة</th><th>النتيجة</th><th></th>
-      </tr>
-    </thead>
-    <tbody>
-      {% for e in student.enrollments %}
-      <tr>
-        <td><strong>{{ e.year.name }}</strong></td>
-        <td>{{ e.grade.name }}</td>
-        <td>{{ e.section.name }}</td>
-        <td>{{ e.enrolled_at }}</td>
-        <td>
-          {% if e.status == 'active' %}<span class="badge ok">نشط</span>
-          {% elif e.status == 'withdrawn' %}<span class="badge danger">منسحب</span>
-          {% elif e.status == 'transferred' %}<span class="badge warn">محوّل</span>
-          {% else %}<span class="badge muted">منتهٍ ({{ e.status }})</span>{% endif %}
-        </td>
-        <td>
-          {% if e.final_result == 'pass' %}<span class="badge ok">ناجح</span>
-          {% elif e.final_result == 'fail' %}<span class="badge danger">راسب</span>
-          {% else %}<span class="badge muted">—</span>{% endif %}
-        </td>
-        <td class="actions">
-          {% if e.status == 'active' %}
-          <a class="btn btn-ghost btn-sm" href="{{ url_for('students.transfer', enrollment_id=e.id) }}">نقل أفقي</a>
-          <a class="btn btn-ghost btn-sm" href="{{ url_for('students.status_change', enrollment_id=e.id) }}">حالة</a>
+  <!-- Hero -->
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="absolute -bottom-8 -right-12 w-40 h-40 rounded-full bg-tertiary-fixed-dim/20 blur-xl"></div>
+    <div class="relative z-10 p-space-lg flex items-center gap-space-md flex-wrap">
+      <div class="w-24 h-24 rounded-2xl bg-surface-container-lowest/20 flex items-center justify-center font-headline-lg font-extrabold shrink-0">
+        {{ student.full_name[:1] }}
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-headline-lg text-on-primary tracking-tight">{{ student.full_name }}</h1>
+        <div class="flex items-center gap-space-sm flex-wrap mt-2">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md text-label-md">
+            <span class="material-symbols-outlined text-sm">badge</span><code dir="ltr">{{ student.permanent_code }}</code>
+          </span>
+          {% if active_e %}
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md text-label-md">
+            {{ active_e.grade.name }} — {{ active_e.section.name }}
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#10B981] text-white font-label-md text-label-md font-bold">
+            <span class="w-1.5 h-1.5 rounded-full bg-white"></span>نشط
+          </span>
+          {% else %}
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md text-label-md">غير مقيد للسنة الحالية</span>
           {% endif %}
-        </td>
-      </tr>
-      {% else %}
-      <tr><td colspan="7" class="text-muted" style="text-align:center;padding:18px">لا يوجد قيد مسجّل لهذا الطالب.</td></tr>
-      {% endfor %}
-    </tbody>
-  </table>
+        </div>
+      </div>
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('students.student_edit', student_id=student.id) }}"
+           class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg text-label-lg font-bold hover:bg-white/25 transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">edit</span><span>تعديل الملف</span>
+        </a>
+        {% if not has_active_enrollment %}
+        <a href="{{ url_for('students.enroll', student_id=student.id) }}"
+           class="h-11 px-5 rounded-xl bg-white text-primary font-title-md text-title-md font-bold shadow-md hover:bg-surface-container-lowest transition-colors flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">group_add</span><span>تسجيل في السنة</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </section>
 
-  {% if student.enrollments and student.enrollments[0].transfer_logs %}
-  <h3 class="mt-3">سجلّ النقل الأفقي</h3>
-  <table class="data">
-    <thead><tr><th>التاريخ</th><th>من فصل</th><th>إلى فصل</th><th>ملاحظات</th></tr></thead>
-    <tbody>
-      {% for e in student.enrollments %}{% for log in e.transfer_logs %}
-      <tr>
-        <td>{{ log.transfer_date }}</td>
-        <td>{{ log.from_section.name }}</td>
-        <td>{{ log.to_section.name }}</td>
-        <td class="text-muted">{{ log.notes or '—' }}</td>
-      </tr>
-      {% endfor %}{% endfor %}
-    </tbody>
-  </table>
-  {% endif %}
+  <!-- Two-column layout -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg">
+    <div class="lg:col-span-2 flex flex-col gap-space-md">
+
+      <!-- Personal info card -->
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">person</span>البيانات الشخصية
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md mt-space-md">
+          {% for label, val in [
+            ('الاسم الرباعي', student.full_name),
+            ('الرقم الوطني', student.national_id or '—'),
+            ('تاريخ الميلاد', student.dob.strftime('%Y-%m-%d') if student.dob else '—'),
+            ('الجنس', 'ذكر' if student.gender=='male' else ('أنثى' if student.gender=='female' else '—')),
+            ('العنوان', student.address or '—')
+          ] %}
+          <div class="flex flex-col">
+            <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+            <span class="font-body-md text-body-md text-on-surface font-semibold">{{ val }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Guardian card -->
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">family_restroom</span>ولي الأمر
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md mt-space-md">
+          {% for label, val in [
+            ('اسم الأب / ولي الأمر', student.parent_name or '—'),
+            ('جوال الأب', student.parent_phone or '—'),
+            ('البريد الإلكتروني', student.parent_email or '—'),
+            ('اسم الأم', student.mother_name or '—'),
+            ('جوال الأم', student.mother_phone or '—')
+          ] %}
+          <div class="flex flex-col">
+            <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
+            <span class="font-body-md text-body-md text-on-surface font-semibold" {% if 'phone' in label|lower or 'email' in label|lower %}dir="ltr"{% endif %}>{{ val }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <!-- Enrollment history -->
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">history_edu</span>سجل القيد
+        </h2>
+        {% if student.enrollments %}
+        <div class="flex flex-col gap-2 mt-space-md">
+          {% for e in student.enrollments|sort(attribute='enrolled_at', reverse=True) %}
+          <div class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low">
+            <div class="flex items-center gap-3">
+              <div class="w-10 h-10 rounded-lg
+                          {% if e.status == 'active' %}bg-[#ECFDF5] text-[#10B981]
+                          {% elif e.status == 'withdrawn' %}bg-error-container text-error
+                          {% else %}bg-surface-container text-on-surface-variant{% endif %}
+                          flex items-center justify-center">
+                <span class="material-symbols-outlined">
+                  {% if e.status == 'active' %}check_circle{% elif e.status == 'withdrawn' %}block{% else %}swap_horiz{% endif %}
+                </span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-label-lg text-label-lg text-primary font-bold">{{ e.year.name }} · {{ e.grade.name }} — {{ e.section.name }}</span>
+                <span class="font-label-xs text-label-xs text-on-surface-variant">
+                  قُيّد في: {{ e.enrolled_at.strftime('%Y-%m-%d') if e.enrolled_at else '—' }}
+                  {% if e.status_reason %} · {{ e.status_reason }}{% endif %}
+                </span>
+              </div>
+            </div>
+            {% if e.status == 'active' %}
+            <div class="flex items-center gap-1">
+              <a href="{{ url_for('students.transfer', enrollment_id=e.id) }}" class="h-9 px-3 rounded-lg bg-surface-container-lowest text-primary font-label-md hover:bg-primary-container/20 flex items-center gap-1" title="نقل بين فصول">
+                <span class="material-symbols-outlined text-sm">swap_horiz</span><span>نقل</span>
+              </a>
+              <a href="{{ url_for('students.status_change', enrollment_id=e.id) }}" class="h-9 px-3 rounded-lg bg-surface-container-lowest text-error font-label-md hover:bg-error-container/40 flex items-center gap-1" title="تغيير الحالة">
+                <span class="material-symbols-outlined text-sm">edit</span><span>الحالة</span>
+              </a>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="mt-space-md text-center text-on-surface-variant font-body-md">لا سجل قيد بعد.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    <!-- Side rail: fees + notes -->
+    <aside class="flex flex-col gap-space-md">
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">payments</span>الحالة المالية
+        </h3>
+        <div class="mt-space-md flex flex-col gap-2">
+          <div class="flex items-center justify-between">
+            <span class="font-label-md text-label-md text-on-surface-variant">إجمالي الفواتير</span>
+            <span class="font-title-md text-title-md text-primary font-bold">{{ fin_totals.invoiced|round(2) }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <span class="font-label-md text-label-md text-on-surface-variant">المدفوع</span>
+            <span class="font-title-md text-title-md text-[#10B981] font-bold">{{ fin_totals.paid|round(2) }}</span>
+          </div>
+          <div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
+            <span class="font-label-md text-label-md text-on-surface font-bold">المتبقّي</span>
+            <span class="font-title-md text-title-md {% if fin_totals.remaining > 0 %}text-error{% else %}text-[#10B981]{% endif %} font-bold">{{ fin_totals.remaining|round(2) }} ر.س</span>
+          </div>
+        </div>
+        {% if invoices %}
+        <div class="mt-space-md flex flex-col gap-1">
+          {% for inv in invoices[:5] %}
+          <a href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}"
+             class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low transition-colors">
+            <span class="font-label-md text-label-md text-primary">#{{ inv.id }} · {{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '' }}</span>
+            <span class="font-label-md text-label-md text-on-surface-variant">{{ inv.remaining|round(2) }}</span>
+          </a>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </section>
+
+      {% if student.notes %}
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">sticky_note_2</span>ملاحظات
+        </h3>
+        <p class="mt-2 font-body-md text-body-md text-on-surface leading-relaxed whitespace-pre-line">{{ student.notes }}</p>
+      </section>
+      {% endif %}
+    </aside>
+  </div>
 </div>
 {% endblock %}

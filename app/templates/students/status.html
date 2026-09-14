@@ -1,34 +1,87 @@
-{% extends "partials/base.html" %}
-{% block title %}تغيير حالة قيد{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>تغيير حالة القيد — {{ enrollment.student.full_name }}</h2>
-    <div class="sub">{{ enrollment.year.name }} • {{ enrollment.grade.name }} / {{ enrollment.section.name }}</div>
-  </div>
-  <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Change enrollment status — Stitch _33. Radio-card selector for
+   active/withdrawn/transferred + reason textarea. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تغيير حالة الطالب — {{ enrollment.student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="hover:text-primary">{{ enrollment.student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تعديل الحالة</span>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="field">
-      <label>الحالة الجديدة</label>
-      <select name="status" required>
-        <option value="active" {% if enrollment.status == 'active' %}selected{% endif %}>نشط</option>
-        <option value="withdrawn" {% if enrollment.status == 'withdrawn' %}selected{% endif %}>منسحب</option>
-        <option value="transferred" {% if enrollment.status == 'transferred' %}selected{% endif %}>محوّل لمدرسة أخرى</option>
-      </select>
-      <div class="hint">يبقى السجل في الأرشيف للتقارير، ولن يظهر في الكشوف النشطة (T-3.5).</div>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg max-w-3xl mx-auto">
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center gap-space-md">
+    <div class="w-14 h-14 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center font-headline-sm font-extrabold shrink-0">
+      {{ enrollment.student.full_name[:1] }}
     </div>
-    <div class="field">
-      <label>سبب التغيير (اختياري)</label>
-      <textarea name="reason" rows="2">{{ enrollment.status_reason or '' }}</textarea>
+    <div class="flex flex-col flex-1 min-w-0">
+      <h1 class="font-headline-md text-headline-md text-primary">{{ enrollment.student.full_name }}</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant">
+        {{ enrollment.grade.name }} — {{ enrollment.section.name }} · {{ enrollment.year.name }}
+      </p>
     </div>
+    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md text-label-md font-bold
+                 {% if enrollment.status == 'active' %}bg-[#ECFDF5] text-[#065F46]
+                 {% elif enrollment.status == 'withdrawn' %}bg-error-container text-on-error-container
+                 {% else %}bg-surface-container text-on-surface-variant{% endif %}">
+      الحالة الحالية:
+      {% if enrollment.status == 'active' %}نشط{% elif enrollment.status == 'withdrawn' %}منسحب{% else %}منقول{% endif %}
+    </span>
   </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ</button>
-    <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+
+  <form method="post" class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">edit</span>اختر الحالة الجديدة
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+        {% for value, label, icon, color in [
+          ('active',      'نشط',         'check_circle', '#10B981'),
+          ('withdrawn',   'منسحب',       'block',        '#EF4444'),
+          ('transferred', 'منقول لخارج', 'swap_horiz',   '#0099CC'),
+        ] %}
+        <label class="cursor-pointer">
+          <input type="radio" name="status" value="{{ value }}" class="peer sr-only" {% if enrollment.status == value %}checked{% endif %} required>
+          <div class="p-space-md rounded-xl border-2 border-outline-variant bg-surface-container-low
+                      hover:border-primary hover:bg-surface-container-lowest
+                      peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:shadow-md transition-all flex flex-col items-center text-center gap-2">
+            <div class="w-12 h-12 rounded-full flex items-center justify-center text-white" style="background: {{ color }}">
+              <span class="material-symbols-outlined text-2xl">{{ icon }}</span>
+            </div>
+            <span class="font-title-md text-title-md text-primary font-bold">{{ label }}</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <label class="font-label-md text-label-md text-on-surface font-bold flex items-center gap-2 mb-2">
+        <span class="material-symbols-outlined text-secondary">notes</span>سبب تغيير الحالة (اختياري)
+      </label>
+      <textarea name="reason" rows="3" placeholder="مثال: انتقلت أسرته لمدينة أخرى، طلب انسحاب رسمي، ..."
+                class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"></textarea>
+    </section>
+
+    <div class="p-space-md rounded-xl bg-error-container/50 text-on-error-container flex items-start gap-3">
+      <span class="material-symbols-outlined">warning</span>
+      <p class="font-body-md text-body-md">
+        تغيير الحالة يفصل الطالب عن الحضور والمواد لكنه <b>لا يحذف</b> السجل — يظل قابلاً للاطلاع في سجل القيد.
+      </p>
+    </div>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">save</span>
+        <span>تأكيد تغيير الحالة</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

@@ -1,41 +1,121 @@
-{% extends "partials/base.html" %}
-{% block title %}نقل أفقي{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>نقل أفقي — {{ enrollment.student.full_name }}</h2>
-    <div class="sub">
-      من فصل <strong>{{ enrollment.section.name }}</strong> داخل {{ enrollment.grade.name }} ({{ enrollment.year.name }})
-    </div>
-  </div>
-  <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Transfer between sections — Stitch _30. From → arrow → To. Real POST to
+   students.transfer(enrollment_id). #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نقل الطالب — {{ enrollment.student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="hover:text-primary">{{ enrollment.student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">نقل بين فصول</span>
+{% endblock %}
 
-{% if not siblings %}
-<div class="alert info">لا توجد فصول أخرى ضمن {{ enrollment.grade.name }} في هذه السنة.</div>
-{% else %}
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="field">
-      <label>الفصل المستهدف</label>
-      <select name="to_section_id" required>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg max-w-4xl mx-auto">
+  <div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">نقل الطالب بين فصلين</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+      {{ enrollment.student.full_name }} · <code dir="ltr">{{ enrollment.student.permanent_code }}</code> · {{ enrollment.grade.name }}
+    </p>
+  </div>
+
+  <form method="post" class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# From → To diagram #}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-space-md">
+        <div class="p-space-md rounded-xl bg-surface-container-low border-2 border-outline-variant">
+          <div class="flex items-center gap-space-sm">
+            <div class="w-10 h-10 rounded-lg bg-surface-container-high text-on-surface-variant flex items-center justify-center">
+              <span class="material-symbols-outlined">door_open</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="font-label-md text-label-md text-on-surface-variant">من</span>
+              <span class="font-title-md text-title-md text-primary font-bold">{{ enrollment.section.name }}</span>
+              <span class="font-label-xs text-label-xs text-outline">
+                {{ enrollment.section.current_count }} / {{ enrollment.section.capacity }} طالب
+              </span>
+            </div>
+          </div>
+        </div>
+        <div class="flex items-center justify-center">
+          <div class="w-12 h-12 rounded-full text-on-primary flex items-center justify-center shadow-md"
+               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+            <span class="material-symbols-outlined">arrow_back</span>
+          </div>
+        </div>
+        <div class="p-space-md rounded-xl bg-primary-container/10 border-2 border-primary/30 border-dashed">
+          <div class="flex items-center gap-space-sm">
+            <div class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center">
+              <span class="material-symbols-outlined">meeting_room</span>
+            </div>
+            <div class="flex flex-col">
+              <span class="font-label-md text-label-md text-primary">إلى</span>
+              <span class="font-title-md text-title-md text-primary font-bold">اختر الفصل المستهدف من الأسفل</span>
+              <span class="font-label-xs text-label-xs text-outline">داخل نفس الصف: {{ enrollment.grade.name }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">meeting_room</span>الفصول المتاحة داخل {{ enrollment.grade.name }}
+      </h2>
+      {% if siblings %}
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-sm">
         {% for s in siblings %}
-        <option value="{{ s.id }}" {% if s.is_full %}disabled{% endif %}>
-          {{ s.name }} — {{ s.current_count }}/{{ s.capacity }}{% if s.is_full %} (ممتلئ){% endif %}
-        </option>
+        {% set full = s.is_full %}
+        {% set pct = (s.current_count * 100 // s.capacity) if s.capacity else 0 %}
+        <label class="cursor-pointer">
+          <input type="radio" name="to_section_id" value="{{ s.id }}" class="peer sr-only" {% if full %}disabled{% endif %}>
+          <div class="p-space-md rounded-xl border-2 transition-all
+                      {% if full %}border-error/30 bg-error-container/20 opacity-60 cursor-not-allowed
+                      {% else %}border-outline-variant bg-surface-container-low hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md{% endif %}">
+            <div class="flex items-center justify-between">
+              <span class="font-title-md text-title-md text-primary font-bold">{{ s.name }}</span>
+              {% if full %}<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">ممتلئ</span>
+              {% elif pct >= 90 %}<span class="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">قرب الطاقة</span>
+              {% else %}<span class="px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">متاح</span>{% endif %}
+            </div>
+            <div class="mt-2 h-1.5 w-full rounded-full bg-surface-container overflow-hidden">
+              <div class="h-full" style="width: {{ [pct, 100]|min }}%; background: {% if pct >= 100 %}#EF4444{% elif pct >= 90 %}#F59E0B{% else %}#10B981{% endif %}"></div>
+            </div>
+            <div class="mt-1 font-label-xs text-label-xs text-outline">{{ s.current_count }}/{{ s.capacity }}</div>
+          </div>
+        </label>
         {% endfor %}
-      </select>
+      </div>
+      {% else %}
+      <p class="text-center text-on-surface-variant py-space-lg">لا توجد فصول أخرى متاحة داخل هذا الصف.</p>
+      {% endif %}
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <label class="font-label-md text-label-md text-on-surface font-bold flex items-center gap-2 mb-2">
+        <span class="material-symbols-outlined text-secondary">notes</span>سبب / ملاحظات النقل (اختياري)
+      </label>
+      <textarea name="notes" rows="3" placeholder="مثال: طلب ولي الأمر، تقارب سكني، توزيع الأعداد..."
+                class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors"></textarea>
+    </section>
+
+    <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start gap-3">
+      <span class="material-symbols-outlined">info</span>
+      <p class="font-body-md text-body-md">
+        النقل يحفظ سجلاً في <b>سجل النقل</b> ويؤرشف الفصل الأصلي — الدرجات والحضور تبقى مرتبطة بالسجل الأصلي.
+      </p>
     </div>
-    <div class="field">
-      <label>ملاحظات (اختياري)</label>
-      <textarea name="notes" rows="2" placeholder="سبب النقل..."></textarea>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">swap_horiz</span>
+        <span>تأكيد النقل</span>
+      </button>
     </div>
-  </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">تنفيذ النقل</button>
-    <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
-{% endif %}
+  </form>
+</div>
 {% endblock %}

@@ -1,32 +1,88 @@
-{% extends "partials/base.html" %}
-{% block title %}قيد طالب{% endblock %}
-{% block content %}
-<div class="page-title">
-  <div>
-    <h2>قيد الطالب — {{ student.full_name }}</h2>
-    <div class="sub">السنة <strong class="text-navy">{{ year.name }}</strong> — يُنشأ سجل قيد مستقل لكل سنة (T-3.2)</div>
-  </div>
-  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="btn btn-ghost">رجوع</a>
-</div>
+{# Enroll student in a section — Stitch _31. Section picker cards with live
+   capacity preview. Real POST to students.enroll. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تسجيل {{ student.full_name }} في فصل{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تسجيل في فصل</span>
+{% endblock %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  <div class="card">
-    <div class="field">
-      <label>الصف والفصل</label>
-      <select name="section_id" required>
-        {% for s in sections %}
-        <option value="{{ s.id }}" {% if s.is_full %}disabled{% endif %}>
-          {{ s.grade.name }} / {{ s.name }} — {{ s.current_count }}/{{ s.capacity }}{% if s.is_full %} (ممتلئ){% endif %}
-        </option>
-        {% endfor %}
-      </select>
-      <div class="hint">الفصول الممتلئة معطّلة. سعة كل فصل تُحسب من الطلاب النشطين.</div>
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg max-w-5xl mx-auto">
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center gap-space-md flex-wrap">
+    <div class="w-16 h-16 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center font-headline-md font-extrabold shrink-0">
+      {{ student.full_name[:1] }}
     </div>
+    <div class="flex flex-col flex-1 min-w-0">
+      <h1 class="font-headline-lg text-headline-lg text-primary">تسجيل الطالب في فصل — {{ year.name }}</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant">{{ student.full_name }} <span class="text-outline mx-1">·</span> <code dir="ltr">{{ student.permanent_code }}</code></p>
+    </div>
+    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-secondary/15 text-secondary font-label-md text-label-md font-semibold">
+      <span class="material-symbols-outlined text-sm">event</span>{{ year.name }}
+    </span>
   </div>
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">حفظ القيد</button>
-    <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+
+  <form method="post" class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">meeting_room</span>اختر الفصل الوجهة
+      </h2>
+      {% set grouped = {} %}
+      {% for s in sections %}
+        {% if s.grade_id not in grouped %}{% set _ = grouped.update({s.grade_id: {'grade': s.grade, 'sections': []}}) %}{% endif %}
+        {% set _ = grouped[s.grade_id]['sections'].append(s) %}
+      {% endfor %}
+      {% for gid, group in grouped.items() %}
+      <div class="mb-space-md">
+        <h3 class="font-label-lg text-label-lg text-on-surface-variant mb-2">{{ group.grade.name }}</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-sm">
+          {% for s in group.sections %}
+          {% set full = s.is_full %}
+          {% set pct = (s.current_count * 100 // s.capacity) if s.capacity else 0 %}
+          <label class="cursor-pointer">
+            <input type="radio" name="section_id" value="{{ s.id }}" class="peer sr-only" {% if full %}disabled{% endif %}>
+            <div class="p-space-md rounded-xl border-2 transition-all
+                        {% if full %}border-error/30 bg-error-container/20 opacity-60 cursor-not-allowed
+                        {% else %}border-outline-variant bg-surface-container-low hover:border-primary hover:bg-surface-container-lowest peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md{% endif %}">
+              <div class="flex items-center justify-between">
+                <span class="font-title-md text-title-md text-primary font-bold">{{ s.name }}</span>
+                {% if full %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">ممتلئ</span>
+                {% elif pct >= 90 %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">قرب الطاقة</span>
+                {% else %}
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">متاح</span>
+                {% endif %}
+              </div>
+              <div class="mt-2 flex items-baseline gap-1">
+                <span class="font-headline-sm text-headline-sm text-on-surface font-bold">{{ s.current_count }}</span>
+                <span class="font-label-md text-label-md text-outline">/ {{ s.capacity }} طالب</span>
+              </div>
+              <div class="mt-2 h-1.5 w-full rounded-full bg-surface-container overflow-hidden">
+                <div class="h-full transition-all"
+                     style="width: {{ [pct, 100]|min }}%; background: {% if pct >= 100 %}#EF4444{% elif pct >= 90 %}#F59E0B{% else %}#10B981{% endif %}"></div>
+              </div>
+            </div>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </section>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('students.student_detail', student_id=student.id) }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">group_add</span>
+        <span>تأكيد التسجيل</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}

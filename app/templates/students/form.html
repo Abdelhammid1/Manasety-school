@@ -1,91 +1,106 @@
-{% extends "partials/base.html" %}
-{% block title %}{% if student %}تعديل ملف طالب{% else %}ملف طالب جديد{% endif %}{% endblock %}
-{% block content %}
-{% set f = form if form else {} %}
-<div class="page-title">
-  <div>
-    <h2>{% if student %}تعديل: {{ student.full_name }}{% else %}ملف طالب جديد{% endif %}</h2>
-    {% if student %}<div class="sub">الكود الدائم: <span class="badge muted">{{ student.permanent_code }}</span></div>{% endif %}
-  </div>
-  <a href="{{ url_for('students.students_list') }}" class="btn btn-ghost">رجوع</a>
+{# Student form (new + edit) — Stitch-styled multi-field card. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if student %}تعديل ملف الطالب{% else %}قبول طالب جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.students_list') }}" class="hover:text-primary">الطلاب</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{% if student %}تعديل{% else %}قبول جديد{% endif %}</span>
+{% endblock %}
+
+{% block page_content %}
+{% set F = student if student else form %}
+{% macro field(name, label, value='', kind='text', ph='', required=False, help='') %}
+<div class="flex flex-col gap-1.5">
+  <label class="font-label-md text-label-md text-on-surface font-bold">{{ label }}{% if required %} <span class="text-error">*</span>{% endif %}</label>
+  {% if kind == 'select' %}{{ caller() }}
+  {% elif kind == 'textarea' %}
+    <textarea name="{{ name }}" rows="3" placeholder="{{ ph }}"
+              class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">{{ value }}</textarea>
+  {% else %}
+    <input name="{{ name }}" type="{{ kind }}" value="{{ value }}" placeholder="{{ ph }}" {% if required %}required{% endif %}
+           class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+  {% endif %}
+  {% if help %}<span class="font-label-xs text-label-xs text-on-surface-variant">{{ help }}</span>{% endif %}
 </div>
+{% endmacro %}
 
-<form method="post">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-  {% if dup %}<input type="hidden" name="confirm_dup" value="1">{% endif %}
-
-  <div class="card">
-    <h3>البيانات الأساسية</h3>
-    <div class="form-row cols-2">
-      <div class="field"><label>الاسم الكامل *</label>
-        <input name="full_name" required value="{{ student.full_name if student else f.get('full_name','') }}">
-      </div>
-      <div class="field"><label>رقم الهوية / الرقم الوطني</label>
-        <input name="national_id" value="{{ student.national_id or '' if student else f.get('national_id','') }}">
-        <div class="hint">إن كان موجودًا لطالب آخر سيتم التنبيه قبل الحفظ.</div>
-      </div>
-    </div>
-    <div class="form-row cols-3">
-      <div class="field"><label>تاريخ الميلاد</label>
-        <input name="dob" type="date" value="{{ student.dob if student else f.get('dob','') }}">
-      </div>
-      <div class="field"><label>الجنس</label>
-        <select name="gender">
-          <option value="">—</option>
-          <option value="M" {% if (student and student.gender=='M') or f.get('gender')=='M' %}selected{% endif %}>ذكر</option>
-          <option value="F" {% if (student and student.gender=='F') or f.get('gender')=='F' %}selected{% endif %}>أنثى</option>
-        </select>
-      </div>
-      <div class="field"><label>العنوان</label>
-        <input name="address" value="{{ student.address or '' if student else f.get('address','') }}">
-      </div>
-    </div>
+<div class="flex flex-col w-full gap-space-md max-w-4xl mx-auto">
+  <div class="flex items-baseline gap-3">
+    <h1 class="font-headline-lg text-headline-lg text-primary">{% if student %}تعديل ملف الطالب{% else %}قبول طالب جديد{% endif %}</h1>
+    {% if student %}<span class="font-label-md text-label-md text-outline" dir="ltr">{{ student.permanent_code }}</span>{% endif %}
   </div>
 
-  <div class="card mt-2">
-    <h3>بيانات ولي الأمر</h3>
-    <div class="form-row cols-3">
-      <div class="field"><label>الاسم</label>
-        <input name="parent_name" value="{{ student.parent_name or '' if student else f.get('parent_name','') }}">
-      </div>
-      <div class="field"><label>الهاتف (واتساب)</label>
-        <input name="parent_phone" value="{{ student.parent_phone or '' if student else f.get('parent_phone','') }}">
-      </div>
-      <div class="field"><label>البريد الإلكتروني</label>
-        <input name="parent_email" type="email" value="{{ student.parent_email or '' if student else f.get('parent_email','') }}">
-      </div>
-    </div>
-    <div class="field"><label>ملاحظات</label>
-      <textarea name="notes" rows="2">{{ student.notes or '' if student else f.get('notes','') }}</textarea>
-    </div>
-    <div class="field">
-      <label>ربط ولي الأمر بحساب مستخدم (لتطبيق ولي الأمر)</label>
-      <select name="parent_user_id">
-        <option value="">— لا يوجد —</option>
-        {% for u in parent_users %}<option value="{{ u.id }}" {% if student and student.parent_user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
-      </select>
-      <div class="hint">ولي أمر مرتبط بحساب يستطيع رؤية حضور أبنائه ونتائجهم وفواتيرهم.</div>
+  {% if dup %}
+  <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start gap-3">
+    <span class="material-symbols-outlined">gpp_maybe</span>
+    <div class="flex-1">
+      <p class="font-label-lg text-label-lg font-bold">تنبيه: يوجد طالب بنفس رقم الهوية</p>
+      <p class="font-body-md text-body-md">{{ dup.full_name }} — {{ dup.permanent_code }}. أكّد الحفظ إذا كنت متأكداً من التسجيل المزدوج.</p>
     </div>
   </div>
+  {% endif %}
 
-  <div class="card mt-2">
-    <h3>بيانات الأم <span class="badge muted" style="font-size:11px;margin-right:8px">اختياري</span></h3>
-    <div class="hint" style="margin-bottom:10px">تُستخدم للتفريق بين الأبناء في الحالات التي يحمل فيها أبناء الأب نفسه أسماء متطابقة.</div>
-    <div class="form-row cols-2">
-      <div class="field"><label>اسم الأم</label>
-        <input name="mother_name" value="{{ student.mother_name or '' if student else f.get('mother_name','') }}">
-      </div>
-      <div class="field"><label>هاتف الأم (واتساب)</label>
-        <input name="mother_phone" value="{{ student.mother_phone or '' if student else f.get('mother_phone','') }}">
-      </div>
-    </div>
-  </div>
+  <form method="post" class="flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if dup %}<input type="hidden" name="confirm_dup" value="1">{% endif %}
 
-  <div class="mt-2 flex">
-    <button class="btn btn-primary" type="submit">
-      {% if dup %}تأكيد الحفظ رغم تكرار رقم الهوية{% else %}حفظ{% endif %}
-    </button>
-    <a href="{{ url_for('students.students_list') }}" class="btn btn-ghost">إلغاء</a>
-  </div>
-</form>
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">person</span>البيانات الشخصية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {{ field('full_name', 'الاسم الرباعي', F.full_name if F else '', required=True) }}
+        {{ field('national_id', 'رقم الهوية الوطنية', F.national_id if F else '', ph='١٢٣٤٥٦٧٨٩٠') }}
+        {{ field('dob', 'تاريخ الميلاد', F.dob.strftime('%Y-%m-%d') if F and F.dob else '', kind='date') }}
+        {% call field('gender', 'الجنس', kind='select') %}
+          <select name="gender" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+            <option value="">—</option>
+            <option value="male" {% if F and F.gender == 'male' %}selected{% endif %}>ذكر</option>
+            <option value="female" {% if F and F.gender == 'female' %}selected{% endif %}>أنثى</option>
+          </select>
+        {% endcall %}
+      </div>
+      {{ field('address', 'العنوان', F.address if F else '', kind='textarea') }}
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">family_restroom</span>ولي الأمر
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {{ field('parent_name', 'اسم الأب / ولي الأمر', F.parent_name if F else '') }}
+        {{ field('parent_phone', 'جوال الأب', F.parent_phone if F else '', kind='tel', ph='+9665...') }}
+        {{ field('parent_email', 'البريد الإلكتروني', F.parent_email if F else '', kind='email') }}
+        {% call field('parent_user_id', 'حساب ولي الأمر (اختياري)', kind='select', help='اربط الطالب بحساب مستخدم من نوع ولي أمر لتفعيل بوابة ولي الأمر.') %}
+          <select name="parent_user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+            <option value="">— بدون ربط —</option>
+            {% for u in parent_users %}
+            <option value="{{ u.id }}" {% if F and F.parent_user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
+            {% endfor %}
+          </select>
+        {% endcall %}
+        {{ field('mother_name', 'اسم الأم', F.mother_name if F else '') }}
+        {{ field('mother_phone', 'جوال الأم', F.mother_phone if F else '', kind='tel') }}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">note</span>ملاحظات
+      </h2>
+      {{ field('notes', 'ملاحظات إدارية (اختياري)', F.notes if F else '', kind='textarea') }}
+    </section>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('students.students_list') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">save</span>
+        <span>{% if student %}حفظ التعديلات{% else %}إنشاء الملف الدائم{% endif %}</span>
+      </button>
+    </div>
+  </form>
+</div>
 {% endblock %}
