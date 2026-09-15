@@ -127,8 +127,84 @@ def teacher_toggle(teacher_id):
 @login_required
 @require_permission("teachers", "view")
 def subjects_list():
+    from ...models import Course
     subjects = Subject.query.filter_by(school_id=_sid()).order_by(Subject.name).all()
-    return render_template("teachers/subjects_list.html", subjects=subjects)
+
+    # Pre-compute per-subject FK usage so the delete button on each card can
+    # disable itself when the delete would be refused. Two queries beat N+1
+    # count() calls in the template. Both keys default to 0 so any subject
+    # missing from the map still shows correctly.
+    sids = [s.id for s in subjects]
+    course_counts = {sid: 0 for sid in sids}
+    assign_counts = {sid: 0 for sid in sids}
+    if sids:
+        for sid, cnt in (
+            db.session.query(Course.subject_id, db.func.count(Course.id))
+            .filter(Course.school_id == _sid(), Course.subject_id.in_(sids))
+            .group_by(Course.subject_id).all()
+        ):
+            course_counts[sid] = cnt
+        for sid, cnt in (
+            db.session.query(Assignment.subject_id, db.func.count(Assignment.id))
+            .filter(Assignment.school_id == _sid(), Assignment.subject_id.in_(sids))
+            .group_by(Assignment.subject_id).all()
+        ):
+            assign_counts[sid] = cnt
+    return render_template(
+        "teachers/subjects_list.html",
+        subjects=subjects,
+        course_counts=course_counts,
+        assign_counts=assign_counts,
+    )
+
+
+@bp.route("/subjects/<int:subject_id>/delete", methods=["POST"])
+@login_required
+@require_permission("teachers", "delete")
+def subject_delete(subject_id):
+    """Hard-delete a subject, but only when nothing points at it.
+
+    Subjects are referenced by four sets of rows:
+      · teaching-assignments (assignments.subject_id, NOT NULL)
+      · LMS courses          (lms_courses.subject_id, NOT NULL)
+      · bank questions       (lms_bank_questions.subject_id, NULL-able)
+      · subject_grades / subject_terms  (association tables, cascade OK)
+
+    A delete against a subject still bound to an active teaching-assignment
+    or an existing course would either fail at the FK layer or silently
+    strand orphan tags. We block the delete instead and tell the user
+    what's in the way. Bank-question subject tags are nulled — they're a
+    soft link that survives fine as "بدون مادة".
+    """
+    from ...models import BankQuestion
+    subject = _get(Subject, subject_id)
+
+    from ...models import Course
+    n_courses = Course.query.filter_by(subject_id=subject.id, school_id=_sid()).count()
+    n_assigns = Assignment.query.filter_by(subject_id=subject.id, school_id=_sid()).count()
+    if n_courses or n_assigns:
+        parts = []
+        if n_courses: parts.append(f"{n_courses} مقرّر")
+        if n_assigns: parts.append(f"{n_assigns} تخصيص تدريس")
+        flash(
+            f"لا يمكن حذف المادة ({subject.name}) — مرتبطة بـ "
+            + " و".join(parts)
+            + ". امسح أو أعِد ربط هذه السجلات أولاً.",
+            "danger",
+        )
+        return redirect(url_for("teachers.subjects_list"))
+
+    # Null-out the soft link on bank questions so the historical tags
+    # survive as "بدون مادة" instead of pointing at a dead row.
+    BankQuestion.query.filter_by(subject_id=subject.id).update(
+        {BankQuestion.subject_id: None}
+    )
+
+    name = subject.name
+    db.session.delete(subject)  # subject_grades + subject_terms cascade
+    db.session.commit()
+    flash(f"تم حذف المادة ({name}) نهائياً.", "success")
+    return redirect(url_for("teachers.subjects_list"))
 
 
 @bp.route("/subjects/<int:subject_id>/toggle", methods=["POST"])

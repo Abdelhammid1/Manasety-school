@@ -7,7 +7,9 @@ from flask_login import login_required, current_user
 
 from . import bp
 from ...extensions import db
-from ...models import Course, Lesson
+from ...models import (
+    Course, Lesson, AcademicYear, Section, Subject, Teacher, Grade,
+)
 
 
 # ─── Embed URL normalizer ──────────────────────────────────────────────
@@ -81,25 +83,68 @@ def detail(course_id):
     return render_template("courses/detail.html", course=course, lessons=course.lessons)
 
 
+def _course_form_options():
+    """Dropdown option data for the course new/edit form, all school-scoped.
+
+    We want the user to pick meaningful names — never a raw id. So we
+    pull the school's academic years (newest first), sections joined to
+    their grade (so the label is "الصف — الفصل"), subjects, and teachers.
+    """
+    sid = getattr(current_user, "school_id", None)
+
+    years = (
+        AcademicYear.query.filter_by(school_id=sid)
+        .order_by(AcademicYear.start_date.desc()).all()
+        if sid else AcademicYear.query.order_by(AcademicYear.start_date.desc()).all()
+    )
+    sections = (
+        Section.query.filter_by(school_id=sid)
+        .join(Grade, Grade.id == Section.grade_id)
+        .order_by(Grade.order_index, Section.name).all()
+        if sid else Section.query.order_by(Section.name).all()
+    )
+    subjects = (
+        Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+        if sid else Subject.query.order_by(Subject.name).all()
+    )
+    teachers = (
+        Teacher.query.filter_by(school_id=sid, is_active=True)
+        .order_by(Teacher.full_name).all()
+        if sid else Teacher.query.order_by(Teacher.full_name).all()
+    )
+    return years, sections, subjects, teachers
+
+
 @bp.route("/new", methods=["GET", "POST"], endpoint="new")
 @login_required
 def new():
+    years, sections, subjects, teachers = _course_form_options()
     if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        if not title:
+            flash("عنوان المقرّر مطلوب.", "danger")
+            return render_template(
+                "courses/new.html", years=years, sections=sections,
+                subjects=subjects, teachers=teachers,
+            )
         c = Course(
             school_id=getattr(current_user, "school_id", 1),
-            academic_year_id=int(request.form.get("academic_year_id", 1)),
-            section_id=int(request.form.get("section_id", 1)),
-            subject_id=int(request.form.get("subject_id", 1)),
-            teacher_id=int(request.form["teacher_id"]) if request.form.get("teacher_id") else None,
-            title=request.form["title"].strip(),
-            description=request.form.get("description", "").strip(),
+            academic_year_id=request.form.get("academic_year_id", type=int) or (years[0].id if years else 1),
+            section_id=request.form.get("section_id", type=int) or (sections[0].id if sections else 1),
+            subject_id=request.form.get("subject_id", type=int) or (subjects[0].id if subjects else 1),
+            teacher_id=request.form.get("teacher_id", type=int) or None,
+            title=title,
+            description=(request.form.get("description") or "").strip(),
             is_published=bool(request.form.get("is_published")),
         )
         db.session.add(c)
         db.session.commit()
-        flash("تم إنشاء المادة بنجاح.", "success")
+        flash("تم إنشاء المقرّر بنجاح.", "success")
         return redirect(url_for("courses.detail", course_id=c.id))
-    return render_template("courses/new.html")
+    return render_template(
+        "courses/new.html",
+        years=years, sections=sections, subjects=subjects, teachers=teachers,
+    )
 
 
 # ─── Lesson CRUD ───────────────────────────────────────────────────────

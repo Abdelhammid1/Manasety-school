@@ -1,11 +1,12 @@
-{# Subjects list — Stitch _36. Grid cards + inline toggle + edit. #}
+{# Subjects list — grid cards + edit + toggle active + hard delete.
+   Delete is guarded: the route refuses to remove a subject that still
+   has courses or teaching-assignments attached; the card shows those
+   counts so the user can see up-front what's blocking a delete. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}المواد الدراسية{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <a href="{{ url_for('teachers.teachers_list') }}" class="hover:text-primary">المعلمون</a>
-  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <span class="text-primary font-bold">المواد</span>
+  <span class="text-primary font-bold">المواد الدراسية</span>
 {% endblock %}
 
 {% block page_content %}
@@ -13,7 +14,7 @@
   <div class="flex items-center justify-between flex-wrap gap-space-md">
     <div>
       <h1 class="font-headline-lg text-headline-lg text-primary">المواد والمناهج الدراسية</h1>
-      <p class="font-body-md text-body-md text-on-surface-variant mt-1">إدارة المواد وتخصيصها للصفوف.</p>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">إدارة المواد وتخصيصها للصفوف والفترات.</p>
     </div>
     <a href="{{ url_for('teachers.subject_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
@@ -24,6 +25,9 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for s in subjects %}
+      {% set n_courses = course_counts.get(s.id, 0) %}
+      {% set n_assigns = assign_counts.get(s.id, 0) %}
+      {% set can_delete = (n_courses == 0) and (n_assigns == 0) %}
     <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm relative overflow-hidden">
       <div class="absolute top-0 right-0 bottom-0 w-1.5 {% if s.is_active %}bg-secondary{% else %}bg-outline{% endif %}"></div>
       <div class="flex items-start gap-space-sm">
@@ -37,9 +41,14 @@
             {% for g in s.grades %}
             <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs text-label-xs">{{ g.name }}</span>
             {% endfor %}
+            {% for t in s.terms %}
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">{{ t.name }}</span>
+            {% endfor %}
           </div>
         </div>
       </div>
+
+      {# Row 1: edit + active toggle #}
       <div class="mt-space-md flex items-center gap-2">
         <a href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}"
            class="flex-1 h-9 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container transition-colors">
@@ -48,17 +57,41 @@
         <form method="post" action="{{ url_for('teachers.subject_toggle', subject_id=s.id) }}" class="flex-1">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="w-full h-9 rounded-lg font-label-md font-bold flex items-center justify-center gap-1
-                  {% if s.is_active %}bg-error-container/40 text-error hover:bg-error-container{% else %}bg-secondary-container/40 text-secondary hover:bg-secondary-container/70{% endif %}">
+                  {% if s.is_active %}bg-tertiary-fixed text-on-tertiary-fixed-variant hover:bg-tertiary-fixed/70{% else %}bg-secondary-container/40 text-secondary hover:bg-secondary-container/70{% endif %}">
             <span class="material-symbols-outlined text-sm">{% if s.is_active %}pause_circle{% else %}play_circle{% endif %}</span>
             <span>{% if s.is_active %}إيقاف{% else %}تفعيل{% endif %}</span>
           </button>
         </form>
+      </div>
+
+      {# Row 2: hard delete (disabled when the FK-guard would refuse it) #}
+      <div class="mt-2">
+        {% if can_delete %}
+        <form method="post" action="{{ url_for('teachers.subject_delete', subject_id=s.id) }}"
+              onsubmit="return confirm('حذف المادة ({{ s.name }}) نهائياً؟\n\nهذا الإجراء لا يمكن التراجع عنه. سيتم إلغاء ربط أي أسئلة في البنك بهذه المادة.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="w-full h-9 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center justify-center gap-1 hover:bg-error-container transition-colors">
+            <span class="material-symbols-outlined text-sm">delete</span><span>حذف نهائي</span>
+          </button>
+        </form>
+        {% else %}
+        <div class="w-full h-9 rounded-lg bg-surface-container text-outline font-label-md flex items-center justify-center gap-1 cursor-not-allowed"
+             title="لا يمكن الحذف — المادة مرتبطة بـ {{ n_courses }} مقرّر و {{ n_assigns }} تخصيص تدريس">
+          <span class="material-symbols-outlined text-sm">lock</span>
+          <span>الحذف غير متاح ({{ n_courses + n_assigns }})</span>
+        </div>
+        {% endif %}
       </div>
     </div>
     {% else %}
     <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
       <span class="material-symbols-outlined text-5xl text-outline">menu_book</span>
       <p class="mt-3 text-on-surface-variant">لا مواد مضافة بعد.</p>
+      <a href="{{ url_for('teachers.subject_new') }}"
+         class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-lg">add</span>أضف أول مادة
+      </a>
     </div>
     {% endfor %}
   </div>

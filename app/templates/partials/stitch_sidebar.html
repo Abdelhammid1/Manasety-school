@@ -93,10 +93,11 @@
         {% endcall %}
 
         {% call group('admin-lms', 'التعلم والأداء', 'auto_stories') %}
-          {{ nav_item('courses.list_courses',    'المواد والدروس', 'auto_stories') }}
-          {{ nav_item('lms.bank_home',           'بنك الأسئلة',    'inventory_2') }}
-          {{ nav_item('lms.assignments_home',    'الواجبات',       'assignment') }}
-          {{ nav_item('lms.quizzes_home',        'الاختبارات',      'quiz') }}
+          {{ nav_item('teachers.subjects_list',  'المواد الدراسية',  'book') }}
+          {{ nav_item('courses.list_courses',    'المقرّرات والدروس','auto_stories') }}
+          {{ nav_item('lms.bank_home',           'بنك الأسئلة',      'inventory_2') }}
+          {{ nav_item('lms.assignments_home',    'الواجبات',         'assignment') }}
+          {{ nav_item('lms.quizzes_home',        'الاختبارات',        'quiz') }}
           {{ nav_item('lms.announcements_home',  'الإعلانات',       'campaign') }}
           {{ nav_item('schedule.index',          'الجدول المدرسي',  'calendar_month') }}
           {{ nav_item('attendance.index',        'الحضور والغياب',  'fact_check') }}
@@ -121,6 +122,7 @@
           {{ nav_item('portal.home',    'بوابتي',       'workspaces') }}
         {% endcall %}
         {% call group('teacher-classes', 'صفوفي والمقررات', 'menu_book') %}
+          {{ nav_item('teachers.subjects_list','المواد الدراسية','book') }}
           {{ nav_item('courses.list_courses',  'موادي وحصصي',   'auto_stories') }}
           {{ nav_item('portal.materials',      'المكتبة الرقمية','folder_open') }}
           {{ nav_item('lms.bank_home',         'بنك الأسئلة',    'inventory_2') }}

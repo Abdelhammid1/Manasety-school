@@ -1,58 +1,148 @@
-{# New course form. #}
+{# New course form. All FK fields are proper <select> dropdowns backed
+   by school-scoped rows — the user picks a name, never types an id. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}مادة جديدة{% endblock %}
+{% block title %}مقرّر جديد{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المقرّرات</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <span class="text-primary font-bold">مادة جديدة</span>
+  <span class="text-primary font-bold">مقرّر جديد</span>
 {% endblock %}
 
 {% block page_content %}
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">إنشاء مادة دراسية جديدة</h1>
+  <h1 class="font-headline-lg text-headline-lg text-primary">إنشاء مقرّر دراسي جديد</h1>
+
+  {# Warn when the school hasn't set up any subjects yet — without a
+     Subject row this form cannot POST cleanly (subject_id is NOT NULL). #}
+  {% if not subjects %}
+  <div class="p-space-md rounded-xl bg-error-container text-on-error-container flex items-center gap-3">
+    <span class="material-symbols-outlined">warning</span>
+    <div class="flex-1">
+      <p class="font-title-md font-bold">لا توجد مواد دراسية معرَّفة بعد</p>
+      <p class="font-body-md">قبل إنشاء أي مقرّر، أضف
+        <a href="{{ url_for('teachers.subject_new') }}" class="underline font-bold">مادة دراسية</a>
+        وحدّد صفوفها وفتراتها.</p>
+    </div>
+  </div>
+  {% endif %}
+
   <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Title -->
     <div class="flex flex-col gap-1.5">
-      <label class="font-label-md text-label-md text-on-surface font-bold">عنوان المادة <span class="text-error">*</span></label>
-      <input name="title" required placeholder="مثال: الرياضيات المتقدمة"
+      <label class="font-label-md text-label-md text-on-surface font-bold">عنوان المقرّر <span class="text-error">*</span></label>
+      <input name="title" required placeholder="مثال: الرياضيات — الأول الابتدائي أ"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
+
+    <!-- Description -->
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">وصف مختصر</label>
-      <textarea name="description" rows="4" placeholder="نبذة تعريفية عن المادة، أهدافها التعليمية..."
+      <textarea name="description" rows="3"
+                placeholder="نبذة تعريفية عن المقرّر وأهدافه التعليمية…"
                 class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 leading-loose"></textarea>
     </div>
-    <div class="grid grid-cols-3 gap-space-md">
+
+    <!-- Foreign-key dropdowns -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+
+      <!-- Subject -->
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">السنة الدراسية</label>
-        <input name="academic_year_id" type="number" value="1"
-               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        <label class="font-label-md text-label-md text-on-surface font-bold">
+          المادة الدراسية <span class="text-error">*</span>
+        </label>
+        <select name="subject_id" required
+                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          {% for s in subjects %}
+            <option value="{{ s.id }}">{{ s.name }}{% if s.code %} — {{ s.code }}{% endif %}</option>
+          {% else %}
+            <option value="" disabled selected>— لا توجد مواد بعد —</option>
+          {% endfor %}
+        </select>
       </div>
+
+      <!-- Teacher -->
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">الفصل</label>
-        <input name="section_id" type="number" value="1"
-               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المعلم المسؤول</label>
+        <select name="teacher_id"
+                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر لاحقاً —</option>
+          {% for t in teachers %}
+            <option value="{{ t.id }}">{{ t.full_name }}{% if t.specialization %} — {{ t.specialization }}{% endif %}</option>
+          {% endfor %}
+        </select>
       </div>
+
+      <!-- Academic year -->
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">المادة</label>
-        <input name="subject_id" type="number" value="1"
-               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        <label class="font-label-md text-label-md text-on-surface font-bold">
+          السنة الدراسية <span class="text-error">*</span>
+        </label>
+        <select name="academic_year_id" required
+                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          {% for y in years %}
+            <option value="{{ y.id }}" {% if y.status == 'active' %}selected{% endif %}>
+              {{ y.name }}{% if y.status == 'active' %} · نشطة{% endif %}
+            </option>
+          {% else %}
+            <option value="" disabled selected>— لا توجد سنوات دراسية —</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Section (grouped by grade for readability) -->
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">
+          الفصل الدراسي <span class="text-error">*</span>
+        </label>
+        <select name="section_id" required
+                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          {% if sections %}
+            {# Group sections by their grade so the dropdown label reads
+               "الأول الابتدائي — أ" without cluttering each row. #}
+            {% set ns = namespace(grade_id=None) %}
+            {% for s in sections %}
+              {% if s.grade_id != ns.grade_id %}
+                {% if ns.grade_id is not none %}</optgroup>{% endif %}
+                {% set ns.grade_id = s.grade_id %}
+                <optgroup label="{{ s.grade.name if s.grade else '' }}">
+              {% endif %}
+              <option value="{{ s.id }}">{{ s.name }} ({{ s.current_count }}/{{ s.capacity }})</option>
+              {% if loop.last %}</optgroup>{% endif %}
+            {% endfor %}
+          {% else %}
+            <option value="" disabled selected>— لا توجد فصول —</option>
+          {% endif %}
+        </select>
       </div>
     </div>
+
+    <!-- Publish toggle -->
+    <label class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low cursor-pointer">
+      <input type="checkbox" name="is_published" value="1"
+             class="w-5 h-5 rounded accent-primary">
+      <div class="flex flex-col">
+        <span class="font-label-md font-bold text-on-surface">نشر المقرّر فوراً</span>
+        <span class="font-label-xs text-outline">إذا لم تُفعّل، سيُنشأ كمسودّة ويمكنك نشره لاحقاً.</span>
+      </div>
+    </label>
 
     <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-3">
       <span class="material-symbols-outlined">info</span>
       <p class="font-body-md text-body-md">
-        بعد إنشاء المادة، يمكنك إضافة الدروس والواجبات والاختبارات من صفحة المادة.
+        بعد إنشاء المقرّر، تقدر تضيف الدروس والواجبات والاختبارات من صفحة المقرّر.
       </p>
     </div>
 
     <div class="flex items-center justify-end gap-space-sm">
-      <a href="{{ url_for('courses.list_courses') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
-      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+      <a href="{{ url_for('courses.list_courses') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit"
+              class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">rocket_launch</span><span>إنشاء المادة</span>
+        <span class="material-symbols-outlined">rocket_launch</span><span>إنشاء المقرّر</span>
       </button>
     </div>
   </form>
