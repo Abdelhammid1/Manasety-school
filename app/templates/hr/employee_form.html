@@ -10,7 +10,8 @@
 {% set F = employee %}
 <div class="max-w-4xl mx-auto flex flex-col gap-space-md">
   <h1 class="font-headline-lg text-headline-lg text-primary">{% if F %}تعديل ملف موظف{% else %}تعيين موظف جديد{% endif %}</h1>
-  <form method="post" class="flex flex-col gap-space-lg">
+  {% set post_url = url_for('hr.employee_edit', employee_id=F.id) if F else url_for('hr.employee_new') %}
+  <form method="post" action="{{ post_url }}" class="flex flex-col gap-space-lg">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">

@@ -1,30 +1,37 @@
-{# New fee type. #}
+{# Fee-type new/edit. Accepts optional `fee_type` for edit mode. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}نوع رسم جديد{% endblock %}
+{% block title %}{% if fee_type %}تعديل نوع رسم{% else %}نوع رسم جديد{% endif %}{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('finance.fee_types') }}" class="hover:text-primary">أنواع الرسوم</a>
 {% endblock %}
 
 {% block page_content %}
+{% set post_url = url_for('finance.fee_type_edit', ft_id=fee_type.id) if fee_type else url_for('finance.fee_type_new') %}
 <div class="max-w-2xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">إضافة نوع رسم جديد</h1>
-  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if fee_type %}تعديل نوع الرسم: {{ fee_type.name }}{% else %}إضافة نوع رسم جديد{% endif %}
+  </h1>
+  <form method="post" action="{{ post_url }}" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">الاسم <span class="text-error">*</span></label>
-      <input name="name" required placeholder="مثال: رسوم الدراسة السنوية"
+      <input name="name" required value="{{ fee_type.name if fee_type else '' }}"
+             placeholder="مثال: رسوم الدراسة السنوية"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">المبلغ الافتراضي</label>
-        <input name="default_amount" type="number" step="0.01" min="0" value="0"
+        <input name="default_amount" type="number" step="0.01" min="0"
+               value="{{ fee_type.default_amount if fee_type else 0 }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
       <div class="flex items-end">
         <label class="flex items-center gap-2 cursor-pointer">
-          <input type="checkbox" name="installable" value="1" class="w-5 h-5 rounded accent-primary">
+          <input type="checkbox" name="installable" value="1"
+                 {% if fee_type and fee_type.installable %}checked{% elif not fee_type %}checked{% endif %}
+                 class="w-5 h-5 rounded accent-primary">
           <span class="font-label-md text-label-md text-on-surface font-bold">قابل للتقسيط</span>
         </label>
       </div>
@@ -34,13 +41,18 @@
       <select name="revenue_account_id" required
               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
         <option value="">— اختر —</option>
-        {% for a in revenues %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+        {% for a in revenues %}
+        <option value="{{ a.id }}" {% if fee_type and fee_type.revenue_account_id == a.id %}selected{% endif %}>
+          {{ a.code }} — {{ a.name }}
+        </option>
+        {% endfor %}
       </select>
     </div>
-    <div class="flex justify-end">
+    <div class="flex items-center justify-between">
+      <a href="{{ url_for('finance.fee_types') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">save</span><span>حفظ</span>
+        <span class="material-symbols-outlined">save</span><span>{% if fee_type %}حفظ التعديلات{% else %}حفظ{% endif %}</span>
       </button>
     </div>
   </form>

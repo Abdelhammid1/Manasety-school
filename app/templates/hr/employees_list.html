@@ -35,7 +35,7 @@
             <th class="px-4 py-3 font-label-lg text-primary text-left">الراتب الأساسي</th>
             <th class="px-4 py-3 font-label-lg text-primary">جهة الاتصال</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
-            <th class="px-4 py-3 font-label-lg text-primary text-center">فتح</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">إجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -62,11 +62,36 @@
                 {{ 'نشط' if e.is_active else 'موقوف' }}
               </span>
             </td>
-            <td class="px-4 py-3 text-center">
-              <a href="{{ url_for('hr.employee_detail', employee_id=e.id) }}"
-                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20">
-                <span class="material-symbols-outlined text-lg">chevron_left</span>
-              </a>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-center gap-1">
+                <a href="{{ url_for('hr.employee_detail', employee_id=e.id) }}"
+                   class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20"
+                   title="فتح الملف">
+                  <span class="material-symbols-outlined text-sm">visibility</span>
+                </a>
+                <a href="{{ url_for('hr.employee_edit', employee_id=e.id) }}"
+                   class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-surface-container-low text-primary hover:bg-surface-container"
+                   title="تعديل">
+                  <span class="material-symbols-outlined text-sm">edit</span>
+                </a>
+                <form method="post" action="{{ url_for('hr.employee_toggle', employee_id=e.id) }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit"
+                          class="inline-flex items-center justify-center w-8 h-8 rounded-lg font-label-xs font-bold
+                                 {% if e.is_active %}bg-tertiary-fixed text-on-tertiary-fixed-variant hover:bg-tertiary-fixed/70{% else %}bg-secondary-container/40 text-secondary hover:bg-secondary-container/70{% endif %}"
+                          title="{{ 'إيقاف' if e.is_active else 'تفعيل' }}">
+                    <span class="material-symbols-outlined text-sm">{% if e.is_active %}pause_circle{% else %}play_circle{% endif %}</span>
+                  </button>
+                </form>
+                <form method="post" action="{{ url_for('hr.employee_delete', employee_id=e.id) }}"
+                      onsubmit="return confirm('حذف الموظف ({{ e.full_name|e }})؟\n\nلن ينفذ لو كان له رواتب مصروفة.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container"
+                          title="حذف">
+                    <span class="material-symbols-outlined text-sm">delete</span>
+                  </button>
+                </form>
+              </div>
             </td>
           </tr>
           {% else %}

@@ -441,6 +441,65 @@ def section_new():
     return render_template("academic/section_form.html", section=None, grades=grades, year=year)
 
 
+@bp.route("/sections/<int:section_id>/edit", methods=["GET", "POST"])
+@login_required
+@require_permission("sections", "edit")
+def section_edit(section_id):
+    """Edit a section. year_id + grade_id are structural — changing them
+    would rewrite every enrollment, so we lock them here and only allow
+    name and capacity edits. If the user wants to move students to a
+    different grade, promotion/transfer flows handle that."""
+    section = _get(Section, section_id)
+    if request.method == "POST":
+        name = (request.form.get("name") or "").strip()
+        cap  = request.form.get("capacity", type=int) or section.capacity
+        if not name:
+            flash("اسم الفصل مطلوب.", "danger")
+            return render_template("academic/section_form.html", section=section, grades=[section.grade], year=section.year)
+        if cap < section.current_count:
+            flash(
+                f"لا يمكن ضبط السعة على {cap} — يوجد {section.current_count} طالب مسجّل بالفعل.",
+                "danger",
+            )
+            return render_template("academic/section_form.html", section=section, grades=[section.grade], year=section.year)
+        section.name = name
+        section.capacity = cap
+        db.session.commit()
+        flash("تم تعديل الفصل.", "success")
+        return redirect(url_for("academic.section_detail", section_id=section.id))
+    return render_template(
+        "academic/section_form.html",
+        section=section, grades=[section.grade], year=section.year,
+    )
+
+
+@bp.route("/sections/<int:section_id>/delete", methods=["POST"])
+@login_required
+@require_permission("sections", "delete")
+def section_delete(section_id):
+    """Delete a section. Refuses if students are enrolled or any course
+    has been created for it — these hold live records (attendance,
+    grades, submissions) that can't survive a section deletion."""
+    from ...models import Course, Enrollment
+    section = _get(Section, section_id)
+    n_enroll = Enrollment.query.filter_by(section_id=section.id).count()
+    n_course = Course.query.filter_by(section_id=section.id).count()
+    if n_enroll or n_course:
+        parts = []
+        if n_enroll: parts.append(f"{n_enroll} تسجيل طالب")
+        if n_course: parts.append(f"{n_course} مقرّر")
+        flash(
+            f"لا يمكن حذف الفصل ({section.name}) — مرتبط بـ " + " و".join(parts) + ". "
+            "انقل الطلاب أو احذف المقرّرات أولاً.",
+            "danger",
+        )
+        return redirect(url_for("academic.sections_list"))
+    db.session.delete(section)
+    db.session.commit()
+    flash("تم حذف الفصل نهائياً.", "success")
+    return redirect(url_for("academic.sections_list"))
+
+
 # ---------- helpers ----------
 
 def _get(model, oid):

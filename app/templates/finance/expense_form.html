@@ -1,61 +1,86 @@
-{# New expense form — real double-entry journal entry created server-side. #}
+{# Expense new/edit form. Accepts optional `expense` for edit mode.
+   On edit, the route deletes the original journal entry and posts a
+   fresh one — so the numbers stay in double-entry balance. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}مصروف جديد{% endblock %}
+{% block title %}{% if expense %}تعديل مصروف{% else %}مصروف جديد{% endif %}{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('finance.expenses_list') }}" class="hover:text-primary">المصروفات</a>
 {% endblock %}
 
 {% block page_content %}
+{% set post_url = url_for('finance.expense_edit', exp_id=expense.id) if expense else url_for('finance.expense_new') %}
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">تسجيل مصروف جديد</h1>
-  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if expense %}تعديل المصروف{% else %}تسجيل مصروف جديد{% endif %}
+  </h1>
+  <form method="post" action="{{ post_url }}" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">التاريخ</label>
-        <input name="date" type="date" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <input name="date" type="date"
+               value="{{ expense.date.strftime('%Y-%m-%d') if expense and expense.date else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">المبلغ <span class="text-error">*</span></label>
         <input name="amount" type="number" step="0.01" min="0.01" required
+               value="{{ expense.amount if expense else '' }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">المورد (اختياري)</label>
         <select name="vendor_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— بدون —</option>
-          {% for v in vendors %}<option value="{{ v.id }}">{{ v.name }}</option>{% endfor %}
+          {% for v in vendors %}
+          <option value="{{ v.id }}" {% if expense and expense.vendor_id == v.id %}selected{% endif %}>{{ v.name }}</option>
+          {% endfor %}
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">حساب المصروف <span class="text-error">*</span></label>
         <select name="expense_account_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
-          {% for a in exp_accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+          {% for a in exp_accounts %}
+          <option value="{{ a.id }}" {% if expense and expense.expense_account_id == a.id %}selected{% endif %}>
+            {{ a.code }} — {{ a.name }}
+          </option>
+          {% endfor %}
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">حساب الدفع (النقدية) <span class="text-error">*</span></label>
         <select name="cash_account_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
-          {% for a in cash_accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+          {% for a in cash_accounts %}
+          <option value="{{ a.id }}" {% if expense and expense.cash_account_id == a.id %}selected{% endif %}>
+            {{ a.code }} — {{ a.name }}
+          </option>
+          {% endfor %}
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">مرجع (فاتورة، رقم شيك...)</label>
-        <input name="reference" dir="ltr" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <input name="reference" dir="ltr"
+               value="{{ expense.reference if expense and expense.reference else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">الوصف <span class="text-error">*</span></label>
-      <input name="description" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      <input name="description" required value="{{ expense.description if expense else '' }}"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
 
     <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-3">
       <span class="material-symbols-outlined">info</span>
       <p class="font-body-md text-body-md">
-        عند الحفظ يُنشأ قيد يومية مزدوج: <b>DR</b> حساب المصروف / <b>CR</b> حساب الدفع النقدي.
+        {% if expense %}
+          عند الحفظ، يُلغى القيد الأصلي ويُنشأ قيد مزدوج جديد: <b>DR</b> حساب المصروف / <b>CR</b> حساب الدفع.
+        {% else %}
+          عند الحفظ يُنشأ قيد يومية مزدوج: <b>DR</b> حساب المصروف / <b>CR</b> حساب الدفع النقدي.
+        {% endif %}
       </p>
     </div>
 
@@ -63,7 +88,8 @@
       <a href="{{ url_for('finance.expenses_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">save</span><span>حفظ المصروف وقيده</span>
+        <span class="material-symbols-outlined">save</span>
+        <span>{% if expense %}حفظ التعديلات وإعادة القيد{% else %}حفظ المصروف وقيده{% endif %}</span>
       </button>
     </div>
   </form>

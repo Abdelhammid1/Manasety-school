@@ -32,6 +32,7 @@
             <th class="px-4 py-3 font-label-lg text-primary text-left">خصومات</th>
             <th class="px-4 py-3 font-label-lg text-primary text-left">الصافي</th>
             <th class="px-4 py-3 font-label-lg text-primary">تاريخ الصرف</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
           </tr>
         </thead>
         <tbody>
@@ -49,9 +50,19 @@
             <td class="px-4 py-3 text-left tabular-nums text-error font-bold">-{{ p.deductions|round(2) }}</td>
             <td class="px-4 py-3 text-left tabular-nums font-headline-sm text-primary font-bold">{{ p.net_pay|round(2) }}</td>
             <td class="px-4 py-3 font-label-md text-outline">{{ p.paid_at.strftime('%Y-%m-%d') if p.paid_at else '' }}</td>
+            <td class="px-4 py-3 text-center">
+              <form method="post" action="{{ url_for('hr.payroll_delete', payroll_id=p.id) }}"
+                    onsubmit="return confirm('حذف راتب {{ p.employee.full_name|e }} لشهر {{ p.period_year }}/{{ '%02d'|format(p.period_month) }}؟\n\nسيُلغى قيد اليومية المرتبط. الإجراء غير قابل للتراجع.')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container"
+                        title="حذف مع إلغاء القيد">
+                  <span class="material-symbols-outlined text-sm">delete</span>
+                </button>
+              </form>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="7" class="px-6 py-8 text-center text-on-surface-variant">لا رواتب مسجَّلة.</td></tr>
+          <tr><td colspan="8" class="px-6 py-8 text-center text-on-surface-variant">لا رواتب مسجَّلة.</td></tr>
           {% endfor %}
         </tbody>
       </table>

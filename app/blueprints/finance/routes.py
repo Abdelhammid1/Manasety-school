@@ -124,7 +124,7 @@ def fee_type_new():
         name = (request.form.get("name") or "").strip()
         if not name or rev_id not in [r.id for r in revenues]:
             flash("اسم الرسم وحساب الإيراد مطلوبان.", "danger")
-            return render_template("finance/fee_type_form.html", revenues=revenues)
+            return render_template("finance/fee_type_form.html", revenues=revenues, fee_type=None)
         f = FeeType(
             school_id=_sid(),
             name=name,
@@ -136,7 +136,67 @@ def fee_type_new():
         db.session.commit()
         flash("تم إضافة نوع الرسم.", "success")
         return redirect(url_for("finance.fee_types"))
-    return render_template("finance/fee_type_form.html", revenues=revenues)
+    return render_template("finance/fee_type_form.html", revenues=revenues, fee_type=None)
+
+
+@bp.route("/fee-types/<int:ft_id>/edit", methods=["GET", "POST"])
+@login_required
+@require_permission("finance", "edit")
+def fee_type_edit(ft_id):
+    f = _get(FeeType, ft_id)
+    revenues = (
+        Account.query.filter_by(school_id=_sid(), type="revenue")
+        .order_by(Account.code).all()
+    )
+    if request.method == "POST":
+        rev_id = request.form.get("revenue_account_id", type=int)
+        name = (request.form.get("name") or "").strip()
+        if not name or rev_id not in [r.id for r in revenues]:
+            flash("اسم الرسم وحساب الإيراد مطلوبان.", "danger")
+            return render_template("finance/fee_type_form.html", revenues=revenues, fee_type=f)
+        f.name = name
+        f.default_amount = Decimal(request.form.get("default_amount") or "0")
+        f.installable = bool(request.form.get("installable"))
+        f.revenue_account_id = rev_id
+        db.session.commit()
+        flash("تم تعديل نوع الرسم.", "success")
+        return redirect(url_for("finance.fee_types"))
+    return render_template("finance/fee_type_form.html", revenues=revenues, fee_type=f)
+
+
+@bp.route("/fee-types/<int:ft_id>/toggle", methods=["POST"])
+@login_required
+@require_permission("finance", "edit")
+def fee_type_toggle(ft_id):
+    f = _get(FeeType, ft_id)
+    f.is_active = not f.is_active
+    db.session.commit()
+    flash(
+        f"تم {'تفعيل' if f.is_active else 'إيقاف'} نوع الرسم ({f.name}).",
+        "success",
+    )
+    return redirect(url_for("finance.fee_types"))
+
+
+@bp.route("/fee-types/<int:ft_id>/delete", methods=["POST"])
+@login_required
+@require_permission("finance", "delete")
+def fee_type_delete(ft_id):
+    """Delete a fee-type. Refuses if it's ever been billed on an
+    invoice — InvoiceLine.fee_type_id is NOT NULL so a real delete
+    would either 500 on the FK or strand invoice history."""
+    f = _get(FeeType, ft_id)
+    n_lines = InvoiceLine.query.filter_by(fee_type_id=f.id).count()
+    if n_lines:
+        flash(
+            f"لا يمكن حذف نوع الرسم ({f.name}) — استُخدم على {n_lines} بند فاتورة. "
+            "أوقفه بدلاً من الحذف.",
+            "danger",
+        )
+        return redirect(url_for("finance.fee_types"))
+    db.session.delete(f); db.session.commit()
+    flash("تم حذف نوع الرسم نهائياً.", "success")
+    return redirect(url_for("finance.fee_types"))
 
 
 # ---------- T-8.3 / T-8.4 / T-8.5 Invoices ----------
@@ -466,23 +526,80 @@ def vendors_list():
     return render_template("finance/vendors_list.html", vendors=items)
 
 
+def _vendor_bind(v):
+    """Copy the vendor form's plain-text fields onto `v`."""
+    v.name    = (request.form.get("name")    or "").strip()
+    v.phone   = (request.form.get("phone")   or "").strip() or None
+    v.email   = (request.form.get("email")   or "").strip() or None
+    v.address = (request.form.get("address") or "").strip() or None
+    v.notes   = (request.form.get("notes")   or "").strip() or None
+
+
 @bp.route("/vendors/new", methods=["GET", "POST"])
 @login_required
 @require_permission("expenses", "edit")
 def vendor_new():
     if request.method == "POST":
-        v = Vendor(
-            school_id=_sid(),
-            name=request.form["name"].strip(),
-            phone=(request.form.get("phone") or "").strip() or None,
-            email=(request.form.get("email") or "").strip() or None,
-            address=(request.form.get("address") or "").strip() or None,
-        )
-        db.session.add(v)
-        db.session.commit()
+        v = Vendor(school_id=_sid())
+        _vendor_bind(v)
+        if not v.name:
+            flash("اسم المورد مطلوب.", "danger")
+            return render_template("finance/vendor_form.html", vendor=None)
+        db.session.add(v); db.session.commit()
         flash("تم إضافة المورد.", "success")
         return redirect(url_for("finance.vendors_list"))
-    return render_template("finance/vendor_form.html")
+    return render_template("finance/vendor_form.html", vendor=None)
+
+
+@bp.route("/vendors/<int:vendor_id>/edit", methods=["GET", "POST"])
+@login_required
+@require_permission("expenses", "edit")
+def vendor_edit(vendor_id):
+    v = _get(Vendor, vendor_id)
+    if request.method == "POST":
+        _vendor_bind(v)
+        if not v.name:
+            flash("اسم المورد مطلوب.", "danger")
+            return render_template("finance/vendor_form.html", vendor=v)
+        db.session.commit()
+        flash("تم تعديل المورد.", "success")
+        return redirect(url_for("finance.vendors_list"))
+    return render_template("finance/vendor_form.html", vendor=v)
+
+
+@bp.route("/vendors/<int:vendor_id>/toggle", methods=["POST"])
+@login_required
+@require_permission("expenses", "edit")
+def vendor_toggle(vendor_id):
+    v = _get(Vendor, vendor_id)
+    v.is_active = not v.is_active
+    db.session.commit()
+    flash(
+        f"تم {'تفعيل' if v.is_active else 'إيقاف'} المورد ({v.name}).",
+        "success",
+    )
+    return redirect(url_for("finance.vendors_list"))
+
+
+@bp.route("/vendors/<int:vendor_id>/delete", methods=["POST"])
+@login_required
+@require_permission("expenses", "delete")
+def vendor_delete(vendor_id):
+    """Hard-delete a vendor. Guarded — Expense.vendor_id is nullable so
+    we could null the link, but historical expenses need the vendor
+    name for auditing, so we refuse when any expense still points here."""
+    v = _get(Vendor, vendor_id)
+    n_expenses = Expense.query.filter_by(vendor_id=v.id, school_id=_sid()).count()
+    if n_expenses:
+        flash(
+            f"لا يمكن حذف المورد ({v.name}) — مرتبط بـ {n_expenses} مصروف مسجّل. "
+            "اعطّله بدلاً من الحذف للحفاظ على التاريخ المحاسبي.",
+            "danger",
+        )
+        return redirect(url_for("finance.vendors_list"))
+    db.session.delete(v); db.session.commit()
+    flash("تم حذف المورد نهائياً.", "success")
+    return redirect(url_for("finance.vendors_list"))
 
 
 @bp.route("/expenses")
@@ -543,7 +660,86 @@ def expense_new():
     return render_template(
         "finance/expense_form.html",
         vendors=vendors, exp_accounts=exp_accounts, cash_accounts=cash_accounts,
+        expense=None,
     )
+
+
+@bp.route("/expenses/<int:exp_id>/edit", methods=["GET", "POST"])
+@login_required
+@require_permission("expenses", "edit")
+def expense_edit(exp_id):
+    """Edit an expense. The journal entry is regenerated on save so that
+    accounts, amount, and cash flow stay consistent — we delete the
+    original entry (cascades lines) and post a fresh one, keeping the
+    Expense row's identity."""
+    e = _get(Expense, exp_id)
+    vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
+    exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense").order_by(Account.code).all()
+    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset").order_by(Account.code).all()
+
+    if request.method == "POST":
+        amount = Decimal(request.form["amount"])
+        d = _parse_date(request.form.get("date")) or date.today()
+        ex_account = _get(Account, int(request.form["expense_account_id"]))
+        cash = _get(Account, int(request.form["cash_account_id"]))
+        desc = request.form["description"].strip()
+
+        # Replace the old journal entry with a fresh one carrying the new
+        # numbers. The cascade on JournalEntry.lines removes the old lines.
+        if e.journal_entry_id:
+            old_je = JournalEntry.query.get(e.journal_entry_id)
+            if old_je:
+                db.session.delete(old_je)
+                db.session.flush()
+
+        je = post_journal(
+            school_id=_sid(),
+            entry_date=d,
+            description=f"مصروف: {desc}",
+            reference=(request.form.get("reference") or "").strip() or None,
+            lines=[
+                (ex_account.id, amount, Decimal(0), "مصروف"),
+                (cash.id, Decimal(0), amount, "خروج نقدية"),
+            ],
+            related_kind="expense", related_id=e.id,
+        )
+        e.vendor_id = int(request.form["vendor_id"]) if request.form.get("vendor_id") else None
+        e.expense_account_id = ex_account.id
+        e.cash_account_id = cash.id
+        e.date = d
+        e.amount = amount
+        e.description = desc
+        e.reference = (request.form.get("reference") or "").strip() or None
+        e.journal_entry_id = je.id
+        db.session.commit()
+        flash("تم تعديل المصروف وإعادة قيده محاسبياً.", "success")
+        return redirect(url_for("finance.expenses_list"))
+
+    return render_template(
+        "finance/expense_form.html",
+        vendors=vendors, exp_accounts=exp_accounts, cash_accounts=cash_accounts,
+        expense=e,
+    )
+
+
+@bp.route("/expenses/<int:exp_id>/delete", methods=["POST"])
+@login_required
+@require_permission("expenses", "delete")
+def expense_delete(exp_id):
+    """Delete an expense + its journal entry. Cascade on JournalEntry
+    handles the lines. We keep this destructive rather than reversing —
+    schools running double-entry religiously should post a corrective
+    expense instead, but for typo-fix use the delete is the right tool."""
+    e = _get(Expense, exp_id)
+    je_id = e.journal_entry_id
+    db.session.delete(e)
+    if je_id:
+        je = JournalEntry.query.get(je_id)
+        if je:
+            db.session.delete(je)
+    db.session.commit()
+    flash("تم حذف المصروف وإلغاء قيده المحاسبي.", "success")
+    return redirect(url_for("finance.expenses_list"))
 
 
 # ---------- T-9.2 Reports ----------

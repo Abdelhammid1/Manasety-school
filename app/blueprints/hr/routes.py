@@ -7,7 +7,7 @@ from flask_login import current_user, login_required
 from . import bp
 from ..utils import require_permission
 from ...extensions import db
-from ...models import Account, Employee, Payroll, User
+from ...models import Account, Employee, JournalEntry, Payroll, User
 from ...services.accounting import post_journal
 
 
@@ -32,26 +32,31 @@ def employees_list():
     return render_template("hr/employees_list.html", employees=items)
 
 
+def _employee_bind(e):
+    """Copy the employee-form fields onto `e`. Shared new + edit."""
+    e.full_name    = (request.form.get("full_name")    or "").strip()
+    e.job_title    = (request.form.get("job_title")    or "").strip()
+    e.base_salary  = Decimal(request.form.get("base_salary") or "0")
+    e.national_id  = (request.form.get("national_id")  or "").strip() or None
+    e.phone        = (request.form.get("phone")        or "").strip() or None
+    e.email        = (request.form.get("email")        or "").strip() or None
+    e.bank_account = (request.form.get("bank_account") or "").strip() or None
+    e.hire_date    = _parse_date(request.form.get("hire_date"))
+    e.user_id      = request.form.get("user_id", type=int) or None
+
+
 @bp.route("/employees/new", methods=["GET", "POST"])
 @login_required
 @require_permission("payroll", "edit")
 def employee_new():
     users = User.query.filter_by(school_id=_sid()).order_by(User.full_name).all()
     if request.method == "POST":
-        e = Employee(
-            school_id=_sid(),
-            full_name=request.form["full_name"].strip(),
-            job_title=request.form["job_title"].strip(),
-            base_salary=Decimal(request.form.get("base_salary") or "0"),
-            national_id=(request.form.get("national_id") or "").strip() or None,
-            phone=(request.form.get("phone") or "").strip() or None,
-            email=(request.form.get("email") or "").strip() or None,
-            hire_date=_parse_date(request.form.get("hire_date")),
-            bank_account=(request.form.get("bank_account") or "").strip() or None,
-            user_id=int(request.form["user_id"]) if request.form.get("user_id") else None,
-        )
-        db.session.add(e)
-        db.session.commit()
+        e = Employee(school_id=_sid())
+        _employee_bind(e)
+        if not e.full_name or not e.job_title:
+            flash("الاسم والمسمّى الوظيفي مطلوبان.", "danger")
+            return render_template("hr/employee_form.html", employee=None, users=users)
+        db.session.add(e); db.session.commit()
         flash(f"تم إضافة الموظف {e.full_name}.", "success")
         return redirect(url_for("hr.employee_detail", employee_id=e.id))
     return render_template("hr/employee_form.html", employee=None, users=users)
@@ -63,6 +68,58 @@ def employee_new():
 def employee_detail(employee_id):
     e = _get(Employee, employee_id)
     return render_template("hr/employee_detail.html", employee=e)
+
+
+@bp.route("/employees/<int:employee_id>/edit", methods=["GET", "POST"])
+@login_required
+@require_permission("payroll", "edit")
+def employee_edit(employee_id):
+    e = _get(Employee, employee_id)
+    users = User.query.filter_by(school_id=_sid()).order_by(User.full_name).all()
+    if request.method == "POST":
+        _employee_bind(e)
+        if not e.full_name or not e.job_title:
+            flash("الاسم والمسمّى الوظيفي مطلوبان.", "danger")
+            return render_template("hr/employee_form.html", employee=e, users=users)
+        db.session.commit()
+        flash("تم تعديل بيانات الموظف.", "success")
+        return redirect(url_for("hr.employee_detail", employee_id=e.id))
+    return render_template("hr/employee_form.html", employee=e, users=users)
+
+
+@bp.route("/employees/<int:employee_id>/toggle", methods=["POST"])
+@login_required
+@require_permission("payroll", "edit")
+def employee_toggle(employee_id):
+    e = _get(Employee, employee_id)
+    e.is_active = not e.is_active
+    db.session.commit()
+    flash(
+        f"تم {'تفعيل' if e.is_active else 'إيقاف'} الموظف ({e.full_name}).",
+        "success",
+    )
+    return redirect(url_for("hr.employees_list"))
+
+
+@bp.route("/employees/<int:employee_id>/delete", methods=["POST"])
+@login_required
+@require_permission("payroll", "delete")
+def employee_delete(employee_id):
+    """Delete an employee. Refuses if any payroll has been issued —
+    Payroll.employee_id is NOT NULL, and deleting one would corrupt
+    the accounting history. Deactivate instead when the employee left."""
+    e = _get(Employee, employee_id)
+    n_payrolls = Payroll.query.filter_by(employee_id=e.id).count()
+    if n_payrolls:
+        flash(
+            f"لا يمكن حذف الموظف ({e.full_name}) — له {n_payrolls} راتب مسجّل. "
+            "أوقفه بدلاً من الحذف.",
+            "danger",
+        )
+        return redirect(url_for("hr.employees_list"))
+    db.session.delete(e); db.session.commit()
+    flash("تم حذف الموظف نهائياً.", "success")
+    return redirect(url_for("hr.employees_list"))
 
 
 # ---------- T-9.3 Payroll ----------
@@ -155,6 +212,30 @@ def payroll_new():
         employees=employees, cash_accounts=cash_accounts,
         today=date.today(),
     )
+
+
+@bp.route("/payroll/<int:payroll_id>/delete", methods=["POST"])
+@login_required
+@require_permission("payroll", "delete")
+def payroll_delete(payroll_id):
+    """Delete a payroll row + its journal entry. Used when the payroll
+    was posted by mistake; the employee/period unique constraint means
+    without this we couldn't re-issue a corrected payroll for the same
+    month."""
+    p = Payroll.query.filter_by(id=payroll_id, school_id=_sid()).first_or_404()
+    je_id = p.journal_entry_id
+    employee_name = p.employee.full_name if p.employee else "—"
+    db.session.delete(p)
+    if je_id:
+        je = JournalEntry.query.get(je_id)
+        if je:
+            db.session.delete(je)
+    db.session.commit()
+    flash(
+        f"تم حذف راتب {employee_name} وإلغاء قيده المحاسبي.",
+        "success",
+    )
+    return redirect(url_for("hr.payroll_list"))
 
 
 def _parse_date(s):

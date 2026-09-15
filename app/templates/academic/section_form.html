@@ -1,4 +1,6 @@
-{# Section form. #}
+{# Section new/edit form. On edit, year_id + grade_id are locked
+   (structural — moving sections between grades corrupts every child
+   record). New allows picking grade freely. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}{% if section %}تعديل فصل{% else %}فصل جديد{% endif %}{% endblock %}
 {% block topbar_crumb %}
@@ -7,34 +9,65 @@
 {% endblock %}
 
 {% block page_content %}
+{% set post_url = url_for('academic.section_edit', section_id=section.id) if section else url_for('academic.section_new') %}
 <div class="max-w-2xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">إضافة فصل جديد</h1>
-  <p class="font-body-md text-body-md text-on-surface-variant">السنة: <b dir="ltr">{{ year.name }}</b></p>
-  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if section %}تعديل الفصل: {{ section.grade.name }} — {{ section.name }}{% else %}إضافة فصل جديد{% endif %}
+  </h1>
+  <p class="font-body-md text-body-md text-on-surface-variant">
+    السنة: <b dir="ltr">{{ year.name }}</b>
+    {% if section %} · الصف: <b>{{ section.grade.name }}</b>{% endif %}
+  </p>
+
+  <form method="post" action="{{ post_url }}" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <div class="flex flex-col gap-1.5">
-      <label class="font-label-md text-label-md text-on-surface font-bold">الصف <span class="text-error">*</span></label>
-      <select name="grade_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-        <option value="">— اختر —</option>
-        {% for g in grades %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
-      </select>
-    </div>
+
+    {% if section %}
+      {# Grade + year locked on edit — moving them would strand
+         enrollment/course/attendance history. Route ignores grade_id
+         posted on edit; the field is just informational. #}
+      <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start gap-3">
+        <span class="material-symbols-outlined mt-0.5">lock</span>
+        <div class="font-body-md">
+          الصف والسنة الدراسية للفصل مقفلان — تعديلهما بيلمس تسجيلات الطلاب والمقرّرات والحضور.
+          لو محتاج تنقل الطلاب لصف تاني استخدم <b>ترقية نهاية السنة</b> أو <b>نقل طالب</b>.
+        </div>
+      </div>
+    {% else %}
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الصف <span class="text-error">*</span></label>
+        <select name="grade_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر —</option>
+          {% for g in grades %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+    {% endif %}
+
     <div class="grid grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">اسم الفصل <span class="text-error">*</span></label>
-        <input name="name" required placeholder="أ / ب / ج"
+        <input name="name" required
+               value="{{ section.name if section else '' }}"
+               placeholder="أ / ب / ج"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">السعة القصوى</label>
-        <input name="capacity" type="number" min="1" max="60" value="30"
+        <input name="capacity" type="number" min="1" max="60"
+               value="{{ section.capacity if section else 30 }}"
                class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+        {% if section and section.current_count %}
+        <p class="font-label-xs text-outline">مسجّل حالياً: {{ section.current_count }} — لا يمكن ضبطها لأقل من ذلك.</p>
+        {% endif %}
       </div>
     </div>
-    <div class="flex justify-end">
+
+    <div class="flex items-center justify-between">
+      <a href="{{ url_for('academic.sections_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">save</span><span>إضافة الفصل</span>
+        <span class="material-symbols-outlined">save</span>
+        <span>{% if section %}حفظ التعديلات{% else %}إضافة الفصل{% endif %}</span>
       </button>
     </div>
   </form>

@@ -50,6 +50,7 @@
             <th class="px-4 py-3 font-label-lg text-primary">المورد</th>
             <th class="px-4 py-3 font-label-lg text-primary">حساب المصروف</th>
             <th class="px-4 py-3 font-label-lg text-primary text-left">المبلغ</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">إجراءات</th>
           </tr>
         </thead>
         <tbody>
@@ -60,9 +61,24 @@
             <td class="px-4 py-3 font-label-md">{{ e.vendor.name if e.vendor else '—' }}</td>
             <td class="px-4 py-3 font-label-md text-on-surface-variant">{{ e.expense_account.name if e.expense_account else '—' }}</td>
             <td class="px-4 py-3 text-left font-label-lg text-error font-bold tabular-nums">{{ e.amount|round(2) }}</td>
+            <td class="px-4 py-3">
+              <div class="flex items-center justify-center gap-1">
+                <a href="{{ url_for('finance.expense_edit', exp_id=e.id) }}"
+                   class="h-8 px-2 rounded-lg bg-surface-container-low text-primary font-label-xs font-bold flex items-center gap-1 hover:bg-surface-container">
+                  <span class="material-symbols-outlined text-xs">edit</span><span>تعديل</span>
+                </a>
+                <form method="post" action="{{ url_for('finance.expense_delete', exp_id=e.id) }}"
+                      onsubmit="return confirm('حذف المصروف ({{ e.description|e }})؟\n\nسيُلغى قيده المحاسبي أيضاً.')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="h-8 px-2 rounded-lg bg-error-container/40 text-error font-label-xs font-bold flex items-center gap-1 hover:bg-error-container">
+                    <span class="material-symbols-outlined text-xs">delete</span><span>حذف</span>
+                  </button>
+                </form>
+              </div>
+            </td>
           </tr>
           {% else %}
-          <tr><td colspan="5" class="px-6 py-8 text-center text-on-surface-variant">لا مصروفات في هذه الفترة.</td></tr>
+          <tr><td colspan="6" class="px-6 py-8 text-center text-on-surface-variant">لا مصروفات في هذه الفترة.</td></tr>
           {% endfor %}
         </tbody>
       </table>

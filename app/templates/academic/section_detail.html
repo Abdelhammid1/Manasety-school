@@ -29,15 +29,26 @@
           </span>
         </div>
       </div>
-      <div class="flex items-center gap-space-sm">
+      <div class="flex items-center gap-space-sm flex-wrap">
         <a href="{{ url_for('attendance.mark', section_id=section.id) }}"
-           class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
+           class="h-11 px-4 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">fact_check</span><span>رصد الحضور</span>
         </a>
         <a href="{{ url_for('attendance.section_report', section_id=section.id) }}"
-           class="h-11 px-5 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
+           class="h-11 px-4 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الفصل</span>
         </a>
+        <a href="{{ url_for('academic.section_edit', section_id=section.id) }}"
+           class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">edit</span><span>تعديل</span>
+        </a>
+        <form method="post" action="{{ url_for('academic.section_delete', section_id=section.id) }}"
+              onsubmit="return confirm('حذف الفصل ({{ section.grade.name }} — {{ section.name }})؟\n\nلن ينفذ لو فيه طلاب أو مقرّرات مرتبطة.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="h-11 px-4 rounded-xl bg-white/10 hover:bg-error-container text-white hover:text-on-error-container font-label-lg font-bold flex items-center gap-2 transition-colors">
+            <span class="material-symbols-outlined text-lg">delete</span><span>حذف الفصل</span>
+          </button>
+        </form>
       </div>
     </div>
   </section>

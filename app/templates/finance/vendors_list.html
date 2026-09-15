@@ -35,6 +35,27 @@
           {% if v.address %}<span class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ v.address }}</span>{% endif %}
         </div>
       </div>
+      <div class="mt-space-md flex items-center gap-2">
+        <a href="{{ url_for('finance.vendor_edit', vendor_id=v.id) }}"
+           class="flex-1 h-9 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
+          <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
+        </a>
+        <form method="post" action="{{ url_for('finance.vendor_toggle', vendor_id=v.id) }}" class="flex-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="w-full h-9 rounded-lg font-label-md font-bold flex items-center justify-center gap-1
+                  {% if v.is_active %}bg-tertiary-fixed text-on-tertiary-fixed-variant hover:bg-tertiary-fixed/70{% else %}bg-secondary-container/40 text-secondary hover:bg-secondary-container/70{% endif %}">
+            <span class="material-symbols-outlined text-sm">{% if v.is_active %}pause_circle{% else %}play_circle{% endif %}</span>
+            <span>{% if v.is_active %}إيقاف{% else %}تفعيل{% endif %}</span>
+          </button>
+        </form>
+      </div>
+      <form method="post" action="{{ url_for('finance.vendor_delete', vendor_id=v.id) }}" class="mt-2"
+            onsubmit="return confirm('حذف المورد ({{ v.name|e }}) نهائياً؟\n\nلن ينفذ إن كان مرتبطاً بأي مصروف — استخدم الإيقاف بدل الحذف.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="w-full h-9 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center justify-center gap-1 hover:bg-error-container">
+          <span class="material-symbols-outlined text-sm">delete</span><span>حذف</span>
+        </button>
+      </form>
     </div>
     {% else %}
     <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
