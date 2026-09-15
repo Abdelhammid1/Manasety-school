@@ -1,0 +1,165 @@
+{# Question bank — the school's reusable question pool. Filterable list
+   scoped to school; every row edits/deletes/previews. From this page the
+   teacher heads to a specific quiz's `pick` route to attach picked rows.
+   No static demo — everything comes from lms_bank_questions. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}بنك الأسئلة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">بنك الأسئلة</span>
+{% endblock %}
+
+{% set kind_labels = {'mcq':'اختيار من متعدد','multi':'إجابات متعددة','tf':'صح/خطأ','short':'إجابة قصيرة','essay':'مقالي'} %}
+{% set diff_labels = {'easy':'سهل','medium':'متوسط','hard':'صعب'} %}
+{% set diff_colors = {'easy':'bg-[#ECFDF5] text-[#065F46]', 'medium':'bg-tertiary-fixed text-on-tertiary-fixed-variant', 'hard':'bg-error-container text-on-error-container'} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <!-- Hero + CTAs -->
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-label-md text-on-surface-variant">مكتبة أسئلة المدرسة</span>
+        <h1 class="font-headline-lg text-headline-lg text-primary font-bold mt-1">بنك الأسئلة</h1>
+        <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+          {{ total }} سؤال مسجّل — اكتب سؤالك مرة واحدة، وأعِد استخدامه في أي اختبار.
+        </p>
+      </div>
+      <a href="{{ url_for('lms.bank_new') }}"
+         class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">add_circle</span><span>سؤال جديد</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- Filters -->
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <form method="get" action="{{ url_for('lms.bank_home') }}"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">المادة</label>
+        <select name="subject_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for s in subjects %}<option value="{{ s.id }}" {% if selected.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الصف</label>
+        <select name="grade_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for g in grades %}<option value="{{ g.id }}" {% if selected.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">السنة</label>
+        <select name="year_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for y in years %}<option value="{{ y.id }}" {% if selected.year_id == y.id %}selected{% endif %}>{{ y.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">النوع</label>
+        <select name="kind" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for k, lbl in kind_labels.items() %}<option value="{{ k }}" {% if selected.kind == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الصعوبة</label>
+        <select name="difficulty" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for k, lbl in diff_labels.items() %}<option value="{{ k }}" {% if selected.difficulty == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">وسم</label>
+        <input name="tag" value="{{ selected.tag }}" placeholder="مثال: ضرب"
+               class="h-10 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="font-label-md text-on-surface font-bold">بحث نصي</label>
+        <input name="q" value="{{ selected.q }}" placeholder="ابحث داخل نص السؤال…"
+               class="h-10 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="md:col-span-4 flex items-center justify-end gap-space-sm">
+        <a href="{{ url_for('lms.bank_home') }}"
+           class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة تعيين</a>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <!-- Results -->
+  <section class="flex flex-col gap-space-sm">
+    {% for it in items %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-start justify-between gap-space-md flex-wrap">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-space-sm flex-wrap">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-md font-semibold">
+              <span class="material-symbols-outlined text-sm">quiz</span>
+              {{ kind_labels.get(it.kind, it.kind) }}
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-md font-semibold {{ diff_colors.get(it.difficulty, 'bg-surface-container text-on-surface-variant') }}">
+              {{ diff_labels.get(it.difficulty, it.difficulty) }}
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-md font-semibold">
+              <span class="material-symbols-outlined text-sm">emoji_events</span>{{ it.points }} نقطة
+            </span>
+          </div>
+          <h3 class="mt-2 font-title-md text-title-md text-on-surface font-bold whitespace-pre-line leading-relaxed">{{ it.prompt }}</h3>
+          <div class="mt-2 flex items-center gap-space-sm flex-wrap text-label-md">
+            {% if it.subject_id %}<span class="text-on-surface-variant"><span class="material-symbols-outlined text-sm align-middle">book</span> {{ (subjects | selectattr('id', 'equalto', it.subject_id) | first).name if (subjects | selectattr('id', 'equalto', it.subject_id) | list) else '—' }}</span>{% endif %}
+            {% if it.grade_id %}<span class="text-on-surface-variant"><span class="material-symbols-outlined text-sm align-middle">stairs</span> {{ (grades | selectattr('id', 'equalto', it.grade_id) | first).name if (grades | selectattr('id', 'equalto', it.grade_id) | list) else '—' }}</span>{% endif %}
+            {% if it.academic_year_id %}<span class="text-on-surface-variant" dir="ltr"><span class="material-symbols-outlined text-sm align-middle">event</span> {{ (years | selectattr('id', 'equalto', it.academic_year_id) | first).name if (years | selectattr('id', 'equalto', it.academic_year_id) | list) else '—' }}</span>{% endif %}
+            {% for t in it.tag_list %}<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs">#{{ t }}</span>{% endfor %}
+          </div>
+          {% if it.kind in ('mcq','multi','tf') and it.choices %}
+          <ul class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-1.5">
+            {% for c in it.choices %}
+            <li class="flex items-center gap-2 px-3 py-1.5 rounded-lg {% if c.is_correct %}bg-[#ECFDF5] text-[#065F46] font-bold{% else %}bg-surface-container-low text-on-surface{% endif %}">
+              {% if c.is_correct %}<span class="material-symbols-outlined text-sm">check_circle</span>{% else %}<span class="w-2 h-2 rounded-full bg-outline"></span>{% endif %}
+              <span>{{ c.label }}</span>
+            </li>
+            {% endfor %}
+          </ul>
+          {% elif it.kind == 'short' and it.correct_short %}
+          <p class="mt-3 px-3 py-1.5 rounded-lg bg-[#ECFDF5] text-[#065F46] font-label-md font-bold inline-block">الإجابة: {{ it.correct_short }}</p>
+          {% endif %}
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+          <a href="{{ url_for('lms.bank_edit', bid=it.id) }}"
+             class="h-9 px-3 rounded-lg bg-primary-container/20 text-primary font-label-md font-bold flex items-center gap-1 hover:bg-primary-container/40">
+            <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
+          </a>
+          <form method="post" action="{{ url_for('lms.bank_delete', bid=it.id) }}"
+                onsubmit="return confirm('حذف السؤال من البنك؟ الاختبارات القديمة التي تحتوي نسخة منه لن تتأثر.')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="h-9 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
+              <span class="material-symbols-outlined text-sm">delete</span><span>حذف</span>
+            </button>
+          </form>
+        </div>
+      </div>
+    </article>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">inventory_2</span>
+      <p class="mt-3 font-body-md text-on-surface-variant">
+        {% if total %}لا توجد نتائج مطابقة لفلاترك.{% else %}البنك فارغ — أضف أول سؤال.{% endif %}
+      </p>
+      <a href="{{ url_for('lms.bank_new') }}" class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-lg">add</span>إضافة سؤال
+      </a>
+    </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

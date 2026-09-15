@@ -40,6 +40,8 @@ from ...extensions import db
 from ...models import (
     Announcement, Course, CourseAssignment, Quiz, Question, Choice,
     QuizAttempt, Answer, Section, Student, Submission,
+    BankQuestion, BankChoice,
+    Subject, Grade, AcademicYear,
 )
 
 
@@ -278,6 +280,243 @@ def quiz_question_delete(qid):
     db.session.delete(q); db.session.commit()
     flash("تم حذف السؤال.", "success")
     return redirect(url_for("lms.quiz_questions", qid=quiz_id))
+
+
+# ─── Question Bank ────────────────────────────────────────────────────────
+#
+# The school's reusable question pool. Teachers write questions once (tagged
+# with subject / grade / year / difficulty) and pick from the bank when
+# composing quizzes — the picker COPIES the question + its choices into
+# `lms_questions` + `lms_choices` and keeps a `source_bank_id` back-pointer.
+
+def _bank_query():
+    """Bank rows scoped to the current user's school + optional filters."""
+    q = BankQuestion.query.filter_by(school_id=current_user.school_id)
+    subj = request.args.get("subject_id", type=int)
+    grade = request.args.get("grade_id", type=int)
+    year  = request.args.get("year_id",  type=int)
+    diff  = request.args.get("difficulty")
+    kind  = request.args.get("kind")
+    tag   = (request.args.get("tag") or "").strip()
+    search = (request.args.get("q") or "").strip()
+    if subj:  q = q.filter(BankQuestion.subject_id == subj)
+    if grade: q = q.filter(BankQuestion.grade_id == grade)
+    if year:  q = q.filter(BankQuestion.academic_year_id == year)
+    if diff:  q = q.filter(BankQuestion.difficulty == diff)
+    if kind:  q = q.filter(BankQuestion.kind == kind)
+    if tag:   q = q.filter(BankQuestion.tags.ilike(f"%{tag}%"))
+    if search:
+        q = q.filter(BankQuestion.prompt.ilike(f"%{search}%"))
+    return q.order_by(BankQuestion.updated_at.desc())
+
+
+def _bank_filter_options():
+    """Dropdown data for bank filters, all scoped to the current school."""
+    sid = current_user.school_id
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all() \
+        if hasattr(Subject, "school_id") else Subject.query.order_by(Subject.name).all()
+    grades   = Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all() \
+        if hasattr(Grade, "school_id") else Grade.query.order_by(Grade.name).all()
+    years    = AcademicYear.query.filter_by(school_id=sid).order_by(AcademicYear.start_date.desc()).all() \
+        if hasattr(AcademicYear, "school_id") else AcademicYear.query.order_by(AcademicYear.start_date.desc()).all()
+    return subjects, grades, years
+
+
+@bp.route("/bank", endpoint="bank_home")
+@login_required
+def bank_home():
+    """Bank browser — filterable list of the school's questions."""
+    items = _bank_query().limit(200).all()
+    subjects, grades, years = _bank_filter_options()
+    total = BankQuestion.query.filter_by(school_id=current_user.school_id).count()
+    return render_template(
+        "lms/bank_list.html",
+        items=items, total=total,
+        subjects=subjects, grades=grades, years=years,
+        selected={
+            "subject_id": request.args.get("subject_id", type=int),
+            "grade_id":   request.args.get("grade_id",   type=int),
+            "year_id":    request.args.get("year_id",    type=int),
+            "difficulty": request.args.get("difficulty", ""),
+            "kind":       request.args.get("kind", ""),
+            "tag":        (request.args.get("tag") or "").strip(),
+            "q":          (request.args.get("q")   or "").strip(),
+        },
+    )
+
+
+@bp.route("/bank/new", methods=["GET", "POST"], endpoint="bank_new")
+@login_required
+def bank_new():
+    if request.method == "POST":
+        return _bank_save(None)
+    subjects, grades, years = _bank_filter_options()
+    return render_template("lms/bank_form.html",
+                           item=None, subjects=subjects, grades=grades, years=years)
+
+
+@bp.route("/bank/<int:bid>/edit", methods=["GET", "POST"], endpoint="bank_edit")
+@login_required
+def bank_edit(bid):
+    item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
+    if request.method == "POST":
+        return _bank_save(item)
+    subjects, grades, years = _bank_filter_options()
+    return render_template("lms/bank_form.html",
+                           item=item, subjects=subjects, grades=grades, years=years)
+
+
+def _bank_save(item):
+    """Shared create/update path — writes the BankQuestion + its BankChoices."""
+    kind = request.form.get("kind", "mcq")
+    prompt = (request.form.get("prompt") or "").strip()
+    if not prompt:
+        flash("نص السؤال مطلوب.", "danger")
+        return redirect(request.url)
+
+    is_new = item is None
+    if is_new:
+        item = BankQuestion(school_id=current_user.school_id,
+                            created_by_id=getattr(current_user, "id", None))
+        db.session.add(item)
+
+    item.kind = kind
+    item.prompt = prompt
+    item.points = Decimal(request.form.get("points") or "1")
+    item.correct_short = (request.form.get("correct_short") or "").strip()
+    item.difficulty = request.form.get("difficulty") or "medium"
+    item.tags = (request.form.get("tags") or "").strip()
+    item.subject_id       = request.form.get("subject_id", type=int) or None
+    item.grade_id         = request.form.get("grade_id",   type=int) or None
+    item.academic_year_id = request.form.get("year_id",    type=int) or None
+    db.session.flush()
+
+    # Rewrite choices from the form. For mcq/multi/tf we accept parallel
+    # choice_label[] and correct_choice[] arrays — index-aligned. For a
+    # brand-new mcq/tf with no explicit choices, seed the defaults.
+    labels = request.form.getlist("choice_label")
+    correct_flags = set(request.form.getlist("choice_correct"))  # values are indices as strings
+
+    # Wipe & rewrite (cascade removes old BankChoice rows).
+    for c in list(item.choices):
+        db.session.delete(c)
+    db.session.flush()
+
+    if kind in ("mcq", "multi", "tf"):
+        if not labels:
+            if kind == "tf":
+                labels = ["صح", "خطأ"]
+                correct_flags = {"0"}
+            else:
+                labels = ["الخيار أ", "الخيار ب", "الخيار ج", "الخيار د"]
+                correct_flags = correct_flags or {"0"}
+        for i, label in enumerate(labels):
+            label = (label or "").strip()
+            if not label:
+                continue
+            db.session.add(BankChoice(
+                question_id=item.id, order_index=i + 1, label=label,
+                is_correct=(str(i) in correct_flags),
+            ))
+
+    db.session.commit()
+    flash("تم حفظ السؤال في البنك." if is_new else "تم تعديل السؤال.", "success")
+    return redirect(url_for("lms.bank_home"))
+
+
+@bp.route("/bank/<int:bid>/delete", methods=["POST"], endpoint="bank_delete")
+@login_required
+def bank_delete(bid):
+    item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
+    db.session.delete(item); db.session.commit()
+    flash("تم حذف السؤال من البنك.", "success")
+    return redirect(url_for("lms.bank_home"))
+
+
+# --- Picker: pull questions from the bank into a specific quiz -----------
+
+@bp.route("/quizzes/<int:qid>/pick", methods=["GET", "POST"], endpoint="quiz_pick_from_bank")
+@login_required
+def quiz_pick_from_bank(qid):
+    """GET: filterable list of bank rows with checkboxes.
+    POST: for each ticked bank id, clone the BankQuestion + its BankChoices
+    into fresh Question + Choice rows attached to this quiz.
+
+    Cloning (not referencing) is deliberate — a bank edit later must NOT
+    silently change an in-flight quiz, and a bank deletion must not remove
+    questions students already saw. `Question.source_bank_id` keeps the
+    audit trail. Duplicate picks are skipped so the teacher can safely
+    re-run the picker.
+    """
+    quiz = Quiz.query.get_or_404(qid)
+
+    if request.method == "POST":
+        picked_ids = [int(x) for x in request.form.getlist("bank_ids") if x.isdigit()]
+        if not picked_ids:
+            flash("لم يتم اختيار أي سؤال.", "warning")
+            return redirect(url_for("lms.quiz_pick_from_bank", qid=quiz.id))
+
+        # skip anything already cloned into this quiz
+        existing_sources = {
+            q.source_bank_id for q in quiz.questions if q.source_bank_id
+        }
+        pool = BankQuestion.query.filter(
+            BankQuestion.school_id == current_user.school_id,
+            BankQuestion.id.in_(picked_ids),
+        ).all()
+
+        last = max((qq.order_index for qq in quiz.questions), default=0)
+        added = 0
+        skipped = 0
+        for bq in pool:
+            if bq.id in existing_sources:
+                skipped += 1
+                continue
+            last += 1
+            q = Question(
+                quiz_id=quiz.id,
+                order_index=last,
+                kind=bq.kind,
+                prompt=bq.prompt,
+                points=bq.points or Decimal("1"),
+                correct_short=bq.correct_short or "",
+                source_bank_id=bq.id,
+            )
+            db.session.add(q); db.session.flush()
+            for bc in bq.choices:
+                db.session.add(Choice(
+                    question_id=q.id,
+                    order_index=bc.order_index,
+                    label=bc.label,
+                    is_correct=bc.is_correct,
+                ))
+            added += 1
+
+        db.session.commit()
+        msg = f"تمت إضافة {added} سؤال."
+        if skipped:
+            msg += f" (تم تجاهل {skipped} سؤال موجود مسبقاً في هذا الاختبار.)"
+        flash(msg, "success" if added else "warning")
+        return redirect(url_for("lms.quiz_questions", qid=quiz.id))
+
+    # GET
+    items = _bank_query().limit(300).all()
+    subjects, grades, years = _bank_filter_options()
+    already = {q.source_bank_id for q in quiz.questions if q.source_bank_id}
+    return render_template(
+        "lms/bank_picker.html",
+        quiz=quiz, items=items, already=already,
+        subjects=subjects, grades=grades, years=years,
+        selected={
+            "subject_id": request.args.get("subject_id", type=int),
+            "grade_id":   request.args.get("grade_id",   type=int),
+            "year_id":    request.args.get("year_id",    type=int),
+            "difficulty": request.args.get("difficulty", ""),
+            "kind":       request.args.get("kind", ""),
+            "tag":        (request.args.get("tag") or "").strip(),
+            "q":          (request.args.get("q")   or "").strip(),
+        },
+    )
 
 
 # ─── Assignment submission (existing student flow, unchanged) ─────────────

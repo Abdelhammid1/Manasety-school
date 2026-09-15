@@ -14,6 +14,7 @@ from .material import Material
 from .lms import (
     Course, Lesson, CourseAssignment, Submission,
     Quiz, Question, Choice, QuizAttempt, Answer,
+    BankQuestion, BankChoice,
     Announcement,
 )
 
@@ -32,5 +33,6 @@ __all__ = [
     # LMS
     "Course", "Lesson", "CourseAssignment", "Submission",
     "Quiz", "Question", "Choice", "QuizAttempt", "Answer",
+    "BankQuestion", "BankChoice",
     "Announcement",
 ]

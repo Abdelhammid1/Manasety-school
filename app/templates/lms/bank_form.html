@@ -1,0 +1,181 @@
+{# Bank question add/edit form. Kind switches the visible sections:
+   - mcq/multi: rows of choices with a checkbox for correct (multi allows
+     more than one)
+   - tf: two fixed rows, radio picks the correct one
+   - short: correct_short text
+   - essay: nothing to configure
+   Tags stored as comma-separated on the row. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if item %}تعديل سؤال في البنك{% else %}سؤال جديد في البنك{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.bank_home') }}" class="hover:text-primary">بنك الأسئلة</a>
+{% endblock %}
+
+{% block page_content %}
+{% set post_url = url_for('lms.bank_edit', bid=item.id) if item else url_for('lms.bank_new') %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if item %}تعديل سؤال في البنك{% else %}إضافة سؤال جديد للبنك{% endif %}
+  </h1>
+
+  <form method="post" action="{{ post_url }}" id="bankForm"
+        class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Kind + points row -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">نوع السؤال</label>
+        <select name="kind" id="kindSel" class="h-12 px-4 rounded-xl bg-surface-container-low" onchange="toggleKind()">
+          <option value="mcq"   {% if item and item.kind == 'mcq'   %}selected{% endif %}>اختيار من متعدد</option>
+          <option value="multi" {% if item and item.kind == 'multi' %}selected{% endif %}>إجابات متعددة صحيحة</option>
+          <option value="tf"    {% if item and item.kind == 'tf'    %}selected{% endif %}>صح / خطأ</option>
+          <option value="short" {% if item and item.kind == 'short' %}selected{% endif %}>إجابة قصيرة</option>
+          <option value="essay" {% if item and item.kind == 'essay' %}selected{% endif %}>مقالي (تصحيح يدوي)</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">النقاط</label>
+        <input name="points" type="number" min="0.5" step="0.5" value="{{ item.points if item else 1 }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">الصعوبة</label>
+        <select name="difficulty" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="easy"   {% if item and item.difficulty == 'easy'   %}selected{% endif %}>سهل</option>
+          <option value="medium" {% if not item or item.difficulty == 'medium' %}selected{% endif %}>متوسط</option>
+          <option value="hard"   {% if item and item.difficulty == 'hard'   %}selected{% endif %}>صعب</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Scope: subject / grade / year -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">المادة</label>
+        <select name="subject_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}" {% if item and item.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">الصف</label>
+        <select name="grade_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+          {% for g in grades %}
+          <option value="{{ g.id }}" {% if item and item.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">السنة الدراسية</label>
+        <select name="year_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+          {% for y in years %}
+          <option value="{{ y.id }}" {% if item and item.academic_year_id == y.id %}selected{% endif %}>{{ y.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
+    <!-- Prompt -->
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-on-surface font-bold">نص السؤال <span class="text-error">*</span></label>
+      <textarea name="prompt" required rows="4"
+                placeholder="اكتب السؤال هنا…"
+                class="w-full px-4 py-3 rounded-xl bg-surface-container-low leading-loose font-body-md">{{ item.prompt if item else '' }}</textarea>
+    </div>
+
+    <!-- Tags -->
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-on-surface font-bold">وسوم (اختياري) — افصل بينها بفاصلة</label>
+      <input name="tags" value="{{ item.tags if item else '' }}" placeholder="مثال: ضرب, الفصل الثاني, تطبيقات حياتية"
+             class="h-11 px-4 rounded-xl bg-surface-container-low">
+    </div>
+
+    <!-- Kind-specific answer sections -->
+    {# Choices — for mcq / multi / tf. We render up to 6 rows; kind decides
+       whether the "correct" input is a radio (mcq/tf → single correct) or a
+       checkbox (multi → many correct). Rows with empty labels are skipped
+       server-side. #}
+    {% set current_labels = item.choices|map(attribute='label')|list if item else [] %}
+    {% set current_correct = item.choices|selectattr('is_correct')|map(attribute='order_index')|list if item else [] %}
+    <div id="choicesBox" class="flex flex-col gap-1.5">
+      <label class="font-label-md text-on-surface font-bold">الخيارات — ضع علامة على الإجابة الصحيحة</label>
+      <div id="choiceRows" class="flex flex-col gap-2">
+        {% set default_labels = ['الخيار أ','الخيار ب','الخيار ج','الخيار د'] %}
+        {% for i in range(6) %}
+          {% set lbl = current_labels[i] if current_labels|length > i else (default_labels[i] if i < 4 else '') %}
+          {% set correct = (i+1) in current_correct %}
+          <label class="flex items-center gap-3 p-2.5 rounded-xl bg-surface-container-low" data-choice-row>
+            <input type="checkbox" name="choice_correct" value="{{ i }}" {% if correct %}checked{% endif %}
+                   class="w-5 h-5 rounded accent-primary correct-input">
+            <input name="choice_label" value="{{ lbl }}" placeholder="اكتب نص الخيار…"
+                   class="flex-1 h-10 px-3 rounded-lg bg-surface-container-lowest">
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div id="shortBox" class="flex flex-col gap-1.5">
+      <label class="font-label-md text-on-surface font-bold">الإجابة الصحيحة (للتصحيح الآلي)</label>
+      <input name="correct_short" value="{{ item.correct_short if item else '' }}"
+             placeholder="مثال: سبعة"
+             class="h-11 px-4 rounded-xl bg-surface-container-low">
+      <p class="font-label-xs text-outline">التطابق بدون حساسية لحالة الحروف والمسافات الزائدة.</p>
+    </div>
+
+    <div id="essayBox" class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-2">
+      <span class="material-symbols-outlined">info</span>
+      <span class="font-body-md">الأسئلة المقالية تُصحَّح يدوياً — لا تُحسب في التصحيح الآلي.</span>
+    </div>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('lms.bank_home') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>{% if item %}حفظ التعديلات{% else %}إضافة للبنك{% endif %}</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  const kindSel = document.getElementById('kindSel');
+  const choicesBox = document.getElementById('choicesBox');
+  const shortBox = document.getElementById('shortBox');
+  const essayBox = document.getElementById('essayBox');
+  function toggleKind() {
+    const k = kindSel.value;
+    choicesBox.hidden = !(k === 'mcq' || k === 'multi' || k === 'tf');
+    shortBox.hidden = (k !== 'short');
+    essayBox.hidden = (k !== 'essay');
+
+    // For tf, hide extra rows past #2 and clamp default labels.
+    const rows = document.querySelectorAll('[data-choice-row]');
+    rows.forEach((r, i) => {
+      if (k === 'tf') { r.hidden = i >= 2; }
+      else            { r.hidden = false; }
+    });
+    if (k === 'tf') {
+      const lbls = document.querySelectorAll('#choiceRows input[name="choice_label"]');
+      if (lbls[0] && !lbls[0].value.trim()) lbls[0].value = 'صح';
+      if (lbls[1] && !lbls[1].value.trim()) lbls[1].value = 'خطأ';
+    }
+
+    // For mcq/tf (single correct) → coerce checkboxes to behave like radios.
+    const corrects = document.querySelectorAll('.correct-input');
+    corrects.forEach(cb => {
+      cb.onclick = (e) => {
+        if (kindSel.value === 'mcq' || kindSel.value === 'tf') {
+          if (cb.checked) corrects.forEach(o => { if (o !== cb) o.checked = false; });
+        }
+      };
+    });
+  }
+  toggleKind();
+</script>
+{% endblock %}

@@ -149,6 +149,14 @@ class Question(db.Model):
     points = db.Column(db.Numeric(6, 2), default=1)
     correct_short = db.Column(db.String(200), default="")  # for short-answer
 
+    # Provenance: if this question was pulled from the school's question bank,
+    # keep a pointer back to the source BankQuestion (nullable, SET NULL on
+    # delete so a bank cleanup doesn't wipe live quiz history).
+    source_bank_id = db.Column(
+        db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+
     choices = db.relationship("Choice", backref="question", cascade="all, delete-orphan",
                               order_by="Choice.order_index")
 
@@ -191,6 +199,69 @@ class Answer(db.Model):
     text_answer = db.Column(db.Text, default="")                          # short/essay
     is_correct = db.Column(db.Boolean)                                    # null until graded
     awarded_points = db.Column(db.Numeric(6, 2))
+
+
+# ---------- Question Bank ------------------------------------------------
+#
+# The bank is the school's *pool* of reusable questions, tagged with
+# subject / grade / academic year / difficulty. Teachers write questions
+# into the bank once; when they compose a quiz they pick from it, and the
+# picked rows are COPIED into `lms_questions` + `lms_choices` (each with a
+# `source_bank_id` back-pointer so the quiz stays valid even if the bank
+# item is later edited or deleted).
+#
+# Design choices:
+# - subject_id / grade_id / academic_year_id are all NULLABLE so a teacher
+#   can bank a generic question first and tag it later.
+# - `tags` is a comma-separated string kept on the row for lightweight
+#   filtering (chapter, skill, unit …). Full-text later if we need it.
+# - choices live in a separate table (BankChoice) mirroring the Choice
+#   table's shape 1-to-1, so the picker copy is a straight field-map.
+
+class BankQuestion(db.Model):
+    __tablename__ = "lms_bank_questions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+
+    subject_id       = db.Column(db.Integer, db.ForeignKey("subjects.id"),        nullable=True, index=True)
+    grade_id         = db.Column(db.Integer, db.ForeignKey("grades.id"),          nullable=True, index=True)
+    academic_year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"),  nullable=True, index=True)
+    created_by_id    = db.Column(db.Integer, db.ForeignKey("users.id"),           nullable=True)
+
+    kind          = db.Column(db.String(20), default="mcq")   # mcq | multi | tf | short | essay
+    prompt        = db.Column(db.Text, nullable=False)
+    points        = db.Column(db.Numeric(6, 2), default=1)
+    correct_short = db.Column(db.String(200), default="")
+    difficulty    = db.Column(db.String(10),  default="medium")   # easy | medium | hard
+    tags          = db.Column(db.String(500), default="")         # comma-separated
+
+    created_at    = db.Column(db.DateTime(timezone=True), default=_utcnow)
+    updated_at    = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    choices = db.relationship(
+        "BankChoice", backref="question",
+        cascade="all, delete-orphan",
+        order_by="BankChoice.order_index",
+    )
+
+    @property
+    def tag_list(self):
+        return [t.strip() for t in (self.tags or "").split(",") if t.strip()]
+
+
+class BankChoice(db.Model):
+    __tablename__ = "lms_bank_choices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    label       = db.Column(db.String(500), nullable=False)
+    is_correct  = db.Column(db.Boolean, default=False, nullable=False)
 
 
 # ---------- Announcements ----------
