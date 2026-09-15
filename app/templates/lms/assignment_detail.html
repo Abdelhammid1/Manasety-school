@@ -9,7 +9,9 @@
 {% endblock %}
 
 {% block page_content %}
-{% set past_due = assignment.due_at and now > assignment.due_at %}
+{# past_due is computed in the view now — safe against tz-aware vs naive
+   comparison crashes on Postgres. #}
+{% set past_due = past_due if past_due is defined else false %}
 {% set graded = submission and submission.score is not none %}
 {% set submitted = submission and not graded %}
 

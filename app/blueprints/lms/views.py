@@ -4,8 +4,30 @@ real DB rows scoped to the current user's school (and, where applicable, their
 Student record)."""
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
+
+
+def _tz_safe_now(reference=None):
+    """Return a `now` datetime whose tz-awareness matches `reference`.
+
+    Postgres columns declared as DateTime(timezone=True) come back as
+    tz-aware; SQLite gives us naive datetimes. Comparing the two raises
+    'can't compare offset-naive and offset-aware datetimes', which is the
+    crash the assignment_detail 500 traces back to on the prod server.
+    This helper picks the right flavor of 'now' for a given column value.
+    """
+    now = datetime.now(timezone.utc)
+    if reference is None or reference.tzinfo is not None:
+        return now
+    return now.replace(tzinfo=None)
+
+
+def _past_due(due_at):
+    """True iff a due-date has passed, safe against tz mismatch."""
+    if due_at is None:
+        return False
+    return _tz_safe_now(due_at) > due_at
 
 from flask import (
     abort, current_app, flash, redirect, render_template, request, url_for,
@@ -274,7 +296,8 @@ def assignment_detail(aid):
     return render_template(
         "lms/assignment_detail.html",
         assignment=a, student=student, submission=submission,
-        now=datetime.utcnow(),
+        now=_tz_safe_now(a.due_at),
+        past_due=_past_due(a.due_at),
     )
 
 
@@ -290,7 +313,7 @@ def assignment_submit(aid):
         flash("لا يمكن التسليم — الحساب غير مرتبط بطالب.", "danger")
         return redirect(url_for("lms.assignment_detail", aid=a.id))
 
-    now = datetime.utcnow()
+    now = _tz_safe_now(a.due_at)
     if a.due_at and now > a.due_at and not a.allow_late:
         flash("انتهى موعد التسليم ولا يُسمح بالتسليم المتأخر.", "danger")
         return redirect(url_for("lms.assignment_detail", aid=a.id))
@@ -340,7 +363,7 @@ def quiz_take(qid):
         flash("لا يمكن بدء الاختبار — الحساب غير مرتبط بطالب.", "danger")
         return redirect(url_for("lms.quizzes_home"))
 
-    now = datetime.utcnow()
+    now = _tz_safe_now(quiz.opens_at or quiz.closes_at)
     if quiz.opens_at and now < quiz.opens_at:
         flash("الاختبار لم يُفتح بعد.", "warning")
         return redirect(url_for("lms.quizzes_home"))
@@ -468,7 +491,7 @@ def quiz_submit(qid):
             ans.awarded_points = None
             autograded_all = False
 
-    attempt.submitted_at = datetime.utcnow()
+    attempt.submitted_at = _tz_safe_now(attempt.started_at)
     attempt.score = total_awarded
     attempt.auto_graded = autograded_all
     db.session.commit()
