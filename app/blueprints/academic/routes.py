@@ -230,8 +230,40 @@ def term_edit(term_id):
 @login_required
 @require_permission("terms", "delete")
 def term_delete(term_id):
+    """Hard-delete a term, but only when nothing points at it.
+
+    Terms are referenced NOT NULL by AssessmentComponent.term_id, and via
+    that by GradeEntry.component_id. A raw delete would either 500 with
+    IntegrityError or wipe live grading data. We refuse the delete and
+    tell the user what's in the way, mirroring subject_delete and
+    grade_delete.
+    """
+    from ...models import AssessmentComponent, GradeEntry
+    from ...models.teacher import subject_terms
     term = _get(Term, term_id)
     year_id = term.year_id
+
+    n_components = AssessmentComponent.query.filter_by(term_id=term.id).count()
+    if n_components:
+        n_entries = (
+            GradeEntry.query.join(AssessmentComponent,
+                                  GradeEntry.component_id == AssessmentComponent.id)
+            .filter(AssessmentComponent.term_id == term.id)
+            .count()
+        )
+        flash(
+            f"لا يمكن حذف الفترة ({term.name}) — مرتبطة بـ "
+            f"{n_components} مكوّن تقييم و {n_entries} درجة مرصودة. "
+            "احذف المكوّنات أو انقلها لفترة أخرى أولاً.",
+            "danger",
+        )
+        return redirect(url_for("academic.terms_list", year_id=year_id))
+
+    # Clear the soft subject_terms M2M rows tied to this term so the
+    # cascade doesn't leave orphan association rows.
+    db.session.execute(
+        subject_terms.delete().where(subject_terms.c.term_id == term.id)
+    )
     db.session.delete(term)
     db.session.commit()
     flash("تم حذف الفترة الدراسية.", "success")
@@ -377,17 +409,29 @@ def section_detail(section_id):
 @login_required
 @require_permission("sections", "add")
 def section_new():
+    """Create a section. FK columns (year_id, grade_id) are NOT NULL so
+    both dependencies must exist before the form is renderable; without
+    the flash-and-redirect an empty grades list rendered an empty <select>
+    and a POST 500'd on int(request.form["grade_id"])."""
     year = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
     if not year:
         flash("يجب إنشاء سنة دراسية نشطة أولاً.", "warning")
         return redirect(url_for("academic.years_list"))
     grades = Grade.query.filter_by(school_id=_sid()).order_by(Grade.order_index).all()
+    if not grades:
+        flash("يجب إنشاء صف دراسي واحد على الأقل قبل إضافة فصل.", "warning")
+        return redirect(url_for("academic.grades_list"))
     if request.method == "POST":
+        grade_id = request.form.get("grade_id", type=int)
+        name = (request.form.get("name") or "").strip()
+        if not name or grade_id not in [g.id for g in grades]:
+            flash("اسم الفصل والصف مطلوبان.", "danger")
+            return render_template("academic/section_form.html", section=None, grades=grades, year=year)
         section = Section(
             school_id=_sid(),
             year_id=year.id,
-            grade_id=int(request.form["grade_id"]),
-            name=request.form["name"].strip(),
+            grade_id=grade_id,
+            name=name,
             capacity=int(request.form.get("capacity") or 30),
         )
         db.session.add(section)

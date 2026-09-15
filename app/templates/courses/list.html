@@ -1,24 +1,24 @@
 {# Courses list — Stitch-styled with brand gradient cover per card. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}المواد والدروس{% endblock %}
+{% block title %}المقرّرات والدروس{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <span class="text-primary font-bold">المواد والدروس</span>
+  <span class="text-primary font-bold">المقرّرات والدروس</span>
 {% endblock %}
 
 {% block page_content %}
 <div class="flex flex-col w-full gap-space-md">
   <div class="flex items-center justify-between flex-wrap gap-space-md">
     <div>
-      <h1 class="font-headline-lg text-headline-lg text-primary">المكتبة الدراسية</h1>
+      <h1 class="font-headline-lg text-headline-lg text-primary">مكتبة المقرّرات</h1>
       <p class="font-body-md text-body-md text-on-surface-variant mt-1">
-        {{ courses|length }} مادة — كل مادة تحتوي على دروس، واجبات، واختبارات.
+        {{ courses|length }} مقرّر — كل مقرّر يحتوي على دروس، واجبات، واختبارات.
       </p>
     </div>
     <a href="{{ url_for('courses.new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-      <span class="material-symbols-outlined text-xl">library_add</span><span>مادة جديدة</span>
+      <span class="material-symbols-outlined text-xl">library_add</span><span>مقرّر جديد</span>
     </a>
   </div>
 
@@ -71,12 +71,12 @@
     <div class="w-20 h-20 rounded-full bg-primary-fixed text-primary flex items-center justify-center mx-auto">
       <span class="material-symbols-outlined text-4xl">auto_stories</span>
     </div>
-    <h3 class="mt-space-md font-headline-sm text-headline-sm text-primary font-bold">لا مواد منشورة بعد</h3>
-    <p class="mt-2 font-body-md text-on-surface-variant max-w-md mx-auto">ابدأ بإنشاء أول مادة دراسية لتظهر هنا مع دروسها وواجباتها.</p>
+    <h3 class="mt-space-md font-headline-sm text-headline-sm text-primary font-bold">لا مقرّرات منشورة بعد</h3>
+    <p class="mt-2 font-body-md text-on-surface-variant max-w-md mx-auto">ابدأ بإنشاء أول مقرّر دراسي لتظهر هنا مع دروسه وواجباته.</p>
     <a href="{{ url_for('courses.new') }}"
        class="mt-space-md inline-flex items-center gap-2 h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-      <span class="material-symbols-outlined text-xl">rocket_launch</span><span>إنشاء أول مادة</span>
+      <span class="material-symbols-outlined text-xl">rocket_launch</span><span>إنشاء أول مقرّر</span>
     </a>
   </div>
   {% endif %}

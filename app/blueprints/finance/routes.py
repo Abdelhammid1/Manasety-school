@@ -116,13 +116,21 @@ def fee_type_new():
         Account.query.filter_by(school_id=_sid(), type="revenue")
         .order_by(Account.code).all()
     )
+    if not revenues:
+        flash("لا توجد حسابات إيرادات — أضف حساباً نوعه \"إيراد\" في دليل الحسابات أولاً.", "warning")
+        return redirect(url_for("finance.accounts"))
     if request.method == "POST":
+        rev_id = request.form.get("revenue_account_id", type=int)
+        name = (request.form.get("name") or "").strip()
+        if not name or rev_id not in [r.id for r in revenues]:
+            flash("اسم الرسم وحساب الإيراد مطلوبان.", "danger")
+            return render_template("finance/fee_type_form.html", revenues=revenues)
         f = FeeType(
             school_id=_sid(),
-            name=request.form["name"].strip(),
+            name=name,
             default_amount=Decimal(request.form.get("default_amount") or "0"),
             installable=bool(request.form.get("installable")),
-            revenue_account_id=int(request.form["revenue_account_id"]),
+            revenue_account_id=rev_id,
         )
         db.session.add(f)
         db.session.commit()
@@ -167,9 +175,18 @@ def invoice_new():
     if not ar:
         flash("لم يُهيّأ دليل الحسابات. أنشئ الحسابات الأساسية أولاً.", "danger")
         return redirect(url_for("finance.accounts"))
+    if not enrollments:
+        flash("لا يوجد طلاب مسجّلون في السنة الحالية — سجّل طالباً قبل إنشاء الفاتورة.", "warning")
+        return redirect(url_for("finance.invoices_list"))
+    if not fee_types:
+        flash("لا يوجد أنواع رسوم مفعّلة — أضف نوع رسم واحد على الأقل.", "warning")
+        return redirect(url_for("finance.fee_types"))
 
     if request.method == "POST":
-        enrollment_id = int(request.form["enrollment_id"])
+        enrollment_id = request.form.get("enrollment_id", type=int)
+        if enrollment_id not in [e.id for e in enrollments]:
+            flash("اختر طالباً صحيحاً من القائمة.", "danger")
+            return redirect(url_for("finance.invoice_new"))
         issue = _parse_date(request.form.get("issue_date")) or date.today()
         due = _parse_date(request.form.get("due_date")) or (issue + timedelta(days=30))
         installments_count = int(request.form.get("installments_count") or "1")

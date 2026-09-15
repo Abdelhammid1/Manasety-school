@@ -90,8 +90,25 @@ def payroll_new():
     salary_account = Account.query.filter_by(school_id=_sid(), code="5100").first()
     cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset").order_by(Account.code).all()
 
+    # Every FK on Payroll is NOT NULL. Empty dropdowns would 500 on POST.
+    if not employees:
+        flash("لا يوجد موظفون نشطون — أضف موظفاً قبل صرف الراتب.", "warning")
+        return redirect(url_for("hr.employees_list"))
+    if not salary_account:
+        flash("حساب مصروف الرواتب (5100) غير موجود في دليل الحسابات.", "danger")
+        return redirect(url_for("finance.accounts"))
+    if not cash_accounts:
+        flash("لا يوجد حساب نقدي (Asset) لصرف الراتب منه.", "danger")
+        return redirect(url_for("finance.accounts"))
+
     if request.method == "POST":
-        employee_id = int(request.form["employee_id"])
+        employee_id = request.form.get("employee_id", type=int)
+        cash_id     = request.form.get("cash_account_id", type=int)
+        if employee_id not in [x.id for x in employees] or cash_id not in [c.id for c in cash_accounts]:
+            flash("اختر موظفاً وحساباً نقدياً صحيحين.", "danger")
+            return render_template(
+                "hr/payroll_form.html", employees=employees, cash_accounts=cash_accounts,
+            )
         e = _get(Employee, employee_id)
         period_year = int(request.form["period_year"])
         period_month = int(request.form["period_month"])
@@ -107,7 +124,7 @@ def payroll_new():
             flash("راتب هذا الشهر مسجَّل بالفعل لهذا الموظف.", "warning")
             return redirect(url_for("hr.payroll_list"))
 
-        cash = _get(Account, int(request.form["cash_account_id"]))
+        cash = _get(Account, cash_id)
         pay_date = _parse_date(request.form.get("paid_at")) or date.today()
         je = post_journal(
             school_id=_sid(),

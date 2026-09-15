@@ -1,9 +1,9 @@
 {# Course detail — Stitch-styled cover + tabs + lesson list. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}{{ course.title }} — المادة{% endblock %}
+{% block title %}{{ course.title }} — المقرّر{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المقرّرات</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <span class="text-primary font-bold truncate max-w-xs">{{ course.title }}</span>
 {% endblock %}
@@ -46,15 +46,24 @@
           {% endif %}
         </div>
       </div>
-      {% if course.teacher %}
-      <div class="flex items-center gap-space-sm bg-white/10 backdrop-blur rounded-xl p-space-sm">
-        <div class="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center font-bold">{{ course.teacher.full_name[:1] }}</div>
-        <div class="flex flex-col">
-          <span class="font-label-xs opacity-80">أستاذ المادة</span>
-          <span class="font-label-lg font-bold">{{ course.teacher.full_name }}</span>
+      <div class="flex flex-col items-end gap-space-sm">
+        {% if course.teacher %}
+        <div class="flex items-center gap-space-sm bg-white/10 backdrop-blur rounded-xl p-space-sm">
+          <div class="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center font-bold">{{ course.teacher.full_name[:1] }}</div>
+          <div class="flex flex-col">
+            <span class="font-label-xs opacity-80">أستاذ المقرّر</span>
+            <span class="font-label-lg font-bold">{{ course.teacher.full_name }}</span>
+          </div>
         </div>
+        {% endif %}
+        <form method="post" action="{{ url_for('courses.delete', course_id=course.id) }}"
+              onsubmit="return confirm('حذف المقرّر ({{ course.title|e }}) نهائياً؟\n\nهذا يمسح كل الدروس والواجبات والاختبارات المرتبطة به. الإجراء غير قابل للتراجع.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="h-9 px-3 rounded-lg bg-white/10 hover:bg-error-container text-white hover:text-on-error-container font-label-md font-bold flex items-center gap-1 transition-colors">
+            <span class="material-symbols-outlined text-sm">delete</span>حذف المقرّر
+          </button>
+        </form>
       </div>
-      {% endif %}
     </div>
   </section>
 

@@ -4,6 +4,7 @@ from urllib.parse import urlparse, parse_qs
 
 from flask import render_template, request, redirect, url_for, flash, abort
 from flask_login import login_required, current_user
+from sqlalchemy.exc import IntegrityError
 
 from . import bp
 from ...extensions import db
@@ -118,33 +119,90 @@ def _course_form_options():
 @bp.route("/new", methods=["GET", "POST"], endpoint="new")
 @login_required
 def new():
+    """Create a Course.
+
+    Every FK column on lms_courses is NOT NULL. The old code fell back to
+    hard-coded id=1 when the form field was missing (or the dropdown was
+    empty because the school hadn't set up its academic structure yet),
+    which either 500'd on the FK or — worse — silently wrote the row
+    pointing at another school's data (cross-tenant leak). We now:
+      · validate every FK against the school-scoped option pools,
+      · reject the create up-front with a specific flash if any pool is
+        empty (so the user knows to add a year/section/subject first),
+      · trap the (year, section, subject) UniqueConstraint's
+        IntegrityError so a duplicate create returns a clean flash
+        instead of a raw stack trace.
+    """
     years, sections, subjects, teachers = _course_form_options()
+    ctx = dict(years=years, sections=sections, subjects=subjects, teachers=teachers)
+
     if request.method == "POST":
         title = (request.form.get("title") or "").strip()
-        if not title:
-            flash("عنوان المقرّر مطلوب.", "danger")
-            return render_template(
-                "courses/new.html", years=years, sections=sections,
-                subjects=subjects, teachers=teachers,
-            )
+        year_id    = request.form.get("academic_year_id", type=int)
+        section_id = request.form.get("section_id",       type=int)
+        subject_id = request.form.get("subject_id",       type=int)
+        teacher_id = request.form.get("teacher_id",       type=int) or None
+
+        # Validate — reject on empty pool BEFORE any DB write so we can't
+        # silently drop rows into the wrong tenant.
+        errors = []
+        if not title:               errors.append("عنوان المقرّر مطلوب.")
+        if not years:               errors.append("لا توجد سنوات دراسية — أضف واحدة من إدارة السنوات.")
+        if not sections:            errors.append("لا توجد فصول — أضف فصلاً من إدارة الفصول.")
+        if not subjects:            errors.append("لا توجد مواد — أضف مادة من إدارة المواد.")
+        if not year_id    or year_id    not in [y.id for y in years]:    errors.append("اختر سنة دراسية صحيحة.")
+        if not section_id or section_id not in [s.id for s in sections]: errors.append("اختر فصلاً صحيحاً.")
+        if not subject_id or subject_id not in [s.id for s in subjects]: errors.append("اختر مادة صحيحة.")
+        if errors:
+            for e in errors: flash(e, "danger")
+            return render_template("courses/new.html", **ctx)
+
         c = Course(
-            school_id=getattr(current_user, "school_id", 1),
-            academic_year_id=request.form.get("academic_year_id", type=int) or (years[0].id if years else 1),
-            section_id=request.form.get("section_id", type=int) or (sections[0].id if sections else 1),
-            subject_id=request.form.get("subject_id", type=int) or (subjects[0].id if subjects else 1),
-            teacher_id=request.form.get("teacher_id", type=int) or None,
+            school_id=current_user.school_id,
+            academic_year_id=year_id,
+            section_id=section_id,
+            subject_id=subject_id,
+            teacher_id=teacher_id,
             title=title,
             description=(request.form.get("description") or "").strip(),
             is_published=bool(request.form.get("is_published")),
         )
         db.session.add(c)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash(
+                "يوجد مقرّر بنفس (السنة + الفصل + المادة) بالفعل — "
+                "افتحه بدلاً من إنشاء جديد.",
+                "danger",
+            )
+            return render_template("courses/new.html", **ctx)
+
         flash("تم إنشاء المقرّر بنجاح.", "success")
         return redirect(url_for("courses.detail", course_id=c.id))
-    return render_template(
-        "courses/new.html",
-        years=years, sections=sections, subjects=subjects, teachers=teachers,
-    )
+    return render_template("courses/new.html", **ctx)
+
+
+@bp.route("/<int:course_id>/delete", methods=["POST"], endpoint="delete")
+@login_required
+def course_delete(course_id):
+    """Hard-delete a Course + its cascaded lessons/assignments/quizzes.
+
+    The Course row is what pins the (year, section, subject) unique
+    triple; without delete, a mistyped course blocks any future course
+    for the same triple forever. Cascade on Course covers Lesson,
+    CourseAssignment, Quiz (defined in lms.py); Submissions, Answers,
+    Attempts hang off those and go with them.
+    """
+    course = Course.query.filter_by(
+        id=course_id, school_id=current_user.school_id
+    ).first_or_404()
+    title = course.title
+    db.session.delete(course)
+    db.session.commit()
+    flash(f"تم حذف المقرّر ({title}) نهائياً.", "success")
+    return redirect(url_for("courses.list_courses"))
 
 
 # ─── Lesson CRUD ───────────────────────────────────────────────────────
