@@ -1,29 +1,32 @@
-{# New lesson form. #}
+{# Lesson new + edit — dual-mode based on presence of `lesson`. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}درس جديد — {{ course.title }}{% endblock %}
+{% block title %}{% if lesson %}تعديل درس{% else %}درس جديد{% endif %} — {{ course.title }}{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المواد</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="hover:text-primary">{{ course.title }}</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <span class="text-primary font-bold">درس جديد</span>
+  <span class="text-primary font-bold">{% if lesson %}تعديل درس{% else %}درس جديد{% endif %}</span>
 {% endblock %}
 
 {% block page_content %}
+{% set post_url = url_for('courses.lesson_edit', lesson_id=lesson.id) if lesson else url_for('courses.lesson_new', course_id=course.id) %}
+{% set current_kind = lesson.kind if lesson else 'text' %}
+
 <div class="max-w-4xl mx-auto flex flex-col gap-space-md">
   <div>
-    <h1 class="font-headline-lg text-headline-lg text-primary">إضافة درس جديد</h1>
+    <h1 class="font-headline-lg text-headline-lg text-primary">{% if lesson %}تعديل درس{% else %}إضافة درس جديد{% endif %}</h1>
     <p class="font-body-md text-body-md text-on-surface-variant mt-1">إلى مادة: <b>{{ course.title }}</b></p>
   </div>
 
-  <form method="post" class="flex flex-col gap-space-md">
+  <form method="post" action="{{ post_url }}" class="flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">عنوان الدرس <span class="text-error">*</span></label>
-        <input name="title" required placeholder="مثال: مقدمة في المصفوفات"
+        <input name="title" required value="{{ lesson.title if lesson else '' }}" placeholder="مثال: مقدمة في المصفوفات"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </section>
@@ -39,7 +42,7 @@
             ('link',  'رابط',     'link',         '#2563EB'),
         ] %}
         <label class="cursor-pointer">
-          <input type="radio" name="kind" value="{{ value }}" class="peer sr-only" {% if value == 'text' %}checked{% endif %}>
+          <input type="radio" name="kind" value="{{ value }}" class="peer sr-only" {% if current_kind == value %}checked{% endif %}>
           <div class="p-space-md rounded-xl border-2 border-outline-variant bg-surface-container-low peer-checked:border-primary peer-checked:bg-primary-container/10 peer-checked:shadow-md flex flex-col items-center gap-2 transition-all">
             <div class="w-10 h-10 rounded-lg text-white flex items-center justify-center" style="background: {{ color }}">
               <span class="material-symbols-outlined">{{ icon }}</span>
@@ -55,29 +58,49 @@
       <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
         <div class="md:col-span-2 flex flex-col gap-1.5">
           <label class="font-label-md text-label-md text-on-surface font-bold">رابط الوسيط</label>
-          <input name="media_url" dir="ltr" placeholder="https://youtube.com/... أو PDF URL"
-                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-          <span class="font-label-xs text-outline">للفيديو استخدم رابط تضمين (embed) — YouTube أو Vimeo.</span>
+          <input name="media_url" dir="ltr"
+                 value="{{ lesson.media_url if lesson else '' }}"
+                 placeholder="https://youtube.com/watch?v=... أو أي رابط فيديو/PDF"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono">
+          <span class="font-label-xs text-on-surface-variant">
+            <span class="material-symbols-outlined text-sm align-middle text-secondary">info</span>
+            الرابط يُحوَّل تلقائياً — الصق أي رابط YouTube أو Vimeo أو Google Drive وسيعمل مباشرة داخل المشغّل.
+          </span>
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="font-label-md text-label-md text-on-surface font-bold">المدة (بالدقائق)</label>
-          <input name="duration_minutes" type="number" min="0" value="10"
+          <input name="duration_minutes" type="number" min="0" value="{{ lesson.duration_minutes if lesson else 10 }}"
                  class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
         </div>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">محتوى الدرس (نصّي)</label>
-        <textarea name="body" rows="8" placeholder="اكتب شرح الدرس هنا — يظهر تحت مشغّل الوسيط في صفحة العرض."
-                  class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 leading-loose"></textarea>
+        <textarea name="body" rows="8" placeholder="اكتب شرح الدرس هنا — يظهر تحت مشغّل الوسيط."
+                  class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 leading-loose">{{ lesson.body if lesson else '' }}</textarea>
       </div>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="is_published" value="1" {% if (not lesson) or lesson.is_published %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+        <span class="font-label-md text-on-surface font-bold">منشور (يظهر للطلاب)</span>
+      </label>
     </section>
 
-    <div class="flex items-center justify-end gap-space-sm">
-      <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
-      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">save</span><span>حفظ الدرس</span>
-      </button>
+    <div class="flex items-center justify-between gap-space-sm">
+      {% if lesson %}
+      <form method="post" action="{{ url_for('courses.lesson_delete', lesson_id=lesson.id) }}"
+            onsubmit="return confirm('حذف الدرس نهائياً؟ لا يمكن التراجع.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="h-11 px-5 rounded-xl bg-error-container/40 text-error font-label-lg font-bold hover:bg-error-container flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">delete</span><span>حذف الدرس</span>
+        </button>
+      </form>
+      {% else %}<span></span>{% endif %}
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">save</span><span>{% if lesson %}حفظ التعديلات{% else %}حفظ الدرس{% endif %}</span>
+        </button>
+      </div>
     </div>
   </form>
 </div>

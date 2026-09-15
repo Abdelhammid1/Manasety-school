@@ -49,6 +49,10 @@
         <a href="{{ url_for('academic.terms_list', year_id=y.id) }}" class="flex-1 h-10 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
           <span class="material-symbols-outlined text-sm">event_repeat</span><span>الفترات</span>
         </a>
+        <a href="{{ url_for('academic.year_edit', year_id=y.id) }}"
+           class="flex-1 h-10 rounded-lg bg-primary-container/20 text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-primary-container/40">
+          <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
+        </a>
         {% if y.status == 'active' %}
         <form method="post" action="{{ url_for('academic.year_close', year_id=y.id) }}" class="flex-1"
               onsubmit="return confirm('إغلاق السنة يجمّد قاعدة النجاح ولا يمكن التراجع. تأكيد؟')">

@@ -70,7 +70,195 @@ def quizzes_home():
     return render_template("lms/quizzes_home.html", items=items)
 
 
-# ─── Assignment submission ────────────────────────────────────────────────
+# ─── Assignment CRUD (teacher-side) ───────────────────────────────────────
+#
+# Course is the anchor for both assignments and quizzes — every URL is scoped
+# under /courses/<cid> so the composer knows where to write.
+
+def _parse_dt(s):
+    """Accept 'YYYY-MM-DDTHH:MM' from a datetime-local input; return None on empty."""
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return datetime.fromisoformat(s)
+    except (TypeError, ValueError):
+        return None
+
+
+@bp.route("/courses/<int:cid>/assignments/new", methods=["GET", "POST"], endpoint="assignment_new")
+@login_required
+def assignment_new(cid):
+    course = Course.query.get_or_404(cid)
+    if request.method == "POST":
+        a = CourseAssignment(
+            course_id=course.id,
+            title=(request.form.get("title") or "").strip(),
+            instructions=(request.form.get("instructions") or "").strip(),
+            max_score=Decimal(request.form.get("max_score") or "100"),
+            due_at=_parse_dt(request.form.get("due_at")),
+            allow_late=bool(request.form.get("allow_late")),
+            is_published=bool(request.form.get("is_published")),
+        )
+        if not a.title:
+            flash("عنوان الواجب مطلوب.", "danger")
+            return render_template("lms/assignment_form.html", assignment=None, course=course)
+        db.session.add(a); db.session.commit()
+        flash("تم إنشاء الواجب.", "success")
+        return redirect(url_for("courses.detail", course_id=course.id))
+    return render_template("lms/assignment_form.html", assignment=None, course=course)
+
+
+@bp.route("/assignments/<int:aid>/edit", methods=["GET", "POST"], endpoint="assignment_edit")
+@login_required
+def assignment_edit(aid):
+    a = CourseAssignment.query.get_or_404(aid)
+    course = a.course
+    if request.method == "POST":
+        a.title = (request.form.get("title") or "").strip()
+        a.instructions = (request.form.get("instructions") or "").strip()
+        a.max_score = Decimal(request.form.get("max_score") or "100")
+        a.due_at = _parse_dt(request.form.get("due_at"))
+        a.allow_late = bool(request.form.get("allow_late"))
+        a.is_published = bool(request.form.get("is_published"))
+        db.session.commit()
+        flash("تم حفظ الواجب.", "success")
+        return redirect(url_for("courses.detail", course_id=course.id))
+    return render_template("lms/assignment_form.html", assignment=a, course=course)
+
+
+@bp.route("/assignments/<int:aid>/delete", methods=["POST"], endpoint="assignment_delete")
+@login_required
+def assignment_delete(aid):
+    a = CourseAssignment.query.get_or_404(aid)
+    course_id = a.course_id
+    db.session.delete(a); db.session.commit()
+    flash("تم حذف الواجب.", "success")
+    return redirect(url_for("courses.detail", course_id=course_id))
+
+
+# ─── Quiz CRUD (teacher-side) ─────────────────────────────────────────────
+
+@bp.route("/courses/<int:cid>/quizzes/new", methods=["GET", "POST"], endpoint="quiz_new")
+@login_required
+def quiz_new(cid):
+    course = Course.query.get_or_404(cid)
+    if request.method == "POST":
+        q = Quiz(
+            course_id=course.id,
+            title=(request.form.get("title") or "").strip(),
+            description=(request.form.get("description") or "").strip(),
+            duration_minutes=int(request.form.get("duration_minutes") or 30),
+            opens_at=_parse_dt(request.form.get("opens_at")),
+            closes_at=_parse_dt(request.form.get("closes_at")),
+            max_attempts=int(request.form.get("max_attempts") or 1),
+            shuffle_questions=bool(request.form.get("shuffle_questions")),
+            is_published=bool(request.form.get("is_published")),
+        )
+        if not q.title:
+            flash("عنوان الاختبار مطلوب.", "danger")
+            return render_template("lms/quiz_form.html", quiz=None, course=course)
+        db.session.add(q); db.session.commit()
+        flash("تم إنشاء الاختبار — أضف الأسئلة الآن.", "success")
+        return redirect(url_for("lms.quiz_questions", qid=q.id))
+    return render_template("lms/quiz_form.html", quiz=None, course=course)
+
+
+@bp.route("/quizzes/<int:qid>/edit", methods=["GET", "POST"], endpoint="quiz_edit")
+@login_required
+def quiz_edit(qid):
+    q = Quiz.query.get_or_404(qid)
+    course = q.course
+    if request.method == "POST":
+        q.title = (request.form.get("title") or "").strip()
+        q.description = (request.form.get("description") or "").strip()
+        q.duration_minutes = int(request.form.get("duration_minutes") or 30)
+        q.opens_at = _parse_dt(request.form.get("opens_at"))
+        q.closes_at = _parse_dt(request.form.get("closes_at"))
+        q.max_attempts = int(request.form.get("max_attempts") or 1)
+        q.shuffle_questions = bool(request.form.get("shuffle_questions"))
+        q.is_published = bool(request.form.get("is_published"))
+        db.session.commit()
+        flash("تم حفظ الاختبار.", "success")
+        return redirect(url_for("lms.quiz_questions", qid=q.id))
+    return render_template("lms/quiz_form.html", quiz=q, course=course)
+
+
+@bp.route("/quizzes/<int:qid>/delete", methods=["POST"], endpoint="quiz_delete")
+@login_required
+def quiz_delete(qid):
+    q = Quiz.query.get_or_404(qid)
+    course_id = q.course_id
+    db.session.delete(q); db.session.commit()
+    flash("تم حذف الاختبار.", "success")
+    return redirect(url_for("courses.detail", course_id=course_id))
+
+
+# --- Question composer ---------------------------------------------------
+
+@bp.route("/quizzes/<int:qid>/questions", methods=["GET"], endpoint="quiz_questions")
+@login_required
+def quiz_questions(qid):
+    quiz = Quiz.query.get_or_404(qid)
+    return render_template("lms/quiz_questions.html", quiz=quiz)
+
+
+@bp.route("/quizzes/<int:qid>/questions/add", methods=["POST"], endpoint="quiz_question_add")
+@login_required
+def quiz_question_add(qid):
+    quiz = Quiz.query.get_or_404(qid)
+    last = max((qq.order_index for qq in quiz.questions), default=0)
+    kind = request.form.get("kind", "mcq")
+    q = Question(
+        quiz_id=quiz.id, order_index=last + 1, kind=kind,
+        prompt=(request.form.get("prompt") or "").strip(),
+        points=Decimal(request.form.get("points") or "1"),
+        correct_short=(request.form.get("correct_short") or "").strip(),
+    )
+    db.session.add(q); db.session.flush()
+
+    # Auto-populate default choices for mcq/tf so the teacher only has to
+    # mark which is correct next.
+    if kind == "mcq":
+        for i, label in enumerate(["الخيار أ", "الخيار ب", "الخيار ج", "الخيار د"], start=1):
+            db.session.add(Choice(question_id=q.id, order_index=i, label=label, is_correct=(i == 1)))
+    elif kind == "tf":
+        db.session.add(Choice(question_id=q.id, order_index=1, label="صح", is_correct=True))
+        db.session.add(Choice(question_id=q.id, order_index=2, label="خطأ", is_correct=False))
+    db.session.commit()
+    flash("تمت إضافة السؤال — عدّل الخيارات إن لزم.", "success")
+    return redirect(url_for("lms.quiz_questions", qid=quiz.id))
+
+
+@bp.route("/questions/<int:qid>/update", methods=["POST"], endpoint="quiz_question_update")
+@login_required
+def quiz_question_update(qid):
+    q = Question.query.get_or_404(qid)
+    q.prompt = (request.form.get("prompt") or "").strip()
+    q.points = Decimal(request.form.get("points") or "1")
+    q.correct_short = (request.form.get("correct_short") or "").strip()
+    # Update choices — labels come in as choice_label[<choice_id>] and
+    # correct choice ids come in as correct_choices (a list of ids).
+    correct_ids = set(int(x) for x in request.form.getlist("correct_choices") if x.isdigit())
+    for c in q.choices:
+        c.label = (request.form.get(f"choice_label[{c.id}]") or c.label).strip()
+        c.is_correct = c.id in correct_ids
+    db.session.commit()
+    flash("تم حفظ السؤال.", "success")
+    return redirect(url_for("lms.quiz_questions", qid=q.quiz_id))
+
+
+@bp.route("/questions/<int:qid>/delete", methods=["POST"], endpoint="quiz_question_delete")
+@login_required
+def quiz_question_delete(qid):
+    q = Question.query.get_or_404(qid)
+    quiz_id = q.quiz_id
+    db.session.delete(q); db.session.commit()
+    flash("تم حذف السؤال.", "success")
+    return redirect(url_for("lms.quiz_questions", qid=quiz_id))
+
+
+# ─── Assignment submission (existing student flow, unchanged) ─────────────
 
 @bp.route("/assignments/<int:aid>", methods=["GET"], endpoint="assignment_detail")
 @login_required

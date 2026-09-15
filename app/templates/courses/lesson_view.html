@@ -18,13 +18,16 @@
     <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
       {% if lesson.kind == 'video' and lesson.media_url %}
       <div class="aspect-video bg-black">
-        <iframe src="{{ lesson.media_url }}" class="w-full h-full border-0" allow="fullscreen; picture-in-picture" allowfullscreen></iframe>
+        <iframe src="{{ lesson.media_url | embed_url }}" class="w-full h-full border-0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
       {% elif lesson.kind == 'pdf' and lesson.media_url %}
-      <embed src="{{ lesson.media_url }}" type="application/pdf" class="w-full" style="height:70vh">
+      <embed src="{{ lesson.media_url | embed_url }}" type="application/pdf" class="w-full" style="height:70vh">
       {% elif lesson.kind == 'embed' and lesson.media_url %}
       <div class="aspect-video">
-        <iframe src="{{ lesson.media_url }}" class="w-full h-full border-0"></iframe>
+        <iframe src="{{ lesson.media_url | embed_url }}" class="w-full h-full border-0"
+                allow="fullscreen" allowfullscreen referrerpolicy="strict-origin-when-cross-origin"></iframe>
       </div>
       {% elif lesson.kind == 'link' and lesson.media_url %}
       <div class="p-space-lg text-center">

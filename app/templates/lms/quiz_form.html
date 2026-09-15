@@ -1,0 +1,92 @@
+{# Quiz new/edit (teacher) — metadata only. Questions edited on quiz_questions.html. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if quiz %}تعديل اختبار{% else %}اختبار جديد{% endif %} — {{ course.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="hover:text-primary">{{ course.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{% if quiz %}تعديل اختبار{% else %}اختبار جديد{% endif %}</span>
+{% endblock %}
+
+{% block page_content %}
+{% set post_url = url_for('lms.quiz_edit', qid=quiz.id) if quiz else url_for('lms.quiz_new', cid=course.id) %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <div>
+    <h1 class="font-headline-lg text-headline-lg text-primary">{% if quiz %}تعديل اختبار{% else %}إنشاء اختبار جديد{% endif %}</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-1">إلى مادة: <b>{{ course.title }}</b></p>
+  </div>
+
+  <form method="post" action="{{ post_url }}" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">عنوان الاختبار <span class="text-error">*</span></label>
+      <input name="title" required value="{{ quiz.title if quiz else '' }}"
+             placeholder="مثال: اختبار قصير على الوحدة الأولى"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الوصف</label>
+      <textarea name="description" rows="3" placeholder="وصف مختصر يظهر للطالب قبل بدء الاختبار."
+                class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 leading-loose">{{ quiz.description if quiz else '' }}</textarea>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">المدة (دقيقة)</label>
+        <input name="duration_minutes" type="number" min="1" value="{{ quiz.duration_minutes if quiz else 30 }}"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">عدد المحاولات</label>
+        <input name="max_attempts" type="number" min="1" max="10" value="{{ quiz.max_attempts if quiz else 1 }}"
+               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
+      </div>
+      <label class="flex items-end gap-2 cursor-pointer h-12">
+        <input type="checkbox" name="shuffle_questions" value="1" {% if (not quiz) or quiz.shuffle_questions %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+        <span class="font-label-md text-on-surface font-bold">خلط الأسئلة</span>
+      </label>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">يفتح في</label>
+        <input name="opens_at" type="datetime-local"
+               value="{{ quiz.opens_at.strftime('%Y-%m-%dT%H:%M') if quiz and quiz.opens_at else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">يغلق في</label>
+        <input name="closes_at" type="datetime-local"
+               value="{{ quiz.closes_at.strftime('%Y-%m-%dT%H:%M') if quiz and quiz.closes_at else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+    </div>
+
+    <label class="flex items-center gap-2 cursor-pointer">
+      <input type="checkbox" name="is_published" value="1" {% if quiz and quiz.is_published %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+      <span class="font-label-md text-on-surface font-bold">منشور (يظهر للطلاب) — انشره فقط بعد إضافة الأسئلة</span>
+    </label>
+
+    <div class="flex items-center justify-between gap-space-sm mt-space-md">
+      {% if quiz %}
+      <form method="post" action="{{ url_for('lms.quiz_delete', qid=quiz.id) }}"
+            onsubmit="return confirm('حذف الاختبار نهائياً؟ كل الأسئلة والمحاولات ستُحذف كذلك.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="h-11 px-5 rounded-xl bg-error-container/40 text-error font-label-lg font-bold hover:bg-error-container flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">delete</span><span>حذف الاختبار</span>
+        </button>
+      </form>
+      {% else %}<span></span>{% endif %}
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</a>
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">save</span><span>{% if quiz %}حفظ ثم الأسئلة{% else %}إنشاء ثم الأسئلة{% endif %}</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

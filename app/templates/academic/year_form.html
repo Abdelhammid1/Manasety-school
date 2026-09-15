@@ -1,46 +1,131 @@
-{# New academic year. #}
+{# Academic year new/edit. Edit mode surfaces a warning modal before save
+   explaining that changes may affect linked records + reports. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}سنة دراسية جديدة{% endblock %}
+{% block title %}{% if year %}تعديل سنة دراسية{% else %}سنة دراسية جديدة{% endif %}{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('academic.years_list') }}" class="hover:text-primary">السنوات</a>
 {% endblock %}
 
 {% block page_content %}
+{% set post_url = url_for('academic.year_edit', year_id=year.id) if year else url_for('academic.year_new') %}
 <div class="max-w-2xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">إضافة سنة دراسية</h1>
-  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if year %}تعديل السنة الدراسية {{ year.name }}{% else %}إضافة سنة دراسية{% endif %}
+  </h1>
+
+  <form method="post" action="{{ post_url }}" id="yearForm"
+        class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md"
+        {% if year %}onsubmit="return openConfirm(event);"{% endif %}>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">اسم السنة <span class="text-error">*</span></label>
-      <input name="name" required placeholder="مثال: 2025-2026" dir="ltr"
+      <input name="name" required value="{{ year.name if year else '' }}"
+             placeholder="مثال: 2025-2026" dir="ltr"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
+
     <div class="grid grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ البداية <span class="text-error">*</span></label>
         <input name="start_date" type="date" required
+               value="{{ year.start_date.strftime('%Y-%m-%d') if year and year.start_date else '' }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ النهاية <span class="text-error">*</span></label>
         <input name="end_date" type="date" required
+               value="{{ year.end_date.strftime('%Y-%m-%d') if year and year.end_date else '' }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
+
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">الحالة</label>
       <select name="status" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-        <option value="active">نشطة</option>
-        <option value="closed">مغلقة</option>
+        <option value="active"  {% if year and year.status == 'active' %}selected{% endif %}>نشطة</option>
+        <option value="closed"  {% if year and year.status == 'closed' %}selected{% endif %}>مغلقة</option>
       </select>
     </div>
-    <div class="flex justify-end">
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('academic.years_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">save</span><span>حفظ السنة</span>
+        <span class="material-symbols-outlined">save</span><span>{% if year %}حفظ التعديلات{% else %}حفظ السنة{% endif %}</span>
       </button>
     </div>
   </form>
 </div>
+
+{% if year %}
+{# Confirm modal — surfaces before the year_edit form actually POSTs. #}
+<div id="yearConfirmModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <div class="flex items-start gap-space-md">
+      <div class="w-14 h-14 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-3xl">warning</span>
+      </div>
+      <div class="flex-1">
+        <h3 class="font-title-md text-title-md text-primary font-bold">تأكيد تعديل السنة الدراسية</h3>
+        <p class="mt-2 font-body-md text-body-md text-on-surface-variant leading-relaxed">
+          أي تعديل على هذه السنة قد يؤثّر على البيانات المرتبطة بها:
+        </p>
+        <ul class="mt-2 flex flex-col gap-1 font-body-md text-body-md text-on-surface">
+          <li class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-error text-sm">circle</span>
+            <span>سجلات التسجيل ونقل الطلاب لهذه السنة.</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-error text-sm">circle</span>
+            <span>الفترات الدراسية والأوزان المرتبطة.</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-error text-sm">circle</span>
+            <span>التقارير المالية والفواتير المصدَرة على السنة.</span>
+          </li>
+          <li class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-error text-sm">circle</span>
+            <span>سجلات الحضور والدرجات ونتائج التقييم لهذه السنة.</span>
+          </li>
+        </ul>
+        <p class="mt-3 font-body-md text-body-md text-error font-bold">
+          هذا الإجراء قابل للتراجع بتعديل مضاد فقط — لا حذف مباشر.
+        </p>
+      </div>
+      <button type="button" data-modal-close class="text-outline hover:text-primary p-1">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+      <button type="button" data-modal-close
+              class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">
+        تراجع
+      </button>
+      <button type="button" onclick="reallySubmit()"
+              class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">check_circle</span>
+        <span>أنا متأكد — احفظ التغييرات</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let confirmedYearEdit = false;
+  function openConfirm(e){
+    if (confirmedYearEdit) return true;
+    e.preventDefault();
+    openModal('#yearConfirmModal');
+    return false;
+  }
+  function reallySubmit(){
+    confirmedYearEdit = true;
+    closeModal('#yearConfirmModal');
+    document.getElementById('yearForm').submit();
+  }
+</script>
+{% endif %}
 {% endblock %}

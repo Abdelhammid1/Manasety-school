@@ -24,23 +24,44 @@
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for g in grades %}
-    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
-      <div class="flex items-start justify-between">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center font-bold text-lg">{{ g.order_index }}</div>
-          <div class="flex flex-col">
-            <span class="font-title-md text-title-md text-primary font-bold">{{ g.name }}</span>
-            {% if g.stage %}<span class="font-label-xs text-label-xs text-outline">{{ g.stage }}</span>{% endif %}
+    {% set s_count = section_counts.get(g.id, 0) %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md transition-all">
+      <a href="{{ url_for('academic.grade_detail', grade_id=g.id) }}" class="block group">
+        <div class="flex items-start justify-between">
+          <div class="flex items-center gap-3">
+            <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center font-bold text-lg tabular-nums">{{ g.order_index }}</div>
+            <div class="flex flex-col">
+              <span class="font-title-md text-title-md text-primary font-bold group-hover:underline">{{ g.name }}</span>
+              {% if g.stage %}<span class="font-label-xs text-label-xs text-outline">{{ g.stage }}</span>{% endif %}
+            </div>
           </div>
+          <span class="material-symbols-outlined text-primary group-hover:-translate-x-1 transition-transform">arrow_back</span>
         </div>
-        <a href="{{ url_for('academic.grade_edit', grade_id=g.id) }}" class="w-9 h-9 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
-          <span class="material-symbols-outlined text-lg">edit</span>
+        <div class="mt-3 flex items-center gap-2">
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+            <span class="material-symbols-outlined text-sm">meeting_room</span>{{ s_count }} فصل
+          </span>
+        </div>
+      </a>
+      <div class="mt-3 pt-3 border-t border-outline-variant flex items-center gap-2">
+        <a href="{{ url_for('academic.grade_edit', grade_id=g.id) }}"
+           class="flex-1 h-9 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
+          <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
         </a>
-      </div>
-      <div class="mt-3 flex items-center gap-2">
-        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
-          <span class="material-symbols-outlined text-sm">meeting_room</span>{{ section_counts.get(g.id, 0) }} فصل
-        </span>
+        <form method="post" action="{{ url_for('academic.grade_delete', grade_id=g.id) }}"
+              {% if s_count > 0 %}
+                onsubmit="alert('لا يمكن حذف الصف «{{ g.name }}» لأنه يحتوي على {{ s_count }} فصلاً — احذف الفصول أولاً.'); return false;"
+              {% else %}
+                onsubmit="return confirm('حذف الصف «{{ g.name }}» نهائياً؟');"
+              {% endif %} class="flex-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="w-full h-9 rounded-lg font-label-md font-bold flex items-center justify-center gap-1
+                  {% if s_count > 0 %}bg-surface-container text-outline cursor-not-allowed{% else %}bg-error-container/40 text-error hover:bg-error-container{% endif %}"
+                  title="{% if s_count > 0 %}يحتوي على فصول — تعذّر الحذف{% else %}حذف الصف{% endif %}">
+            <span class="material-symbols-outlined text-sm">{% if s_count > 0 %}block{% else %}delete{% endif %}</span>
+            <span>حذف</span>
+          </button>
+        </form>
       </div>
     </div>
     {% else %}

@@ -58,6 +58,34 @@ def year_new():
     return render_template("academic/year_form.html", year=None)
 
 
+@bp.route("/years/<int:year_id>/edit", methods=["GET", "POST"], endpoint="year_edit")
+@login_required
+@require_permission("academic_years", "edit")
+def year_edit(year_id):
+    """Edit an existing academic year. The template shows a confirm modal
+    warning that changes may affect linked reports and records."""
+    year = _get(AcademicYear, year_id)
+    if request.method == "POST":
+        # If activating this year, close any other active one first.
+        new_status = request.form.get("status", year.status)
+        if new_status == "active" and year.status != "active":
+            other = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
+            if other and other.id != year.id:
+                flash(
+                    f"يوجد سنة نشطة ({other.name}). أغلقها أولاً قبل تفعيل هذه السنة.",
+                    "warning",
+                )
+                return render_template("academic/year_form.html", year=year)
+        year.name = request.form["name"].strip()
+        year.start_date = datetime.strptime(request.form["start_date"], "%Y-%m-%d").date()
+        year.end_date = datetime.strptime(request.form["end_date"], "%Y-%m-%d").date()
+        year.status = new_status
+        db.session.commit()
+        flash("تم حفظ التعديلات على السنة الدراسية.", "success")
+        return redirect(url_for("academic.years_list"))
+    return render_template("academic/year_form.html", year=year)
+
+
 @bp.route("/years/<int:year_id>/close", methods=["POST"])
 @login_required
 @require_permission("academic_years", "edit")
@@ -271,6 +299,45 @@ def grade_edit(grade_id):
     return render_template("academic/grade_form.html", grade=grade)
 
 
+@bp.route("/grades/<int:grade_id>", methods=["GET"], endpoint="grade_detail")
+@login_required
+@require_permission("grades", "view")
+def grade_detail(grade_id):
+    """Grade detail — list all sections belonging to this grade (any year)."""
+    grade = _get(Grade, grade_id)
+    active_year = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
+    sections = (
+        Section.query.filter_by(school_id=_sid(), grade_id=grade.id)
+        .join(AcademicYear, AcademicYear.id == Section.year_id)
+        .order_by(AcademicYear.start_date.desc(), Section.name)
+        .all()
+    )
+    return render_template(
+        "academic/grade_detail.html",
+        grade=grade, sections=sections, active_year=active_year,
+    )
+
+
+@bp.route("/grades/<int:grade_id>/delete", methods=["POST"], endpoint="grade_delete")
+@login_required
+@require_permission("grades", "delete")
+def grade_delete(grade_id):
+    """Delete a grade — refuses if any Section refers to it, in any year."""
+    grade = _get(Grade, grade_id)
+    linked_sections = Section.query.filter_by(school_id=_sid(), grade_id=grade.id).count()
+    if linked_sections:
+        flash(
+            f"لا يمكن حذف الصف «{grade.name}» — يحتوي على {linked_sections} فصلاً. "
+            "احذف الفصول أولاً أو انقل الطلاب إلى صف آخر.",
+            "danger",
+        )
+        return redirect(url_for("academic.grades_list"))
+    db.session.delete(grade)
+    db.session.commit()
+    flash(f"تم حذف الصف «{grade.name}».", "success")
+    return redirect(url_for("academic.grades_list"))
+
+
 # ---------- Sections (T-2.4) ----------
 
 @bp.route("/sections")
@@ -287,6 +354,23 @@ def sections_list():
             .all()
         )
     return render_template("academic/sections_list.html", sections=sections, active_year=year)
+
+
+@bp.route("/sections/<int:section_id>", methods=["GET"], endpoint="section_detail")
+@login_required
+@require_permission("sections", "view")
+def section_detail(section_id):
+    """Section detail — every active student in this section as clickable rows."""
+    from ...models import Student, Enrollment
+    section = _get(Section, section_id)
+    enrollments = (
+        Enrollment.query.filter_by(school_id=_sid(), section_id=section.id, status="active")
+        .join(Student).order_by(Student.full_name).all()
+    )
+    return render_template(
+        "academic/section_detail.html",
+        section=section, enrollments=enrollments,
+    )
 
 
 @bp.route("/sections/new", methods=["GET", "POST"])
