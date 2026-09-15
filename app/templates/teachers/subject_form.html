@@ -1,4 +1,9 @@
-{# Subject new/edit — Stitch-styled. #}
+{# Subject new/edit — Stitch-styled.
+   Grades + Terms are proper dropdown lists (<select multiple>) so the user
+   can pick one or several from a compact scrollable list. Ctrl/⌘ + click
+   toggles individual rows; Shift+click extends a range — native browser
+   behavior. Both are backed by the school-scoped subject_grades and
+   subject_terms association tables. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}{% if subject %}تعديل المادة{% else %}مادة جديدة{% endif %}{% endblock %}
 {% block topbar_crumb %}
@@ -7,11 +12,18 @@
 {% endblock %}
 
 {% block page_content %}
+{% set current_gids = subject.grades|map(attribute='id')|list if subject else [] %}
+{% set current_tids = subject.terms |map(attribute='id')|list if subject else [] %}
+
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">{% if subject %}تعديل مادة: {{ subject.name }}{% else %}مادة جديدة{% endif %}</h1>
+  <h1 class="font-headline-lg text-headline-lg text-primary">
+    {% if subject %}تعديل مادة: {{ subject.name }}{% else %}مادة جديدة{% endif %}
+  </h1>
 
   <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <!-- Name + code -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">اسم المادة <span class="text-error">*</span></label>
@@ -24,21 +36,70 @@
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
       </div>
     </div>
-    <div>
-      <label class="font-label-md text-label-md text-on-surface font-bold block mb-2">الصفوف التي تُدرَّس فيها هذه المادة</label>
-      <div class="grid grid-cols-2 md:grid-cols-3 gap-space-sm">
-        {% set current_gids = subject.grades|map(attribute='id')|list if subject else [] %}
-        {% for g in grades %}
-        <label class="cursor-pointer">
-          <input type="checkbox" name="grade_ids" value="{{ g.id }}" class="peer sr-only" {% if g.id in current_gids %}checked{% endif %}>
-          <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-low text-center transition-all
-                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
-            <span class="font-label-md text-label-md text-primary font-bold">{{ g.name }}</span>
-          </div>
+
+    <!-- Grades + Terms dropdown lists -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <!-- Grades -->
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold flex items-center justify-between">
+          <span>الصفوف الدراسية <span class="text-error">*</span></span>
+          <span id="gradesCount" class="font-label-xs text-outline"></span>
         </label>
-        {% endfor %}
+        <select name="grade_ids" id="gradeSelect" multiple size="6"
+                class="px-3 py-2 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors font-body-md text-body-md">
+          {% for g in grades %}
+          <option value="{{ g.id }}" {% if g.id in current_gids %}selected{% endif %}>
+            {{ g.name }}{% if g.stage %} — {{ g.stage }}{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+        <p class="font-label-xs text-outline flex items-center gap-1">
+          <span class="material-symbols-outlined text-xs">info</span>
+          اضغط Ctrl (أو ⌘ على Mac) مع النقر لاختيار عدة صفوف.
+        </p>
+      </div>
+
+      <!-- Terms -->
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold flex items-center justify-between">
+          <span>الفصول الدراسية / الترمز</span>
+          <span id="termsCount" class="font-label-xs text-outline"></span>
+        </label>
+        <select name="term_ids" id="termSelect" multiple size="6"
+                class="px-3 py-2 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors font-body-md text-body-md">
+          {% if terms %}
+            {# Group by year for readability. Since the Term list is already
+               ordered by year desc then term.order_index, we can walk it and
+               emit <optgroup> boundaries whenever the year changes. #}
+            {% set ns = namespace(year_id=None) %}
+            {% for t in terms %}
+              {% if t.year_id != ns.year_id %}
+                {% if ns.year_id is not none %}</optgroup>{% endif %}
+                {% set ns.year_id = t.year_id %}
+                <optgroup label="{{ t.year.name if t.year else '' }}">
+              {% endif %}
+              <option value="{{ t.id }}" {% if t.id in current_tids %}selected{% endif %}>
+                {{ t.name }}
+              </option>
+              {% if loop.last %}</optgroup>{% endif %}
+            {% endfor %}
+          {% endif %}
+        </select>
+        {% if not terms %}
+        <p class="font-label-md text-tertiary flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">warning</span>
+          لا توجد فترات دراسية معرَّفة. أضف السنوات والفترات أولاً من
+          <a href="{{ url_for('academic.years_list') }}" class="text-primary underline font-bold">السنوات الدراسية</a>.
+        </p>
+        {% else %}
+        <p class="font-label-xs text-outline flex items-center gap-1">
+          <span class="material-symbols-outlined text-xs">info</span>
+          يمكن اختيار أكثر من فترة إذا كانت المادة تُدرَّس أكثر من ترم.
+        </p>
+        {% endif %}
       </div>
     </div>
+
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('teachers.subjects_list') }}"
          class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>
@@ -50,4 +111,22 @@
     </div>
   </form>
 </div>
+
+<script>
+  // Live "N محدد" counter next to each list label — helps confirm the
+  // multi-select worked when the user isn't sure the highlight took.
+  function wireCount(selectId, labelId, noun) {
+    const sel = document.getElementById(selectId);
+    const lbl = document.getElementById(labelId);
+    if (!sel || !lbl) return;
+    const update = () => {
+      const n = Array.from(sel.selectedOptions).length;
+      lbl.textContent = n ? `(${n} ${noun})` : '';
+    };
+    sel.addEventListener('change', update);
+    update();
+  }
+  wireCount('gradeSelect', 'gradesCount', 'صف محدد');
+  wireCount('termSelect',  'termsCount',  'ترم محدد');
+</script>
 {% endblock %}

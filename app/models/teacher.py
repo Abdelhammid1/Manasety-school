@@ -9,6 +9,16 @@ subject_grades = db.Table(
 )
 
 
+# Many-to-many: which academic terms a subject is offered in. A subject can
+# span 1..N terms; a term hosts many subjects. Kept scoped by the Term row's
+# own year_id — no denormalized year column needed here.
+subject_terms = db.Table(
+    "subject_terms",
+    db.Column("subject_id", db.Integer, db.ForeignKey("subjects.id"), primary_key=True),
+    db.Column("term_id",    db.Integer, db.ForeignKey("terms.id"),    primary_key=True),
+)
+
+
 class Teacher(db.Model):
     __tablename__ = "teachers"
 
@@ -40,6 +50,7 @@ class Subject(db.Model):
     )
 
     grades = db.relationship("Grade", secondary=subject_grades, backref="subjects")
+    terms  = db.relationship("Term",  secondary=subject_terms,  backref="subjects")
     assignments = db.relationship("Assignment", backref="subject")
 
     __table_args__ = (db.UniqueConstraint("school_id", "name", name="uq_subject_school_name"),)

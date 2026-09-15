@@ -7,7 +7,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import (
-    AcademicYear, Assignment, Grade, Section, Subject, Teacher, User,
+    AcademicYear, Assignment, Grade, Section, Subject, Teacher, Term, User,
 )
 
 
@@ -147,11 +147,31 @@ def subject_toggle(subject_id):
     return redirect(url_for("teachers.subjects_list"))
 
 
+def _grade_and_term_options():
+    """Options for subject form dropdowns.
+
+    Grades are school-scoped and ordered. Terms are joined to their parent
+    year (already scoped by year.school_id) and ordered by year (newest
+    first) then term order — so the picker shows the current-year terms up
+    top with the year name inline, and historical terms below.
+    """
+    grades = (
+        Grade.query.filter_by(school_id=_sid())
+        .order_by(Grade.order_index).all()
+    )
+    terms = (
+        Term.query.filter_by(school_id=_sid())
+        .join(AcademicYear, AcademicYear.id == Term.year_id)
+        .order_by(AcademicYear.start_date.desc(), Term.order_index).all()
+    )
+    return grades, terms
+
+
 @bp.route("/subjects/new", methods=["GET", "POST"])
 @login_required
 @require_permission("teachers", "add")
 def subject_new():
-    grades = Grade.query.filter_by(school_id=_sid()).order_by(Grade.order_index).all()
+    grades, terms = _grade_and_term_options()
     if request.method == "POST":
         subject = Subject(
             school_id=_sid(),
@@ -159,12 +179,17 @@ def subject_new():
             code=(request.form.get("code") or "").strip() or None,
         )
         gids = request.form.getlist("grade_ids", type=int)
+        tids = request.form.getlist("term_ids",  type=int)
         subject.grades = [g for g in grades if g.id in gids]
+        subject.terms  = [t for t in terms  if t.id in tids]
         db.session.add(subject)
         db.session.commit()
         flash(f"تم إضافة المادة {subject.name}.", "success")
         return redirect(url_for("teachers.subjects_list"))
-    return render_template("teachers/subject_form.html", subject=None, grades=grades)
+    return render_template(
+        "teachers/subject_form.html",
+        subject=None, grades=grades, terms=terms,
+    )
 
 
 @bp.route("/subjects/<int:subject_id>/edit", methods=["GET", "POST"])
@@ -172,16 +197,21 @@ def subject_new():
 @require_permission("teachers", "edit")
 def subject_edit(subject_id):
     subject = _get(Subject, subject_id)
-    grades = Grade.query.filter_by(school_id=_sid()).order_by(Grade.order_index).all()
+    grades, terms = _grade_and_term_options()
     if request.method == "POST":
         subject.name = request.form["name"].strip()
         subject.code = (request.form.get("code") or "").strip() or None
         gids = request.form.getlist("grade_ids", type=int)
+        tids = request.form.getlist("term_ids",  type=int)
         subject.grades = [g for g in grades if g.id in gids]
+        subject.terms  = [t for t in terms  if t.id in tids]
         db.session.commit()
         flash("تم تحديث المادة.", "success")
         return redirect(url_for("teachers.subjects_list"))
-    return render_template("teachers/subject_form.html", subject=subject, grades=grades)
+    return render_template(
+        "teachers/subject_form.html",
+        subject=subject, grades=grades, terms=terms,
+    )
 
 
 # ---------- T-4.3 Assignments ----------
