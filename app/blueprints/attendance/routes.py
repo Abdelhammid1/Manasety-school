@@ -109,6 +109,15 @@ def mark(section_id):
     year = section.year
     on_date = _parse_date(request.values.get("date")) or date.today()
 
+    # Ticket #4 — refuse attendance entries on non-teaching calendar
+    # days. If the school defines the date as holiday/weekend/etc, the
+    # POST is blocked with a flash so recorded numbers stay clean.
+    from ...models import SchoolCalendarDay
+    cal_entry = SchoolCalendarDay.query.filter_by(
+        school_id=_sid(), academic_year_id=year.id, date=on_date,
+    ).first()
+    is_non_teaching = cal_entry is not None and not cal_entry.is_teaching
+
     enrollments = (
         Enrollment.query.filter_by(
             school_id=_sid(), year_id=year.id, section_id=section.id, status="active",
@@ -125,6 +134,13 @@ def mark(section_id):
     }
 
     if request.method == "POST":
+        if is_non_teaching:
+            flash(
+                f"لا يمكن تسجيل حضور في {on_date} — يوم {cal_entry.title or cal_entry.day_type} "
+                "حسب التقويم الدراسي. عدّل التقويم أولاً لو محتاج ترصد الحضور فيه.",
+                "danger",
+            )
+            return redirect(url_for("attendance.mark", section_id=section.id, date=on_date))
         updates = 0
         creates = 0
         absent_notifs = 0

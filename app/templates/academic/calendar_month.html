@@ -1,0 +1,186 @@
+{# Ticket #4 — month view of the school calendar. Click any day to add,
+   click a chip to delete. Bulk generator card at the top. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}التقويم الدراسي — {{ anchor.strftime('%Y-%m') }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">التقويم الدراسي</span>
+{% endblock %}
+
+{% set type_labels = {
+  'instructional':'يوم دراسي', 'holiday':'إجازة', 'weekend':'عطلة أسبوعية',
+  'exam':'امتحان', 'event':'فعالية', 'teacher_day':'يوم معلمين', 'break':'استراحة',
+} %}
+{% set type_colors = {
+  'instructional': '#94A3B8', 'holiday': '#EF4444', 'weekend': '#6B7280',
+  'exam': '#0099CC', 'event': '#F59E0B', 'teacher_day': '#8B5CF6', 'break': '#10B981',
+} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-on-surface-variant">التقويم الدراسي</span>
+        <h1 class="font-headline-lg text-primary font-bold mt-1" dir="ltr">
+          {{ anchor.strftime('%B %Y') }}
+        </h1>
+        {% if year %}
+        <p class="font-body-md text-on-surface-variant mt-1" dir="ltr">{{ year.name }}</p>
+        {% endif %}
+      </div>
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('academic.calendar_month', month=prev_month) }}"
+           class="h-10 px-4 rounded-xl bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">chevron_right</span>الشهر السابق
+        </a>
+        <a href="{{ url_for('academic.calendar_month') }}"
+           class="h-10 px-4 rounded-xl bg-primary-container/20 text-primary font-label-md font-bold hover:bg-primary-container/40 flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">today</span>اليوم
+        </a>
+        <a href="{{ url_for('academic.calendar_month', month=next_month) }}"
+           class="h-10 px-4 rounded-xl bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container flex items-center gap-1">
+          الشهر التالي<span class="material-symbols-outlined text-sm">chevron_left</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {# ── Bulk weekly-holiday generator ── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <h3 class="font-title-md text-primary font-bold mb-space-sm flex items-center gap-2">
+      <span class="material-symbols-outlined">auto_fix_high</span>توليد إجازات أسبوعية للسنة كاملة
+    </h3>
+    <form method="post" action="{{ url_for('academic.calendar_generate') }}"
+          class="flex items-end gap-space-sm flex-wrap">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex items-center gap-2 flex-wrap">
+        {% for i, name in [(4,'الجمعة'),(5,'السبت'),(6,'الأحد'),(0,'الاثنين'),(1,'الثلاثاء'),(2,'الأربعاء'),(3,'الخميس')] %}
+        <label class="cursor-pointer">
+          <input type="checkbox" name="weekdays" value="{{ i }}" class="peer sr-only"
+                 {% if i in (4, 5) %}checked{% endif %}>
+          <div class="px-3 py-1.5 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary
+                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">
+            {{ name }}
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+      <input name="title" placeholder="مسمّى العطلة"
+             value="عطلة نهاية الأسبوع"
+             class="h-10 px-3 rounded-lg bg-surface-container-low">
+      <button type="submit"
+              class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-sm">bolt</span>توليد
+      </button>
+    </form>
+    <p class="mt-space-sm font-label-xs text-outline">
+      لن يُستبدل أي يوم مسجّل يدوياً — التوليد يضيف فقط الأيام غير المُعرَّفة.
+    </p>
+  </section>
+
+  {# ── Month grid ── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <div class="grid grid-cols-7 gap-2 mb-2 text-center font-label-md text-outline">
+      {% for d in ['السبت','الأحد','الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة'] %}
+      <div>{{ d }}</div>
+      {% endfor %}
+    </div>
+    <div class="grid grid-cols-7 gap-2">
+      {% for cell in cells %}
+      <div class="aspect-square rounded-xl p-2 flex flex-col gap-1 relative overflow-hidden
+                  {% if not cell.in_month %}bg-surface-container-low opacity-40{% else %}bg-surface-container-low hover:bg-surface-container transition-colors{% endif %}">
+        <div class="flex items-center justify-between">
+          <span class="font-label-md text-primary font-bold tabular-nums">{{ cell.date.day }}</span>
+          {% if cell.in_month %}
+          <button type="button" onclick="openAdd('{{ cell.date.isoformat() }}')"
+                  class="w-6 h-6 rounded-full text-primary hover:bg-primary-container/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
+                  title="إضافة"><span class="material-symbols-outlined text-sm">add</span></button>
+          {% endif %}
+        </div>
+        <div class="flex flex-col gap-0.5 mt-auto">
+          {% for entry in cell.entries %}
+          <form method="post" action="{{ url_for('academic.calendar_day_delete', day_id=entry.id) }}"
+                onsubmit="return confirm('حذف: {{ (entry.title or entry.day_type)|e }}؟')">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" title="اضغط للحذف"
+                    class="w-full text-white font-label-xs px-1.5 py-0.5 rounded truncate text-right hover:opacity-80"
+                    style="background: {{ type_colors.get(entry.day_type, '#94A3B8') }};">
+              {{ entry.title or type_labels.get(entry.day_type, entry.day_type) }}
+            </button>
+          </form>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {# ── Legend ── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <div class="flex items-center gap-space-md flex-wrap font-label-md">
+      {% for k, lbl in type_labels.items() %}
+      <span class="inline-flex items-center gap-1">
+        <span class="w-3 h-3 rounded-sm" style="background: {{ type_colors.get(k) }}"></span>
+        <span class="text-on-surface">{{ lbl }}</span>
+      </span>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+
+{# Add-day modal — opened by the + button on any cell. #}
+<div id="addDayModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <form method="post" action="{{ url_for('academic.calendar_day_add') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex items-start justify-between mb-space-md">
+        <h3 class="font-title-md text-primary font-bold">إضافة يوم</h3>
+        <button type="button" data-modal-close class="text-outline hover:text-primary">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="flex flex-col gap-space-sm">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">التاريخ</label>
+          <input name="date" type="date" id="dateInput" required
+                 class="h-11 px-3 rounded-lg bg-surface-container-low">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">نوع اليوم</label>
+          <select name="day_type" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            {% for k, lbl in type_labels.items() %}
+            <option value="{{ k }}" {% if k == 'holiday' %}selected{% endif %}>{{ lbl }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">العنوان</label>
+          <input name="title" placeholder="مثال: عيد الأضحى"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">المرحلة (اختياري)</label>
+          <input name="applies_to_stage" placeholder="اترك فارغاً ليسري على كل المدرسة"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low">
+        </div>
+      </div>
+      <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+        <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</button>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">إضافة</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  function openAdd(iso) {
+    document.getElementById('dateInput').value = iso;
+    openModal('#addDayModal');
+  }
+</script>
+{% endblock %}

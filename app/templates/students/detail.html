@@ -48,6 +48,18 @@
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الأداء</span>
         </a>
+        <a href="{{ url_for('students.health_profile', student_id=student.id) }}"
+           class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">medical_services</span><span>السجل الصحي</span>
+        </a>
+        <a href="{{ url_for('students.documents', student_id=student.id) }}"
+           class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">folder_open</span><span>المستندات</span>
+        </a>
+        <a href="{{ url_for('students.behavior_home', student_id=student.id) }}"
+           class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">gavel</span><span>السلوك</span>
+        </a>
         <a href="{{ url_for('students.student_edit', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">edit</span><span>تعديل الملف</span>

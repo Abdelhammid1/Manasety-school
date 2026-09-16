@@ -1,0 +1,148 @@
+{# Ticket #10 — Student health tab. Editable profile card + incident
+   log below. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}السجل الصحي — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">السجل الصحي</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden rounded-2xl p-space-lg shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #B91C1C 0%, #DC2626 100%);">
+    <div class="flex items-center gap-space-md flex-wrap">
+      <div class="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-3xl">medical_services</span>
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <span class="font-label-md opacity-80">السجل الصحي — بيانات حساسة</span>
+        <h1 class="font-headline-lg">{{ student.full_name }}</h1>
+      </div>
+    </div>
+  </section>
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">فصيلة الدم</label>
+        <input name="blood_type" value="{{ profile.blood_type if profile else '' }}" placeholder="مثال: O+" dir="ltr"
+               class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">اسم الطبيب</label>
+        <input name="doctor_name" value="{{ profile.doctor_name if profile else '' }}" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">جوال الطبيب</label>
+        <input name="doctor_phone" value="{{ profile.doctor_phone if profile else '' }}" dir="ltr" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">أمراض مزمنة</label>
+        <textarea name="chronic_conditions" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ profile.chronic_conditions if profile else '' }}</textarea></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">حساسية (طعام / دواء)</label>
+        <textarea name="allergies" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ profile.allergies if profile else '' }}</textarea></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">أدوية منتظمة</label>
+        <textarea name="regular_medications" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ profile.regular_medications if profile else '' }}</textarea></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">احتياجات خاصة</label>
+        <textarea name="special_needs" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ profile.special_needs if profile else '' }}</textarea></div>
+      <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md text-on-surface font-bold">تعليمات الطوارئ</label>
+        <textarea name="emergency_instructions" rows="2" placeholder="ماذا يُفعل في حالة طارئة؟"
+                  class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ profile.emergency_instructions if profile else '' }}</textarea></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">شركة التأمين</label>
+        <input name="insurance_provider" value="{{ profile.insurance_provider if profile else '' }}" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md text-on-surface font-bold">رقم البوليصة</label>
+        <input name="insurance_number" value="{{ profile.insurance_number if profile else '' }}" dir="ltr" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+    </div>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span>حفظ السجل
+      </button>
+    </div>
+  </form>
+
+  {# ── Incident log ── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between mb-space-md flex-wrap gap-space-sm">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-error">warning</span>سجل الحوادث الصحية
+      </h2>
+      <button type="button" onclick="openModal('#addIncidentModal')"
+              class="h-10 px-4 rounded-xl bg-error-container/40 text-error font-label-md font-bold flex items-center gap-2 hover:bg-error-container">
+        <span class="material-symbols-outlined text-sm">add</span>تسجيل حادثة
+      </button>
+    </div>
+    {% if incidents %}
+    <div class="flex flex-col gap-space-sm">
+      {% for i in incidents %}
+      <div class="p-space-md rounded-xl bg-surface-container-low">
+        <div class="flex items-start justify-between gap-space-sm flex-wrap">
+          <div class="flex items-start gap-space-sm">
+            <span class="material-symbols-outlined text-error">
+              {% if i.incident_type == 'injury' %}healing
+              {% elif i.incident_type == 'medication_given' %}medication
+              {% elif i.incident_type == 'emergency' %}emergency
+              {% else %}sick{% endif %}
+            </span>
+            <div>
+              <div class="font-label-md text-outline" dir="ltr">{{ i.incident_date.strftime('%Y-%m-%d %H:%M') }}</div>
+              <div class="font-title-md text-primary font-bold">{{ i.incident_type }}</div>
+              <p class="mt-1 font-body-md text-on-surface whitespace-pre-line">{{ i.description }}</p>
+              {% if i.action_taken %}<p class="mt-1 font-label-md text-outline">الإجراء: {{ i.action_taken }}</p>{% endif %}
+            </div>
+          </div>
+          <div class="flex flex-col gap-1 items-end">
+            {% if i.guardian_notified %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">✓ أُبلغ ولي الأمر</span>{% endif %}
+            {% if i.referred_to_hospital %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">حُوّل لمستشفى</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center py-space-md text-outline">لا حوادث مسجّلة.</p>
+    {% endif %}
+  </section>
+</div>
+
+<div id="addIncidentModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <form method="post" action="{{ url_for('students.health_incident_add', student_id=student.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex items-start justify-between mb-space-md">
+        <h3 class="font-title-md text-primary font-bold">تسجيل حادثة صحية</h3>
+        <button type="button" data-modal-close class="text-outline"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="flex flex-col gap-space-sm">
+        <div class="grid grid-cols-2 gap-space-sm">
+          <div class="flex flex-col gap-1"><label class="font-label-md font-bold">التاريخ والوقت</label>
+            <input name="incident_date" type="datetime-local" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+          <div class="flex flex-col gap-1"><label class="font-label-md font-bold">النوع</label>
+            <select name="incident_type" class="h-10 px-3 rounded-lg bg-surface-container-low">
+              <option value="illness">مرض</option>
+              <option value="injury">إصابة</option>
+              <option value="medication_given">إعطاء دواء</option>
+              <option value="emergency">طارئ</option>
+            </select></div>
+        </div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الوصف <span class="text-error">*</span></label>
+          <textarea name="description" required rows="3" class="w-full px-3 py-2 rounded-lg bg-surface-container-low"></textarea></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الإجراء المتّخذ</label>
+          <textarea name="action_taken" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low"></textarea></div>
+        <div class="grid grid-cols-2 gap-2">
+          <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+            <input type="checkbox" name="guardian_notified" value="1" class="w-5 h-5 accent-primary">
+            <span class="font-label-md">أُبلغ ولي الأمر</span></label>
+          <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+            <input type="checkbox" name="referred_to_hospital" value="1" class="w-5 h-5 accent-error">
+            <span class="font-label-md">حُوّل لمستشفى</span></label>
+        </div>
+      </div>
+      <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+        <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</button>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #B91C1C 0%, #DC2626 100%);">حفظ</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

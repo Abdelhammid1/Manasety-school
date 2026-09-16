@@ -1,0 +1,105 @@
+{# Ticket #12 — Behavior tab. Points running total + incident log +
+   quick-add form. Categories are managed at /students/behavior/categories. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}السلوك — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">السلوك</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden rounded-2xl p-space-lg shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, {% if total >= 0 %}#0F766E, #14B8A6{% else %}#B91C1C, #DC2626{% endif %});">
+    <div class="flex items-center gap-space-md flex-wrap">
+      <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-3xl">{% if total >= 0 %}emoji_events{% else %}warning{% endif %}</span>
+      </div>
+      <div class="flex flex-col flex-1">
+        <span class="font-label-md opacity-80">رصيد السلوك</span>
+        <div class="font-headline-lg text-headline-lg tabular-nums">{{ total }}</div>
+        <p class="font-body-md opacity-90">{{ incidents|length }} حادثة مسجّلة — تظهر لولي الأمر وللإدارة.</p>
+      </div>
+      <a href="{{ url_for('students.behavior_categories') }}"
+         class="h-10 px-4 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-md font-bold hover:bg-white/25 flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">tune</span>إدارة الفئات
+      </a>
+    </div>
+  </section>
+
+  {% if categories %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">add_circle</span>تسجيل حادثة سلوك
+    </h2>
+    <form method="post" action="{{ url_for('students.behavior_add', student_id=student.id) }}"
+          class="grid grid-cols-1 md:grid-cols-4 gap-space-sm items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">الفئة</label>
+        <select name="category_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— اختر —</option>
+          {% for c in categories %}
+          <option value="{{ c.id }}">{{ c.name }} ({{ '+' if c.kind == 'positive' else '' }}{{ c.default_points }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">التاريخ</label>
+        <input name="incident_date" type="date" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="font-label-md font-bold">الوصف</label>
+        <input name="description" placeholder="تفاصيل قصيرة" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="md:col-span-4 flex justify-end">
+        <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          تسجيل الحادثة
+        </button>
+      </div>
+    </form>
+  </section>
+  {% else %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-md flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span class="font-body-md">لا فئات سلوك معرَّفة بعد.
+      <a href="{{ url_for('students.behavior_categories') }}" class="text-primary underline font-bold">أضف فئات</a>
+      قبل تسجيل أول حادثة.</span>
+  </div>
+  {% endif %}
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">history</span>سجل الحوادث
+    </h2>
+    {% if incidents %}
+    <div class="flex flex-col gap-space-sm">
+      {% for i in incidents %}
+      <div class="p-space-md rounded-xl bg-surface-container-low flex items-start gap-space-sm">
+        <div class="w-10 h-10 rounded-lg flex items-center justify-center shrink-0
+                    {% if i.category.kind == 'positive' %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-error-container/40 text-error{% endif %}">
+          <span class="material-symbols-outlined">{% if i.category.kind == 'positive' %}thumb_up{% else %}gavel{% endif %}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-space-sm flex-wrap">
+            <span class="font-title-md text-primary font-bold">{{ i.category.name }}</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs font-bold
+                         {% if i.points > 0 %}bg-[#ECFDF5] text-[#065F46]{% elif i.points < 0 %}bg-error-container/40 text-error{% else %}bg-surface-container text-outline{% endif %}">
+              {{ '+' if i.points > 0 }}{{ i.points }}
+            </span>
+            <span class="font-label-xs text-outline" dir="ltr">{{ i.incident_date }}</span>
+          </div>
+          {% if i.description %}<p class="mt-1 font-body-md text-on-surface whitespace-pre-line">{{ i.description }}</p>{% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center py-space-md text-outline">لا حوادث مسجّلة.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

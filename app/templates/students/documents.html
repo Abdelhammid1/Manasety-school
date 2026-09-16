@@ -1,0 +1,110 @@
+{# Ticket #11 — Student documents tab. Upload + list with expiry warnings. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}المستندات — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المستندات</span>
+{% endblock %}
+
+{% set doc_types = {
+  'birth_certificate':'شهادة ميلاد', 'national_id':'بطاقة قومية',
+  'passport':'جواز سفر', 'previous_school_certificate':'شهادة المدرسة السابقة',
+  'medical_report':'تقرير طبي', 'photo':'صورة', 'guardian_id':'بطاقة ولي الأمر',
+  'other':'أخرى',
+} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-primary font-bold">مستندات — {{ student.full_name }}</h1>
+      <p class="font-body-md text-on-surface-variant mt-1">{{ documents|length }} مستند</p>
+    </div>
+    <button type="button" onclick="openModal('#uploadModal')"
+            class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+            style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-xl">upload_file</span>رفع مستند
+    </button>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    {% for d in documents %}
+    {% set expired = d.expiry_date and d.expiry_date < now.date() if now is defined else (d.expiry_date and d.expiry_date.year < 2100) %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-start gap-space-sm">
+        <div class="w-12 h-12 rounded-xl bg-primary-container/40 text-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl">{% if 'image' in (d.mime_type or '') %}image{% elif 'pdf' in (d.mime_type or '') %}picture_as_pdf{% else %}description{% endif %}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-title-md text-primary font-bold truncate">{{ d.title or doc_types.get(d.document_type, d.document_type) }}</h3>
+          <p class="font-label-xs text-outline">{{ doc_types.get(d.document_type, d.document_type) }}</p>
+          {% if d.document_number %}<code class="font-label-xs text-outline" dir="ltr">{{ d.document_number }}</code>{% endif %}
+          {% if d.expiry_date %}
+          <p class="mt-1 font-label-xs" dir="ltr">
+            انتهاء: {{ d.expiry_date }}
+            {% if expired %}<span class="text-error font-bold"> ⚠ منتهي</span>{% endif %}
+          </p>
+          {% endif %}
+        </div>
+      </div>
+      <div class="mt-space-sm flex items-center gap-2">
+        <a href="{{ d.file_path }}" target="_blank"
+           class="flex-1 h-9 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
+          <span class="material-symbols-outlined text-sm">visibility</span>عرض
+        </a>
+        <form method="post" action="{{ url_for('students.document_delete', doc_id=d.id) }}"
+              onsubmit="return confirm('حذف {{ (d.title or d.document_type)|e }}؟')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="h-9 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
+            <span class="material-symbols-outlined text-sm">delete</span>
+          </button>
+        </form>
+      </div>
+    </article>
+    {% else %}
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">folder_open</span>
+      <p class="mt-3 text-on-surface-variant">لا مستندات مرفوعة بعد.</p>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+<div id="uploadModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <form method="post" enctype="multipart/form-data" action="{{ url_for('students.document_upload', student_id=student.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex items-start justify-between mb-space-md">
+        <h3 class="font-title-md text-primary font-bold">رفع مستند جديد</h3>
+        <button type="button" data-modal-close class="text-outline"><span class="material-symbols-outlined">close</span></button>
+      </div>
+      <div class="flex flex-col gap-space-sm">
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">نوع المستند</label>
+          <select name="document_type" class="h-10 px-3 rounded-lg bg-surface-container-low">
+            {% for k, lbl in doc_types.items() %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+          </select></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">عنوان (اختياري)</label>
+          <input name="title" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الملف <span class="text-error">*</span></label>
+          <input type="file" name="file" required accept=".pdf,.doc,.docx,.png,.jpg,.jpeg,.webp,.gif"
+                 class="h-10 px-3 py-2 rounded-lg bg-surface-container-low"></div>
+        <div class="grid grid-cols-2 gap-space-sm">
+          <div class="flex flex-col gap-1"><label class="font-label-md font-bold">تاريخ الإصدار</label>
+            <input name="issue_date" type="date" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+          <div class="flex flex-col gap-1"><label class="font-label-md font-bold">تاريخ الانتهاء</label>
+            <input name="expiry_date" type="date" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+        </div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">رقم المستند</label>
+          <input name="document_number" dir="ltr" class="h-10 px-3 rounded-lg bg-surface-container-low"></div>
+      </div>
+      <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+        <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</button>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">رفع</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

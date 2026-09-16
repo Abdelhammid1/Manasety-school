@@ -1,0 +1,88 @@
+{# School-wide behaviour categories manager. Positive & negative categories
+   with default point values. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}فئات السلوك{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">فئات السلوك</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">فئات السلوك</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      عرّف فئات السلوك (إيجابية/سلبية) اللي المدرسة بتعتمدها. كل فئة ليها نقاط افتراضية بتتضاف لرصيد الطالب لما تتسجل عليه.
+    </p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">add_circle</span>إضافة فئة
+    </h2>
+    <form method="post" class="grid grid-cols-1 md:grid-cols-4 gap-space-sm items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="font-label-md font-bold">الاسم <span class="text-error">*</span></label>
+        <input name="name" required placeholder="مثال: تأخر / مساعدة زميل"
+               class="h-11 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">النوع</label>
+        <select name="kind" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="negative">سلبي</option>
+          <option value="positive">إيجابي</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">النقاط الافتراضية</label>
+        <input name="default_points" type="number" value="-5" class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">الخطورة</label>
+        <select name="severity" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="low">منخفضة</option>
+          <option value="medium" selected>متوسطة</option>
+          <option value="high">مرتفعة</option>
+        </select>
+      </div>
+      <div class="md:col-span-4 flex justify-end">
+        <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          إضافة
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">الاسم</th>
+          <th class="px-4 py-3 font-label-lg text-primary">النوع</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">النقاط</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الخطورة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in categories %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ c.name }}</td>
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs font-bold
+                         {% if c.kind == 'positive' %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-error-container/40 text-error{% endif %}">
+              {{ 'إيجابي' if c.kind == 'positive' else 'سلبي' }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-center font-label-lg font-bold tabular-nums">{{ '+' if c.default_points > 0 }}{{ c.default_points }}</td>
+          <td class="px-4 py-3 text-center font-label-md">{{ {'low':'منخفضة','medium':'متوسطة','high':'مرتفعة'}.get(c.severity, c.severity) }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="px-6 py-8 text-center text-outline">لا فئات معرَّفة بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

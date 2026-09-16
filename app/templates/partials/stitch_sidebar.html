@@ -80,9 +80,10 @@
         {{ nav_item('dashboard.home', 'لوحة التحكم', 'dashboard') }}
 
         {% call group('admin-academic', 'البنية الأكاديمية', 'stairs') %}
-          {{ nav_item('academic.years_list',    'السنوات الدراسية', 'event') }}
-          {{ nav_item('academic.grades_list',   'الصفوف والمراحل', 'stairs') }}
-          {{ nav_item('academic.sections_list', 'الفصول والشعب',   'meeting_room') }}
+          {{ nav_item('academic.years_list',     'السنوات الدراسية', 'event') }}
+          {{ nav_item('academic.grades_list',    'الصفوف والمراحل', 'stairs') }}
+          {{ nav_item('academic.sections_list',  'الفصول والشعب',   'meeting_room') }}
+          {{ nav_item('academic.calendar_month', 'التقويم الدراسي',  'calendar_month') }}
         {% endcall %}
 
         {% call group('admin-members', 'الأعضاء', 'groups') %}
