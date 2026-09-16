@@ -41,7 +41,9 @@ from ...models import (
     Announcement, Course, CourseAssignment, Quiz, Question, Choice,
     QuizAttempt, Answer, Section, Student, Submission,
     BankQuestion, BankChoice,
-    Subject, Grade, AcademicYear,
+    AssignmentQuestion, AssignmentChoice, AssignmentAnswer,
+    AssignmentTemplate, AssignmentTemplateQuestion, AssignmentTemplateChoice,
+    Subject, Grade, AcademicYear, Term, Unit, Lesson,
 )
 
 
@@ -149,6 +151,145 @@ def assignment_edit(aid):
         flash("تم حفظ الواجب.", "success")
         return redirect(url_for("courses.detail", course_id=course.id))
     return render_template("lms/assignment_form.html", assignment=a, course=course)
+
+
+# ─── Smart-assignment composer (ticket #16 pt 3) ──────────────────────
+#
+# Mirrors the quiz_questions / quiz_pick_from_bank routes so an
+# assignment can carry MCQ / TF / short / essay questions the same way
+# a quiz does. When an assignment has zero questions it stays as the
+# legacy free-form (upload/text) homework.
+
+@bp.route("/assignments/<int:aid>/questions", endpoint="assignment_questions")
+@login_required
+def assignment_questions(aid):
+    a = CourseAssignment.query.get_or_404(aid)
+    return render_template("lms/assignment_questions.html", assignment=a)
+
+
+@bp.route("/assignments/<int:aid>/questions/add", methods=["POST"],
+          endpoint="assignment_question_add")
+@login_required
+def assignment_question_add(aid):
+    a = CourseAssignment.query.get_or_404(aid)
+    last = max((q.order_index for q in a.questions), default=0)
+    kind = request.form.get("kind", "mcq")
+    q = AssignmentQuestion(
+        assignment_id=a.id, order_index=last + 1, kind=kind,
+        prompt=(request.form.get("prompt") or "").strip(),
+        points=Decimal(request.form.get("points") or "1"),
+        correct_short=(request.form.get("correct_short") or "").strip(),
+    )
+    db.session.add(q); db.session.flush()
+    if kind == "mcq":
+        for i, label in enumerate(["الخيار أ", "الخيار ب", "الخيار ج", "الخيار د"], start=1):
+            db.session.add(AssignmentChoice(question_id=q.id, order_index=i,
+                                            label=label, is_correct=(i == 1)))
+    elif kind == "tf":
+        db.session.add(AssignmentChoice(question_id=q.id, order_index=1, label="صح", is_correct=True))
+        db.session.add(AssignmentChoice(question_id=q.id, order_index=2, label="خطأ", is_correct=False))
+    db.session.commit()
+    flash("تمت إضافة السؤال — عدّل الخيارات إن لزم.", "success")
+    return redirect(url_for("lms.assignment_questions", aid=a.id))
+
+
+@bp.route("/assignment-questions/<int:qid>/update", methods=["POST"],
+          endpoint="assignment_question_update")
+@login_required
+def assignment_question_update(qid):
+    q = AssignmentQuestion.query.get_or_404(qid)
+    q.prompt = (request.form.get("prompt") or "").strip()
+    q.points = Decimal(request.form.get("points") or "1")
+    q.correct_short = (request.form.get("correct_short") or "").strip()
+    correct_ids = set(int(x) for x in request.form.getlist("correct_choices") if x.isdigit())
+    for c in q.choices:
+        c.label = (request.form.get(f"choice_label[{c.id}]") or c.label).strip()
+        c.is_correct = c.id in correct_ids
+    db.session.commit()
+    flash("تم حفظ السؤال.", "success")
+    return redirect(url_for("lms.assignment_questions", aid=q.assignment_id))
+
+
+@bp.route("/assignment-questions/<int:qid>/delete", methods=["POST"],
+          endpoint="assignment_question_delete")
+@login_required
+def assignment_question_delete(qid):
+    q = AssignmentQuestion.query.get_or_404(qid)
+    aid = q.assignment_id
+    db.session.delete(q); db.session.commit()
+    flash("تم حذف السؤال.", "success")
+    return redirect(url_for("lms.assignment_questions", aid=aid))
+
+
+@bp.route("/assignments/<int:aid>/pick", methods=["GET", "POST"],
+          endpoint="assignment_pick_from_bank")
+@login_required
+def assignment_pick_from_bank(aid):
+    """Same UX as quiz_pick_from_bank — clone selected BankQuestions
+    into AssignmentQuestion + AssignmentChoice rows for this assignment.
+    Duplicate-safe on source_bank_id."""
+    a = CourseAssignment.query.get_or_404(aid)
+
+    if request.method == "POST":
+        picked_ids = [int(x) for x in request.form.getlist("bank_ids") if x.isdigit()]
+        if not picked_ids:
+            flash("لم يتم اختيار أي سؤال.", "warning")
+            return redirect(url_for("lms.assignment_pick_from_bank", aid=a.id))
+
+        existing_sources = {q.source_bank_id for q in a.questions if q.source_bank_id}
+        pool = BankQuestion.query.filter(
+            BankQuestion.school_id == current_user.school_id,
+            BankQuestion.id.in_(picked_ids),
+        ).all()
+
+        last = max((q.order_index for q in a.questions), default=0)
+        added = 0; skipped = 0
+        for bq in pool:
+            if bq.id in existing_sources:
+                skipped += 1
+                continue
+            last += 1
+            aq = AssignmentQuestion(
+                assignment_id=a.id, order_index=last,
+                kind=bq.kind, prompt=bq.prompt,
+                points=bq.points or Decimal("1"),
+                correct_short=bq.correct_short or "",
+                source_bank_id=bq.id,
+            )
+            db.session.add(aq); db.session.flush()
+            for bc in bq.choices:
+                db.session.add(AssignmentChoice(
+                    question_id=aq.id, order_index=bc.order_index,
+                    label=bc.label, is_correct=bc.is_correct,
+                ))
+            added += 1
+        db.session.commit()
+        msg = f"تمت إضافة {added} سؤال إلى الواجب."
+        if skipped:
+            msg += f" (تم تجاهل {skipped} سؤال موجود مسبقاً.)"
+        flash(msg, "success" if added else "warning")
+        return redirect(url_for("lms.assignment_questions", aid=a.id))
+
+    items = _bank_query().limit(300).all()
+    subjects, grades, years, terms = _bank_filter_options()
+    already = {q.source_bank_id for q in a.questions if q.source_bank_id}
+    return render_template(
+        "lms/assignment_bank_picker.html",
+        assignment=a, items=items, already=already,
+        subjects=subjects, grades=grades, years=years, terms=terms,
+        selected={
+            "subject_id": request.args.get("subject_id", type=int),
+            "grade_id":   request.args.get("grade_id",   type=int),
+            "year_id":    request.args.get("year_id",    type=int),
+            "term_id":    request.args.get("term_id",    type=int),
+            "unit_id":    request.args.get("unit_id",    type=int),
+            "lesson_id":  request.args.get("lesson_id",  type=int),
+            "difficulty": request.args.get("difficulty", ""),
+            "kind":       request.args.get("kind", ""),
+            "tag":        (request.args.get("tag") or "").strip(),
+            "q":          (request.args.get("q")   or "").strip(),
+        },
+    )
 
 
 @bp.route("/assignments/<int:aid>/delete", methods=["POST"], endpoint="assignment_delete")
@@ -299,9 +440,15 @@ def _bank_query():
     kind  = request.args.get("kind")
     tag   = (request.args.get("tag") or "").strip()
     search = (request.args.get("q") or "").strip()
+    term  = request.args.get("term_id",   type=int)
+    unit  = request.args.get("unit_id",   type=int)
+    lesson = request.args.get("lesson_id", type=int)
     if subj:  q = q.filter(BankQuestion.subject_id == subj)
     if grade: q = q.filter(BankQuestion.grade_id == grade)
     if year:  q = q.filter(BankQuestion.academic_year_id == year)
+    if term:  q = q.filter(BankQuestion.term_id == term)
+    if unit:  q = q.filter(BankQuestion.unit_id == unit)
+    if lesson: q = q.filter(BankQuestion.lesson_id == lesson)
     if diff:  q = q.filter(BankQuestion.difficulty == diff)
     if kind:  q = q.filter(BankQuestion.kind == kind)
     if tag:   q = q.filter(BankQuestion.tags.ilike(f"%{tag}%"))
@@ -311,15 +458,51 @@ def _bank_query():
 
 
 def _bank_filter_options():
-    """Dropdown data for bank filters, all scoped to the current school."""
+    """Dropdown data for bank filters, all scoped to the current school.
+    Includes terms (across all years) and courses+units so the form can
+    cascade subject → course → unit → lesson."""
     sid = current_user.school_id
-    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all() \
-        if hasattr(Subject, "school_id") else Subject.query.order_by(Subject.name).all()
-    grades   = Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all() \
-        if hasattr(Grade, "school_id") else Grade.query.order_by(Grade.name).all()
-    years    = AcademicYear.query.filter_by(school_id=sid).order_by(AcademicYear.start_date.desc()).all() \
-        if hasattr(AcademicYear, "school_id") else AcademicYear.query.order_by(AcademicYear.start_date.desc()).all()
-    return subjects, grades, years
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    grades   = Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
+    years    = (
+        AcademicYear.query.filter_by(school_id=sid)
+        .order_by(AcademicYear.start_date.desc()).all()
+    )
+    terms    = (
+        Term.query.filter_by(school_id=sid)
+        .join(AcademicYear, AcademicYear.id == Term.year_id)
+        .order_by(AcademicYear.start_date.desc(), Term.order_index).all()
+    )
+    return subjects, grades, years, terms
+
+
+def _bank_form_extras(item=None):
+    """Extra data the bank form needs: courses/units/lessons for the
+    cascading picker. Returns (subjects, grades, years, terms, courses,
+    units, lessons_by_unit) — the last three preloaded for the item's
+    current subject when editing, empty otherwise (JS fetches on demand
+    later)."""
+    subjects, grades, years, terms = _bank_filter_options()
+    sid = current_user.school_id
+    # Courses for the whole school — the form will scope to the picked
+    # subject client-side. Server data payload is small (a few dozen
+    # rows), so no need for an XHR endpoint yet.
+    courses = (
+        Course.query.filter_by(school_id=sid)
+        .order_by(Course.title).all()
+    )
+    # Every unit + lesson in the school. Same argument as courses.
+    units = (
+        Unit.query.join(Course, Course.id == Unit.course_id)
+        .filter(Course.school_id == sid)
+        .order_by(Unit.course_id, Unit.order_index).all()
+    )
+    lessons = (
+        Lesson.query.join(Course, Course.id == Lesson.course_id)
+        .filter(Course.school_id == sid)
+        .order_by(Lesson.course_id, Lesson.order_index).all()
+    )
+    return subjects, grades, years, terms, courses, units, lessons
 
 
 @bp.route("/bank", endpoint="bank_home")
@@ -327,16 +510,19 @@ def _bank_filter_options():
 def bank_home():
     """Bank browser — filterable list of the school's questions."""
     items = _bank_query().limit(200).all()
-    subjects, grades, years = _bank_filter_options()
+    subjects, grades, years, terms = _bank_filter_options()
     total = BankQuestion.query.filter_by(school_id=current_user.school_id).count()
     return render_template(
         "lms/bank_list.html",
         items=items, total=total,
-        subjects=subjects, grades=grades, years=years,
+        subjects=subjects, grades=grades, years=years, terms=terms,
         selected={
             "subject_id": request.args.get("subject_id", type=int),
             "grade_id":   request.args.get("grade_id",   type=int),
             "year_id":    request.args.get("year_id",    type=int),
+            "term_id":    request.args.get("term_id",    type=int),
+            "unit_id":    request.args.get("unit_id",    type=int),
+            "lesson_id":  request.args.get("lesson_id",  type=int),
             "difficulty": request.args.get("difficulty", ""),
             "kind":       request.args.get("kind", ""),
             "tag":        (request.args.get("tag") or "").strip(),
@@ -350,9 +536,12 @@ def bank_home():
 def bank_new():
     if request.method == "POST":
         return _bank_save(None)
-    subjects, grades, years = _bank_filter_options()
-    return render_template("lms/bank_form.html",
-                           item=None, subjects=subjects, grades=grades, years=years)
+    subjects, grades, years, terms, courses, units, lessons = _bank_form_extras()
+    return render_template(
+        "lms/bank_form.html", item=None,
+        subjects=subjects, grades=grades, years=years, terms=terms,
+        courses=courses, units=units, lessons=lessons,
+    )
 
 
 @bp.route("/bank/<int:bid>/edit", methods=["GET", "POST"], endpoint="bank_edit")
@@ -361,9 +550,12 @@ def bank_edit(bid):
     item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
     if request.method == "POST":
         return _bank_save(item)
-    subjects, grades, years = _bank_filter_options()
-    return render_template("lms/bank_form.html",
-                           item=item, subjects=subjects, grades=grades, years=years)
+    subjects, grades, years, terms, courses, units, lessons = _bank_form_extras(item)
+    return render_template(
+        "lms/bank_form.html", item=item,
+        subjects=subjects, grades=grades, years=years, terms=terms,
+        courses=courses, units=units, lessons=lessons,
+    )
 
 
 def _bank_save(item):
@@ -389,6 +581,9 @@ def _bank_save(item):
     item.subject_id       = request.form.get("subject_id", type=int) or None
     item.grade_id         = request.form.get("grade_id",   type=int) or None
     item.academic_year_id = request.form.get("year_id",    type=int) or None
+    item.term_id          = request.form.get("term_id",    type=int) or None
+    item.unit_id          = request.form.get("unit_id",    type=int) or None
+    item.lesson_id        = request.form.get("lesson_id",  type=int) or None
     db.session.flush()
 
     # Rewrite choices from the form. For mcq/multi/tf we accept parallel
@@ -581,6 +776,53 @@ def assignment_submit(aid):
         path = os.path.join(subdir, unique)
         file.save(path)
         submission.file_url = url_for("static", filename=f"uploads/submissions/{a.id}/{unique}")
+
+    # Ticket #16 pt 3 — persist + auto-grade quiz-style answers when the
+    # assignment carries AssignmentQuestion rows. Mirrors quiz_submit:
+    # mcq/multi/tf → auto scored via choice.is_correct; short → normalized
+    # string match; essay → left ungraded for the teacher.
+    if a.questions:
+        db.session.flush()  # ensure submission.id exists
+        # Wipe previous answers so an edit-submit doesn't leave stale rows.
+        for existing in list(submission.answers):
+            db.session.delete(existing)
+        db.session.flush()
+
+        auto_total = Decimal(0)
+        for q in a.questions:
+            ans = AssignmentAnswer(submission_id=submission.id, question_id=q.id)
+            if q.kind in ("mcq", "tf"):
+                cid = request.form.get(f"q{q.id}_choice", type=int)
+                ans.choice_id = cid
+                choice = next((c for c in q.choices if c.id == cid), None)
+                ans.is_correct = bool(choice and choice.is_correct)
+            elif q.kind == "multi":
+                picked = set(int(x) for x in request.form.getlist(f"q{q.id}_choices") if x.isdigit())
+                correct = {c.id for c in q.choices if c.is_correct}
+                ans.text_answer = ",".join(str(x) for x in sorted(picked))
+                ans.is_correct = picked == correct and bool(correct)
+            elif q.kind == "short":
+                text = (request.form.get(f"q{q.id}_text") or "").strip()
+                ans.text_answer = text
+                ans.is_correct = (
+                    text.casefold() == (q.correct_short or "").strip().casefold()
+                    and bool(q.correct_short)
+                )
+            elif q.kind == "essay":
+                ans.text_answer = (request.form.get(f"q{q.id}_text") or "").strip()
+                ans.is_correct = None  # requires manual grading
+            ans.awarded_points = (q.points or Decimal(0)) if ans.is_correct else Decimal(0)
+            if q.kind != "essay":
+                auto_total += ans.awarded_points
+            db.session.add(ans)
+
+        # Score is provisional until the teacher grades any essay
+        # questions. If there are no essays we can set the final score
+        # directly; otherwise leave submission.score NULL so the teacher
+        # UI knows it needs review.
+        has_essay = any(q.kind == "essay" for q in a.questions)
+        if not has_essay:
+            submission.score = auto_total
 
     submission.submitted_at = now
     db.session.commit()

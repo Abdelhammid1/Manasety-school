@@ -50,11 +50,12 @@
       </div>
     </div>
 
-    <!-- Scope: subject / grade / year -->
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+    <!-- Scope row 1: subject / grade / year / term -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-on-surface font-bold">المادة</label>
-        <select name="subject_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
+        <select name="subject_id" id="subjectSel" onchange="rebuildUnits(); rebuildLessons();"
+                class="h-12 px-4 rounded-xl bg-surface-container-low">
           <option value="">— بدون —</option>
           {% for s in subjects %}
           <option value="{{ s.id }}" {% if item and item.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
@@ -71,7 +72,7 @@
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-on-surface font-bold">السنة الدراسية</label>
+        <label class="font-label-md text-on-surface font-bold">السنة</label>
         <select name="year_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
           <option value="">— بدون —</option>
           {% for y in years %}
@@ -79,7 +80,47 @@
           {% endfor %}
         </select>
       </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">الفترة</label>
+        <select name="term_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+          {% for t in terms %}
+          <option value="{{ t.id }}" {% if item and item.term_id == t.id %}selected{% endif %}>{{ t.name }}{% if t.year %} — {{ t.year.name }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
     </div>
+
+    <!-- Scope row 2: unit + lesson, cascading from subject -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">الوحدة</label>
+        <select name="unit_id" id="unitSel" onchange="rebuildLessons();"
+                class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+        </select>
+        <p class="font-label-xs text-outline">تظهر وحدات مقرّرات المادة المختارة أعلاه.</p>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">الدرس</label>
+        <select name="lesson_id" id="lessonSel"
+                class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+        </select>
+        <p class="font-label-xs text-outline">اختياري — يُستخدم في تقارير الأداء بالدرس.</p>
+      </div>
+    </div>
+
+    {# Data payload for the JS cascade. Small enough per school. #}
+    <script id="bank-scope-data" type="application/json">
+      {
+        "courses": [{% for c in courses %}{"id": {{ c.id }}, "subject_id": {{ c.subject_id }}, "title": {{ c.title|tojson }}}{{ ',' if not loop.last }}{% endfor %}],
+        "units":   [{% for u in units   %}{"id": {{ u.id }}, "course_id": {{ u.course_id }}, "title": {{ u.title|tojson }}}{{ ',' if not loop.last }}{% endfor %}],
+        "lessons": [{% for l in lessons %}{"id": {{ l.id }}, "course_id": {{ l.course_id }}, "unit_id": {{ (l.unit_id|tojson) if l.unit_id else 'null' }}, "title": {{ l.title|tojson }}}{{ ',' if not loop.last }}{% endfor %}],
+        "current_unit_id":   {{ (item.unit_id or 'null') if item else 'null' }},
+        "current_lesson_id": {{ (item.lesson_id or 'null') if item else 'null' }}
+      }
+    </script>
 
     <!-- Prompt -->
     <div class="flex flex-col gap-1.5">
@@ -148,6 +189,51 @@
   const choicesBox = document.getElementById('choicesBox');
   const shortBox = document.getElementById('shortBox');
   const essayBox = document.getElementById('essayBox');
+  // Ticket #16 pt 2 — cascade the Unit + Lesson pickers off the picked
+  // Subject. Small enough dataset per school that we ship it inline
+  // rather than hitting an XHR endpoint.
+  const scopeData = (function() {
+    try { return JSON.parse(document.getElementById('bank-scope-data').textContent); }
+    catch (e) { return {courses:[], units:[], lessons:[], current_unit_id:null, current_lesson_id:null}; }
+  })();
+  function courseIdsForSubject(sid) {
+    return new Set(scopeData.courses.filter(c => c.subject_id === sid).map(c => c.id));
+  }
+  function rebuildUnits() {
+    const sel = document.getElementById('unitSel');
+    const sid = parseInt(document.getElementById('subjectSel').value || '0', 10);
+    const courseIds = sid ? courseIdsForSubject(sid) : null;
+    const currentVal = parseInt(sel.value || scopeData.current_unit_id || '0', 10);
+    sel.innerHTML = '<option value="">— بدون —</option>';
+    for (const u of scopeData.units) {
+      if (courseIds && !courseIds.has(u.course_id)) continue;
+      const opt = document.createElement('option');
+      opt.value = u.id;
+      opt.textContent = u.title;
+      if (u.id === currentVal) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  function rebuildLessons() {
+    const sel = document.getElementById('lessonSel');
+    const sid = parseInt(document.getElementById('subjectSel').value || '0', 10);
+    const uid = parseInt(document.getElementById('unitSel').value || '0', 10);
+    const courseIds = sid ? courseIdsForSubject(sid) : null;
+    const currentVal = parseInt(sel.value || scopeData.current_lesson_id || '0', 10);
+    sel.innerHTML = '<option value="">— بدون —</option>';
+    for (const l of scopeData.lessons) {
+      if (courseIds && !courseIds.has(l.course_id)) continue;
+      if (uid && l.unit_id !== uid) continue;
+      const opt = document.createElement('option');
+      opt.value = l.id;
+      opt.textContent = l.title;
+      if (l.id === currentVal) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  }
+  rebuildUnits();
+  rebuildLessons();
+
   function toggleKind() {
     const k = kindSel.value;
     choicesBox.hidden = !(k === 'mcq' || k === 'multi' || k === 'tf');

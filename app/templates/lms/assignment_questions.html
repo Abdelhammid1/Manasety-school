@@ -1,0 +1,178 @@
+{# Assignment question composer — mirrors quiz_questions.html. Teachers
+   pull from the bank as the primary path, with an ad-hoc quick-add
+   disclosure for one-off questions. Ticket #16 pt 3. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}أسئلة الواجب: {{ assignment.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.detail', course_id=assignment.course_id) }}" class="hover:text-primary">{{ assignment.course.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ assignment.title }} — الأسئلة</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">{{ assignment.title }}</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {{ assignment.questions|length }} سؤال · درجة عظمى: {{ assignment.max_score }}
+        {% if assignment.due_at %} · يستحق: {{ assignment.due_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}
+      </p>
+    </div>
+    <div class="flex items-center gap-space-sm flex-wrap">
+      <a href="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}"
+         class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-xl">library_add</span><span>اختر من بنك الأسئلة</span>
+      </a>
+      <a href="{{ url_for('lms.bank_home') }}"
+         class="h-11 px-4 rounded-xl bg-primary-container/20 text-primary font-label-lg font-bold flex items-center gap-2 hover:bg-primary-container/40">
+        <span class="material-symbols-outlined text-lg">inventory_2</span><span>إدارة البنك</span>
+      </a>
+      <a href="{{ url_for('lms.assignment_edit', aid=assignment.id) }}"
+         class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold flex items-center gap-2 hover:bg-surface-container">
+        <span class="material-symbols-outlined text-lg">tune</span><span>إعدادات الواجب</span>
+      </a>
+    </div>
+  </div>
+
+  <section class="rounded-2xl p-space-md shadow-sm flex items-center gap-space-md"
+           style="background: linear-gradient(135deg, rgba(30,58,138,0.06), rgba(37,99,235,0.06), rgba(0,153,204,0.06));
+                  border: 1px solid rgba(37,99,235,0.15);">
+    <div class="w-12 h-12 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-2xl">tips_and_updates</span>
+    </div>
+    <div class="flex-1">
+      <h3 class="font-title-md text-primary font-bold">واجب ذكي</h3>
+      <p class="font-body-md text-on-surface-variant leading-relaxed">
+        الواجب من غير أسئلة يظل يشتغل كواجب حر (رفع ملف/نص). لما تضيف أسئلة، الطالب
+        بيجاوب عليها في نفس الشاشة والأسئلة الموضوعية بتتصحّح تلقائيًا.
+      </p>
+    </div>
+  </section>
+
+  <details class="bg-surface-container-lowest rounded-2xl shadow-sm">
+    <summary class="p-space-md cursor-pointer list-none flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">add_circle</span>
+        <span class="font-title-md text-primary font-bold">أو أضِف سؤالاً سريعاً بدون بنك</span>
+      </div>
+      <span class="material-symbols-outlined text-primary">expand_more</span>
+    </summary>
+    <div class="p-space-md pt-0 border-t border-outline-variant">
+      <p class="mb-space-sm font-label-md text-outline">هذا السؤال يظهر في هذا الواجب فقط ولن يُحفظ في البنك.</p>
+      <form method="post" action="{{ url_for('lms.assignment_question_add', aid=assignment.id) }}" class="grid grid-cols-1 md:grid-cols-[1fr_2fr_120px_auto] gap-space-sm items-end">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">النوع</label>
+          <select name="kind" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            <option value="mcq">اختيار من متعدد</option>
+            <option value="tf">صح/خطأ</option>
+            <option value="short">إجابة قصيرة</option>
+            <option value="essay">مقالي</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">نص السؤال</label>
+          <input name="prompt" required placeholder="اكتب السؤال..." class="h-11 px-3 rounded-lg bg-surface-container-low">
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-md text-on-surface font-bold">النقاط</label>
+          <input name="points" type="number" min="1" step="0.5" value="1" class="h-11 px-3 text-center rounded-lg bg-surface-container-low tabular-nums">
+        </div>
+        <button type="submit" class="h-11 px-5 rounded-xl bg-primary text-on-primary font-label-lg font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">add</span><span>إضافة</span>
+        </button>
+      </form>
+    </div>
+  </details>
+
+  {% if assignment.questions %}
+  <section class="flex flex-col gap-space-md">
+    {% for q in assignment.questions %}
+    <details class="bg-surface-container-lowest rounded-2xl shadow-sm">
+      <summary class="p-space-md flex items-center justify-between cursor-pointer list-none">
+        <div class="flex items-center gap-space-sm min-w-0">
+          <div class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold tabular-nums shrink-0">{{ q.order_index }}</div>
+          <div class="flex flex-col min-w-0">
+            <span class="font-label-md text-outline flex items-center gap-1.5 flex-wrap">
+              <span>{{ {'mcq':'اختيار من متعدد','tf':'صح/خطأ','multi':'متعدد الإجابات','short':'إجابة قصيرة','essay':'مقالي'}.get(q.kind, q.kind) }}
+                · {{ q.points }} نقطة</span>
+              {% if q.source_bank_id %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-xs font-bold">
+                <span class="material-symbols-outlined text-xs">inventory_2</span>من البنك
+              </span>
+              {% endif %}
+            </span>
+            <span class="font-title-md text-primary font-bold truncate">{{ q.prompt|truncate(80) or '— سؤال بدون نص —' }}</span>
+          </div>
+        </div>
+        <span class="material-symbols-outlined text-primary">expand_more</span>
+      </summary>
+      <form method="post" action="{{ url_for('lms.assignment_question_update', qid=q.id) }}"
+            class="p-space-md pt-0 border-t border-outline-variant flex flex-col gap-space-md">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">نص السؤال</label>
+          <textarea name="prompt" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low leading-loose">{{ q.prompt }}</textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-space-md">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-on-surface font-bold">النقاط</label>
+            <input name="points" type="number" min="1" step="0.5" value="{{ q.points }}" class="h-11 px-3 text-center rounded-lg bg-surface-container-low tabular-nums">
+          </div>
+          {% if q.kind == 'short' %}
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-on-surface font-bold">الإجابة الصحيحة</label>
+            <input name="correct_short" value="{{ q.correct_short }}" placeholder="مثال: سبعة" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          </div>
+          {% endif %}
+        </div>
+
+        {% if q.kind in ('mcq','tf','multi') %}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">الخيارات — ضع علامة على الصحيح</label>
+          <div class="flex flex-col gap-2">
+            {% for c in q.choices %}
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+              <input type="checkbox" name="correct_choices" value="{{ c.id }}" {% if c.is_correct %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+              <input name="choice_label[{{ c.id }}]" value="{{ c.label }}" class="flex-1 h-9 px-2 rounded-lg bg-surface-container-lowest">
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        {% elif q.kind == 'essay' %}
+        <div class="p-space-sm rounded-lg bg-tertiary-fixed text-on-tertiary-fixed-variant text-body-sm">
+          <span class="material-symbols-outlined text-sm align-middle">info</span>
+          الأسئلة المقالية تُصحَّح يدوياً — لا تُحسب في التصحيح الآلي.
+        </div>
+        {% endif %}
+
+        <div class="flex items-center justify-between">
+          <button type="button" onclick="delQ({{ q.id }})" class="h-10 px-4 rounded-lg text-error hover:bg-error-container/40 flex items-center gap-1 font-label-md font-bold">
+            <span class="material-symbols-outlined text-sm">delete</span><span>حذف السؤال</span>
+          </button>
+          <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">حفظ السؤال</button>
+        </div>
+      </form>
+      <form id="delQ{{ q.id }}" method="post" action="{{ url_for('lms.assignment_question_delete', qid=q.id) }}" class="hidden">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      </form>
+    </details>
+    {% endfor %}
+  </section>
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">quiz</span>
+    <p class="mt-3 font-body-md text-on-surface-variant">لا أسئلة بعد — واجب حر (رفع ملف/نص).</p>
+    <p class="mt-1 font-label-md text-outline">ابدأ من زر «اختر من بنك الأسئلة» أعلاه.</p>
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  function delQ(id) { if (confirm('حذف السؤال نهائياً؟')) document.getElementById('delQ' + id).submit(); }
+</script>
+{% endblock %}

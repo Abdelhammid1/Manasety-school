@@ -1,0 +1,133 @@
+{# Bank picker for a specific assignment — same UX as bank_picker.html
+   for quizzes, action points at lms.assignment_pick_from_bank. Ticket
+   #16 pt 3. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}اختيار من البنك — {{ assignment.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.assignment_questions', aid=assignment.id) }}" class="hover:text-primary">{{ assignment.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">اختيار من البنك</span>
+{% endblock %}
+
+{% set kind_labels = {'mcq':'اختيار من متعدد','multi':'إجابات متعددة','tf':'صح/خطأ','short':'إجابة قصيرة','essay':'مقالي'} %}
+{% set diff_labels = {'easy':'سهل','medium':'متوسط','hard':'صعب'} %}
+{% set diff_colors = {'easy':'bg-[#ECFDF5] text-[#065F46]', 'medium':'bg-tertiary-fixed text-on-tertiary-fixed-variant', 'hard':'bg-error-container text-on-error-container'} %}
+
+{% block page_content %}
+<form method="post" action="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}" class="flex flex-col w-full gap-space-md">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-on-surface-variant">إضافة أسئلة إلى الواجب</span>
+        <h1 class="font-headline-lg text-primary font-bold mt-1">{{ assignment.title }}</h1>
+        <p class="font-body-md text-on-surface-variant mt-1">
+          يتم <b>نسخ</b> الأسئلة المختارة إلى الواجب — أي تعديل لاحق على البنك لا يؤثّر على الواجب.
+        </p>
+      </div>
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('lms.assignment_questions', aid=assignment.id) }}"
+           class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+        <button type="submit" id="addBtn" disabled
+                class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md opacity-40"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">library_add</span>
+          <span>إضافة المحدَّد (<span id="count">0</span>)</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <form method="get" action="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">المادة</label>
+        <select name="subject_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for s in subjects %}<option value="{{ s.id }}" {% if selected.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الصف</label>
+        <select name="grade_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for g in grades %}<option value="{{ g.id }}" {% if selected.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الفترة</label>
+        <select name="term_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for t in terms %}<option value="{{ t.id }}" {% if selected.term_id == t.id %}selected{% endif %}>{{ t.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الصعوبة</label>
+        <select name="difficulty" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for k, lbl in diff_labels.items() %}<option value="{{ k }}" {% if selected.difficulty == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1 md:col-span-3">
+        <label class="font-label-md text-on-surface font-bold">بحث نصي</label>
+        <input name="q" value="{{ selected.q }}" placeholder="ابحث داخل نص السؤال…" class="h-10 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex items-end justify-end gap-2">
+        <a href="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}" class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="flex flex-col gap-space-sm">
+    {% for it in items %}
+      {% set is_attached = it.id in already %}
+      <label class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-start gap-3 cursor-pointer hover:ring-2 hover:ring-primary/20 transition-all {% if is_attached %}opacity-60 cursor-not-allowed{% endif %}">
+        <input type="checkbox" name="bank_ids" value="{{ it.id }}" class="bank-pick w-5 h-5 rounded accent-primary mt-1"
+               {% if is_attached %}disabled{% endif %} onchange="updateCount()">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-space-sm flex-wrap">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-primary/10 text-primary font-label-md font-semibold">
+              <span class="material-symbols-outlined text-sm">quiz</span>{{ kind_labels.get(it.kind, it.kind) }}
+            </span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-md font-semibold {{ diff_colors.get(it.difficulty, 'bg-surface-container text-on-surface-variant') }}">{{ diff_labels.get(it.difficulty, it.difficulty) }}</span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-md font-semibold">
+              <span class="material-symbols-outlined text-sm">emoji_events</span>{{ it.points }} نقطة
+            </span>
+            {% if is_attached %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-md font-bold">
+              <span class="material-symbols-outlined text-sm">check_circle</span>مضاف مسبقاً
+            </span>
+            {% endif %}
+          </div>
+          <p class="mt-2 font-title-md text-on-surface font-bold leading-relaxed whitespace-pre-line">{{ it.prompt }}</p>
+        </div>
+      </label>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">inventory_2</span>
+      <p class="mt-3 font-body-md text-on-surface-variant">لا يوجد أسئلة مطابقة للفلاتر.</p>
+      <a href="{{ url_for('lms.bank_new') }}" class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-lg">add</span>أضف سؤالاً للبنك
+      </a>
+    </div>
+    {% endfor %}
+  </section>
+</form>
+
+<script>
+  const btn = document.getElementById('addBtn'); const countEl = document.getElementById('count');
+  function updateCount() {
+    const n = document.querySelectorAll('.bank-pick:checked').length;
+    countEl.textContent = n; btn.disabled = (n === 0); btn.classList.toggle('opacity-40', n === 0);
+  }
+  updateCount();
+</script>
+{% endblock %}

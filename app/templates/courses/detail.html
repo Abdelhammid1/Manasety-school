@@ -251,6 +251,14 @@
           </div>
         </a>
         <div class="flex items-center gap-1">
+          {% if a.has_questions %}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-xs font-bold" title="{{ a.questions|length }} سؤال">
+            <span class="material-symbols-outlined text-xs">quiz</span>{{ a.questions|length }}
+          </span>
+          {% endif %}
+          <a href="{{ url_for('lms.assignment_questions', aid=a.id) }}" class="w-9 h-9 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="الأسئلة">
+            <span class="material-symbols-outlined text-lg">quiz</span>
+          </a>
           <a href="{{ url_for('lms.assignment_edit', aid=a.id) }}" class="w-9 h-9 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
             <span class="material-symbols-outlined text-lg">edit</span>
           </a>
