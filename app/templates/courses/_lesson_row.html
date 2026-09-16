@@ -1,0 +1,43 @@
+{# One lesson row — included by course detail from within a unit accordion
+   or the "no unit" fallback. Requires `l` in the local Jinja context. #}
+<div class="flex items-center gap-3 p-space-sm rounded-lg bg-surface-container-lowest hover:bg-surface-container transition-colors group">
+  <div class="w-9 h-9 rounded-lg bg-primary-container/20 text-primary flex items-center justify-center font-bold tabular-nums shrink-0">{{ l.order_index }}</div>
+  <div class="w-9 h-9 rounded-lg
+              {% if l.kind == 'video' %}bg-error text-white
+              {% elif l.kind == 'pdf' %}bg-[#0099CC] text-white
+              {% elif l.kind == 'link' %}bg-secondary-container text-secondary
+              {% elif l.kind == 'embed' %}bg-primary-container text-on-primary
+              {% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %} flex items-center justify-center shrink-0">
+    <span class="material-symbols-outlined text-lg">
+      {% if l.kind == 'video' %}play_circle
+      {% elif l.kind == 'pdf' %}picture_as_pdf
+      {% elif l.kind == 'link' %}link
+      {% elif l.kind == 'embed' %}code
+      {% else %}article{% endif %}
+    </span>
+  </div>
+  <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}" class="flex-1 min-w-0 group/link">
+    <div class="font-label-lg text-primary font-bold truncate group-hover/link:underline">{{ l.title }}</div>
+    <div class="font-label-xs text-outline flex items-center gap-2">
+      <span>{{ {'video':'فيديو','pdf':'PDF','link':'رابط','embed':'مضمّن','text':'نص'}.get(l.kind, l.kind) }}</span>
+      {% if l.duration_minutes %}<span>·</span><span class="tabular-nums">{{ l.duration_minutes }} دقيقة</span>{% endif %}
+    </div>
+  </a>
+  <div class="flex items-center gap-1">
+    <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
+       class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="عرض">
+      <span class="material-symbols-outlined text-sm">play_circle</span>
+    </a>
+    <a href="{{ url_for('courses.lesson_edit', lesson_id=l.id) }}"
+       class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
+      <span class="material-symbols-outlined text-sm">edit</span>
+    </a>
+    <form method="post" action="{{ url_for('courses.lesson_delete', lesson_id=l.id) }}"
+          onsubmit="return confirm('حذف الدرس «{{ l.title }}»؟ لا يمكن التراجع.');" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="w-8 h-8 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="حذف">
+        <span class="material-symbols-outlined text-sm">delete</span>
+      </button>
+    </form>
+  </div>
+</div>

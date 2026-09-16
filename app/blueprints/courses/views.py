@@ -329,6 +329,7 @@ def lesson_new(course_id):
         last = max((l.order_index for l in course.lessons), default=0)
         lesson = Lesson(
             course_id=course.id,
+            unit_id=request.form.get("unit_id", type=int) or None,
             order_index=last + 1,
             title=request.form["title"].strip(),
             kind=request.form.get("kind", "text"),
@@ -352,6 +353,7 @@ def lesson_edit(lesson_id):
     course = lesson.course
     if request.method == "POST":
         lesson.title = request.form["title"].strip()
+        lesson.unit_id = request.form.get("unit_id", type=int) or None
         lesson.kind = request.form.get("kind", "text")
         lesson.body = request.form.get("body", "")
         lesson.media_url = _embed_url(request.form.get("media_url", ""))
@@ -361,6 +363,60 @@ def lesson_edit(lesson_id):
         flash("تم حفظ تعديلات الدرس.", "success")
         return redirect(url_for("courses.detail", course_id=course.id))
     return render_template("courses/lesson_new.html", course=course, lesson=lesson)
+
+
+# ─── Unit CRUD (ticket #16 part 1) ────────────────────────────────────
+
+@bp.route("/<int:course_id>/units/new", methods=["POST"], endpoint="unit_new")
+@login_required
+def unit_new(course_id):
+    """Create a Unit within a Course. Minimal form — title only from a
+    modal on the course detail page. Description + reorder come later
+    via unit_edit."""
+    course = Course.query.get_or_404(course_id)
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("عنوان الوحدة مطلوب.", "danger")
+        return redirect(url_for("courses.detail", course_id=course.id))
+    last = max((u.order_index for u in course.units), default=0)
+    unit = Unit(
+        course_id=course.id, title=title,
+        description=(request.form.get("description") or "").strip(),
+        order_index=last + 1,
+    )
+    db.session.add(unit); db.session.commit()
+    flash(f"تمت إضافة الوحدة ({unit.title}).", "success")
+    return redirect(url_for("courses.detail", course_id=course.id))
+
+
+@bp.route("/units/<int:unit_id>/edit", methods=["POST"], endpoint="unit_edit")
+@login_required
+def unit_edit(unit_id):
+    """Update the unit's title/description. POST-only — no separate form
+    page; inline edit on the course detail page."""
+    unit = Unit.query.get_or_404(unit_id)
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("عنوان الوحدة مطلوب.", "danger")
+        return redirect(url_for("courses.detail", course_id=unit.course_id))
+    unit.title = title
+    unit.description = (request.form.get("description") or "").strip()
+    db.session.commit()
+    flash("تم تعديل الوحدة.", "success")
+    return redirect(url_for("courses.detail", course_id=unit.course_id))
+
+
+@bp.route("/units/<int:unit_id>/delete", methods=["POST"], endpoint="unit_delete")
+@login_required
+def unit_delete(unit_id):
+    """Hard-delete a unit. Its lessons stay — Lesson.unit_id is set to
+    NULL via the schema's ON DELETE SET NULL, so lessons fall back into
+    the \"no unit\" bucket for later re-tagging."""
+    unit = Unit.query.get_or_404(unit_id)
+    course_id = unit.course_id
+    db.session.delete(unit); db.session.commit()
+    flash("تم حذف الوحدة. الدروس داخلها انتقلت لبند \"بدون وحدة\".", "success")
+    return redirect(url_for("courses.detail", course_id=course_id))
 
 
 @bp.route("/lessons/<int:lesson_id>/delete", methods=["POST"], endpoint="lesson_delete")

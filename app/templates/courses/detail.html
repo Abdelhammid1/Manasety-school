@@ -86,73 +86,139 @@
     {% endfor %}
   </div>
 
-  <!-- Lessons -->
+  <!-- Units + Lessons (Ticket #16 pt 1) — accordion of units, each
+       hosting its lesson list. Lessons with unit_id NULL fall into a
+       trailing "بدون وحدة" bucket so historical data stays reachable. -->
+  {% set unbucketed = lessons | selectattr('unit_id', 'none') | list %}
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
-    <div class="flex items-center justify-between mb-space-md">
+    <div class="flex items-center justify-between mb-space-md flex-wrap gap-space-sm">
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
-        <span class="material-symbols-outlined text-secondary">play_lesson</span>الدروس
+        <span class="material-symbols-outlined text-secondary">view_module</span>الوحدات والدروس
       </h2>
-      <a href="{{ url_for('courses.lesson_new', course_id=course.id) }}"
-         class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined text-lg">add</span><span>درس جديد</span>
-      </a>
-    </div>
-    {% if lessons %}
-    <div class="flex flex-col gap-2">
-      {% for l in lessons %}
-      <div class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors group">
-        <div class="w-12 h-12 rounded-xl bg-primary-container/20 text-primary flex items-center justify-center font-bold text-lg tabular-nums shrink-0">{{ l.order_index }}</div>
-        <div class="w-10 h-10 rounded-lg
-                    {% if l.kind == 'video' %}bg-error text-white
-                    {% elif l.kind == 'pdf' %}bg-[#0099CC] text-white
-                    {% elif l.kind == 'link' %}bg-secondary-container text-secondary
-                    {% elif l.kind == 'embed' %}bg-primary-container text-on-primary
-                    {% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %} flex items-center justify-center shrink-0">
-          <span class="material-symbols-outlined">
-            {% if l.kind == 'video' %}play_circle
-            {% elif l.kind == 'pdf' %}picture_as_pdf
-            {% elif l.kind == 'link' %}link
-            {% elif l.kind == 'embed' %}code
-            {% else %}article{% endif %}
-          </span>
-        </div>
-        <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}" class="flex-1 min-w-0 group/link">
-          <div class="font-title-md text-title-md text-primary font-bold truncate group-hover/link:underline">{{ l.title }}</div>
-          <div class="font-label-xs text-outline flex items-center gap-2">
-            <span>{{ {'video':'فيديو','pdf':'PDF','link':'رابط','embed':'مضمّن','text':'نص'}.get(l.kind, l.kind) }}</span>
-            {% if l.duration_minutes %}<span>·</span><span class="tabular-nums">{{ l.duration_minutes }} دقيقة</span>{% endif %}
-          </div>
+      <div class="flex items-center gap-space-sm">
+        <button type="button" onclick="openModal('#newUnitModal')"
+                class="h-10 px-4 rounded-xl bg-primary-container/20 text-primary font-label-lg font-bold flex items-center gap-2 hover:bg-primary-container/40">
+          <span class="material-symbols-outlined text-lg">create_new_folder</span><span>وحدة جديدة</span>
+        </button>
+        <a href="{{ url_for('courses.lesson_new', course_id=course.id) }}"
+           class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-lg">add</span><span>درس جديد</span>
         </a>
-        <div class="flex items-center gap-1">
-          <a href="{{ url_for('courses.lesson_view', lesson_id=l.id) }}"
-             class="w-9 h-9 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="عرض">
-            <span class="material-symbols-outlined text-lg">play_circle</span>
-          </a>
-          <a href="{{ url_for('courses.lesson_edit', lesson_id=l.id) }}"
-             class="w-9 h-9 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
-            <span class="material-symbols-outlined text-lg">edit</span>
-          </a>
-          <form method="post" action="{{ url_for('courses.lesson_delete', lesson_id=l.id) }}"
-                onsubmit="return confirm('حذف الدرس «{{ l.title }}»؟ لا يمكن التراجع.');" class="inline">
+      </div>
+    </div>
+
+    {# ── One accordion per unit ── #}
+    {% if course.units %}
+    <div class="flex flex-col gap-space-sm">
+    {% for u in course.units %}
+    {% set unit_lessons = lessons | selectattr('unit_id', 'equalto', u.id) | list %}
+    <details class="bg-surface-container-low rounded-xl overflow-hidden" {% if loop.first %}open{% endif %}>
+      <summary class="p-space-md cursor-pointer list-none flex items-center gap-3">
+        <span class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold tabular-nums">{{ u.order_index }}</span>
+        <div class="flex-1 min-w-0">
+          <div class="font-title-md text-primary font-bold truncate">{{ u.title }}</div>
+          <div class="font-label-xs text-outline">{{ unit_lessons|length }} درس{% if u.description %} · {{ u.description|truncate(70) }}{% endif %}</div>
+        </div>
+        <span class="material-symbols-outlined text-primary transition-transform">expand_more</span>
+      </summary>
+      <div class="border-t border-outline-variant p-space-sm flex flex-col gap-1.5">
+        {% if unit_lessons %}
+        {% for l in unit_lessons %}
+        {% include "courses/_lesson_row.html" %}
+        {% endfor %}
+        {% else %}
+        <p class="text-center py-space-md text-outline">لا دروس في هذه الوحدة بعد.</p>
+        {% endif %}
+        <div class="flex items-center justify-between pt-2 border-t border-outline-variant mt-2">
+          <form method="post" action="{{ url_for('courses.unit_delete', unit_id=u.id) }}"
+                onsubmit="return confirm('حذف الوحدة ({{ u.title|e }})؟\n\nالدروس داخلها لا تُحذف — بتنتقل لبند «بدون وحدة».');"
+                class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <button type="submit" class="w-9 h-9 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="حذف">
-              <span class="material-symbols-outlined text-lg">delete</span>
+            <button type="submit" class="h-8 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
+              <span class="material-symbols-outlined text-sm">delete</span><span>حذف الوحدة</span>
             </button>
           </form>
         </div>
       </div>
-      {% endfor %}
+    </details>
+    {% endfor %}
     </div>
-    {% else %}
+    {% endif %}
+
+    {# ── Fallback bucket for legacy (or newly created) untagged lessons ── #}
+    {% if unbucketed or not course.units %}
+    <details class="bg-surface-container-low rounded-xl overflow-hidden mt-space-sm" {% if not course.units %}open{% endif %}>
+      <summary class="p-space-md cursor-pointer list-none flex items-center gap-3">
+        <span class="w-10 h-10 rounded-lg bg-surface-container text-outline flex items-center justify-center">
+          <span class="material-symbols-outlined">folder_off</span>
+        </span>
+        <div class="flex-1">
+          <div class="font-title-md text-primary font-bold">دروس بدون وحدة</div>
+          <div class="font-label-xs text-outline">{{ unbucketed|length }} درس — يمكنك ربطهم بوحدة من تعديل الدرس</div>
+        </div>
+        <span class="material-symbols-outlined text-primary">expand_more</span>
+      </summary>
+      <div class="border-t border-outline-variant p-space-sm flex flex-col gap-1.5">
+        {% if unbucketed %}
+        {% for l in unbucketed %}
+        {% include "courses/_lesson_row.html" %}
+        {% endfor %}
+        {% else %}
+        <p class="text-center py-space-md text-outline">لا دروس بدون وحدة.</p>
+        {% endif %}
+      </div>
+    </details>
+    {% endif %}
+
+    {% if not lessons and not course.units %}
     <div class="text-center py-space-xl">
       <div class="w-16 h-16 rounded-full bg-primary-fixed text-primary flex items-center justify-center mx-auto">
         <span class="material-symbols-outlined text-3xl">play_lesson</span>
       </div>
-      <p class="mt-3 font-body-md text-on-surface-variant">لا دروس مضافة بعد.</p>
+      <p class="mt-3 font-body-md text-on-surface-variant">لا دروس ولا وحدات مضافة بعد.</p>
+      <p class="mt-1 font-label-md text-outline">ابدأ بإنشاء وحدة، ثم أضف الدروس داخلها.</p>
     </div>
     {% endif %}
   </section>
+
+  {# ── Modal: create a new unit ── #}
+  <div id="newUnitModal" class="modal-backdrop" hidden>
+    <div class="modal-card size-standard p-space-lg">
+      <form method="post" action="{{ url_for('courses.unit_new', course_id=course.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="flex items-start gap-space-md">
+          <div class="w-12 h-12 rounded-xl bg-primary-container/40 text-primary flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-2xl">create_new_folder</span>
+          </div>
+          <div class="flex-1">
+            <h3 class="font-title-md text-primary font-bold">وحدة جديدة</h3>
+            <p class="mt-1 font-body-md text-on-surface-variant">تجميع دروس المقرّر تحت وحدة واحدة (وحدة أولى، وحدة ثانية...).</p>
+            <div class="mt-space-md flex flex-col gap-1.5">
+              <label class="font-label-md text-on-surface font-bold">عنوان الوحدة <span class="text-error">*</span></label>
+              <input name="title" required placeholder="مثال: الوحدة الأولى — الأعداد الطبيعية"
+                     class="h-11 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            </div>
+            <div class="mt-space-sm flex flex-col gap-1.5">
+              <label class="font-label-md text-on-surface font-bold">وصف مختصر</label>
+              <textarea name="description" rows="2" placeholder="نبذة عن أهداف الوحدة (اختياري)"
+                        class="w-full px-3 py-2 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20"></textarea>
+            </div>
+          </div>
+          <button type="button" data-modal-close class="text-outline hover:text-primary p-1">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+        <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+          <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</button>
+          <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+            <span class="material-symbols-outlined text-sm">add</span><span>إنشاء الوحدة</span>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
 
   <!-- Assignments -->
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
