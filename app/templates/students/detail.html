@@ -43,14 +43,18 @@
           {% endif %}
         </div>
       </div>
-      <div class="flex items-center gap-space-sm">
+      <div class="flex items-center gap-space-sm flex-wrap">
+        <a href="{{ url_for('lms.report_student', student_id=student.id) }}"
+           class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الأداء</span>
+        </a>
         <a href="{{ url_for('students.student_edit', student_id=student.id) }}"
-           class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg text-label-lg font-bold hover:bg-white/25 transition-colors flex items-center gap-2">
+           class="h-11 px-4 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">edit</span><span>تعديل الملف</span>
         </a>
         {% if not has_active_enrollment %}
         <a href="{{ url_for('students.enroll', student_id=student.id) }}"
-           class="h-11 px-5 rounded-xl bg-white text-primary font-title-md text-title-md font-bold shadow-md hover:bg-surface-container-lowest transition-colors flex items-center gap-2">
+           class="h-11 px-5 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">group_add</span><span>تسجيل في السنة</span>
         </a>
         {% endif %}

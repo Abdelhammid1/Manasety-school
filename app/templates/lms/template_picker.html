@@ -1,0 +1,67 @@
+{# Template picker — offered from courses/detail. Cloning is POST to
+   assignment_from_template. Ticket #16 pt 5. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}اختر قالباً — {{ course.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="hover:text-primary">{{ course.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">اختر قالب واجب</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md max-w-4xl mx-auto">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md text-primary font-bold">اختر قالب واجب من المكتبة</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">هيتم نسخ القالب في مقرّر <b>{{ course.title }}</b> — تقدر تعدله بعدين.</p>
+  </section>
+
+  {% if not items %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">inventory_2</span>
+    <p class="mt-3 font-body-md text-on-surface-variant">لا قوالب واجبات في المكتبة بعد.</p>
+    <a href="{{ url_for('lms.assignment_new', cid=course.id) }}"
+       class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined text-lg">add</span>ابدأ من الصفر
+    </a>
+  </div>
+  {% else %}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    {% for t in items %}
+    <form method="post" action="{{ url_for('lms.assignment_from_template', cid=course.id) }}"
+          class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="template_id" value="{{ t.id }}">
+      <div class="flex items-start gap-space-sm">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl">assignment</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <h3 class="font-title-md text-primary font-bold">{{ t.title }}</h3>
+          {% if t.instructions %}
+          <p class="mt-1 font-label-md text-outline line-clamp-2 whitespace-pre-line">{{ t.instructions }}</p>
+          {% endif %}
+          <div class="mt-2 flex items-center gap-space-sm flex-wrap">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+              <span class="material-symbols-outlined text-xs">emoji_events</span>{{ t.max_score }}
+            </span>
+            {% if t.questions %}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
+              <span class="material-symbols-outlined text-xs">quiz</span>{{ t.questions|length }} سؤال
+            </span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="mt-space-md w-full h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center justify-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-lg">library_add</span>
+        <span>استخدم هذا القالب</span>
+      </button>
+    </form>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

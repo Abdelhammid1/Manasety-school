@@ -34,6 +34,13 @@
          class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold flex items-center gap-2 hover:bg-surface-container">
         <span class="material-symbols-outlined text-lg">tune</span><span>إعدادات الواجب</span>
       </a>
+      <form method="post" action="{{ url_for('lms.assignment_save_as_template', aid=assignment.id) }}"
+            onsubmit="return confirm('حفظ نسخة من هذا الواجب في مكتبة القوالب لإعادة استخدامه لاحقاً؟')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="h-11 px-4 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-lg font-bold flex items-center gap-2 hover:bg-tertiary-fixed/70">
+          <span class="material-symbols-outlined text-lg">bookmark_add</span><span>احفظ كقالب</span>
+        </button>
+      </form>
     </div>
   </div>
 

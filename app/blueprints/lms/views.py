@@ -292,6 +292,327 @@ def assignment_pick_from_bank(aid):
     )
 
 
+# ─── Performance reports (ticket #16 pt 4) ────────────────────────────
+#
+# Aggregate mastery from AssignmentAnswer + Answer (quiz-side) by
+# (subject → unit → lesson). Two views: per-student for parents / the
+# teacher, and per-section for the teacher to spot classroom-wide weak
+# points.
+
+def _mastery_by_unit(rows):
+    """Given an iterable of (unit_id, unit_title, correct_bool,
+    awarded_points, max_points) tuples, return a list of dicts
+    grouped by unit with percent correct + weight rendered for the UI.
+    """
+    buckets = {}
+    for uid, utitle, is_correct, awarded, max_pts in rows:
+        b = buckets.setdefault(uid, {
+            "unit_id": uid, "unit_title": utitle,
+            "answered": 0, "correct": 0, "max_pts": Decimal(0), "awarded": Decimal(0),
+        })
+        b["answered"] += 1
+        if is_correct: b["correct"] += 1
+        b["max_pts"] += Decimal(str(max_pts or 0))
+        b["awarded"] += Decimal(str(awarded or 0))
+    out = []
+    for b in buckets.values():
+        pct = int(round((b["correct"] * 100) / b["answered"])) if b["answered"] else 0
+        b["percent"] = pct
+        b["label"] = "قوة" if pct >= 80 else ("متوسط" if pct >= 60 else "ضعف")
+        out.append(b)
+    out.sort(key=lambda x: x["percent"], reverse=True)
+    return out
+
+
+@bp.route("/reports/student/<int:student_id>", endpoint="report_student")
+@login_required
+def report_student(student_id):
+    """Per-student mastery per subject × unit."""
+    student = Student.query.get_or_404(student_id)
+
+    # Assignment-side answers
+    aa_rows = (
+        db.session.query(
+            Course.subject_id, Subject.name,
+            Unit.id, Unit.title,
+            AssignmentAnswer.is_correct,
+            AssignmentAnswer.awarded_points,
+            AssignmentQuestion.points,
+        )
+        .join(AssignmentQuestion, AssignmentQuestion.id == AssignmentAnswer.question_id)
+        .join(CourseAssignment, CourseAssignment.id == AssignmentQuestion.assignment_id)
+        .join(Course, Course.id == CourseAssignment.course_id)
+        .join(Subject, Subject.id == Course.subject_id)
+        .join(Submission, Submission.id == AssignmentAnswer.submission_id)
+        .outerjoin(Unit, Unit.id == BankQuestion.unit_id) if False else None
+    )
+    # Simpler pull without the complex Unit join — walk in Python so
+    # we can carry BankQuestion.unit_id/lesson_id on the source_bank_id
+    # link. Small enough per student.
+    subjects_data = {}
+    q = (
+        AssignmentAnswer.query
+        .join(Submission, Submission.id == AssignmentAnswer.submission_id)
+        .filter(Submission.student_id == student.id)
+        .all()
+    )
+    for a in q:
+        aq = AssignmentQuestion.query.get(a.question_id)
+        if not aq: continue
+        ca = aq.assignment
+        course = ca.course if ca else None
+        subject = course.subject if course else None
+        if not subject: continue
+        bank = BankQuestion.query.get(aq.source_bank_id) if aq.source_bank_id else None
+        unit = bank.unit if bank else None
+        u_id = unit.id if unit else 0
+        u_title = unit.title if unit else "بدون وحدة"
+
+        subjects_data.setdefault(subject.id, {
+            "subject_id": subject.id, "subject_name": subject.name, "rows": [],
+        })["rows"].append((u_id, u_title, bool(a.is_correct),
+                           a.awarded_points or 0, aq.points or 0))
+
+    # Quiz answers, same shape.
+    qa = (
+        Answer.query
+        .join(QuizAttempt, QuizAttempt.id == Answer.attempt_id)
+        .filter(QuizAttempt.student_id == student.id)
+        .all()
+    )
+    for a in qa:
+        qq = Question.query.get(a.question_id)
+        if not qq: continue
+        quiz = qq.quiz
+        course = quiz.course if quiz else None
+        subject = course.subject if course else None
+        if not subject: continue
+        bank = BankQuestion.query.get(qq.source_bank_id) if getattr(qq, 'source_bank_id', None) else None
+        unit = bank.unit if bank else None
+        u_id = unit.id if unit else 0
+        u_title = unit.title if unit else "بدون وحدة"
+        subjects_data.setdefault(subject.id, {
+            "subject_id": subject.id, "subject_name": subject.name, "rows": [],
+        })["rows"].append((u_id, u_title, bool(a.is_correct),
+                           a.awarded_points or 0, qq.points or 0))
+
+    # Aggregate per subject.
+    result = []
+    for sd in subjects_data.values():
+        units = _mastery_by_unit(sd["rows"])
+        overall_pct = int(round(sum(u["percent"] for u in units) / len(units))) if units else 0
+        result.append({
+            "subject_id": sd["subject_id"], "subject_name": sd["subject_name"],
+            "units": units, "overall": overall_pct,
+            "answered_total": sum(u["answered"] for u in units),
+        })
+    result.sort(key=lambda x: x["overall"], reverse=True)
+    return render_template("lms/report_student.html", student=student, subjects=result)
+
+
+@bp.route("/reports/section/<int:section_id>", endpoint="report_section")
+@login_required
+def report_section(section_id):
+    """Per-section mastery per subject × unit. Same shape as the
+    student report but aggregates across every enrolled student's
+    answers."""
+    section = Section.query.get_or_404(section_id)
+    from ...models import Enrollment
+    students = (
+        Student.query.join(Enrollment, Enrollment.student_id == Student.id)
+        .filter(Enrollment.section_id == section.id, Enrollment.status == "active").all()
+    )
+    # Rows collected across everyone in the section.
+    subjects_data = {}
+    for stu in students:
+        for a in (AssignmentAnswer.query.join(
+                Submission, Submission.id == AssignmentAnswer.submission_id
+             ).filter(Submission.student_id == stu.id).all()):
+            aq = AssignmentQuestion.query.get(a.question_id)
+            if not aq: continue
+            ca = aq.assignment; course = ca.course if ca else None
+            subject = course.subject if course else None
+            if not subject: continue
+            bank = BankQuestion.query.get(aq.source_bank_id) if aq.source_bank_id else None
+            unit = bank.unit if bank else None
+            u_id = unit.id if unit else 0; u_title = unit.title if unit else "بدون وحدة"
+            subjects_data.setdefault(subject.id, {
+                "subject_id": subject.id, "subject_name": subject.name, "rows": [],
+            })["rows"].append((u_id, u_title, bool(a.is_correct), a.awarded_points or 0, aq.points or 0))
+        for a in (Answer.query.join(
+                QuizAttempt, QuizAttempt.id == Answer.attempt_id
+             ).filter(QuizAttempt.student_id == stu.id).all()):
+            qq = Question.query.get(a.question_id)
+            if not qq: continue
+            quiz = qq.quiz; course = quiz.course if quiz else None
+            subject = course.subject if course else None
+            if not subject: continue
+            bank = BankQuestion.query.get(qq.source_bank_id) if getattr(qq, 'source_bank_id', None) else None
+            unit = bank.unit if bank else None
+            u_id = unit.id if unit else 0; u_title = unit.title if unit else "بدون وحدة"
+            subjects_data.setdefault(subject.id, {
+                "subject_id": subject.id, "subject_name": subject.name, "rows": [],
+            })["rows"].append((u_id, u_title, bool(a.is_correct), a.awarded_points or 0, qq.points or 0))
+
+    result = []
+    for sd in subjects_data.values():
+        units = _mastery_by_unit(sd["rows"])
+        overall_pct = int(round(sum(u["percent"] for u in units) / len(units))) if units else 0
+        result.append({
+            "subject_id": sd["subject_id"], "subject_name": sd["subject_name"],
+            "units": units, "overall": overall_pct,
+            "answered_total": sum(u["answered"] for u in units),
+        })
+    result.sort(key=lambda x: x["overall"], reverse=True)
+    return render_template(
+        "lms/report_section.html",
+        section=section, students=students, subjects=result,
+    )
+
+
+# ─── Assignment templates (ticket #16 pt 5) ───────────────────────────
+
+@bp.route("/templates", endpoint="template_home")
+@login_required
+def template_home():
+    """Assignment-templates library — school-scoped list with filters."""
+    sid = current_user.school_id
+    q = AssignmentTemplate.query.filter_by(school_id=sid)
+    subj = request.args.get("subject_id", type=int)
+    grade = request.args.get("grade_id", type=int)
+    search = (request.args.get("q") or "").strip()
+    if subj:   q = q.filter(AssignmentTemplate.subject_id == subj)
+    if grade:  q = q.filter(AssignmentTemplate.grade_id == grade)
+    if search: q = q.filter(AssignmentTemplate.title.ilike(f"%{search}%"))
+    items = q.order_by(AssignmentTemplate.updated_at.desc()).limit(200).all()
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    grades   = Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
+    return render_template(
+        "lms/template_list.html",
+        items=items, subjects=subjects, grades=grades,
+        selected={"subject_id": subj, "grade_id": grade, "q": search},
+    )
+
+
+@bp.route("/templates/<int:tid>/delete", methods=["POST"], endpoint="template_delete")
+@login_required
+def template_delete(tid):
+    """Hard-delete a template. Cascades to template_questions + choices.
+    CourseAssignments cloned from this template are UNAFFECTED —
+    source_template_id is set to NULL by the schema's ON DELETE SET NULL."""
+    tmpl = AssignmentTemplate.query.filter_by(
+        id=tid, school_id=current_user.school_id
+    ).first_or_404()
+    title = tmpl.title
+    db.session.delete(tmpl); db.session.commit()
+    flash(f"تم حذف قالب الواجب ({title}) من المكتبة.", "success")
+    return redirect(url_for("lms.template_home"))
+
+
+@bp.route("/assignments/<int:aid>/save-as-template", methods=["POST"],
+          endpoint="assignment_save_as_template")
+@login_required
+def assignment_save_as_template(aid):
+    """Snapshot a live CourseAssignment (title + instructions + max_score
+    + allow_late + every AssignmentQuestion + Choice) into a fresh
+    AssignmentTemplate row so the teacher can re-clone it into other
+    courses later. Copy semantics — later edits to either side do not
+    cross-contaminate."""
+    a = CourseAssignment.query.get_or_404(aid)
+    course = a.course
+    # Course has no ORM 'section' relationship — resolve via Section.id
+    # for the grade tag; falls back to NULL when the section is missing.
+    grade_id = None
+    if course and course.section_id:
+        sec = Section.query.get(course.section_id)
+        if sec:
+            grade_id = sec.grade_id
+    tmpl = AssignmentTemplate(
+        school_id=current_user.school_id,
+        created_by_id=getattr(current_user, "id", None),
+        subject_id=course.subject_id if course else None,
+        grade_id=grade_id,
+        title=a.title,
+        instructions=a.instructions or "",
+        max_score=a.max_score,
+        allow_late=a.allow_late,
+    )
+    db.session.add(tmpl); db.session.flush()
+    for q in a.questions:
+        tq = AssignmentTemplateQuestion(
+            template_id=tmpl.id,
+            order_index=q.order_index,
+            kind=q.kind, prompt=q.prompt,
+            points=q.points, correct_short=q.correct_short,
+            source_bank_id=q.source_bank_id,
+        )
+        db.session.add(tq); db.session.flush()
+        for c in q.choices:
+            db.session.add(AssignmentTemplateChoice(
+                question_id=tq.id, order_index=c.order_index,
+                label=c.label, is_correct=c.is_correct,
+            ))
+    db.session.commit()
+    flash(f"تم حفظ نسخة من الواجب ({a.title}) في مكتبة القوالب.", "success")
+    return redirect(url_for("lms.template_home"))
+
+
+@bp.route("/courses/<int:cid>/assignments/from-template", methods=["GET", "POST"],
+          endpoint="assignment_from_template")
+@login_required
+def assignment_from_template(cid):
+    """GET  — template picker page scoped to the target course.
+    POST — clone the chosen template into a fresh CourseAssignment
+           on this course. Increment the template's usage_count."""
+    course = Course.query.get_or_404(cid)
+    sid = current_user.school_id
+
+    if request.method == "POST":
+        tid = request.form.get("template_id", type=int)
+        tmpl = AssignmentTemplate.query.filter_by(id=tid, school_id=sid).first()
+        if not tmpl:
+            flash("قالب الواجب غير موجود.", "danger")
+            return redirect(url_for("lms.assignment_from_template", cid=course.id))
+
+        a = CourseAssignment(
+            course_id=course.id,
+            title=tmpl.title,
+            instructions=tmpl.instructions or "",
+            max_score=tmpl.max_score or Decimal("100"),
+            allow_late=tmpl.allow_late,
+            is_published=False,   # start as draft so the teacher can review
+            source_template_id=tmpl.id,
+        )
+        db.session.add(a); db.session.flush()
+        for tq in tmpl.questions:
+            aq = AssignmentQuestion(
+                assignment_id=a.id,
+                order_index=tq.order_index,
+                kind=tq.kind, prompt=tq.prompt,
+                points=tq.points, correct_short=tq.correct_short,
+                source_bank_id=tq.source_bank_id,
+            )
+            db.session.add(aq); db.session.flush()
+            for tc in tq.choices:
+                db.session.add(AssignmentChoice(
+                    question_id=aq.id, order_index=tc.order_index,
+                    label=tc.label, is_correct=tc.is_correct,
+                ))
+        tmpl.usage_count = (tmpl.usage_count or 0) + 1
+        db.session.commit()
+        flash(f"تم إنشاء الواجب من القالب — عدّله ثم انشره.", "success")
+        return redirect(url_for("lms.assignment_edit", aid=a.id))
+
+    items = (
+        AssignmentTemplate.query.filter_by(school_id=sid)
+        .order_by(AssignmentTemplate.updated_at.desc()).all()
+    )
+    return render_template(
+        "lms/template_picker.html",
+        course=course, items=items,
+    )
+
+
 @bp.route("/assignments/<int:aid>/delete", methods=["POST"], endpoint="assignment_delete")
 @login_required
 def assignment_delete(aid):

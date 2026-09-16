@@ -226,11 +226,17 @@
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
         <span class="material-symbols-outlined text-secondary">assignment</span>الواجبات
       </h2>
-      <a href="{{ url_for('lms.assignment_new', cid=course.id) }}"
-         class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined text-lg">add</span><span>واجب جديد</span>
-      </a>
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('lms.assignment_from_template', cid=course.id) }}"
+           class="h-10 px-4 rounded-xl bg-primary-container/20 text-primary font-label-lg font-bold flex items-center gap-2 hover:bg-primary-container/40">
+          <span class="material-symbols-outlined text-lg">inventory_2</span><span>من قالب</span>
+        </a>
+        <a href="{{ url_for('lms.assignment_new', cid=course.id) }}"
+           class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-lg">add</span><span>واجب جديد</span>
+        </a>
+      </div>
     </div>
     {% if course.assignments %}
     <div class="flex flex-col gap-2">

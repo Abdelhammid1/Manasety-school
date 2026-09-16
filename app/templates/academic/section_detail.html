@@ -36,7 +36,11 @@
         </a>
         <a href="{{ url_for('attendance.section_report', section_id=section.id) }}"
            class="h-11 px-4 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
-          <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الفصل</span>
+          <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الحضور</span>
+        </a>
+        <a href="{{ url_for('lms.report_section', section_id=section.id) }}"
+           class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">bar_chart</span><span>تقرير الأداء</span>
         </a>
         <a href="{{ url_for('academic.section_edit', section_id=section.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">

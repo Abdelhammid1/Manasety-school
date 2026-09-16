@@ -1,0 +1,83 @@
+{# Per-student mastery report — subjects → units → % correct.
+   Ticket #16 pt 4. Reads aggregate data pre-computed by report_student. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تقرير أداء — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.students_list') }}" class="hover:text-primary">الطلاب</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تقرير الأداء</span>
+{% endblock %}
+
+{% macro percent_pill(pct, label) %}
+  {% set color = ('#10B981' if pct >= 80 else ('#F59E0B' if pct >= 60 else '#EF4444')) %}
+  <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full font-label-md font-bold tabular-nums"
+        style="background: {{ color }}20; color: {{ color }};">
+    <span>{{ pct }}%</span>
+    <span class="font-label-xs">— {{ label }}</span>
+  </span>
+{% endmacro %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden rounded-2xl p-space-lg shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="relative flex items-start gap-space-md flex-wrap">
+      <div class="w-16 h-16 rounded-full bg-white text-primary flex items-center justify-center font-bold text-2xl shrink-0">
+        {{ student.full_name[:1] }}
+      </div>
+      <div class="flex flex-col flex-1">
+        <span class="font-label-md opacity-80">تقرير أداء الطالب</span>
+        <h1 class="font-headline-lg tracking-tight">{{ student.full_name }}</h1>
+        <p class="mt-1 font-body-md opacity-90">تجميع نتائج الواجبات والاختبارات على مستوى الوحدة الدراسية.</p>
+      </div>
+    </div>
+  </section>
+
+  {% if not subjects %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">insights</span>
+    <p class="mt-3 font-body-md text-on-surface-variant">لا توجد بيانات كافية لبناء التقرير.</p>
+    <p class="mt-1 font-label-md text-outline">تأكد من أن الطالب سلّم واجباً أو اختباراً واحداً على الأقل، وأن الأسئلة مربوطة بوحدات في البنك.</p>
+  </div>
+  {% else %}
+  {% for s in subjects %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between mb-space-md gap-space-md flex-wrap">
+      <div class="flex items-center gap-space-sm">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-2xl">menu_book</span>
+        </div>
+        <div>
+          <h2 class="font-title-md text-primary font-bold">{{ s.subject_name }}</h2>
+          <p class="font-label-xs text-outline">{{ s.answered_total }} سؤال أُجيب عليه</p>
+        </div>
+      </div>
+      {{ percent_pill(s.overall, 'المتوسط') }}
+    </div>
+
+    <div class="flex flex-col gap-space-sm">
+      {% for u in s.units %}
+      <div class="p-space-md rounded-xl bg-surface-container-low">
+        <div class="flex items-center justify-between gap-space-md flex-wrap">
+          <div class="flex items-center gap-space-sm">
+            <span class="material-symbols-outlined text-primary">view_module</span>
+            <span class="font-title-md text-primary font-bold">{{ u.unit_title }}</span>
+            <span class="font-label-xs text-outline">— {{ u.answered }} سؤال</span>
+          </div>
+          {{ percent_pill(u.percent, u.label) }}
+        </div>
+        <div class="mt-2 h-2 rounded-full bg-surface-container overflow-hidden">
+          {% set color = ('#10B981' if u.percent >= 80 else ('#F59E0B' if u.percent >= 60 else '#EF4444')) %}
+          <div class="h-full transition-all" style="width: {{ [u.percent, 100]|min }}%; background: {{ color }};"></div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+  {% endif %}
+</div>
+{% endblock %}
