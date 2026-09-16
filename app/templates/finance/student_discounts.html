@@ -1,0 +1,81 @@
+{# Ticket #17 — student discount approvals. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}خصومات الطلاب{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.discount_types') }}" class="hover:text-primary">أنواع الخصومات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">خصومات الطلاب</span>
+{% endblock %}
+
+{% set status_colors = {
+  'pending':'bg-tertiary-fixed text-on-tertiary-fixed-variant',
+  'approved':'bg-[#ECFDF5] text-[#065F46]',
+  'rejected':'bg-error-container/40 text-error',
+} %}
+{% set status_labels = {'pending':'بانتظار الاعتماد','approved':'معتمد','rejected':'مرفوض'} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">خصومات الطلاب</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">قائمة طلبات الخصم لكل تسجيل — اعتمد أو ارفض.</p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">الطالب</th>
+          <th class="px-4 py-3 font-label-lg text-primary">نوع الخصم</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">القيمة</th>
+          <th class="px-4 py-3 font-label-lg text-primary">السبب</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for sd in items %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-md text-primary font-bold">
+            {% if sd.enrollment and sd.enrollment.student %}{{ sd.enrollment.student.full_name }}{% else %}—{% endif %}
+          </td>
+          <td class="px-4 py-3 font-label-md">{{ sd.discount_type.name if sd.discount_type else '' }}</td>
+          <td class="px-4 py-3 text-center font-title-md tabular-nums">
+            {% if sd.override_value %}{{ sd.override_value }}{% elif sd.discount_type %}
+              {% if sd.discount_type.calc_method == 'percentage' %}{{ sd.discount_type.value }}%{% else %}{{ sd.discount_type.value }}{% endif %}
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 font-label-md text-outline">{{ sd.reason or '—' }}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-xs font-bold {{ status_colors.get(sd.status, '') }}">
+              {{ status_labels.get(sd.status, sd.status) }}
+            </span>
+          </td>
+          <td class="px-4 py-3 text-center">
+            {% if sd.status == 'pending' %}
+            <div class="flex items-center justify-center gap-1">
+              <form method="post" action="{{ url_for('finance.student_discount_approve', sd_id=sd.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-[#ECFDF5] text-[#065F46] hover:bg-[#D1FAE5]" title="اعتماد">
+                  <span class="material-symbols-outlined text-sm">check</span>
+                </button>
+              </form>
+              <form method="post" action="{{ url_for('finance.student_discount_reject', sd_id=sd.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container" title="رفض">
+                  <span class="material-symbols-outlined text-sm">close</span>
+                </button>
+              </form>
+            </div>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-6 py-8 text-center text-outline">لا خصومات مسجّلة بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

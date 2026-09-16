@@ -1,0 +1,88 @@
+{# Ticket #18 — cumulative transcript view. Timeline of every YearResult
+   + list of issued official snapshots. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}السجل الأكاديمي — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">السجل الأكاديمي</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden rounded-2xl p-space-lg shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="flex items-center gap-space-md flex-wrap">
+      <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-3xl">school</span>
+      </div>
+      <div class="flex flex-col flex-1">
+        <span class="font-label-md opacity-80">السجل الأكاديمي التراكمي</span>
+        <h1 class="font-headline-lg">{{ student.full_name }}</h1>
+        <p class="mt-1 font-body-md opacity-90">{{ results|length }} سنة دراسية · {{ snapshots|length }} كشف رسمي صادر.</p>
+      </div>
+      <form method="post" action="{{ url_for('results.transcript_snapshot', student_id=student.id) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="purpose" placeholder="الغرض من الكشف" value="نقل مدرسة"
+               class="h-10 px-3 rounded-lg bg-white/15 backdrop-blur text-on-primary font-label-md mb-2 placeholder-white/70 w-full">
+        <button type="submit" class="h-11 px-5 rounded-xl bg-white text-primary font-title-md font-bold shadow-md flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">description</span>إصدار كشف رسمي
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md">نتائج السنوات</h2>
+    {% if results %}
+    <div class="flex flex-col gap-space-sm">
+      {% for r in results %}
+      <div class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low gap-space-md flex-wrap">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center">
+            <span class="material-symbols-outlined">event</span>
+          </div>
+          <div>
+            <div class="font-title-md text-primary font-bold" dir="ltr">
+              {{ r.enrollment.year.name if r.enrollment and r.enrollment.year else '' }}
+            </div>
+            <div class="font-label-xs text-outline">{{ r.status or '—' }}</div>
+          </div>
+        </div>
+        <div class="text-left tabular-nums">
+          <div class="font-headline-sm text-primary font-bold">{{ r.average or '—' }}</div>
+          <div class="font-label-xs text-outline">المعدل النهائي</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center py-space-md text-outline">لا نتائج سنوية مسجّلة.</p>
+    {% endif %}
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md">الكشوف الرسمية الصادرة</h2>
+    {% if snapshots %}
+    <div class="flex flex-col gap-space-sm">
+      {% for s in snapshots %}
+      <div class="p-space-md rounded-xl bg-surface-container-low flex items-center justify-between gap-space-md flex-wrap">
+        <div class="flex items-center gap-space-sm">
+          <span class="material-symbols-outlined text-primary">receipt_long</span>
+          <div>
+            <code class="font-title-md font-bold text-primary" dir="ltr">{{ s.serial_number }}</code>
+            <div class="font-label-xs text-outline">
+              {{ s.issued_at.strftime('%Y-%m-%d %H:%M') if s.issued_at else '' }}
+              {% if s.purpose %} · {{ s.purpose }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center py-space-md text-outline">لم يُصدَر أي كشف رسمي بعد.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

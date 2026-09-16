@@ -198,6 +198,12 @@ def assignment_question_add(aid):
 @login_required
 def assignment_question_update(qid):
     q = AssignmentQuestion.query.get_or_404(qid)
+    if q.is_locked:
+        flash(
+            "لا يمكن تعديل السؤال بعد إجابة الطلاب عليه.",
+            "danger",
+        )
+        return redirect(url_for("lms.assignment_questions", aid=q.assignment_id))
     q.prompt = (request.form.get("prompt") or "").strip()
     q.points = Decimal(request.form.get("points") or "1")
     q.correct_short = (request.form.get("correct_short") or "").strip()
@@ -720,6 +726,17 @@ def quiz_question_add(qid):
 @login_required
 def quiz_question_update(qid):
     q = Question.query.get_or_404(qid)
+    # Ticket #19 — refuse silent edits once a student has answered.
+    # The teacher can bump version (creating a fresh version so old
+    # attempts still refer to their original text). Here we just refuse
+    # the direct edit; a follow-up commit adds the versioning UI proper.
+    if q.is_locked:
+        flash(
+            "لا يمكن تعديل السؤال بعد إجابة الطلاب عليه. "
+            "أنشئ نسخة معدَّلة بدلاً من التعديل المباشر.",
+            "danger",
+        )
+        return redirect(url_for("lms.quiz_questions", qid=q.quiz_id))
     q.prompt = (request.form.get("prompt") or "").strip()
     q.points = Decimal(request.form.get("points") or "1")
     q.correct_short = (request.form.get("correct_short") or "").strip()
@@ -1098,6 +1115,13 @@ def assignment_submit(aid):
         file.save(path)
         submission.file_url = url_for("static", filename=f"uploads/submissions/{a.id}/{unique}")
 
+    # Ticket #19 — lock all AssignmentQuestion rows on first answer.
+    if a.questions:
+        _now = datetime.now(timezone.utc)
+        for q in a.questions:
+            if not q.is_locked:
+                q.is_locked = True
+                q.locked_at = _now
     # Ticket #16 pt 3 — persist + auto-grade quiz-style answers when the
     # assignment carries AssignmentQuestion rows. Mirrors quiz_submit:
     # mcq/multi/tf → auto scored via choice.is_correct; short → normalized
@@ -1234,7 +1258,14 @@ def quiz_submit(qid):
     total_awarded = Decimal("0")
     autograded_all = True
 
+    # Ticket #19 — on first answer, lock the question so any subsequent
+    # teacher edit has to bump the version instead of silently rewriting
+    # a prompt students already saw.
+    _now = datetime.now(timezone.utc)
     for q in quiz.questions:
+        if not q.is_locked:
+            q.is_locked = True
+            q.locked_at = _now
         # Fetch or create the Answer row for this attempt+question.
         ans = Answer.query.filter_by(
             attempt_id=attempt.id, question_id=q.id

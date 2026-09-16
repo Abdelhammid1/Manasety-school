@@ -1,0 +1,115 @@
+{# Ticket #17 — discount types admin. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}أنواع الخصومات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">أنواع الخصومات</span>
+{% endblock %}
+
+{% set auto_labels = {
+  'sibling_count_2':'إخوة (2)','sibling_count_3':'إخوة (3+)','staff_child':'أبناء الموظفين',
+} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">أنواع الخصومات والمنح</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">عرّف قواعد الخصومات (إخوة / منحة / أبناء موظفين) ثم طبّقها على تسجيلات الطلاب.</p>
+    <a href="{{ url_for('finance.student_discounts') }}"
+       class="mt-space-sm inline-flex h-10 px-4 rounded-lg bg-primary-container/20 text-primary font-label-md font-bold hover:bg-primary-container/40 items-center gap-2">
+      <span class="material-symbols-outlined text-sm">people</span>خصومات الطلاب المعتمدة
+    </a>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">add_circle</span>إضافة نوع خصم
+    </h2>
+    <form method="post" action="{{ url_for('finance.discount_type_new') }}"
+          class="grid grid-cols-1 md:grid-cols-6 gap-space-sm items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="font-label-md font-bold">الاسم <span class="text-error">*</span></label>
+        <input name="name" required placeholder="مثال: خصم إخوة (طالبان)" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">طريقة الحساب</label>
+        <select name="calc_method" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="percentage">نسبة مئوية</option>
+          <option value="fixed">مبلغ ثابت</option>
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">القيمة</label>
+        <input name="value" type="number" step="0.01" value="10" class="h-11 px-3 text-center rounded-lg bg-surface-container-low tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">قاعدة تلقائية</label>
+        <select name="auto_rule" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— يدوي —</option>
+          {% for k, lbl in auto_labels.items() %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold">يسري على</label>
+        <select name="applies_to_fee_type_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">كل الرسوم</option>
+          {% for f in fee_types %}<option value="{{ f.id }}">{{ f.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-6 flex items-center justify-between">
+        <label class="flex items-center gap-2">
+          <input type="checkbox" name="requires_approval" value="1" checked class="w-5 h-5 rounded accent-primary">
+          <span class="font-label-md">يحتاج اعتماد قبل التطبيق</span>
+        </label>
+        <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          إضافة
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">الاسم</th>
+          <th class="px-4 py-3 font-label-lg text-primary">القيمة</th>
+          <th class="px-4 py-3 font-label-lg text-primary">قاعدة تلقائية</th>
+          <th class="px-4 py-3 font-label-lg text-primary">يسري على</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in items %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ d.name }}</td>
+          <td class="px-4 py-3 font-title-md tabular-nums">
+            {% if d.calc_method == 'percentage' %}{{ d.value }}%{% else %}{{ d.value }}{% endif %}
+          </td>
+          <td class="px-4 py-3 font-label-md">{{ auto_labels.get(d.auto_rule, '—') }}</td>
+          <td class="px-4 py-3 font-label-md">
+            {% if d.applies_to_fee_type_id %}
+              {% set ft = (fee_types|selectattr('id','equalto',d.applies_to_fee_type_id)|list) %}
+              {{ ft[0].name if ft else '' }}
+            {% else %}كل الرسوم{% endif %}
+          </td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('finance.discount_type_toggle', dt_id=d.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-xs font-bold
+                {% if d.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+                {{ 'نشط' if d.is_active else 'موقوف' }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-6 py-8 text-center text-outline">لا أنواع خصومات معرَّفة بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

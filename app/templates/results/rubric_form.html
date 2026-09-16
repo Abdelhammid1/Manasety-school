@@ -1,0 +1,55 @@
+{# Ticket #16 — rubric composer. Criteria rows with weight + max. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if rubric %}تعديل روبريك{% else %}روبريك جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.rubrics_list') }}" class="hover:text-primary">الروبريكس</a>
+{% endblock %}
+{% block page_content %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-primary font-bold">{% if rubric %}تعديل: {{ rubric.title }}{% else %}روبريك جديد{% endif %}</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">العنوان <span class="text-error">*</span></label>
+        <input name="title" required value="{{ rubric.title if rubric else '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">المادة (اختياري)</label>
+        <select name="subject_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— بدون —</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}" {% if rubric and rubric.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select></div>
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="font-label-md font-bold">الوصف</label>
+      <textarea name="description" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ rubric.description if rubric else '' }}</textarea>
+    </div>
+
+    {% if rubric %}
+    <div>
+      <h3 class="font-title-md text-primary font-bold mb-space-sm">المعايير</h3>
+      <div class="flex flex-col gap-2">
+        {% set crits = rubric.criteria if rubric else [] %}
+        {% for i in range((crits|length) + 5) %}
+          {% set c = crits[i] if i < crits|length else none %}
+        <div class="grid grid-cols-1 md:grid-cols-[2fr_3fr_1fr_1fr] gap-2 p-2 rounded-xl bg-surface-container-low">
+          <input name="crit_title" value="{{ c.title if c else '' }}" placeholder="اسم المعيار (الفهم / الدقة / العرض…)" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+          <input name="crit_desc" value="{{ c.description if c else '' }}" placeholder="وصف مختصر" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+          <input name="crit_weight" type="number" step="0.1" value="{{ c.weight if c else '' }}" placeholder="الوزن %" class="h-10 px-3 text-center rounded-lg bg-surface-container-lowest tabular-nums">
+          <input name="crit_max" type="number" step="0.1" value="{{ c.max_score if c else 100 }}" placeholder="الدرجة القصوى" class="h-10 px-3 text-center rounded-lg bg-surface-container-lowest tabular-nums">
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span>{% if rubric %}حفظ{% else %}إنشاء{% endif %}
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

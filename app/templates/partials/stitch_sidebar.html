@@ -108,13 +108,16 @@
           {{ nav_item('schedule.index',          'الجدول المدرسي',  'calendar_month') }}
           {{ nav_item('attendance.index',        'الحضور والغياب',  'fact_check') }}
           {{ nav_item('results.grades_index',    'رصد الدرجات',     'grading') }}
+          {{ nav_item('results.scales_list',     'سلالم الدرجات',    'stacked_line_chart') }}
+          {{ nav_item('results.rubrics_list',    'الروبريكس',        'rule') }}
         {% endcall %}
 
         {% call group('admin-finance', 'المالية والموارد البشرية', 'account_balance') %}
-          {{ nav_item('finance.invoices_list', 'الفواتير',          'receipt_long') }}
-          {{ nav_item('finance.expenses_list', 'المصروفات',         'payments') }}
-          {{ nav_item('finance.vendors_list',  'الموردون',          'storefront') }}
-          {{ nav_item('finance.fee_types',     'أنواع الرسوم',      'sell') }}
+          {{ nav_item('finance.invoices_list',  'الفواتير',          'receipt_long') }}
+          {{ nav_item('finance.expenses_list',  'المصروفات',         'payments') }}
+          {{ nav_item('finance.vendors_list',   'الموردون',          'storefront') }}
+          {{ nav_item('finance.fee_types',      'أنواع الرسوم',      'sell') }}
+          {{ nav_item('finance.discount_types', 'الخصومات والمنح',   'percent') }}
           {{ nav_item('finance.accounts',      'دليل الحسابات',     'account_tree') }}
           {{ nav_item('finance.journal',       'قيود اليومية',      'menu_book') }}
           {{ nav_item('finance.reports',       'التقارير المالية',  'analytics') }}
