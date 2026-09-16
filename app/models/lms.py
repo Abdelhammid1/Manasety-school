@@ -29,9 +29,13 @@ class Course(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
     academic_year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"), nullable=False, index=True)
-    section_id = db.Column(db.Integer, db.ForeignKey("sections.id"), nullable=False, index=True)
+    # Ticket #2 — Course is now scoped by (year, grade, subject, term).
+    # section_id + teacher_id are gone; sections live in lms_course_sections,
+    # and the teacher is resolved per-section via teacher.Assignment.
+    grade_id = db.Column(db.Integer, db.ForeignKey("grades.id"), nullable=False, index=True)
     subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=False, index=True)
-    teacher_id = db.Column(db.Integer, db.ForeignKey("teachers.id"), nullable=True, index=True)
+    term_id = db.Column(db.Integer, db.ForeignKey("terms.id", ondelete="SET NULL"),
+                        nullable=True, index=True)
 
     title = db.Column(db.String(160), nullable=False)
     description = db.Column(db.Text, default="")
@@ -45,10 +49,37 @@ class Course(db.Model):
                               order_by="Lesson.order_index")
     assignments = db.relationship("CourseAssignment", backref="course", cascade="all, delete-orphan")
     quizzes = db.relationship("Quiz", backref="course", cascade="all, delete-orphan")
+    # Ticket #2 — sections this course is published to.
+    course_sections = db.relationship("CourseSection", backref="course",
+                                      cascade="all, delete-orphan")
+    grade = db.relationship("Grade")
+    term = db.relationship("Term")
 
     __table_args__ = (
-        db.UniqueConstraint("academic_year_id", "section_id", "subject_id",
-                            name="uq_course_year_section_subject"),
+        db.UniqueConstraint("academic_year_id", "grade_id", "subject_id", "term_id",
+                            name="uq_course_year_grade_subject_term"),
+    )
+
+
+class CourseSection(db.Model):
+    """Ticket #2 — join table: one Course × many Sections. Every row
+    represents a "publish" of the course to a specific section, with
+    is_published gating student visibility per-section."""
+    __tablename__ = "lms_course_sections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id  = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
+                           nullable=False, index=True)
+    section_id = db.Column(db.Integer, db.ForeignKey("sections.id",    ondelete="CASCADE"),
+                           nullable=False, index=True)
+    is_published = db.Column(db.Boolean, nullable=False, default=True)
+    published_at = db.Column(db.DateTime(timezone=True))
+    created_at   = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    section = db.relationship("Section")
+
+    __table_args__ = (
+        db.UniqueConstraint("course_id", "section_id", name="uq_course_section"),
     )
 
 

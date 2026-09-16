@@ -32,12 +32,12 @@
        class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all block">
       <div class="flex items-center gap-space-md">
         <div class="w-12 h-12 rounded-xl bg-secondary-container/40 text-secondary flex items-center justify-center font-bold">
-          {{ c.section.name if c.section else '?' }}
+          {{ (c.term.name if c.term else 'سنة كاملة')[:2] }}
         </div>
         <div class="flex flex-col flex-1 min-w-0">
           <span class="font-title-md text-title-md text-primary font-bold truncate">{{ c.title }}</span>
-          {% if c.teacher %}
-          <span class="font-label-md text-outline">{{ c.teacher.full_name }}</span>
+          {% if c.term %}
+          <span class="font-label-md text-outline">{{ c.term.name }}</span>
           {% endif %}
         </div>
         <span class="material-symbols-outlined text-primary">arrow_back</span>

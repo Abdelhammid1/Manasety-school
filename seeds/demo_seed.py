@@ -38,7 +38,7 @@ from app.models import (
     Account, JournalEntry, JournalLine, FeeType, Invoice, InvoiceLine,
     Installment, Payment,
     Employee, Payroll,
-    Course, Lesson, CourseAssignment, Submission,
+    Course, CourseSection, Lesson, CourseAssignment, Submission,
     Quiz, Question, Choice, QuizAttempt, Answer,
     Announcement,
 )
@@ -476,16 +476,23 @@ def seed():
         db.session.flush()
 
         # ── LMS: 6 courses (one per top subject) ─────────────────────────
+        # Ticket #2 — Course now belongs to (year, grade, subject, term);
+        # publish it to sections via CourseSection instead of section_id.
         print("Seeding LMS content...")
         first_sec = sections[0]  # الأول الابتدائي — أ
         for i, sub in enumerate(subjects[:6]):
             teacher = subj_teacher[i]
             c = Course(school_id=school.id, academic_year_id=year.id,
-                       section_id=first_sec.id, subject_id=sub.id, teacher_id=teacher.id,
+                       grade_id=first_sec.grade_id, subject_id=sub.id,
                        title=f"مادة {sub.name}",
                        description=f"مقرر {sub.name} الكامل مع دروس تفاعلية، واجبات، واختبارات.",
                        is_published=True)
             db.session.add(c); db.session.flush()
+            db.session.add(CourseSection(
+                course_id=c.id, section_id=first_sec.id,
+                is_published=True, published_at=datetime.utcnow(),
+            ))
+            db.session.flush()
 
             # Lessons
             for lo in range(1, 6):

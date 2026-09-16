@@ -541,13 +541,8 @@ def assignment_save_as_template(aid):
     cross-contaminate."""
     a = CourseAssignment.query.get_or_404(aid)
     course = a.course
-    # Course has no ORM 'section' relationship — resolve via Section.id
-    # for the grade tag; falls back to NULL when the section is missing.
-    grade_id = None
-    if course and course.section_id:
-        sec = Section.query.get(course.section_id)
-        if sec:
-            grade_id = sec.grade_id
+    # Ticket #2 — Course now stores grade_id directly.
+    grade_id = course.grade_id if course else None
     tmpl = AssignmentTemplate(
         school_id=current_user.school_id,
         created_by_id=getattr(current_user, "id", None),

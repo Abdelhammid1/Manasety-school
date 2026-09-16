@@ -27,9 +27,15 @@
               <span class="material-symbols-outlined text-sm">menu_book</span>{{ course.subject.name }}
             </span>
             {% endif %}
-            {% if course.section %}
+            {% if course.grade %}
             <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md">
-              {{ course.section.grade.name }} — {{ course.section.name }}
+              {{ course.grade.name }}{% if course.term %} — {{ course.term.name }}{% endif %}
+            </span>
+            {% endif %}
+            {% if course.course_sections %}
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md">
+              <span class="material-symbols-outlined text-sm">groups</span>
+              {{ course.course_sections|length }} شعبة
             </span>
             {% endif %}
             {% if course.is_published %}
@@ -47,12 +53,16 @@
         </div>
       </div>
       <div class="flex flex-col items-end gap-space-sm">
-        {% if course.teacher %}
+        {# Ticket #2 — teacher is resolved per-section via teacher.Assignment,
+           passed in from the view as `teachers` (a list of Teacher rows). #}
+        {% if teachers %}
         <div class="flex items-center gap-space-sm bg-white/10 backdrop-blur rounded-xl p-space-sm">
-          <div class="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center font-bold">{{ course.teacher.full_name[:1] }}</div>
+          <div class="w-10 h-10 rounded-full bg-white text-primary flex items-center justify-center font-bold">{{ teachers[0].full_name[:1] }}</div>
           <div class="flex flex-col">
-            <span class="font-label-xs opacity-80">أستاذ المقرّر</span>
-            <span class="font-label-lg font-bold">{{ course.teacher.full_name }}</span>
+            <span class="font-label-xs opacity-80">{{ 'أساتذة المقرّر' if teachers|length > 1 else 'أستاذ المقرّر' }}</span>
+            <span class="font-label-lg font-bold">
+              {{ teachers[0].full_name }}{% if teachers|length > 1 %} +{{ teachers|length - 1 }}{% endif %}
+            </span>
           </div>
         </div>
         {% endif %}

@@ -9,7 +9,8 @@ from sqlalchemy.exc import IntegrityError
 from . import bp
 from ...extensions import db
 from ...models import (
-    Course, Lesson, AcademicYear, Section, Subject, Teacher, Grade, Term, Unit,
+    Course, CourseSection, Lesson, AcademicYear, Section, Subject, Teacher,
+    Grade, Term, Unit, Assignment,
 )
 
 
@@ -82,17 +83,13 @@ def list_courses():
         Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
         if sid else Grade.query.order_by(Grade.name).all()
     )
-    # Count courses per grade via the Section→Course chain.
+    # Ticket #2 — Course now carries grade_id directly, no join needed.
     counts = {g.id: 0 for g in grades}
     if grades:
-        rows = (
-            db.session.query(Section.grade_id, db.func.count(Course.id))
-            .join(Course, Course.section_id == Section.id)
-            .filter(Course.school_id == sid) if sid else
-            db.session.query(Section.grade_id, db.func.count(Course.id))
-            .join(Course, Course.section_id == Section.id)
-        )
-        for gid, n in rows.group_by(Section.grade_id).all():
+        base = db.session.query(Course.grade_id, db.func.count(Course.id))
+        if sid:
+            base = base.filter(Course.school_id == sid)
+        for gid, n in base.group_by(Course.grade_id).all():
             if gid in counts:
                 counts[gid] = n
     return render_template("courses/list.html", grades=grades, counts=counts)
@@ -138,9 +135,9 @@ def grade_term_subjects(grade_id, term_id):
         .order_by(Subject.name).all()
     )
 
-    # For each subject, resolve the course(s) that actually exist for
-    # (year × grade × subject) across sections. This drives the click
-    # target — one section → jump straight; many → picker.
+    # Ticket #2 — Course is scoped by (year, grade, subject, term) directly.
+    # At most one row per subject-term-grade group; template still supports a
+    # list but in practice each list has 0 or 1 entries.
     subject_courses = {}
     if subjects:
         year_id = term.year_id
@@ -148,9 +145,10 @@ def grade_term_subjects(grade_id, term_id):
             Course.query
             .filter(Course.school_id == sid,
                     Course.academic_year_id == year_id,
-                    Course.subject_id.in_([s.id for s in subjects]))
-            .join(Section, Section.id == Course.section_id)
-            .filter(Section.grade_id == grade.id)
+                    Course.grade_id == grade.id,
+                    Course.subject_id.in_([s.id for s in subjects]),
+                    # Term match — courses w/ NULL term (year-long) match too.
+                    db.or_(Course.term_id == term.id, Course.term_id.is_(None)))
             .all()
         )
         for c in rows:
@@ -173,11 +171,13 @@ def course_pick_section(grade_id, subject_id):
     sid = getattr(current_user, "school_id", None)
     grade = Grade.query.filter_by(id=grade_id, school_id=sid).first_or_404()
     subject = Subject.query.filter_by(id=subject_id, school_id=sid).first_or_404()
+    # Ticket #2 — Course now scoped by (year, grade, subject, term). At most
+    # one row per (grade, subject) per year; jump straight to it. Multiple
+    # rows can only appear if term-per-course is used, and we still list them.
     courses = (
-        Course.query.filter_by(school_id=sid, subject_id=subject_id)
-        .join(Section, Section.id == Course.section_id)
-        .filter(Section.grade_id == grade_id)
-        .all()
+        Course.query.filter_by(
+            school_id=sid, grade_id=grade_id, subject_id=subject_id,
+        ).all()
     )
     if len(courses) == 1:
         return redirect(url_for("courses.detail", course_id=courses[0].id))
@@ -191,15 +191,36 @@ def course_pick_section(grade_id, subject_id):
 @login_required
 def detail(course_id):
     course = Course.query.get_or_404(course_id)
-    return render_template("courses/detail.html", course=course, lessons=course.lessons)
+    # Ticket #2 — resolve teachers per-section via teacher.Assignment.
+    # A course's teacher pool = the distinct set of teachers assigned to
+    # (course.subject, section, course.year) for any of the course's sections.
+    section_ids = [cs.section_id for cs in course.course_sections]
+    teachers = []
+    if section_ids:
+        rows = (
+            db.session.query(Teacher)
+            .join(Assignment, Assignment.teacher_id == Teacher.id)
+            .filter(
+                Assignment.year_id == course.academic_year_id,
+                Assignment.subject_id == course.subject_id,
+                Assignment.section_id.in_(section_ids),
+                Assignment.is_active.is_(True),
+            )
+            .distinct()
+            .all()
+        )
+        teachers = rows
+    return render_template("courses/detail.html",
+                           course=course, lessons=course.lessons, teachers=teachers)
 
 
 def _course_form_options():
     """Dropdown option data for the course new/edit form, all school-scoped.
 
-    We want the user to pick meaningful names — never a raw id. So we
-    pull the school's academic years (newest first), sections joined to
-    their grade (so the label is "الصف — الفصل"), subjects, and teachers.
+    Ticket #2 — Course now belongs to (year, grade, subject, term); we
+    no longer show sections or teachers on the create form. Sections
+    are attached separately via CourseSection publications; teacher
+    resolution happens at view time via teacher.Assignment.
     """
     sid = getattr(current_user, "school_id", None)
 
@@ -208,22 +229,19 @@ def _course_form_options():
         .order_by(AcademicYear.start_date.desc()).all()
         if sid else AcademicYear.query.order_by(AcademicYear.start_date.desc()).all()
     )
-    sections = (
-        Section.query.filter_by(school_id=sid)
-        .join(Grade, Grade.id == Section.grade_id)
-        .order_by(Grade.order_index, Section.name).all()
-        if sid else Section.query.order_by(Section.name).all()
+    grades = (
+        Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
+        if sid else Grade.query.order_by(Grade.name).all()
     )
     subjects = (
         Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
         if sid else Subject.query.order_by(Subject.name).all()
     )
-    teachers = (
-        Teacher.query.filter_by(school_id=sid, is_active=True)
-        .order_by(Teacher.full_name).all()
-        if sid else Teacher.query.order_by(Teacher.full_name).all()
+    terms = (
+        Term.query.filter_by(school_id=sid).order_by(Term.year_id.desc(), Term.order_index).all()
+        if sid else Term.query.order_by(Term.name).all()
     )
-    return years, sections, subjects, teachers
+    return years, grades, subjects, terms
 
 
 @bp.route("/new", methods=["GET", "POST"], endpoint="new")
@@ -231,38 +249,30 @@ def _course_form_options():
 def new():
     """Create a Course.
 
-    Every FK column on lms_courses is NOT NULL. The old code fell back to
-    hard-coded id=1 when the form field was missing (or the dropdown was
-    empty because the school hadn't set up its academic structure yet),
-    which either 500'd on the FK or — worse — silently wrote the row
-    pointing at another school's data (cross-tenant leak). We now:
-      · validate every FK against the school-scoped option pools,
-      · reject the create up-front with a specific flash if any pool is
-        empty (so the user knows to add a year/section/subject first),
-      · trap the (year, section, subject) UniqueConstraint's
-        IntegrityError so a duplicate create returns a clean flash
-        instead of a raw stack trace.
+    Ticket #2 — Course belongs to (year, grade, subject, term). The
+    form asks for grade + subject + optional term. Sections are
+    attached separately in a follow-up "publish" step.
     """
-    years, sections, subjects, teachers = _course_form_options()
-    ctx = dict(years=years, sections=sections, subjects=subjects, teachers=teachers)
+    years, grades, subjects, terms = _course_form_options()
+    ctx = dict(years=years, grades=grades, subjects=subjects, terms=terms)
 
     if request.method == "POST":
         title = (request.form.get("title") or "").strip()
         year_id    = request.form.get("academic_year_id", type=int)
-        section_id = request.form.get("section_id",       type=int)
+        grade_id   = request.form.get("grade_id",         type=int)
         subject_id = request.form.get("subject_id",       type=int)
-        teacher_id = request.form.get("teacher_id",       type=int) or None
+        term_id    = request.form.get("term_id",          type=int) or None
 
-        # Validate — reject on empty pool BEFORE any DB write so we can't
-        # silently drop rows into the wrong tenant.
         errors = []
         if not title:               errors.append("عنوان المقرّر مطلوب.")
         if not years:               errors.append("لا توجد سنوات دراسية — أضف واحدة من إدارة السنوات.")
-        if not sections:            errors.append("لا توجد فصول — أضف فصلاً من إدارة الفصول.")
+        if not grades:              errors.append("لا توجد صفوف — أضف صفاً من إدارة الصفوف.")
         if not subjects:            errors.append("لا توجد مواد — أضف مادة من إدارة المواد.")
         if not year_id    or year_id    not in [y.id for y in years]:    errors.append("اختر سنة دراسية صحيحة.")
-        if not section_id or section_id not in [s.id for s in sections]: errors.append("اختر فصلاً صحيحاً.")
+        if not grade_id   or grade_id   not in [g.id for g in grades]:   errors.append("اختر صفاً صحيحاً.")
         if not subject_id or subject_id not in [s.id for s in subjects]: errors.append("اختر مادة صحيحة.")
+        if term_id and term_id not in [t.id for t in terms]:
+            errors.append("اختر ترماً صحيحاً أو اتركه فارغاً للسنة كاملة.")
         if errors:
             for e in errors: flash(e, "danger")
             return render_template("courses/new.html", **ctx)
@@ -270,9 +280,9 @@ def new():
         c = Course(
             school_id=current_user.school_id,
             academic_year_id=year_id,
-            section_id=section_id,
+            grade_id=grade_id,
             subject_id=subject_id,
-            teacher_id=teacher_id,
+            term_id=term_id,
             title=title,
             description=(request.form.get("description") or "").strip(),
             is_published=bool(request.form.get("is_published")),
@@ -283,7 +293,7 @@ def new():
         except IntegrityError:
             db.session.rollback()
             flash(
-                "يوجد مقرّر بنفس (السنة + الفصل + المادة) بالفعل — "
+                "يوجد مقرّر بنفس (السنة + الصف + المادة + الترم) بالفعل — "
                 "افتحه بدلاً من إنشاء جديد.",
                 "danger",
             )

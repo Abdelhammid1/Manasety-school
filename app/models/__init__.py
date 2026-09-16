@@ -12,7 +12,7 @@ from .finance import (
 from .hr import Employee, Payroll
 from .material import Material
 from .lms import (
-    Course, Unit, Lesson, CourseAssignment, Submission,
+    Course, CourseSection, Unit, Lesson, CourseAssignment, Submission,
     AssignmentQuestion, AssignmentChoice, AssignmentAnswer,
     Quiz, Question, Choice, QuizAttempt, Answer,
     BankQuestion, BankChoice,
@@ -54,7 +54,7 @@ __all__ = [
     "Employee", "Payroll",
     "Material",
     # LMS
-    "Course", "Unit", "Lesson", "CourseAssignment", "Submission",
+    "Course", "CourseSection", "Unit", "Lesson", "CourseAssignment", "Submission",
     "AssignmentQuestion", "AssignmentChoice", "AssignmentAnswer",
     "Quiz", "Question", "Choice", "QuizAttempt", "Answer",
     "BankQuestion", "BankChoice",

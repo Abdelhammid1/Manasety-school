@@ -63,14 +63,17 @@
         </select>
       </div>
 
-      <!-- Teacher -->
+      <!-- Grade — Ticket #2, replaces old Section picker -->
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">المعلم المسؤول</label>
-        <select name="teacher_id"
+        <label class="font-label-md text-label-md text-on-surface font-bold">
+          الصف الدراسي <span class="text-error">*</span>
+        </label>
+        <select name="grade_id" required
                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-          <option value="">— اختر لاحقاً —</option>
-          {% for t in teachers %}
-            <option value="{{ t.id }}">{{ t.full_name }}{% if t.specialization %} — {{ t.specialization }}{% endif %}</option>
+          {% for g in grades %}
+            <option value="{{ g.id }}">{{ g.name }}</option>
+          {% else %}
+            <option value="" disabled selected>— لا توجد صفوف —</option>
           {% endfor %}
         </select>
       </div>
@@ -92,31 +95,22 @@
         </select>
       </div>
 
-      <!-- Section (grouped by grade for readability) -->
+      <!-- Term — Ticket #2, optional; leave blank for full-year course -->
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">
-          الفصل الدراسي <span class="text-error">*</span>
-        </label>
-        <select name="section_id" required
+        <label class="font-label-md text-label-md text-on-surface font-bold">الترم</label>
+        <select name="term_id"
                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-          {% if sections %}
-            {# Group sections by their grade so the dropdown label reads
-               "الأول الابتدائي — أ" without cluttering each row. #}
-            {% set ns = namespace(grade_id=None) %}
-            {% for s in sections %}
-              {% if s.grade_id != ns.grade_id %}
-                {% if ns.grade_id is not none %}</optgroup>{% endif %}
-                {% set ns.grade_id = s.grade_id %}
-                <optgroup label="{{ s.grade.name if s.grade else '' }}">
-              {% endif %}
-              <option value="{{ s.id }}">{{ s.name }} ({{ s.current_count }}/{{ s.capacity }})</option>
-              {% if loop.last %}</optgroup>{% endif %}
-            {% endfor %}
-          {% else %}
-            <option value="" disabled selected>— لا توجد فصول —</option>
-          {% endif %}
+          <option value="">— السنة كاملة —</option>
+          {% for t in terms %}
+            <option value="{{ t.id }}">{{ t.name }}{% if t.year %} · {{ t.year.name }}{% endif %}</option>
+          {% endfor %}
         </select>
       </div>
+    </div>
+
+    <div class="p-space-sm rounded-lg bg-primary-fixed/50 text-primary font-label-md flex items-center gap-2">
+      <span class="material-symbols-outlined text-sm">info</span>
+      المقرّر يخدم كل شعب الصف تلقائياً — تقدر تنشره لشُعبة معيّنة أو لشعبتين لاحقاً من صفحة المقرّر.
     </div>
 
     <!-- Publish toggle -->

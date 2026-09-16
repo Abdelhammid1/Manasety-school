@@ -546,13 +546,24 @@ def _teacher_dashboard():
         return rows
 
     def _pending_submissions():
+        # Ticket #2 — Course no longer has teacher_id; resolve pending
+        # submissions via the teacher's TeachingAssignment (subject × section)
+        # matched against Course.subject_id + CourseSection.section_id.
         if not teacher:
             return []
+        from ...models import CourseSection
         return (
             db.session.query(Submission)
             .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)
             .join(Course, Course.id == CourseAssignment.course_id)
-            .filter(Course.teacher_id == teacher.id, Submission.score.is_(None))
+            .join(CourseSection, CourseSection.course_id == Course.id)
+            .join(TeachingAssignment,
+                  (TeachingAssignment.section_id == CourseSection.section_id) &
+                  (TeachingAssignment.subject_id == Course.subject_id) &
+                  (TeachingAssignment.year_id    == Course.academic_year_id))
+            .filter(TeachingAssignment.teacher_id == teacher.id,
+                    TeachingAssignment.is_active.is_(True),
+                    Submission.score.is_(None))
             .order_by(Submission.submitted_at.desc())
             .limit(5)
             .all()
@@ -581,14 +592,24 @@ def _teacher_dashboard():
     today_periods = _safe(_today_periods, [])
     pending = _safe(_pending_submissions, [])
     attendance_rate = _safe(_attendance_rate_30d, None)
-    pending_count = _safe(
-        lambda: db.session.query(func.count(Submission.id))
-            .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)
-            .join(Course, Course.id == CourseAssignment.course_id)
-            .filter(Course.teacher_id == teacher.id, Submission.score.is_(None))
-            .scalar() if teacher else 0,
-        0,
-    )
+    def _pending_count():
+        # Ticket #2 — mirrors _pending_submissions above.
+        if not teacher:
+            return 0
+        from ...models import CourseSection
+        return db.session.query(func.count(Submission.id))\
+            .join(CourseAssignment, CourseAssignment.id == Submission.assignment_id)\
+            .join(Course, Course.id == CourseAssignment.course_id)\
+            .join(CourseSection, CourseSection.course_id == Course.id)\
+            .join(TeachingAssignment,
+                  (TeachingAssignment.section_id == CourseSection.section_id) &
+                  (TeachingAssignment.subject_id == Course.subject_id) &
+                  (TeachingAssignment.year_id    == Course.academic_year_id))\
+            .filter(TeachingAssignment.teacher_id == teacher.id,
+                    TeachingAssignment.is_active.is_(True),
+                    Submission.score.is_(None))\
+            .scalar()
+    pending_count = _safe(_pending_count, 0)
 
     ctx = {
         "teacher": teacher,
