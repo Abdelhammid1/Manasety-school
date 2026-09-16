@@ -65,7 +65,7 @@ def upgrade():
                   nullable=False, index=True),
         sa.Column('section_id', sa.Integer(), sa.ForeignKey('sections.id',    ondelete='CASCADE'),
                   nullable=False, index=True),
-        sa.Column('is_published', sa.Boolean(), nullable=False, server_default=sa.text('1')),
+        sa.Column('is_published', sa.Boolean(), nullable=False, server_default=sa.true()),
         sa.Column('published_at', sa.DateTime(timezone=True), nullable=True),
         sa.Column('created_at',   sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.UniqueConstraint('course_id', 'section_id', name='uq_course_section'),
@@ -74,7 +74,7 @@ def upgrade():
     # 4) Seed lms_course_sections from every existing course row (one row per course).
     bind.execute(sa.text("""
         INSERT INTO lms_course_sections (course_id, section_id, is_published, published_at, created_at)
-        SELECT id, section_id, 1, created_at, created_at
+        SELECT id, section_id, true, created_at, created_at
           FROM lms_courses
          WHERE section_id IS NOT NULL
     """))
