@@ -1,0 +1,61 @@
+{# Import preview — per-row status table before commit. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}معاينة الاستيراد{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('platform.imports_home') }}" class="hover:text-primary">استيراد Excel</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">معاينة</span>
+{% endblock %}
+{% block page_content %}
+{% set ok = rows|selectattr('status','equalto','ok')|list %}
+{% set bad = rows|rejectattr('status','equalto','ok')|list %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-primary font-bold">معاينة {{ entity_label }}</h1>
+      <p class="font-body-md text-on-surface-variant mt-1">
+        {{ ok|length }} صف صالح · {{ bad|length }} صف فيه خطأ. الصفوف الصالحة فقط هتتحفظ.
+      </p>
+    </div>
+    <form method="post" action="{{ url_for('platform.imports_commit') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" {% if not ok %}disabled{% endif %}
+              class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2 {% if not ok %}opacity-40 cursor-not-allowed{% endif %}"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">check_circle</span>حفظ الصفوف الصالحة ({{ ok|length }})
+      </button>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-md text-primary text-center">#</th>
+          <th class="px-4 py-3 font-label-md text-primary text-center">الحالة</th>
+          <th class="px-4 py-3 font-label-md text-primary">البيانات</th>
+          <th class="px-4 py-3 font-label-md text-primary">سبب الخطأ</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-outline-variant {% if r.status != 'ok' %}bg-error-container/10{% endif %}">
+          <td class="px-4 py-3 text-center tabular-nums text-outline">{{ r.n }}</td>
+          <td class="px-4 py-3 text-center">
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-xs font-bold
+                         {% if r.status == 'ok' %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-error-container/40 text-error{% endif %}">
+              {{ 'سليم' if r.status == 'ok' else 'خطأ' }}
+            </span>
+          </td>
+          <td class="px-4 py-3 font-label-xs text-on-surface-variant">
+            {% for k, v in r.data.items() %}<span class="mr-2">{{ k }}=<b>{{ v or '—' }}</b></span>{% endfor %}
+          </td>
+          <td class="px-4 py-3 font-label-md text-error">{{ r.reason or '' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

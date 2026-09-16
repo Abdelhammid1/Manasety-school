@@ -1,0 +1,44 @@
+{# Notification preferences grid. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تفضيلات الإشعارات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('messaging.inbox') }}" class="hover:text-primary">الرسائل</a>
+{% endblock %}
+{% set channel_labels = {'in_app':'داخل التطبيق','email':'البريد','sms':'SMS','whatsapp':'واتساب','push':'إشعار جوال'} %}
+{% set event_labels = {'attendance':'الحضور','grades':'الدرجات','homework':'الواجبات','invoice':'الفواتير','behavior':'السلوك','announcement':'إعلانات'} %}
+{% block page_content %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-primary font-bold">تفضيلات الإشعارات</h1>
+  <p class="font-body-md text-on-surface-variant">اختر أي إشعار عايز تستقبله على أي قناة.</p>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-center">
+          <th class="px-4 py-3 font-label-lg text-primary text-right">نوع الحدث</th>
+          {% for ch in channels %}<th class="px-4 py-3 font-label-lg text-primary">{{ channel_labels.get(ch, ch) }}</th>{% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for ev in events %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ event_labels.get(ev, ev) }}</td>
+          {% for ch in channels %}
+          <td class="px-4 py-3 text-center">
+            <input type="checkbox" name="{{ ch }}_{{ ev }}" value="1"
+                   {% if prefs.get((ch, ev), True) %}checked{% endif %}
+                   class="w-5 h-5 rounded accent-primary">
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="p-space-md flex justify-end">
+      <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">حفظ التفضيلات</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -112,6 +112,14 @@
           {{ nav_item('results.rubrics_list',    'الروبريكس',        'rule') }}
         {% endcall %}
 
+        {% call group('admin-ops', 'العمليات والتواصل', 'settings_suggest') %}
+          {{ nav_item('platform.rooms_list',       'القاعات',          'meeting_room') }}
+          {{ nav_item('platform.staff_attendance', 'حضور الموظفين',    'badge') }}
+          {{ nav_item('platform.substitutions_list','تغطية الحصص',     'sync_alt') }}
+          {{ nav_item('platform.imports_home',     'استيراد Excel',    'upload_file') }}
+          {{ nav_item('messaging.inbox',           'الرسائل',           'forum') }}
+        {% endcall %}
+
         {% call group('admin-finance', 'المالية والموارد البشرية', 'account_balance') %}
           {{ nav_item('finance.invoices_list',  'الفواتير',          'receipt_long') }}
           {{ nav_item('finance.expenses_list',  'المصروفات',         'payments') }}

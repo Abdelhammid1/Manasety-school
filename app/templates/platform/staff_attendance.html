@@ -1,0 +1,68 @@
+{# Ticket #9b — staff daily attendance grid. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}حضور الموظفين — {{ on_date }}{% endblock %}
+{% block topbar_crumb %}<span class="material-symbols-outlined text-sm text-outline">chevron_left</span><span class="text-primary font-bold">حضور الموظفين</span>{% endblock %}
+{% set status_labels = {'present':'حاضر','absent':'غائب','late':'متأخر','leave':'إجازة','official_mission':'مأمورية'} %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between flex-wrap gap-space-md">
+      <h1 class="font-headline-lg text-primary font-bold">حضور الموظفين</h1>
+      <form method="get" class="flex items-center gap-space-sm">
+        <input name="date" type="date" value="{{ on_date }}" class="h-10 px-3 rounded-lg bg-surface-container-low">
+        <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">عرض</button>
+      </form>
+    </div>
+    <p class="font-body-md text-on-surface-variant mt-1">أيام الغياب بدون إذن هتُغذّي خصومات الرواتب تلقائياً.</p>
+  </section>
+
+  <form method="post" action="{{ url_for('platform.staff_attendance_save') }}"
+        class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="date" value="{{ on_date }}">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">الموظف</th>
+          <th class="px-4 py-3 font-label-lg text-primary">الوظيفة</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+          <th class="px-4 py-3 font-label-lg text-primary">نوع الإجازة</th>
+          <th class="px-4 py-3 font-label-lg text-primary">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for e in employees %}
+        {% set row = existing.get(e.id) %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ e.full_name }}</td>
+          <td class="px-4 py-3 font-label-md">{{ e.job_title }}</td>
+          <td class="px-4 py-3 text-center">
+            <select name="status_{{ e.id }}" class="h-9 px-2 rounded-lg bg-surface-container-low">
+              <option value="">—</option>
+              {% for k, lbl in status_labels.items() %}
+              <option value="{{ k }}" {% if row and row.status == k %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </td>
+          <td class="px-4 py-3">
+            <input name="leave_type_{{ e.id }}" value="{{ row.leave_type if row else '' }}"
+                   placeholder="سنوية / مرضية / طارئة / بدون راتب"
+                   class="h-9 px-2 rounded-lg bg-surface-container-low w-full">
+          </td>
+          <td class="px-4 py-3">
+            <input name="notes_{{ e.id }}" value="{{ row.notes if row else '' }}"
+                   class="h-9 px-2 rounded-lg bg-surface-container-low w-full">
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-6 py-8 text-center text-outline">لا موظفون نشطون.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="p-space-md flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">حفظ الحضور</button>
+    </div>
+  </form>
+</div>
+{% endblock %}

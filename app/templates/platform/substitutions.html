@@ -1,0 +1,65 @@
+{# Ticket #9b — substitutions log. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تغطية الحصص{% endblock %}
+{% block topbar_crumb %}<span class="material-symbols-outlined text-sm text-outline">chevron_left</span><span class="text-primary font-bold">تغطية الحصص</span>{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">تغطية الحصص</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">تسجيل حصص المعلمين الغائبين اللي غطاها معلم بديل.</p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md">تسجيل تغطية جديدة</h2>
+    <form method="post" action="{{ url_for('platform.substitution_new') }}" class="grid grid-cols-1 md:grid-cols-5 gap-space-sm items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">التاريخ</label>
+        <input name="date" type="date" required class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الحصة</label>
+        <select name="schedule_slot_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— اختر —</option>
+          {% for sl in slots %}
+          <option value="{{ sl.id }}">{{ sl.day.name if sl.day else '' }} · {{ sl.period.name if sl.period else '' }} · {{ sl.section.name if sl.section else '' }} · {{ sl.subject.name if sl.subject else '' }}</option>
+          {% endfor %}
+        </select></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">المعلم الأصلي</label>
+        <select name="original_teacher_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">—</option>{% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
+        </select></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">المعلم البديل</label>
+        <select name="substitute_teacher_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">—</option>{% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
+        </select></div>
+      <button type="submit" class="h-11 px-4 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">تسجيل</button>
+      <div class="md:col-span-5 flex flex-col gap-1"><label class="font-label-md font-bold">السبب</label>
+        <input name="reason" placeholder="مرض / مأمورية / …" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">التاريخ</th>
+          <th class="px-4 py-3 font-label-lg text-primary">المعلم الأصلي</th>
+          <th class="px-4 py-3 font-label-lg text-primary">المعلم البديل</th>
+          <th class="px-4 py-3 font-label-lg text-primary">السبب</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in subs %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 tabular-nums" dir="ltr">{{ s.date }}</td>
+          <td class="px-4 py-3">{{ s.original_teacher.full_name if s.original_teacher else '—' }}</td>
+          <td class="px-4 py-3 font-bold text-primary">{{ s.substitute_teacher.full_name if s.substitute_teacher else '—' }}</td>
+          <td class="px-4 py-3 text-outline">{{ s.reason or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="px-6 py-8 text-center text-outline">لا تغطيات مسجّلة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

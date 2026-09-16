@@ -1,0 +1,38 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}محادثة جديدة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('messaging.inbox') }}" class="hover:text-primary">الرسائل</a>
+{% endblock %}
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-primary font-bold">محادثة جديدة</h1>
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="flex flex-col gap-1">
+      <label class="font-label-md font-bold">المستلم <span class="text-error">*</span></label>
+      <select name="recipient_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="">— اختر —</option>
+        {% for u in recipients %}
+        <option value="{{ u.id }}">{{ u.full_name }} ({{ u.role }})</option>
+        {% endfor %}
+      </select>
+      <p class="font-label-xs text-outline">القائمة محدودة بمن تسمح لك الصلاحيات بمراسلتهم.</p>
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="font-label-md font-bold">عنوان (اختياري)</label>
+      <input name="subject" class="h-11 px-3 rounded-lg bg-surface-container-low">
+    </div>
+    <div class="flex flex-col gap-1">
+      <label class="font-label-md font-bold">الرسالة <span class="text-error">*</span></label>
+      <textarea name="body" rows="6" required class="w-full px-3 py-2 rounded-lg bg-surface-container-low leading-loose"></textarea>
+    </div>
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">send</span>إرسال
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

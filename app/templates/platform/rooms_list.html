@@ -1,0 +1,78 @@
+{# Ticket #7 — rooms admin. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}القاعات{% endblock %}
+{% block topbar_crumb %}<span class="material-symbols-outlined text-sm text-outline">chevron_left</span><span class="text-primary font-bold">القاعات</span>{% endblock %}
+{% set type_labels = {'classroom':'فصل عادي','lab':'معمل','gym':'صالة رياضية','library':'مكتبة'} %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">القاعات الدراسية</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">تستخدم في جدول الحصص لتحديد مكان كل حصة.</p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+      <span class="material-symbols-outlined">add_circle</span>إضافة قاعة
+    </h2>
+    <form method="post" action="{{ url_for('platform.room_new') }}" class="grid grid-cols-1 md:grid-cols-5 gap-space-sm items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الاسم <span class="text-error">*</span></label>
+        <input name="name" required placeholder="مثال: قاعة 201" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الكود</label>
+        <input name="code" dir="ltr" placeholder="R-201" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">النوع</label>
+        <select name="room_type" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          {% for k, lbl in type_labels.items() %}<option value="{{ k }}">{{ lbl }}</option>{% endfor %}
+        </select></div>
+      <div class="flex flex-col gap-1"><label class="font-label-md font-bold">السعة</label>
+        <input name="capacity" type="number" min="1" placeholder="35" class="h-11 px-3 text-center rounded-lg bg-surface-container-low tabular-nums"></div>
+      <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">إضافة</button>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">الاسم</th>
+          <th class="px-4 py-3 font-label-lg text-primary">الكود</th>
+          <th class="px-4 py-3 font-label-lg text-primary">النوع</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">السعة</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rooms %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ r.name }}</td>
+          <td class="px-4 py-3 font-label-md text-outline" dir="ltr">{{ r.code or '—' }}</td>
+          <td class="px-4 py-3 font-label-md">{{ type_labels.get(r.room_type, r.room_type) }}</td>
+          <td class="px-4 py-3 text-center tabular-nums">{{ r.capacity or '—' }}</td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('platform.room_toggle', room_id=r.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-xs font-bold
+                {% if r.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+                {{ 'نشطة' if r.is_active else 'موقوفة' }}
+              </button>
+            </form>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('platform.room_delete', room_id=r.id) }}" onsubmit="return confirm('حذف {{ r.name|e }}؟')" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container inline-flex items-center justify-center">
+                <span class="material-symbols-outlined text-sm">delete</span>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="px-6 py-8 text-center text-outline">لا قاعات معرَّفة بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

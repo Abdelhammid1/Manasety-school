@@ -1,0 +1,78 @@
+{# Ticket #5 — Excel bulk import home. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}استيراد Excel{% endblock %}
+{% block topbar_crumb %}<span class="material-symbols-outlined text-sm text-outline">chevron_left</span><span class="text-primary font-bold">استيراد Excel</span>{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">الاستيراد الجماعي (Excel)</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      ارفع بيانات الطلاب / المعلمين / أولياء الأمور دفعة واحدة من ملف Excel.
+      حمّل القالب أولاً، املأه، ثم ارفع الملف لمعاينة الصفوف قبل الحفظ.
+    </p>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+    {% for entity, lbl in entities.items() %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-space-sm mb-space-md">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-2xl">
+            {% if entity == 'students' %}groups{% elif entity == 'teachers' %}menu_book{% else %}supervisor_account{% endif %}
+          </span>
+        </div>
+        <h3 class="font-title-md text-primary font-bold">{{ lbl }}</h3>
+      </div>
+      <a href="{{ url_for('platform.imports_template', entity=entity) }}"
+         class="w-full h-10 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-2 hover:bg-surface-container mb-2">
+        <span class="material-symbols-outlined text-sm">download</span>تنزيل القالب
+      </a>
+      <form method="post" enctype="multipart/form-data" action="{{ url_for('platform.imports_preview') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="entity" value="{{ entity }}">
+        <input type="file" name="file" accept=".xlsx,.xls" required
+               class="w-full text-xs mb-2 p-2 rounded-lg bg-surface-container-low">
+        <button type="submit" class="w-full h-10 rounded-lg text-on-primary font-label-md font-bold shadow-md flex items-center justify-center gap-2"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm">upload</span>معاينة
+        </button>
+      </form>
+    </article>
+    {% endfor %}
+  </div>
+
+  {% if batches %}
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <div class="p-space-md border-b border-outline-variant">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined">history</span>الاستيرادات السابقة
+      </h2>
+    </div>
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-md text-primary">التاريخ</th>
+          <th class="px-4 py-3 font-label-md text-primary">النوع</th>
+          <th class="px-4 py-3 font-label-md text-primary">الملف</th>
+          <th class="px-4 py-3 font-label-md text-primary text-center">إجمالي</th>
+          <th class="px-4 py-3 font-label-md text-primary text-center">ناجح</th>
+          <th class="px-4 py-3 font-label-md text-primary text-center">فاشل</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in batches %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-md tabular-nums" dir="ltr">{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '' }}</td>
+          <td class="px-4 py-3 font-label-md">{{ entities.get(b.entity_type, b.entity_type) }}</td>
+          <td class="px-4 py-3 font-label-md text-outline">{{ b.file_name or '—' }}</td>
+          <td class="px-4 py-3 text-center tabular-nums">{{ b.total_rows }}</td>
+          <td class="px-4 py-3 text-center tabular-nums text-[#065F46] font-bold">{{ b.success_rows }}</td>
+          <td class="px-4 py-3 text-center tabular-nums text-error font-bold">{{ b.failed_rows }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

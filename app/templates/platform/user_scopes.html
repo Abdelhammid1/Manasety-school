@@ -1,0 +1,84 @@
+{# Ticket #14 — user scope editor. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نطاق صلاحيات — {{ user.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.users_list') }}" class="hover:text-primary">المستخدمون</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">النطاق</span>
+{% endblock %}
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">نطاق صلاحيات: {{ user.full_name }}</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">يحدد أي بيانات يقدر يشوفها ويعدّلها — بعيداً عن نوع الصلاحيات.</p>
+  </section>
+
+  {% set current_type = (current[0].scope_type if current else 'all_school') %}
+  {% set current_grades = current|selectattr('scope_type','equalto','grade')|map(attribute='scope_value')|list %}
+  {% set current_sections = current|selectattr('scope_type','equalto','section')|map(attribute='scope_value')|list %}
+  {% set current_stage = (current[0].stage_value if current and current[0].scope_type == 'stage' else '') %}
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-space-sm">
+      {% for k, lbl in [('all_school','كل المدرسة'),('stage','مرحلة'),('grade','صفوف معينة'),('section','فصول معينة'),('own_assignments','فصوله المسندة فقط')] %}
+      <label class="cursor-pointer">
+        <input type="radio" name="scope_type" value="{{ k }}" class="peer sr-only"
+               {% if current_type == k %}checked{% endif %}
+               onchange="onScopeChange('{{ k }}')">
+        <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-low text-center transition-all
+                    hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
+          <span class="font-label-md text-primary font-bold">{{ lbl }}</span>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div id="stageBox" {% if current_type != 'stage' %}hidden{% endif %} class="flex flex-col gap-1">
+      <label class="font-label-md font-bold">اسم المرحلة</label>
+      <input name="stage" value="{{ current_stage }}" placeholder="ابتدائي / إعدادي / ثانوي" class="h-11 px-3 rounded-lg bg-surface-container-low">
+    </div>
+
+    <div id="gradeBox" {% if current_type != 'grade' %}hidden{% endif %}>
+      <label class="font-label-md font-bold block mb-2">الصفوف المسموح بها</label>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {% for g in grades %}
+        <label class="cursor-pointer">
+          <input type="checkbox" name="grade_ids" value="{{ g.id }}" {% if g.id in current_grades %}checked{% endif %} class="peer sr-only">
+          <div class="p-2 rounded-lg border-2 border-outline-variant bg-surface-container-low text-center peer-checked:border-primary peer-checked:bg-primary-container/20">
+            <span class="font-label-md text-primary font-bold">{{ g.name }}</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div id="sectionBox" {% if current_type != 'section' %}hidden{% endif %}>
+      <label class="font-label-md font-bold block mb-2">الفصول المسموح بها</label>
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+        {% for s in sections %}
+        <label class="cursor-pointer">
+          <input type="checkbox" name="section_ids" value="{{ s.id }}" {% if s.id in current_sections %}checked{% endif %} class="peer sr-only">
+          <div class="p-2 rounded-lg border-2 border-outline-variant bg-surface-container-low text-center peer-checked:border-primary peer-checked:bg-primary-container/20">
+            <span class="font-label-md text-primary font-bold">{{ s.grade.name if s.grade else '' }} — {{ s.name }}</span>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">حفظ النطاق</button>
+    </div>
+  </form>
+</div>
+<script>
+  function onScopeChange(k) {
+    document.getElementById('stageBox').hidden   = (k !== 'stage');
+    document.getElementById('gradeBox').hidden   = (k !== 'grade');
+    document.getElementById('sectionBox').hidden = (k !== 'section');
+  }
+</script>
+{% endblock %}

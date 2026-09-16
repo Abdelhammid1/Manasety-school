@@ -1,0 +1,51 @@
+{# One conversation — message list + reply form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ conversation.subject or 'محادثة' }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('messaging.inbox') }}" class="hover:text-primary">الرسائل</a>
+{% endblock %}
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md text-primary font-bold">{{ conversation.subject or 'محادثة' }}</h1>
+    <p class="font-label-md text-outline mt-1">
+      مع: {% for p in others %}{{ p.user.full_name }}{% if not loop.last %} ، {% endif %}{% endfor %}
+    </p>
+  </section>
+
+  <section class="flex flex-col gap-space-sm">
+    {% for m in messages %}
+    {% set mine = (m.sender_user_id == current_user.id) %}
+    <div class="flex {% if mine %}justify-start{% else %}justify-end{% endif %}">
+      <div class="max-w-[80%] {% if mine %}bg-primary/10 text-primary{% else %}bg-surface-container-low text-on-surface{% endif %} rounded-2xl p-space-md shadow-sm">
+        <div class="font-label-xs text-outline mb-1 flex items-center gap-2">
+          <span class="font-bold">{{ m.sender.full_name if m.sender else '' }}</span>
+          <span dir="ltr">{{ m.created_at.strftime('%Y-%m-%d %H:%M') if m.created_at else '' }}</span>
+          {% if mine %}
+          <form method="post" action="{{ url_for('messaging.message_delete', msg_id=m.id) }}"
+                onsubmit="return confirm('حذف هذه الرسالة؟')" class="inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="text-error hover:underline">حذف</button>
+          </form>
+          {% endif %}
+        </div>
+        <p class="font-body-md whitespace-pre-line leading-relaxed">{{ m.body }}</p>
+      </div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <textarea name="body" rows="3" placeholder="اكتب رسالتك..." required
+              class="w-full px-3 py-2 rounded-lg bg-surface-container-low leading-loose"></textarea>
+    <div class="flex justify-end">
+      <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-sm">send</span>إرسال
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

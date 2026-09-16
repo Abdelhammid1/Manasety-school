@@ -63,6 +63,9 @@
                 <a href="{{ url_for('admin.user_edit', user_id=u.id) }}" class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
                   <span class="material-symbols-outlined text-lg">edit</span>
                 </a>
+                <a href="{{ url_for('platform.user_scopes', user_id=u.id) }}" class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="نطاق الصلاحيات">
+                  <span class="material-symbols-outlined text-lg">shield_person</span>
+                </a>
                 <form method="post" action="{{ url_for('admin.user_toggle', user_id=u.id) }}">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="w-8 h-8 rounded-lg {% if u.is_active %}text-error hover:bg-error-container/40{% else %}text-secondary hover:bg-secondary-container/40{% endif %} flex items-center justify-center" title="{{ 'إيقاف' if u.is_active else 'تفعيل' }}">
