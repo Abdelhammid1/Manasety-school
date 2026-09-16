@@ -39,6 +39,9 @@ class AssessmentComponent(db.Model):
     #   manual | lms_quiz | lms_assignment
     source_id = db.Column(db.Integer)
     auto_sync = db.Column(db.Boolean, default=False, nullable=False)
+    # Ticket 16 — optional Rubric binding.
+    rubric_id = db.Column(db.Integer, db.ForeignKey("rubrics.id", ondelete="SET NULL"),
+                          nullable=True, index=True)
 
     term = db.relationship("Term")
     subject = db.relationship("Subject")

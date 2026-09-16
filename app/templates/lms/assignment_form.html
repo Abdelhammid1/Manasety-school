@@ -46,6 +46,23 @@
       </div>
     </div>
 
+    {% if rubrics is defined and rubrics %}
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-on-surface font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-sm">rule</span>روبريك تقييم (اختياري)
+      </label>
+      <select name="rubric_id" class="h-12 px-4 rounded-xl bg-surface-container-low">
+        <option value="">— بدون —</option>
+        {% for r in rubrics %}
+        <option value="{{ r.id }}" {% if assignment and assignment.rubric_id == r.id %}selected{% endif %}>
+          {{ r.title }} ({{ r.criteria|length }} معيار)
+        </option>
+        {% endfor %}
+      </select>
+      <p class="font-label-xs text-outline">لو حدّدت روبريك، صفحة تصحيح الواجب هتعرض المعايير بدل درجة واحدة.</p>
+    </div>
+    {% endif %}
+
     <label class="flex items-center gap-2 cursor-pointer">
       <input type="checkbox" name="allow_late" value="1" {% if (not assignment) or assignment.allow_late %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
       <span class="font-label-md text-on-surface font-bold">السماح بالتسليم المتأخر</span>

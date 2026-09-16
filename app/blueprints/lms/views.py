@@ -112,10 +112,22 @@ def _parse_dt(s):
         return None
 
 
+def _rubrics_for_subject(subject_id):
+    from ...models import Rubric
+    if not subject_id:
+        return Rubric.query.filter_by(school_id=current_user.school_id).order_by(Rubric.title).all()
+    return (
+        Rubric.query.filter_by(school_id=current_user.school_id)
+        .filter((Rubric.subject_id == subject_id) | (Rubric.subject_id.is_(None)))
+        .order_by(Rubric.title).all()
+    )
+
+
 @bp.route("/courses/<int:cid>/assignments/new", methods=["GET", "POST"], endpoint="assignment_new")
 @login_required
 def assignment_new(cid):
     course = Course.query.get_or_404(cid)
+    rubrics = _rubrics_for_subject(course.subject_id)
     if request.method == "POST":
         a = CourseAssignment(
             course_id=course.id,
@@ -125,14 +137,15 @@ def assignment_new(cid):
             due_at=_parse_dt(request.form.get("due_at")),
             allow_late=bool(request.form.get("allow_late")),
             is_published=bool(request.form.get("is_published")),
+            rubric_id=request.form.get("rubric_id", type=int) or None,
         )
         if not a.title:
             flash("عنوان الواجب مطلوب.", "danger")
-            return render_template("lms/assignment_form.html", assignment=None, course=course)
+            return render_template("lms/assignment_form.html", assignment=None, course=course, rubrics=rubrics)
         db.session.add(a); db.session.commit()
         flash("تم إنشاء الواجب.", "success")
         return redirect(url_for("courses.detail", course_id=course.id))
-    return render_template("lms/assignment_form.html", assignment=None, course=course)
+    return render_template("lms/assignment_form.html", assignment=None, course=course, rubrics=rubrics)
 
 
 @bp.route("/assignments/<int:aid>/edit", methods=["GET", "POST"], endpoint="assignment_edit")
@@ -140,6 +153,7 @@ def assignment_new(cid):
 def assignment_edit(aid):
     a = CourseAssignment.query.get_or_404(aid)
     course = a.course
+    rubrics = _rubrics_for_subject(course.subject_id if course else None)
     if request.method == "POST":
         a.title = (request.form.get("title") or "").strip()
         a.instructions = (request.form.get("instructions") or "").strip()
@@ -147,10 +161,11 @@ def assignment_edit(aid):
         a.due_at = _parse_dt(request.form.get("due_at"))
         a.allow_late = bool(request.form.get("allow_late"))
         a.is_published = bool(request.form.get("is_published"))
+        a.rubric_id = request.form.get("rubric_id", type=int) or None
         db.session.commit()
         flash("تم حفظ الواجب.", "success")
         return redirect(url_for("courses.detail", course_id=course.id))
-    return render_template("lms/assignment_form.html", assignment=a, course=course)
+    return render_template("lms/assignment_form.html", assignment=a, course=course, rubrics=rubrics)
 
 
 # ─── Smart-assignment composer (ticket #16 pt 3) ──────────────────────

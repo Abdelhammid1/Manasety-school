@@ -4,11 +4,31 @@ from flask_login import current_user, login_required
 from . import bp
 from ..utils import require_permission
 from ...extensions import db
-from ...models import Role, User, AuditLog
+from ...models import Role, User, AuditLog, School
 from ...models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
 
 
 # ---------- Ticket 6 — Audit log viewer ----------
+
+@bp.route("/settings", methods=["GET", "POST"])
+@login_required
+@require_permission("users", "edit")
+def school_settings():
+    """School-wide settings screen — currently just the attendance mode
+    (ticket #8). Extend as more school-level knobs land."""
+    school = db.session.get(School, current_user.school_id)
+    if not school:
+        abort(404)
+    if request.method == "POST":
+        mode = (request.form.get("attendance_mode") or "daily").strip()
+        if mode not in ("daily", "per_period", "both"):
+            mode = "daily"
+        school.attendance_mode = mode
+        db.session.commit()
+        flash("تم حفظ الإعدادات.", "success")
+        return redirect(url_for("admin.school_settings"))
+    return render_template("admin/school_settings.html", school=school)
+
 
 @bp.route("/audit")
 @login_required

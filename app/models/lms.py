@@ -114,6 +114,12 @@ class CourseAssignment(db.Model):
         db.Integer, db.ForeignKey("lms_assignment_templates.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    # Ticket #16 wiring — optional Rubric. When set, grading uses
+    # RubricScore rows against the criteria instead of a single score.
+    rubric_id = db.Column(
+        db.Integer, db.ForeignKey("rubrics.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
 
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
 

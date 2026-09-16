@@ -1,0 +1,52 @@
+{# School-wide settings screen. Sprint 18 lands the attendance_mode
+   toggle here — add more knobs beside it as they show up. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}إعدادات المدرسة{% endblock %}
+{% block topbar_crumb %}<span class="material-symbols-outlined text-sm text-outline">chevron_left</span><span class="text-primary font-bold">إعدادات المدرسة</span>{% endblock %}
+
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">إعدادات {{ school.name }}</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">إعدادات على مستوى المدرسة — بتأثر على كل المستخدمين.</p>
+  </section>
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div>
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined">fact_check</span>وضع تسجيل الحضور
+      </h2>
+      <p class="font-label-md text-outline mb-space-sm">
+        بيحدد شكل شاشة رصد الحضور — يومي (سطر لكل طالب) ولا بالحصة (شبكة طلاب × حصص).
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
+        {% for k, lbl, desc, icon in [
+          ('daily', 'يومي', 'سطر واحد لكل طالب في اليوم — الوضع التقليدي.', 'view_agenda'),
+          ('per_period', 'بالحصة', 'شبكة طلاب × حصص — كل حصة رصد منفصل.', 'grid_on'),
+          ('both', 'الاثنين', 'الشاشتين متاحتين جنب بعض.', 'apps'),
+        ] %}
+        <label class="cursor-pointer">
+          <input type="radio" name="attendance_mode" value="{{ k }}" class="peer sr-only"
+                 {% if school.attendance_mode == k %}checked{% endif %}>
+          <div class="p-space-md rounded-xl border-2 border-outline-variant bg-surface-container-low text-center transition-all
+                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
+            <span class="material-symbols-outlined text-2xl text-primary">{{ icon }}</span>
+            <div class="font-title-md text-primary font-bold mt-1">{{ lbl }}</div>
+            <div class="font-label-xs text-outline mt-1">{{ desc }}</div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="flex justify-end pt-space-md border-t border-outline-variant">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span>حفظ الإعدادات
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}
