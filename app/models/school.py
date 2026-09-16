@@ -11,6 +11,13 @@ class School(db.Model):
     phone = db.Column(db.String(32))
     address = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Ticket 8 — attendance display mode. Governs which UI the school
+    # sees on the attendance screen.
+    #   daily        → one status per day (legacy)
+    #   per_period   → one status per Period
+    #   both         → both modes available side-by-side
+    attendance_mode = db.Column(db.String(16), default="daily",
+                                nullable=False, server_default="daily")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):

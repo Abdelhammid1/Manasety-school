@@ -2,7 +2,7 @@ from datetime import datetime
 from ..extensions import db
 
 
-ATTENDANCE_STATUSES = ["present", "absent", "late"]
+ATTENDANCE_STATUSES = ["present", "absent", "late", "excused", "left_early"]
 
 
 class Attendance(db.Model):
@@ -17,10 +17,21 @@ class Attendance(db.Model):
     recorded_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     recorded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # Ticket 8 — per-period attendance. NULL period_id preserves the
+    # legacy daily-attendance semantics; when set, the row records one
+    # slot only, letting a student be present at some periods and
+    # absent at others.
+    schedule_slot_id = db.Column(db.Integer, db.ForeignKey("schedule_slots.id"), index=True)
+    subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), index=True)
+    period_id  = db.Column(db.Integer, db.ForeignKey("periods.id"),  index=True)
+    excuse_reason = db.Column(db.String(255))
+    excuse_document = db.Column(db.String(255))
+
     enrollment = db.relationship("Enrollment", backref="attendance_records")
 
     __table_args__ = (
-        db.UniqueConstraint("enrollment_id", "date", name="uq_attendance_enrollment_date"),
+        db.UniqueConstraint("enrollment_id", "date", "period_id",
+                            name="uq_attendance_enrollment_date_period"),
     )
 
 

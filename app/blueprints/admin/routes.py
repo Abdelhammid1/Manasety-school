@@ -4,8 +4,36 @@ from flask_login import current_user, login_required
 from . import bp
 from ..utils import require_permission
 from ...extensions import db
-from ...models import Role, User
+from ...models import Role, User, AuditLog
 from ...models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
+
+
+# ---------- Ticket 6 — Audit log viewer ----------
+
+@bp.route("/audit")
+@login_required
+@require_permission("users", "view")   # admin-tier permission reuse
+def audit_log():
+    """School-wide audit trail. Filterable by user + entity type."""
+    q = AuditLog.query
+    sid = current_user.school_id
+    if sid:
+        q = q.filter((AuditLog.school_id == sid) | (AuditLog.school_id.is_(None)))
+    user_id = request.args.get("user_id", type=int)
+    entity_type = (request.args.get("entity_type") or "").strip()
+    action = (request.args.get("action") or "").strip()
+    if user_id: q = q.filter(AuditLog.user_id == user_id)
+    if entity_type: q = q.filter(AuditLog.entity_type == entity_type)
+    if action: q = q.filter(AuditLog.action == action)
+    entries = q.order_by(AuditLog.created_at.desc()).limit(300).all()
+
+    types = [t[0] for t in db.session.query(AuditLog.entity_type).distinct().all()]
+    users = User.query.filter_by(school_id=sid).order_by(User.full_name).all()
+    return render_template(
+        "admin/audit_log.html",
+        entries=entries, entity_types=sorted(types), users=users,
+        selected={"user_id": user_id, "entity_type": entity_type, "action": action},
+    )
 
 
 # ---------- Roles & Permissions (T-1.2) ----------

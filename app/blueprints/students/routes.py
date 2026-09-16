@@ -175,6 +175,114 @@ def student_detail(student_id):
     )
 
 
+# ─── Ticket 1 — Guardians on the student page ─────────────────────────
+
+@bp.route("/<int:student_id>/guardians/add", methods=["POST"])
+@login_required
+@require_permission("students", "edit")
+def guardian_add(student_id):
+    """Attach an existing Guardian by phone/national_id lookup, or create
+    a fresh one if no match. Idempotent: refuses to duplicate the
+    student↔guardian link."""
+    from ...models import Guardian, StudentGuardian
+    student = _get(Student, student_id)
+    sid = current_user.school_id
+
+    lookup_phone = (request.form.get("phone") or "").strip()
+    lookup_nid   = (request.form.get("national_id") or "").strip()
+    full_name    = (request.form.get("full_name") or "").strip()
+    relationship = (request.form.get("relationship") or "أب").strip()
+
+    guardian = None
+    if lookup_nid:
+        guardian = Guardian.query.filter_by(school_id=sid, national_id=lookup_nid).first()
+    if guardian is None and lookup_phone:
+        guardian = Guardian.query.filter_by(school_id=sid, phone=lookup_phone).first()
+
+    if guardian is None:
+        if not full_name:
+            flash("اسم ولي الأمر مطلوب لإنشاء صف جديد.", "danger")
+            return redirect(url_for("students.student_detail", student_id=student.id))
+        guardian = Guardian(
+            school_id=sid, full_name=full_name,
+            phone=lookup_phone or None,
+            national_id=lookup_nid or None,
+            email=(request.form.get("email") or "").strip() or None,
+            occupation=(request.form.get("occupation") or "").strip() or None,
+        )
+        db.session.add(guardian); db.session.flush()
+
+    existing = StudentGuardian.query.filter_by(
+        student_id=student.id, guardian_id=guardian.id,
+    ).first()
+    if existing:
+        flash(f"{guardian.full_name} مرتبط بالفعل بالطالب.", "warning")
+        return redirect(url_for("students.student_detail", student_id=student.id))
+
+    db.session.add(StudentGuardian(
+        student_id=student.id, guardian_id=guardian.id,
+        relationship=relationship,
+        is_primary=bool(request.form.get("is_primary")),
+        is_emergency_contact=bool(request.form.get("is_emergency_contact")),
+        can_pickup_student=bool(request.form.get("can_pickup_student")),
+        can_view_academic_data=bool(request.form.get("can_view_academic_data")),
+        can_view_financial_data=bool(request.form.get("can_view_financial_data")),
+        can_receive_notifications=bool(request.form.get("can_receive_notifications", "1")),
+    ))
+    db.session.commit()
+    flash(f"تم ربط ولي الأمر {guardian.full_name} بالطالب.", "success")
+    return redirect(url_for("students.student_detail", student_id=student.id))
+
+
+@bp.route("/guardian-links/<int:link_id>/update", methods=["POST"])
+@login_required
+@require_permission("students", "edit")
+def guardian_link_update(link_id):
+    from ...models import StudentGuardian
+    link = StudentGuardian.query.get_or_404(link_id)
+    link.relationship = (request.form.get("relationship") or link.relationship or "").strip() or None
+    link.is_primary = bool(request.form.get("is_primary"))
+    link.is_emergency_contact = bool(request.form.get("is_emergency_contact"))
+    link.can_pickup_student = bool(request.form.get("can_pickup_student"))
+    link.can_view_academic_data = bool(request.form.get("can_view_academic_data"))
+    link.can_view_financial_data = bool(request.form.get("can_view_financial_data"))
+    link.can_receive_notifications = bool(request.form.get("can_receive_notifications"))
+    db.session.commit()
+    flash("تم تحديث صلاحيات ولي الأمر.", "success")
+    return redirect(url_for("students.student_detail", student_id=link.student_id))
+
+
+@bp.route("/guardian-links/<int:link_id>/delete", methods=["POST"])
+@login_required
+@require_permission("students", "edit")
+def guardian_link_delete(link_id):
+    from ...models import StudentGuardian
+    link = StudentGuardian.query.get_or_404(link_id)
+    sid = link.student_id
+    db.session.delete(link); db.session.commit()
+    flash("تم إلغاء ربط ولي الأمر بالطالب.", "success")
+    return redirect(url_for("students.student_detail", student_id=sid))
+
+
+@bp.route("/guardians")
+@login_required
+@require_permission("students", "view")
+def guardians_list():
+    """School-wide guardian directory. Each row shows the guardian +
+    their linked students so admins can see brothers/sisters together."""
+    from ...models import Guardian
+    q = Guardian.query.filter_by(school_id=current_user.school_id)
+    search = (request.args.get("q") or "").strip()
+    if search:
+        q = q.filter(db.or_(
+            Guardian.full_name.ilike(f"%{search}%"),
+            Guardian.phone.ilike(f"%{search}%"),
+            Guardian.national_id.ilike(f"%{search}%"),
+        ))
+    items = q.order_by(Guardian.full_name).limit(300).all()
+    return render_template("students/guardians_list.html", guardians=items, search=search)
+
+
 @bp.route("/<int:student_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("students", "edit")

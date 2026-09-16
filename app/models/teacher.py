@@ -107,6 +107,11 @@ class Day(db.Model):
     name = db.Column(db.String(32), nullable=False)
     order_index = db.Column(db.Integer, nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Ticket 7 — scoping. NULL year_id / stage means "applies to every
+    # year / every stage" and matches the pre-ticket behavior.
+    academic_year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"),
+                                 nullable=True, index=True)
+    stage = db.Column(db.String(32), nullable=True)
 
     __table_args__ = (
         db.UniqueConstraint("school_id", "order_index", name="uq_day_school_order"),
@@ -123,6 +128,11 @@ class Period(db.Model):
     start_time = db.Column(db.Time, nullable=False)
     end_time = db.Column(db.Time, nullable=False)
     is_break = db.Column(db.Boolean, default=False, nullable=False)
+    # Ticket 7 — variable duration + year/stage scoping.
+    academic_year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"),
+                                 nullable=True, index=True)
+    stage = db.Column(db.String(32), nullable=True)
+    duration_minutes = db.Column(db.Integer)
 
     __table_args__ = (
         db.UniqueConstraint("school_id", "order_index", name="uq_period_school_order"),
@@ -140,6 +150,8 @@ class ScheduleSlot(db.Model):
     period_id = db.Column(db.Integer, db.ForeignKey("periods.id"), nullable=False, index=True)
     subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=False)
     teacher_id = db.Column(db.Integer, db.ForeignKey("teachers.id"), nullable=False)
+    # Ticket 7 — room allocation. NULL keeps legacy slots working.
+    room_id = db.Column(db.Integer, db.ForeignKey("rooms.id"), nullable=True, index=True)
 
     section = db.relationship("Section")
     day = db.relationship("Day")

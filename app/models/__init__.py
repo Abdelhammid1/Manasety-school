@@ -19,6 +19,27 @@ from .lms import (
     AssignmentTemplate, AssignmentTemplateQuestion, AssignmentTemplateChoice,
     Announcement,
 )
+# Sprint 16 — school-platform expansion (guardians, calendar, audit,
+# health, docs, behavior, messaging, scopes, grading scales, rubrics,
+# discounts, transcripts, rooms, staff attendance, imports).
+from .platform import (
+    Guardian, StudentGuardian,
+    SchoolCalendarDay,
+    AuditLog,
+    Room,
+    StaffAttendance, SubstitutionLog,
+    StudentHealthProfile, HealthIncident,
+    StudentDocument,
+    BehaviorCategory, BehaviorIncident, BehaviorAction,
+    Conversation, ConversationParticipant, Message,
+    NotificationPreference,
+    UserScope,
+    GradingScale, GradingScaleLevel,
+    Rubric, RubricCriterion, RubricScore,
+    DiscountType, StudentDiscount,
+    TranscriptSnapshot,
+    ImportBatch,
+)
 
 __all__ = [
     "School", "User", "Role",
@@ -39,4 +60,21 @@ __all__ = [
     "BankQuestion", "BankChoice",
     "AssignmentTemplate", "AssignmentTemplateQuestion", "AssignmentTemplateChoice",
     "Announcement",
+    # Sprint 16 (platform expansion)
+    "Guardian", "StudentGuardian",
+    "SchoolCalendarDay",
+    "AuditLog",
+    "Room",
+    "StaffAttendance", "SubstitutionLog",
+    "StudentHealthProfile", "HealthIncident",
+    "StudentDocument",
+    "BehaviorCategory", "BehaviorIncident", "BehaviorAction",
+    "Conversation", "ConversationParticipant", "Message",
+    "NotificationPreference",
+    "UserScope",
+    "GradingScale", "GradingScaleLevel",
+    "Rubric", "RubricCriterion", "RubricScore",
+    "DiscountType", "StudentDiscount",
+    "TranscriptSnapshot",
+    "ImportBatch",
 ]

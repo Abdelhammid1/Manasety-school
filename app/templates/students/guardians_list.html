@@ -1,0 +1,77 @@
+{# Ticket 1 — school-wide guardian directory. Each row shows the guardian
+   with every student they cover, so siblings appear together. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}أولياء الأمور{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">أولياء الأمور</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-on-surface-variant">دليل أولياء الأمور</span>
+        <h1 class="font-headline-lg text-primary font-bold mt-1">{{ guardians|length }} ولي أمر</h1>
+        <p class="font-body-md text-on-surface-variant mt-1">ولي أمر واحد يظهر مع كل أبناءه — الإخوة يظهرون معًا هنا.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <form method="get" class="flex items-center gap-space-sm">
+      <input name="q" value="{{ search }}" placeholder="بحث بالاسم / الهاتف / الرقم القومي…"
+             class="h-10 px-3 rounded-lg bg-surface-container-low flex-1">
+      <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined text-sm align-middle">search</span> بحث
+      </button>
+    </form>
+  </section>
+
+  <section class="flex flex-col gap-space-sm">
+    {% for g in guardians %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="flex items-start justify-between gap-space-md flex-wrap">
+        <div class="flex items-start gap-space-sm flex-1 min-w-0">
+          <div class="w-12 h-12 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-lg">
+            {{ g.full_name[:1] }}
+          </div>
+          <div class="flex flex-col min-w-0">
+            <h3 class="font-title-md text-primary font-bold">{{ g.full_name }}</h3>
+            <div class="flex items-center gap-space-sm mt-1 flex-wrap">
+              {% if g.phone %}<code class="font-label-md text-outline" dir="ltr">{{ g.phone }}</code>{% endif %}
+              {% if g.national_id %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs" dir="ltr">
+                <span class="material-symbols-outlined text-xs">badge</span>{{ g.national_id }}
+              </span>{% endif %}
+              {% if g.email %}<span class="text-outline font-label-xs" dir="ltr">{{ g.email }}</span>{% endif %}
+            </div>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1 items-end">
+          <span class="font-label-md text-outline">الأبناء المرتبطون</span>
+          <div class="flex items-center gap-2 flex-wrap">
+            {% for l in g.student_links %}
+            <a href="{{ url_for('students.student_detail', student_id=l.student_id) }}"
+               class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-primary-container/20 text-primary font-label-md font-bold hover:bg-primary-container/40">
+              <span class="material-symbols-outlined text-sm">school</span>
+              <span>{{ l.student.full_name }}</span>
+              {% if l.is_primary %}<span class="text-[#065F46]">★</span>{% endif %}
+            </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </article>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">supervisor_account</span>
+      <p class="mt-3 font-body-md text-on-surface-variant">لا نتائج. جرّب اسمًا آخر.</p>
+    </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

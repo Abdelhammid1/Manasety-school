@@ -108,6 +108,91 @@
         </div>
       </section>
 
+      {# Ticket 1 — Guardians tab. Uses student.guardian_links (backfilled
+         at migration time from the legacy parent_/mother_ fields). #}
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <div class="flex items-center justify-between flex-wrap gap-space-sm mb-space-md">
+          <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">supervisor_account</span>أولياء الأمور
+            <span class="font-label-md text-outline font-normal">({{ student.guardian_links|length }})</span>
+          </h2>
+          <button type="button" onclick="openModal('#addGuardianModal')"
+                  class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+            <span class="material-symbols-outlined text-lg">person_add</span><span>ربط ولي أمر</span>
+          </button>
+        </div>
+
+        {% if student.guardian_links %}
+        <div class="flex flex-col gap-space-sm">
+          {% for link in student.guardian_links %}
+          {% set g = link.guardian %}
+          <details class="rounded-xl bg-surface-container-low overflow-hidden">
+            <summary class="p-space-md cursor-pointer list-none flex items-center gap-space-sm">
+              <div class="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold">
+                {{ g.full_name[:1] }}
+              </div>
+              <div class="flex flex-col flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <span class="font-label-lg text-primary font-bold">{{ g.full_name }}</span>
+                  {% if link.relationship %}<span class="font-label-xs text-outline">({{ link.relationship }})</span>{% endif %}
+                  {% if link.is_primary %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">أساسي</span>{% endif %}
+                  {% if link.is_emergency_contact %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">للطوارئ</span>{% endif %}
+                </div>
+                {% if g.phone %}<span class="font-label-xs text-outline" dir="ltr">{{ g.phone }}</span>{% endif %}
+              </div>
+              <span class="material-symbols-outlined text-primary">expand_more</span>
+            </summary>
+            <form method="post" action="{{ url_for('students.guardian_link_update', link_id=link.id) }}"
+                  class="p-space-md pt-0 border-t border-outline-variant flex flex-col gap-space-sm">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+                <div class="flex flex-col gap-1">
+                  <label class="font-label-md text-on-surface font-bold">صلة القرابة</label>
+                  <input name="relationship" value="{{ link.relationship or '' }}" placeholder="أب / أم / جد / وصي"
+                         class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+                </div>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {% for name, label in [
+                    ('is_primary', 'ولي الأمر الأساسي'),
+                    ('is_emergency_contact', 'جهة الاتصال في الطوارئ'),
+                    ('can_pickup_student', 'مسموح باستلام الطالب'),
+                    ('can_view_academic_data', 'يرى البيانات الأكاديمية'),
+                    ('can_view_financial_data', 'يرى البيانات المالية'),
+                    ('can_receive_notifications', 'يستقبل الإشعارات'),
+                ] %}
+                <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest">
+                  <input type="checkbox" name="{{ name }}" value="1"
+                         {% if link[name] %}checked{% endif %}
+                         class="w-5 h-5 rounded accent-primary">
+                  <span class="font-label-md text-on-surface">{{ label }}</span>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="flex items-center justify-between pt-2 border-t border-outline-variant">
+                <form method="post" action="{{ url_for('students.guardian_link_delete', link_id=link.id) }}"
+                      onsubmit="return confirm('إلغاء ربط {{ g.full_name|e }} بهذا الطالب؟')"
+                      class="inline">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="h-9 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
+                    <span class="material-symbols-outlined text-sm">link_off</span>إلغاء الربط
+                  </button>
+                </form>
+                <button type="submit" class="h-9 px-4 rounded-lg text-on-primary font-label-md font-bold shadow-md"
+                        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                  حفظ الصلاحيات
+                </button>
+              </div>
+            </form>
+          </details>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-center py-space-md text-on-surface-variant">لا أولياء أمور مرتبطون بعد.</p>
+        {% endif %}
+      </section>
+
       <!-- Enrollment history -->
       <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
         <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
@@ -196,6 +281,84 @@
       </section>
       {% endif %}
     </aside>
+  </div>
+</div>
+
+{# Ticket 1 — Add / link guardian modal. First checks by national_id or
+   phone; if a match is found the link is created without a new row. #}
+<div id="addGuardianModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <form method="post" action="{{ url_for('students.guardian_add', student_id=student.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex items-start gap-space-md">
+        <div class="w-12 h-12 rounded-xl bg-primary-container/40 text-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl">person_add</span>
+        </div>
+        <div class="flex-1">
+          <h3 class="font-title-md text-primary font-bold">ربط ولي أمر</h3>
+          <p class="mt-1 font-body-md text-on-surface-variant">
+            ابحث بالرقم القومي أو الهاتف أولاً — لو ولي الأمر موجود لطالب آخر
+            (أخ/أخت) هيتربط تلقائيًا بنفس الصف بدل نسخة جديدة.
+          </p>
+          <div class="mt-space-md grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md text-on-surface font-bold">الرقم القومي</label>
+              <input name="national_id" dir="ltr" class="h-10 px-3 rounded-lg bg-surface-container-low">
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md text-on-surface font-bold">الهاتف</label>
+              <input name="phone" dir="ltr" class="h-10 px-3 rounded-lg bg-surface-container-low">
+            </div>
+            <div class="flex flex-col gap-1 md:col-span-2">
+              <label class="font-label-md text-on-surface font-bold">الاسم الكامل (لو جديد)</label>
+              <input name="full_name" class="h-10 px-3 rounded-lg bg-surface-container-low">
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md text-on-surface font-bold">البريد</label>
+              <input name="email" type="email" dir="ltr" class="h-10 px-3 rounded-lg bg-surface-container-low">
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md text-on-surface font-bold">صلة القرابة</label>
+              <select name="relationship" class="h-10 px-3 rounded-lg bg-surface-container-low">
+                <option value="أب">أب</option>
+                <option value="أم">أم</option>
+                <option value="جد">جد</option>
+                <option value="عم">عم</option>
+                <option value="وصي">وصي</option>
+              </select>
+            </div>
+          </div>
+          <div class="mt-space-sm grid grid-cols-2 gap-2">
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+              <input type="checkbox" name="is_primary" class="w-5 h-5 rounded accent-primary">
+              <span class="font-label-md">ولي الأمر الأساسي</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+              <input type="checkbox" name="is_emergency_contact" class="w-5 h-5 rounded accent-primary">
+              <span class="font-label-md">جهة الاتصال في الطوارئ</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+              <input type="checkbox" name="can_pickup_student" checked class="w-5 h-5 rounded accent-primary">
+              <span class="font-label-md">مسموح باستلام الطالب</span>
+            </label>
+            <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
+              <input type="checkbox" name="can_receive_notifications" checked value="1" class="w-5 h-5 rounded accent-primary">
+              <span class="font-label-md">يستقبل الإشعارات</span>
+            </label>
+          </div>
+        </div>
+        <button type="button" data-modal-close class="text-outline hover:text-primary p-1">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+        <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</button>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm">link</span>ربط ولي الأمر
+        </button>
+      </div>
+    </form>
   </div>
 </div>
 {% endblock %}

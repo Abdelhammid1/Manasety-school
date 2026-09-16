@@ -87,11 +87,13 @@
 
         {% call group('admin-members', 'الأعضاء', 'groups') %}
           {{ nav_item('students.students_list',    'الطلاب',           'groups') }}
+          {{ nav_item('students.guardians_list',   'أولياء الأمور',     'supervisor_account') }}
           {{ nav_item('students.promotion',        'ترقية نهاية السنة','trending_up') }}
           {{ nav_item('teachers.teachers_list',    'المعلمون',         'menu_book') }}
           {{ nav_item('teachers.assignments_list', 'إسناد التدريس',    'assignment_ind') }}
           {{ nav_item('admin.users_list',          'المستخدمون',       'manage_accounts') }}
           {{ nav_item('admin.roles_list',          'الأدوار والصلاحيات','admin_panel_settings') }}
+          {{ nav_item('admin.audit_log',           'سجل النشاط',        'history') }}
         {% endcall %}
 
         {% call group('admin-lms', 'التعلم والأداء', 'auto_stories') %}

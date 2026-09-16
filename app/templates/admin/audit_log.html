@@ -1,0 +1,100 @@
+{# Ticket 6 — audit log viewer. Filters + entry rows. Each row expands
+   to show the old→new JSON diff. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}سجل النشاط{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">سجل النشاط</span>
+{% endblock %}
+
+{% set action_labels = {'create':'إنشاء','update':'تعديل','delete':'حذف'} %}
+{% set action_colors = {'create':'bg-[#ECFDF5] text-[#065F46]','update':'bg-tertiary-fixed text-on-tertiary-fixed-variant','delete':'bg-error-container/40 text-error'} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">سجل نشاط النظام</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">كل تعديل حساس (طلاب، أولياء أمور، درجات، حضور، فواتير، مستخدمون) بيتسجّل هنا.</p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-space-sm items-end">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">المستخدم</label>
+        <select name="user_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for u in users %}
+          <option value="{{ u.id }}" {% if selected.user_id == u.id %}selected{% endif %}>{{ u.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">نوع الكيان</label>
+        <select name="entity_type" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for t in entity_types %}
+          <option value="{{ t }}" {% if selected.entity_type == t %}selected{% endif %}>{{ t }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الإجراء</label>
+        <select name="action" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for k, lbl in action_labels.items() %}
+          <option value="{{ k }}" {% if selected.action == k %}selected{% endif %}>{{ lbl }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex items-end justify-end gap-2">
+        <a href="{{ url_for('admin.audit_log') }}" class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          تصفية
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="flex flex-col gap-space-sm">
+    {% for e in entries %}
+    <details class="bg-surface-container-lowest rounded-xl shadow-sm">
+      <summary class="p-space-md cursor-pointer list-none flex items-center justify-between gap-space-sm flex-wrap">
+        <div class="flex items-center gap-space-sm min-w-0 flex-wrap">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-md font-bold {{ action_colors.get(e.action, '') }}">
+            {{ action_labels.get(e.action, e.action) }}
+          </span>
+          <span class="font-title-md text-primary font-bold">{{ e.entity_type }}</span>
+          {% if e.entity_id %}<code class="font-label-md text-outline">#{{ e.entity_id }}</code>{% endif %}
+          <span class="font-label-md text-outline">— {{ e.user.full_name if e.user else 'النظام' }}</span>
+        </div>
+        <span class="font-label-xs text-outline tabular-nums" dir="ltr">
+          {{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '' }}
+        </span>
+      </summary>
+      <div class="p-space-md pt-0 border-t border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div>
+          <div class="font-label-md text-outline font-bold mb-1">قبل التعديل</div>
+          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ e.old_value|tojson(indent=2) if e.old_value else '—' }}</pre>
+        </div>
+        <div>
+          <div class="font-label-md text-outline font-bold mb-1">بعد التعديل</div>
+          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ e.new_value|tojson(indent=2) if e.new_value else '—' }}</pre>
+        </div>
+        {% if e.ip_address or e.user_agent %}
+        <div class="md:col-span-2 flex items-center gap-space-sm flex-wrap text-outline font-label-xs">
+          {% if e.ip_address %}<span dir="ltr"><span class="material-symbols-outlined text-xs align-middle">public</span> {{ e.ip_address }}</span>{% endif %}
+          {% if e.user_agent %}<span dir="ltr"><span class="material-symbols-outlined text-xs align-middle">devices</span> {{ e.user_agent|truncate(80) }}</span>{% endif %}
+        </div>
+        {% endif %}
+      </div>
+    </details>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-5xl text-outline">history</span>
+      <p class="mt-3 text-on-surface-variant">لا توجد سجلات مطابقة.</p>
+    </div>
+    {% endfor %}
+  </section>
+</div>
+{% endblock %}

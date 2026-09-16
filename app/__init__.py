@@ -20,6 +20,11 @@ def create_app(config_class=Config):
     def load_user(user_id):
         return db.session.get(User, int(user_id))
 
+    # Ticket 6 — install audit-log SQLAlchemy listeners once per process.
+    # Must run AFTER models are imported so the classes exist.
+    from .services import audit
+    audit.install()
+
     from .blueprints.auth import bp as auth_bp
     from .blueprints.dashboard import bp as dashboard_bp
     from .blueprints.admin import bp as admin_bp

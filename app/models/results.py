@@ -31,6 +31,15 @@ class AssessmentComponent(db.Model):
     name = db.Column(db.String(64), nullable=False)
     max_score = db.Column(db.Numeric(6, 2), nullable=False)
 
+    # Ticket 3 — link the component to an LMS source (Quiz or
+    # CourseAssignment). auto_sync=True means the LMS grader mirrors the
+    # student's score into a GradeEntry for this component whenever the
+    # attempt/submission is fully graded.
+    source_type = db.Column(db.String(20), default="manual", nullable=False)
+    #   manual | lms_quiz | lms_assignment
+    source_id = db.Column(db.Integer)
+    auto_sync = db.Column(db.Boolean, default=False, nullable=False)
+
     term = db.relationship("Term")
     subject = db.relationship("Subject")
 

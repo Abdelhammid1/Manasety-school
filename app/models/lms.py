@@ -182,6 +182,10 @@ class AssignmentQuestion(db.Model):
         nullable=True, index=True,
     )
 
+    version   = db.Column(db.Integer, default=1, nullable=False)   # ticket 19
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    locked_at = db.Column(db.DateTime(timezone=True))
+
     choices = db.relationship(
         "AssignmentChoice", backref="question",
         cascade="all, delete-orphan",
@@ -264,6 +268,13 @@ class Question(db.Model):
         db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+
+    # Ticket 19 — versioning. is_locked flips to True on the first
+    # student answer so the teacher can't silently rewrite the prompt
+    # while attempts already exist.
+    version   = db.Column(db.Integer, default=1, nullable=False)
+    is_locked = db.Column(db.Boolean, default=False, nullable=False)
+    locked_at = db.Column(db.DateTime(timezone=True))
 
     choices = db.relationship("Choice", backref="question", cascade="all, delete-orphan",
                               order_by="Choice.order_index")
