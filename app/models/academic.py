@@ -31,7 +31,31 @@ class Term(db.Model):
     end_date = db.Column(db.Date, nullable=False)
     weight = db.Column(db.Numeric(5, 2), nullable=False, default=0)
 
+    # Open/closed state (ticket #12 part 1):
+    #   status_mode = "auto"   → is_open is computed from today ∈ [start, end].
+    #   status_mode = "manual" → is_open is read from manual_status
+    #                            ("open" / "closed"). Lets an admin force a
+    #                            term open past its end (make-up exams, catch-up
+    #                            windows) or close it early (semester frozen
+    #                            for grade posting).
+    status_mode   = db.Column(db.String(8),  default="auto", nullable=False, server_default="auto")
+    manual_status = db.Column(db.String(8))   # "open" | "closed" — only read when status_mode == manual
+
     __table_args__ = (db.UniqueConstraint("year_id", "order_index", name="uq_term_year_order"),)
+
+    @property
+    def is_open(self) -> bool:
+        """True when this term should count as active right now."""
+        from datetime import date
+        if self.status_mode == "manual":
+            return (self.manual_status or "closed").lower() == "open"
+        today = date.today()
+        return bool(self.start_date and self.end_date
+                    and self.start_date <= today <= self.end_date)
+
+    @property
+    def status_label_ar(self) -> str:
+        return "مفتوح" if self.is_open else "مغلق"
 
 
 class Grade(db.Model):

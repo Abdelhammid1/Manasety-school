@@ -1,0 +1,79 @@
+{# Level 1 — pick a term inside a grade. Open terms are highlighted;
+   closed terms fade so the user still sees them for reference. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ grade.name }} — الفترات الدراسية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المقرّرات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ grade.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <!-- Hero -->
+  <section class="relative overflow-hidden rounded-2xl p-space-lg shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-white/10 blur-2xl"></div>
+    <div class="relative flex items-center gap-space-md flex-wrap">
+      <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center">
+        <span class="material-symbols-outlined text-3xl">stairs</span>
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <span class="font-label-md opacity-80">صف دراسي</span>
+        <h1 class="font-headline-lg tracking-tight">{{ grade.name }}</h1>
+        {% if year %}
+        <span class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md mt-2 self-start" dir="ltr">
+          <span class="material-symbols-outlined text-sm">event</span>{{ year.name }}
+        </span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  {% if terms %}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    {% for t in terms %}
+    <a href="{{ url_for('courses.grade_term_subjects', grade_id=grade.id, term_id=t.id) }}"
+       class="block rounded-2xl p-space-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all relative overflow-hidden
+              {% if t.is_open %}bg-surface-container-lowest{% else %}bg-surface-container-low opacity-70 hover:opacity-100{% endif %}">
+      <div class="absolute top-0 right-0 left-0 h-1.5"
+           style="background: {% if t.is_open %}linear-gradient(135deg, #10B981, #059669){% else %}#94A3B8{% endif %};"></div>
+      <div class="flex items-start justify-between gap-space-sm">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-12 h-12 rounded-xl {% if t.is_open %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %} flex items-center justify-center">
+            <span class="material-symbols-outlined text-2xl">{% if t.is_open %}lock_open{% else %}lock{% endif %}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-title-md text-title-md text-primary font-bold">{{ t.name }}</span>
+            <span class="font-label-xs text-outline tabular-nums" dir="ltr">
+              {{ t.start_date.strftime('%Y-%m-%d') }} → {{ t.end_date.strftime('%Y-%m-%d') }}
+            </span>
+          </div>
+        </div>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-xs font-bold
+                     {% if t.is_open %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+          {{ t.status_label_ar }}
+          {% if t.status_mode == 'manual' %}<span class="material-symbols-outlined text-xs">admin_panel_settings</span>{% endif %}
+        </span>
+      </div>
+      <div class="mt-space-md pt-space-md border-t border-outline-variant flex items-center justify-between">
+        <span class="font-label-md text-on-surface-variant">وزن الفترة</span>
+        <span class="font-title-md text-primary font-bold tabular-nums">{{ t.weight or 0 }}%</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">event_busy</span>
+    <p class="mt-3 font-body-md text-on-surface-variant">لا فترات دراسية معرَّفة{% if year %} في {{ year.name }}{% endif %}.</p>
+    <a href="{{ url_for('academic.years_list') }}"
+       class="mt-3 inline-flex items-center gap-2 h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined">event</span>إدارة السنوات والفترات
+    </a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

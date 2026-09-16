@@ -41,6 +41,13 @@
           </div>
         </div>
         <div class="flex items-center gap-space-sm">
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
+                       {% if t.is_open %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}"
+                title="{{ 'تحكم يدوي' if t.status_mode == 'manual' else 'محسوبة تلقائياً من التواريخ' }}">
+            <span class="w-1.5 h-1.5 rounded-full {% if t.is_open %}bg-[#10B981]{% else %}bg-outline{% endif %}"></span>
+            {{ t.status_label_ar }}
+            {% if t.status_mode == 'manual' %}<span class="material-symbols-outlined text-xs">admin_panel_settings</span>{% endif %}
+          </span>
           <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary-fixed text-primary font-label-md font-bold tabular-nums">
             الوزن: {{ t.weight or 0 }}%
           </span>

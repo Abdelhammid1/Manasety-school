@@ -166,9 +166,23 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
             "قلّل الوزن أو عدّل الفترات الأخرى أولًا."
         )
 
+    # Ticket #12 part 1 — accept status_mode + manual_status.
+    #   status_mode defaults to "auto"; anything else must be "manual".
+    #   manual_status is required (and validated) only in manual mode;
+    #   we don't null it out when the mode is auto so that flipping back
+    #   to manual restores the previous choice cleanly.
+    status_mode = (form.get("status_mode") or "auto").strip().lower()
+    if status_mode not in ("auto", "manual"):
+        status_mode = "auto"
+    manual_status = (form.get("manual_status") or "").strip().lower() or None
+    if status_mode == "manual" and manual_status not in ("open", "closed"):
+        return None, "اختر حالة (مفتوحة أو مقفلة) للتحكم اليدوي."
+
     return {
         "name": name, "order_index": order_index,
         "start_date": start, "end_date": end, "weight": weight,
+        "status_mode": status_mode,
+        "manual_status": manual_status,
     }, None
 
 

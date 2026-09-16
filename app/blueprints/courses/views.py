@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from . import bp
 from ...extensions import db
 from ...models import (
-    Course, Lesson, AcademicYear, Section, Subject, Teacher, Grade,
+    Course, Lesson, AcademicYear, Section, Subject, Teacher, Grade, Term, Unit,
 )
 
 
@@ -69,12 +69,122 @@ def embed_url_filter(value):
 @bp.route("/", endpoint="list_courses")
 @login_required
 def list_courses():
-    school_id = getattr(current_user, "school_id", None)
-    q = Course.query
-    if school_id:
-        q = q.filter_by(school_id=school_id)
-    courses = q.order_by(Course.created_at.desc()).all()
-    return render_template("courses/list.html", courses=courses)
+    """Ticket #12 part 2 — level 0 of the hierarchical browse.
+
+    Renders the school's Grades as clickable cards; each card summarises
+    how many courses currently live under that grade so the user has a
+    quick pulse. The old flat course list is gone; a course card view
+    remains available under /courses/grade/<gid>/term/<tid> after the
+    user picks a grade and term.
+    """
+    sid = getattr(current_user, "school_id", None)
+    grades = (
+        Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
+        if sid else Grade.query.order_by(Grade.name).all()
+    )
+    # Count courses per grade via the Section→Course chain.
+    counts = {g.id: 0 for g in grades}
+    if grades:
+        rows = (
+            db.session.query(Section.grade_id, db.func.count(Course.id))
+            .join(Course, Course.section_id == Section.id)
+            .filter(Course.school_id == sid) if sid else
+            db.session.query(Section.grade_id, db.func.count(Course.id))
+            .join(Course, Course.section_id == Section.id)
+        )
+        for gid, n in rows.group_by(Section.grade_id).all():
+            if gid in counts:
+                counts[gid] = n
+    return render_template("courses/list.html", grades=grades, counts=counts)
+
+
+@bp.route("/grade/<int:grade_id>", endpoint="grade_terms")
+@login_required
+def grade_terms(grade_id):
+    """Level 1 — pick a term inside a grade. Open terms are highlighted."""
+    sid = getattr(current_user, "school_id", None)
+    grade = Grade.query.filter_by(id=grade_id, school_id=sid).first_or_404() \
+        if sid else Grade.query.get_or_404(grade_id)
+    # Terms in the active year (fallback: most recent year).
+    year = (
+        AcademicYear.query.filter_by(school_id=sid, status="active").first()
+        or AcademicYear.query.filter_by(school_id=sid)
+        .order_by(AcademicYear.start_date.desc()).first()
+    ) if sid else AcademicYear.query.order_by(AcademicYear.start_date.desc()).first()
+    terms = (
+        Term.query.filter_by(school_id=sid, year_id=year.id)
+        .order_by(Term.order_index).all()
+        if year else []
+    )
+    return render_template(
+        "courses/grade_terms.html", grade=grade, year=year, terms=terms,
+    )
+
+
+@bp.route("/grade/<int:grade_id>/term/<int:term_id>", endpoint="grade_term_subjects")
+@login_required
+def grade_term_subjects(grade_id, term_id):
+    """Level 2 — subjects available in (grade × term), joined through
+    both subject_grades AND subject_terms so a subject only shows here
+    when it's flagged for both the grade AND the term."""
+    sid = getattr(current_user, "school_id", None)
+    grade = Grade.query.filter_by(id=grade_id, school_id=sid).first_or_404()
+    term  = Term.query.filter_by(id=term_id,  school_id=sid).first_or_404()
+
+    subjects = (
+        Subject.query.filter_by(school_id=sid, is_active=True)
+        .join(Subject.grades).filter(Grade.id == grade.id)
+        .join(Subject.terms).filter(Term.id == term.id)
+        .order_by(Subject.name).all()
+    )
+
+    # For each subject, resolve the course(s) that actually exist for
+    # (year × grade × subject) across sections. This drives the click
+    # target — one section → jump straight; many → picker.
+    subject_courses = {}
+    if subjects:
+        year_id = term.year_id
+        rows = (
+            Course.query
+            .filter(Course.school_id == sid,
+                    Course.academic_year_id == year_id,
+                    Course.subject_id.in_([s.id for s in subjects]))
+            .join(Section, Section.id == Course.section_id)
+            .filter(Section.grade_id == grade.id)
+            .all()
+        )
+        for c in rows:
+            subject_courses.setdefault(c.subject_id, []).append(c)
+
+    return render_template(
+        "courses/grade_term_subjects.html",
+        grade=grade, term=term, subjects=subjects,
+        subject_courses=subject_courses,
+    )
+
+
+@bp.route("/pick/grade/<int:grade_id>/subject/<int:subject_id>",
+          endpoint="course_pick_section")
+@login_required
+def course_pick_section(grade_id, subject_id):
+    """When a subject has courses in multiple sections of the same
+    grade, this is the section picker. If only one, we redirect
+    straight to the detail page."""
+    sid = getattr(current_user, "school_id", None)
+    grade = Grade.query.filter_by(id=grade_id, school_id=sid).first_or_404()
+    subject = Subject.query.filter_by(id=subject_id, school_id=sid).first_or_404()
+    courses = (
+        Course.query.filter_by(school_id=sid, subject_id=subject_id)
+        .join(Section, Section.id == Course.section_id)
+        .filter(Section.grade_id == grade_id)
+        .all()
+    )
+    if len(courses) == 1:
+        return redirect(url_for("courses.detail", course_id=courses[0].id))
+    return render_template(
+        "courses/pick_section.html",
+        grade=grade, subject=subject, courses=courses,
+    )
 
 
 @bp.route("/<int:course_id>", endpoint="detail")

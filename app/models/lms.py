@@ -52,12 +52,33 @@ class Course(db.Model):
     )
 
 
+class Unit(db.Model):
+    """A Unit groups Lessons under a Course (ticket #16 part 1).
+    Lesson.unit_id is nullable, so pre-existing lessons show up under a
+    virtual "no unit" bucket until a teacher tags them."""
+    __tablename__ = "lms_units"
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
+                          nullable=False, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    course = db.relationship("Course", backref=db.backref(
+        "units", order_by="Unit.order_index", cascade="all, delete-orphan"))
+    lessons = db.relationship("Lesson", backref="unit", order_by="Lesson.order_index")
+
+
 class Lesson(db.Model):
     __tablename__ = "lms_lessons"
 
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
                           nullable=False, index=True)
+    unit_id = db.Column(db.Integer, db.ForeignKey("lms_units.id", ondelete="SET NULL"),
+                        nullable=True, index=True)
     order_index = db.Column(db.Integer, default=0, nullable=False)
 
     title = db.Column(db.String(200), nullable=False)
@@ -86,9 +107,29 @@ class CourseAssignment(db.Model):
     allow_late = db.Column(db.Boolean, default=True, nullable=False)
     is_published = db.Column(db.Boolean, default=False, nullable=False)
 
+    # Ticket #16 part 5 — audit trail back to the AssignmentTemplate this
+    # was cloned from. ON DELETE SET NULL keeps live assignments valid if
+    # the template is later removed from the library.
+    source_template_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignment_templates.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
 
     submissions = db.relationship("Submission", backref="assignment", cascade="all, delete-orphan")
+    # Assignment-side quiz-style questions (ticket #16 part 3). When a
+    # CourseAssignment has zero AssignmentQuestion rows, it behaves as the
+    # legacy free-form "upload / text" homework — nothing regresses.
+    questions = db.relationship(
+        "AssignmentQuestion", backref="assignment",
+        cascade="all, delete-orphan",
+        order_by="AssignmentQuestion.order_index",
+    )
+
+    @property
+    def has_questions(self) -> bool:
+        return bool(self.questions)
 
 
 class Submission(db.Model):
@@ -107,9 +148,76 @@ class Submission(db.Model):
     graded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     graded_at = db.Column(db.DateTime(timezone=True))
 
+    # Smart-assignment answers (ticket #16 part 3). Empty for legacy
+    # free-form submissions; populated when the assignment has questions.
+    answers = db.relationship(
+        "AssignmentAnswer", backref="submission",
+        cascade="all, delete-orphan",
+    )
+
     __table_args__ = (
         db.UniqueConstraint("assignment_id", "student_id", name="uq_submission_assignment_student"),
     )
+
+
+class AssignmentQuestion(db.Model):
+    """Quiz-style question attached to a CourseAssignment. Mirrors the
+    `Question` model exactly so the bank picker can clone rows either
+    into a Quiz or into an Assignment with the same code path."""
+    __tablename__ = "lms_assignment_questions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignments.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    kind = db.Column(db.String(20), default="mcq")   # mcq | multi | tf | short | essay
+    prompt = db.Column(db.Text, nullable=False)
+    points = db.Column(db.Numeric(6, 2), default=1)
+    correct_short = db.Column(db.String(200), default="")
+
+    source_bank_id = db.Column(
+        db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+
+    choices = db.relationship(
+        "AssignmentChoice", backref="question",
+        cascade="all, delete-orphan",
+        order_by="AssignmentChoice.order_index",
+    )
+
+
+class AssignmentChoice(db.Model):
+    __tablename__ = "lms_assignment_choices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignment_questions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    label = db.Column(db.String(500), nullable=False)
+    is_correct = db.Column(db.Boolean, default=False, nullable=False)
+
+
+class AssignmentAnswer(db.Model):
+    __tablename__ = "lms_assignment_answers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(
+        db.Integer, db.ForeignKey("lms_submissions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignment_questions.id"),
+        nullable=False,
+    )
+    choice_id = db.Column(db.Integer, db.ForeignKey("lms_assignment_choices.id"))
+    text_answer = db.Column(db.Text, default="")
+    is_correct = db.Column(db.Boolean)
+    awarded_points = db.Column(db.Numeric(6, 2))
 
 
 # ---------- Quizzes ----------
@@ -228,7 +336,12 @@ class BankQuestion(db.Model):
     subject_id       = db.Column(db.Integer, db.ForeignKey("subjects.id"),        nullable=True, index=True)
     grade_id         = db.Column(db.Integer, db.ForeignKey("grades.id"),          nullable=True, index=True)
     academic_year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"),  nullable=True, index=True)
-    created_by_id    = db.Column(db.Integer, db.ForeignKey("users.id"),           nullable=True)
+    # Extended taxonomy (ticket #16 part 2). All nullable so a teacher
+    # can bank a generic prompt first and tag it later.
+    term_id   = db.Column(db.Integer, db.ForeignKey("terms.id"),       nullable=True, index=True)
+    unit_id   = db.Column(db.Integer, db.ForeignKey("lms_units.id"),   nullable=True, index=True)
+    lesson_id = db.Column(db.Integer, db.ForeignKey("lms_lessons.id"), nullable=True, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"),   nullable=True)
 
     kind          = db.Column(db.String(20), default="mcq")   # mcq | multi | tf | short | essay
     prompt        = db.Column(db.Text, nullable=False)
@@ -245,6 +358,8 @@ class BankQuestion(db.Model):
         cascade="all, delete-orphan",
         order_by="BankChoice.order_index",
     )
+    unit   = db.relationship("Unit",   foreign_keys=[unit_id])
+    lesson = db.relationship("Lesson", foreign_keys=[lesson_id])
 
     @property
     def tag_list(self):
@@ -262,6 +377,80 @@ class BankChoice(db.Model):
     order_index = db.Column(db.Integer, default=0, nullable=False)
     label       = db.Column(db.String(500), nullable=False)
     is_correct  = db.Column(db.Boolean, default=False, nullable=False)
+
+
+# ---------- Assignment templates (ticket #16 part 5) ------------------
+#
+# The "assignment bank" — a reusable full-homework template with its own
+# questions. Templates are copied (not linked) into CourseAssignment when
+# a teacher clones one for a specific course, mirroring the
+# BankQuestion → Question copy semantics so an edit to the template
+# after the fact does not silently rewrite an already-distributed
+# assignment.
+
+class AssignmentTemplate(db.Model):
+    __tablename__ = "lms_assignment_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=True, index=True)
+    grade_id   = db.Column(db.Integer, db.ForeignKey("grades.id"),   nullable=True, index=True)
+
+    title        = db.Column(db.String(200), nullable=False)
+    instructions = db.Column(db.Text, default="")
+    max_score    = db.Column(db.Numeric(6, 2), default=100)
+    allow_late   = db.Column(db.Boolean, default=True, nullable=False)
+    usage_count  = db.Column(db.Integer, default=0, nullable=False)
+
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+    updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    questions = db.relationship(
+        "AssignmentTemplateQuestion", backref="template",
+        cascade="all, delete-orphan",
+        order_by="AssignmentTemplateQuestion.order_index",
+    )
+
+
+class AssignmentTemplateQuestion(db.Model):
+    __tablename__ = "lms_assignment_template_questions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignment_templates.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    kind = db.Column(db.String(20), default="mcq")
+    prompt = db.Column(db.Text, nullable=False)
+    points = db.Column(db.Numeric(6, 2), default=1)
+    correct_short = db.Column(db.String(200), default="")
+    source_bank_id = db.Column(
+        db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+
+    choices = db.relationship(
+        "AssignmentTemplateChoice", backref="question",
+        cascade="all, delete-orphan",
+        order_by="AssignmentTemplateChoice.order_index",
+    )
+
+
+class AssignmentTemplateChoice(db.Model):
+    __tablename__ = "lms_assignment_template_choices"
+
+    id = db.Column(db.Integer, primary_key=True)
+    question_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignment_template_questions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    label = db.Column(db.String(500), nullable=False)
+    is_correct = db.Column(db.Boolean, default=False, nullable=False)
 
 
 # ---------- Announcements ----------

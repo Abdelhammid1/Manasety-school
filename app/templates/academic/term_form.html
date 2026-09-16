@@ -36,6 +36,75 @@
         <span class="font-label-xs text-label-xs text-on-surface-variant">مجموع أوزان فترات السنة يجب أن يساوي 100%</span>
       </div>
     </div>
+
+    {# Ticket #12 part 1 — Term open/closed control.
+       Auto: is_open is computed from today ∈ [start,end].
+       Manual: admin forces open/closed regardless of dates. #}
+    <div class="col-span-2 mt-space-md p-space-md rounded-xl bg-surface-container-low flex flex-col gap-space-sm">
+      <div class="flex items-center justify-between gap-space-sm">
+        <div>
+          <label class="font-label-md text-label-md text-on-surface font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">tune</span>حالة الفتح / القفل
+          </label>
+          <p class="mt-1 font-label-xs text-outline">تحدد ما إذا كانت الفترة نشطة حاليًا — الافتراضي تلقائي حسب التواريخ.</p>
+        </div>
+        {% if term %}
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
+                     {% if term.is_open %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+          <span class="w-1.5 h-1.5 rounded-full {% if term.is_open %}bg-[#10B981]{% else %}bg-outline{% endif %}"></span>
+          الحالة الحالية: {{ term.status_label_ar }}
+        </span>
+        {% endif %}
+      </div>
+
+      <div class="grid grid-cols-2 gap-space-sm">
+        <label class="cursor-pointer">
+          <input type="radio" name="status_mode" value="auto" class="peer sr-only"
+                 {% if not F or (F.status_mode or 'auto') == 'auto' %}checked{% endif %}
+                 onchange="toggleManualBox(false)">
+          <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-lowest text-center transition-all
+                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
+            <span class="material-symbols-outlined text-primary">event_available</span>
+            <div class="font-label-md text-primary font-bold mt-1">تلقائي حسب التاريخ</div>
+            <div class="font-label-xs text-outline">مفتوحة أثناء الفترة، مغلقة خارجها</div>
+          </div>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="status_mode" value="manual" class="peer sr-only"
+                 {% if F and F.status_mode == 'manual' %}checked{% endif %}
+                 onchange="toggleManualBox(true)">
+          <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-lowest text-center transition-all
+                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
+            <span class="material-symbols-outlined text-primary">admin_panel_settings</span>
+            <div class="font-label-md text-primary font-bold mt-1">تحكم يدوي</div>
+            <div class="font-label-xs text-outline">أنا أحدد الحالة بغض النظر عن التاريخ</div>
+          </div>
+        </label>
+      </div>
+
+      <div id="manualBox" class="grid grid-cols-2 gap-space-sm mt-space-sm"
+           {% if not F or (F.status_mode or 'auto') != 'manual' %}hidden{% endif %}>
+        <label class="cursor-pointer">
+          <input type="radio" name="manual_status" value="open" class="peer sr-only"
+                 {% if F and F.manual_status == 'open' %}checked{% endif %}>
+          <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-lowest text-center transition-all
+                      hover:border-secondary peer-checked:border-secondary peer-checked:bg-[#ECFDF5] peer-checked:shadow-md">
+            <span class="material-symbols-outlined" style="color:#10B981">lock_open</span>
+            <div class="font-label-md font-bold mt-1" style="color:#065F46">مفتوحة</div>
+          </div>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="manual_status" value="closed" class="peer sr-only"
+                 {% if F and F.manual_status == 'closed' %}checked{% endif %}>
+          <div class="p-3 rounded-lg border-2 border-outline-variant bg-surface-container-lowest text-center transition-all
+                      hover:border-error peer-checked:border-error peer-checked:bg-error-container/40 peer-checked:shadow-md">
+            <span class="material-symbols-outlined text-error">lock</span>
+            <div class="font-label-md text-error font-bold mt-1">مقفلة</div>
+          </div>
+        </label>
+      </div>
+    </div>
+
     <div class="flex justify-end">
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
@@ -44,4 +113,13 @@
     </div>
   </form>
 </div>
+
+<script>
+  // Toggle the manual open/closed picker when the mode switches. Called
+  // by both radios so we don't need to re-read state — the passed flag
+  // is authoritative.
+  function toggleManualBox(showManual) {
+    document.getElementById('manualBox').hidden = !showManual;
+  }
+</script>
 {% endblock %}

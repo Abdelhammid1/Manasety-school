@@ -19,6 +19,18 @@ subject_terms = db.Table(
 )
 
 
+# Many-to-many: which subjects a teacher is qualified to teach. Ticket
+# #14 part 2 — used to filter the teacher dropdown on the section-
+# assignments screen. Overriding to "show all teachers" stays possible
+# via a UI switch, mirroring the co-teaching override pattern the
+# assignment_confirm modal already uses.
+teacher_subjects = db.Table(
+    "teacher_subjects",
+    db.Column("teacher_id", db.Integer, db.ForeignKey("teachers.id"), primary_key=True),
+    db.Column("subject_id", db.Integer, db.ForeignKey("subjects.id"), primary_key=True),
+)
+
+
 class Teacher(db.Model):
     __tablename__ = "teachers"
 
@@ -36,6 +48,7 @@ class Teacher(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     user = db.relationship("User", foreign_keys=[user_id], backref=db.backref("teacher_profile", uselist=False))
+    subjects = db.relationship("Subject", secondary=teacher_subjects, backref="teachers")
 
 
 class Subject(db.Model):
@@ -62,6 +75,10 @@ class Assignment(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
     year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"), nullable=False, index=True)
+    # Ticket #14 part 1: term_id is nullable — a NULL means "whole year",
+    # matching the pre-migration behavior so historical rows stay valid.
+    # New assignments should always set a term.
+    term_id    = db.Column(db.Integer, db.ForeignKey("terms.id"), nullable=True, index=True)
     section_id = db.Column(db.Integer, db.ForeignKey("sections.id"), nullable=False, index=True)
     subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=False, index=True)
     teacher_id = db.Column(db.Integer, db.ForeignKey("teachers.id"), nullable=False, index=True)
@@ -72,11 +89,12 @@ class Assignment(db.Model):
     section = db.relationship("Section", backref="assignments")
     teacher = db.relationship("Teacher", backref="assignments")
     year = db.relationship("AcademicYear")
+    term = db.relationship("Term")
 
     __table_args__ = (
         db.UniqueConstraint(
-            "year_id", "section_id", "subject_id", "teacher_id",
-            name="uq_assignment_unique_quad",
+            "year_id", "term_id", "section_id", "subject_id", "teacher_id",
+            name="uq_assignment_year_term_section_subject_teacher",
         ),
     )
 

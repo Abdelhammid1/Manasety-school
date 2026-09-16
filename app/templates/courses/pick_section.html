@@ -1,0 +1,60 @@
+{# Section picker — shown when a subject has courses in multiple sections
+   of the same grade. Route redirects here from grade_term_subjects when
+   more than one Course row matches. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ subject.name }} — اختر الشعبة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.list_courses') }}" class="hover:text-primary">المقرّرات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('courses.grade_terms', grade_id=grade.id) }}" class="hover:text-primary">{{ grade.name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ subject.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md max-w-3xl mx-auto">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center gap-space-md">
+      <div class="w-14 h-14 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-2xl">alt_route</span>
+      </div>
+      <div>
+        <h1 class="font-headline-md text-headline-md text-primary font-bold">{{ subject.name }} — {{ grade.name }}</h1>
+        <p class="font-body-md text-on-surface-variant mt-1">هذه المادة تُدرَّس في {{ courses|length }} شعب — اختر الشعبة اللي عايز تفتح مقرّرها.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    {% for c in courses %}
+    <a href="{{ url_for('courses.detail', course_id=c.id) }}"
+       class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all block">
+      <div class="flex items-center gap-space-md">
+        <div class="w-12 h-12 rounded-xl bg-secondary-container/40 text-secondary flex items-center justify-center font-bold">
+          {{ c.section.name if c.section else '?' }}
+        </div>
+        <div class="flex flex-col flex-1 min-w-0">
+          <span class="font-title-md text-title-md text-primary font-bold truncate">{{ c.title }}</span>
+          {% if c.teacher %}
+          <span class="font-label-md text-outline">{{ c.teacher.full_name }}</span>
+          {% endif %}
+        </div>
+        <span class="material-symbols-outlined text-primary">arrow_back</span>
+      </div>
+      <div class="mt-space-md pt-space-md border-t border-outline-variant flex items-center gap-2">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
+          <span class="material-symbols-outlined text-xs">play_lesson</span>{{ c.lessons|length }}
+        </span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+          <span class="material-symbols-outlined text-xs">assignment</span>{{ c.assignments|length }}
+        </span>
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">
+          <span class="material-symbols-outlined text-xs">quiz</span>{{ c.quizzes|length }}
+        </span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
