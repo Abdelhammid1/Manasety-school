@@ -100,11 +100,68 @@
     </div>
   </div>
 
+  {# Ticket #8 — mode tabs. `daily` shows the classic card grid; the
+     `per_period` tab renders a students × periods matrix keyed on
+     perstatus_<enrollment_id>_<period_id>. #}
+  {% if mode == 'both' %}
+  <div class="flex items-center gap-2 mb-space-md">
+    <button type="button" onclick="showTab('daily')" id="tabDailyBtn"
+            class="h-10 px-4 rounded-xl bg-primary text-on-primary font-label-md font-bold">يومي</button>
+    <button type="button" onclick="showTab('perPeriod')" id="tabPerBtn"
+            class="h-10 px-4 rounded-xl bg-surface-container-low text-primary font-label-md font-bold">بالحصة</button>
+  </div>
+  {% endif %}
+
   {# ── The actual form: one radio group per student × status + note ── #}
   <form method="post" id="attendanceForm">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="date" value="{{ on_date.strftime('%Y-%m-%d') }}">
 
+    {# ── Per-period grid — hidden by default when mode='both'. ── #}
+    {% if periods %}
+    <div id="perPeriodPane" class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm mb-space-md {% if mode == 'both' %}hidden{% endif %}">
+      <div class="overflow-x-auto">
+        <table class="min-w-full">
+          <thead class="bg-surface-container-high">
+            <tr>
+              <th class="px-3 py-2 text-right font-label-md text-primary sticky right-0 bg-surface-container-high">الطالب</th>
+              {% for p in periods %}
+              <th class="px-2 py-2 text-center font-label-md text-primary min-w-[110px]">{{ p.name }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in enrollments %}
+            <tr class="border-t border-outline-variant">
+              <td class="px-3 py-2 font-label-md text-primary font-bold sticky right-0 bg-surface-container-lowest">
+                {{ e.student.full_name }}
+              </td>
+              {% for p in periods %}
+              {% set cell = existing_by_period.get((e.id, p.id)) %}
+              {% set cst = cell.status if cell else '' %}
+              <td class="px-1 py-1 text-center">
+                <select name="perstatus_{{ e.id }}_{{ p.id }}"
+                        class="h-8 px-1 rounded-lg bg-surface-container-low text-xs font-bold {% if cst == 'absent' %}text-error{% elif cst == 'late' %}text-tertiary{% else %}text-on-surface{% endif %}">
+                  <option value="">—</option>
+                  <option value="present" {% if cst == 'present' %}selected{% endif %}>حاضر</option>
+                  <option value="absent" {% if cst == 'absent' %}selected{% endif %}>غائب</option>
+                  <option value="late" {% if cst == 'late' %}selected{% endif %}>متأخر</option>
+                  <option value="excused" {% if cst == 'excused' %}selected{% endif %}>مستأذن</option>
+                </select>
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      <div class="p-space-md text-outline font-label-xs">
+        سطر لكل طالب × حصة. اترك «—» عشان تتخطى الرصد لخانة معينة.
+      </div>
+    </div>
+    {% endif %}
+
+    <div id="dailyPane" class="{% if mode == 'per_period' %}hidden{% endif %}">
     {% if enrollments %}
     <div id="studentsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-space-md">
       {% for e in enrollments %}
@@ -155,6 +212,7 @@
       <p class="mt-3 font-body-md text-body-md text-on-surface-variant">لا يوجد طلاب نشطون في هذا الفصل.</p>
     </div>
     {% endif %}
+    </div><!-- /dailyPane -->
 
     <!-- Sticky save bar -->
     <div class="sticky bottom-0 mt-space-lg bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_-4px_20px_rgba(12,36,97,0.08)] flex items-center justify-between gap-space-md z-30">
@@ -182,6 +240,22 @@
 </div>
 
 <script>
+  // Ticket #8 — mode tab switcher (only used when School.attendance_mode
+  // is 'both'; the other modes render only one pane so the buttons
+  // never appear).
+  function showTab(which) {
+    const daily = document.getElementById('dailyPane');
+    const per   = document.getElementById('perPeriodPane');
+    if (!daily || !per) return;
+    daily.hidden = (which !== 'daily');
+    per.hidden   = (which !== 'perPeriod');
+    document.getElementById('tabDailyBtn').classList.toggle('bg-primary', which === 'daily');
+    document.getElementById('tabDailyBtn').classList.toggle('text-on-primary', which === 'daily');
+    document.getElementById('tabDailyBtn').classList.toggle('bg-surface-container-low', which !== 'daily');
+    document.getElementById('tabPerBtn').classList.toggle('bg-primary', which === 'perPeriod');
+    document.getElementById('tabPerBtn').classList.toggle('text-on-primary', which === 'perPeriod');
+    document.getElementById('tabPerBtn').classList.toggle('bg-surface-container-low', which !== 'perPeriod');
+  }
 (function(){
   const STATUSES = { present:'#10B981', absent:'#EF4444', late:'#F59E0B', excused:'#64748B' };
 

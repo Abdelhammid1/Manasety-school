@@ -81,6 +81,20 @@ def students_list():
         query = query.filter(
             db.or_(Student.full_name.ilike(like), Student.permanent_code.ilike(like))
         )
+
+    # Ticket #14 — scope the list by the user's UserScope. When the
+    # user has grade/section scopes, join through their active
+    # Enrollment and filter by those. Users with no UserScope pass
+    # through unchanged.
+    from ...services.scopes import apply_scope, _user_scopes
+    scopes = _user_scopes(current_user)
+    if scopes and not any(s.scope_type == "all_school" for s in scopes):
+        query = query.join(Enrollment, Enrollment.student_id == Student.id) \
+                     .filter(Enrollment.status == "active")
+        query = apply_scope(query, current_user,
+                            section_field=Enrollment.section_id,
+                            grade_field=Enrollment.grade_id)
+
     students = query.order_by(Student.full_name).limit(500).all()
     return render_template(
         "students/list.html", students=students, q=q,

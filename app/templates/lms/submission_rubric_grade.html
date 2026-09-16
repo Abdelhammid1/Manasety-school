@@ -1,0 +1,79 @@
+{# Ticket #16 — grade a submission against its assignment's Rubric.
+   Weighted-sum drives the final Submission.score. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تصحيح — {{ assignment.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.assignment_detail', aid=assignment.id) }}" class="hover:text-primary">{{ assignment.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تصحيح روبريك</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between flex-wrap gap-space-md">
+      <div>
+        <span class="font-label-md text-on-surface-variant">التصحيح بالروبريك</span>
+        <h1 class="font-headline-md text-primary font-bold mt-1">{{ rubric.title }}</h1>
+        <p class="font-body-md text-on-surface-variant mt-1">
+          الطالب: <b>{{ student.full_name if student else '' }}</b>
+          · الدرجة العظمى للواجب: {{ assignment.max_score }}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="flex flex-col gap-space-sm">
+      {% for c in rubric.criteria %}
+      {% set row = existing.get(c.id) %}
+      <div class="p-space-md rounded-xl bg-surface-container-low">
+        <div class="flex items-start justify-between flex-wrap gap-space-md">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-space-sm flex-wrap">
+              <span class="font-title-md text-primary font-bold">{{ c.title }}</span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
+                وزن: {{ c.weight }}%
+              </span>
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+                من: {{ c.max_score }}
+              </span>
+            </div>
+            {% if c.description %}<p class="mt-1 font-label-md text-outline whitespace-pre-line">{{ c.description }}</p>{% endif %}
+          </div>
+          <div class="flex flex-col gap-1 items-end shrink-0">
+            <label class="font-label-md text-on-surface font-bold">الدرجة</label>
+            <input name="score_{{ c.id }}" type="number" step="0.1" min="0" max="{{ c.max_score }}"
+                   value="{{ row.score if row else '' }}"
+                   placeholder="/{{ c.max_score }}"
+                   class="h-11 w-28 px-3 text-center rounded-lg bg-surface-container-lowest tabular-nums">
+          </div>
+        </div>
+        <div class="mt-space-sm flex flex-col gap-1">
+          <label class="font-label-md text-outline">ملاحظة على هذا المعيار (اختياري)</label>
+          <input name="comment_{{ c.id }}" value="{{ row.comment if row else '' }}"
+                 placeholder="ملاحظة موجهة للطالب…"
+                 class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-on-surface font-bold">ملاحظات عامة</label>
+      <textarea name="feedback" rows="3" placeholder="ملاحظات موجهة للطالب على مستوى الواجب…"
+                class="w-full px-3 py-2 rounded-lg bg-surface-container-low leading-loose">{{ submission.feedback or '' }}</textarea>
+    </div>
+
+    <div class="flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">grading</span>حفظ التصحيح
+      </button>
+    </div>
+  </form>
+</div>
+{% endblock %}

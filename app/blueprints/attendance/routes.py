@@ -69,6 +69,12 @@ def index():
         # Anyone else (teacher role, misconfigured account, etc.) is filtered
         # to their assigned sections — empty list if no assignments.
         if _is_admin():
+            # Ticket #14 — scope-aware filtering for admins on
+            # non-all_school UserScope rows.
+            from ...services.scopes import apply_scope
+            q = apply_scope(q, current_user,
+                            section_field=Section.id, grade_field=Section.grade_id,
+                            stage_field=Grade.stage)
             sections = q.order_by(Grade.order_index, Section.name).all()
         else:
             teacher = _teacher_for_current_user()
@@ -125,12 +131,25 @@ def mark(section_id):
         .join(Student).order_by(Student.full_name)
         .all()
     )
-    existing = {
-        a.enrollment_id: a
-        for a in Attendance.query.filter(
-            Attendance.enrollment_id.in_([e.id for e in enrollments]),
-            Attendance.date == on_date,
-        ).all()
+    # Ticket #8 — attendance mode from School settings decides whether
+    # we render the day-grid (per-period) or the flat list.
+    from ...models import Period, School
+    school_row = db.session.get(School, _sid())
+    mode = (school_row.attendance_mode if school_row else None) or "daily"
+    periods = []
+    if mode in ("per_period", "both"):
+        periods = (
+            Period.query.filter_by(school_id=_sid(), is_break=False)
+            .order_by(Period.order_index).all()
+        )
+    all_records = Attendance.query.filter(
+        Attendance.enrollment_id.in_([e.id for e in enrollments]),
+        Attendance.date == on_date,
+    ).all()
+    # Daily rows use period_id=NULL; per-period rows key on (enrollment, period).
+    existing = {a.enrollment_id: a for a in all_records if a.period_id is None}
+    existing_by_period = {
+        (a.enrollment_id, a.period_id): a for a in all_records if a.period_id is not None
     }
 
     if request.method == "POST":
@@ -197,6 +216,31 @@ def mark(section_id):
                     )
                     absent_notifs += 1
 
+        # Ticket #8 — per-period cells. Form fields look like
+        # perstatus_<enrollment_id>_<period_id>=<status>.
+        if mode in ("per_period", "both") and periods:
+            for e in enrollments:
+                for p in periods:
+                    field = f"perstatus_{e.id}_{p.id}"
+                    st = request.form.get(field)
+                    if st not in ("present", "absent", "late", "excused"):
+                        continue
+                    row = existing_by_period.get((e.id, p.id))
+                    if row is None:
+                        row = Attendance(
+                            school_id=_sid(),
+                            enrollment_id=e.id, date=on_date,
+                            period_id=p.id,
+                            status=st,
+                            recorded_by_user_id=current_user.id,
+                        )
+                        db.session.add(row); creates += 1
+                    else:
+                        row.status = st
+                        row.recorded_by_user_id = current_user.id
+                        row.recorded_at = datetime.utcnow()
+                        updates += 1
+
         db.session.commit()
         msg = f"تم الحفظ: {creates} سجل جديد، {updates} سجل محدّث."
         if absent_notifs:
@@ -208,6 +252,8 @@ def mark(section_id):
         "attendance/mark.html",
         section=section, year=year, on_date=on_date,
         enrollments=enrollments, existing=existing,
+        # Ticket #8
+        mode=mode, periods=periods, existing_by_period=existing_by_period,
     )
 
 
