@@ -138,11 +138,20 @@ def components():
     if request.method == "POST" and term_id and subject_id:
         action = request.form.get("action")
         if action == "add":
+            # Ticket #3 — optional link to an LMS Quiz / CourseAssignment
+            # so its grade auto-syncs into this component.
+            src_type = (request.form.get("source_type") or "manual").strip()
+            if src_type not in ("manual", "lms_quiz", "lms_assignment"):
+                src_type = "manual"
+            src_id = request.form.get("source_id", type=int) or None
             comp = AssessmentComponent(
                 school_id=_sid(),
                 term_id=term_id, subject_id=subject_id,
                 name=request.form["name"].strip(),
                 max_score=Decimal(request.form["max_score"]),
+                source_type=src_type,
+                source_id=src_id if src_type != "manual" else None,
+                auto_sync=bool(request.form.get("auto_sync")) and src_type != "manual",
             )
             db.session.add(comp)
             db.session.commit()
@@ -159,11 +168,28 @@ def components():
                 flash("تم حذف المكوّن.", "success")
             return redirect(url_for("results.components", term_id=term_id, subject_id=subject_id))
 
+    # Ticket #3 — surface the school's Quizzes + CourseAssignments so
+    # the "add component" form can offer them as auto-sync sources.
+    from ...models import Quiz, CourseAssignment, Course
+    lms_quizzes = []
+    lms_assignments = []
+    if subject_id:
+        lms_quizzes = (
+            Quiz.query.join(Course, Course.id == Quiz.course_id)
+            .filter(Course.school_id == _sid(), Course.subject_id == subject_id)
+            .order_by(Quiz.title).all()
+        )
+        lms_assignments = (
+            CourseAssignment.query.join(Course, Course.id == CourseAssignment.course_id)
+            .filter(Course.school_id == _sid(), Course.subject_id == subject_id)
+            .order_by(CourseAssignment.title).all()
+        )
     return render_template(
         "results/components.html",
         year=year, terms=terms, subjects=subjects,
         term_id=term_id, subject_id=subject_id,
         components=components_list, total=total,
+        lms_quizzes=lms_quizzes, lms_assignments=lms_assignments,
     )
 
 

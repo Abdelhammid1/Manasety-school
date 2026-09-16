@@ -163,6 +163,8 @@ def slot_save(section_id):
     period_id = int(request.form["period_id"])
     subject_id = int(request.form["subject_id"])
     teacher_id = int(request.form["teacher_id"])
+    # Ticket #7 — optional room assignment.
+    room_id = request.form.get("room_id", type=int) or None
 
     # Conflict check: same teacher at same (day, period) in a different section
     conflict = (
@@ -181,17 +183,35 @@ def slot_save(section_id):
         )
         return redirect(url_for("schedule.section_schedule", section_id=section.id))
 
+    # Ticket #7 — room conflict.
+    if room_id:
+        room_conflict = (
+            ScheduleSlot.query.filter_by(
+                year_id=year.id, day_id=day_id, period_id=period_id, room_id=room_id,
+            )
+            .filter(ScheduleSlot.section_id != section.id)
+            .first()
+        )
+        if room_conflict:
+            other_section = f"{room_conflict.section.grade.name} / {room_conflict.section.name}"
+            flash(
+                f"تعارض قاعة: القاعة محجوزة لفصل آخر ({other_section}) في نفس اليوم والحصة.",
+                "danger",
+            )
+            return redirect(url_for("schedule.section_schedule", section_id=section.id))
+
     slot = ScheduleSlot.query.filter_by(
         year_id=year.id, section_id=section.id, day_id=day_id, period_id=period_id
     ).first()
     if slot:
         slot.subject_id = subject_id
         slot.teacher_id = teacher_id
+        slot.room_id = room_id
     else:
         slot = ScheduleSlot(
             school_id=_sid(), year_id=year.id, section_id=section.id,
             day_id=day_id, period_id=period_id,
-            subject_id=subject_id, teacher_id=teacher_id,
+            subject_id=subject_id, teacher_id=teacher_id, room_id=room_id,
         )
         db.session.add(slot)
     db.session.commit()

@@ -86,27 +86,74 @@
     <p class="text-center text-on-surface-variant py-space-md">لا مكوّنات معرّفة بعد.</p>
     {% endif %}
 
-    <form method="post" class="mt-space-md pt-space-md border-t border-outline-variant grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-space-md items-end">
+    <form method="post" class="mt-space-md pt-space-md border-t border-outline-variant flex flex-col gap-space-md">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="term_id" value="{{ term_id }}">
       <input type="hidden" name="subject_id" value="{{ subject_id }}">
-      <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">اسم المكوّن</label>
-        <input name="name" required placeholder="مثال: اختبار قصير"
-               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-space-md items-end">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">اسم المكوّن</label>
+          <input name="name" required placeholder="مثال: اختبار قصير" class="h-12 px-4 rounded-xl bg-surface-container-low">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">الدرجة القصوى</label>
+          <input name="max_score" type="number" min="1" max="100" step="0.5" value="10" required class="h-12 px-4 text-center rounded-xl bg-surface-container-low tabular-nums">
+        </div>
       </div>
-      <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">الدرجة القصوى</label>
-        <input name="max_score" type="number" min="1" max="100" step="0.5" value="10" required
-               class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+
+      {# Ticket #3 — optional LMS auto-sync link. #}
+      <div class="rounded-xl bg-surface-container-low p-space-md">
+        <p class="font-label-md text-on-surface font-bold mb-space-sm flex items-center gap-2">
+          <span class="material-symbols-outlined">sync</span>احتساب الدرجة تلقائياً من LMS (اختياري)
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm items-end">
+          <div class="flex flex-col gap-1">
+            <label class="font-label-md text-outline">المصدر</label>
+            <select name="source_type" id="srcType" onchange="onSrcChange()" class="h-11 px-3 rounded-lg bg-surface-container-lowest">
+              <option value="manual" selected>يدوي</option>
+              <option value="lms_quiz">اختبار LMS</option>
+              <option value="lms_assignment">واجب LMS</option>
+            </select>
+          </div>
+          <div class="flex flex-col gap-1">
+            <label class="font-label-md text-outline">المصدر المحدد</label>
+            <select name="source_id" id="srcId" class="h-11 px-3 rounded-lg bg-surface-container-lowest" disabled>
+              <option value="">— اختر —</option>
+              <optgroup label="اختبارات" id="quizGroup">
+                {% for q in lms_quizzes %}<option value="{{ q.id }}" data-kind="lms_quiz">{{ q.title }}</option>{% endfor %}
+              </optgroup>
+              <optgroup label="واجبات" id="assignGroup">
+                {% for a in lms_assignments %}<option value="{{ a.id }}" data-kind="lms_assignment">{{ a.title }}</option>{% endfor %}
+              </optgroup>
+            </select>
+          </div>
+          <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest">
+            <input type="checkbox" name="auto_sync" value="1" class="w-5 h-5 rounded accent-primary">
+            <span class="font-label-md">مزامنة تلقائية</span>
+          </label>
+        </div>
       </div>
-      <button type="submit" class="h-12 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined text-xl">add</span>
-        <span>إضافة</span>
-      </button>
+
+      <div class="flex justify-end">
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">add</span>إضافة
+        </button>
+      </div>
     </form>
+    <script>
+      function onSrcChange() {
+        const kind = document.getElementById('srcType').value;
+        const sel = document.getElementById('srcId');
+        sel.disabled = (kind === 'manual');
+        for (const opt of sel.options) {
+          if (!opt.dataset.kind) continue;
+          opt.hidden = (kind !== 'manual' && opt.dataset.kind !== kind);
+        }
+        if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = '';
+      }
+    </script>
   </section>
   {% endif %}
 </div>

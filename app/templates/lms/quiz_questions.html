@@ -168,20 +168,38 @@
         </div>
         {% endif %}
 
-        <div class="flex items-center justify-between">
+        {% if q.is_locked %}
+        <div class="p-space-sm rounded-lg bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">lock</span>
+          <span class="font-label-md">السؤال مقفل — أجاب عليه طلاب بالفعل. لتعديله أنشئ نسخة جديدة.</span>
+        </div>
+        {% endif %}
+        <div class="flex items-center justify-between flex-wrap gap-2">
           <button type="button" onclick="deleteQuestion({{ q.id }})"
                   class="h-10 px-4 rounded-lg text-error hover:bg-error-container/40 flex items-center gap-1 font-label-md font-bold">
             <span class="material-symbols-outlined text-sm">delete</span><span>حذف السؤال</span>
           </button>
-          <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
-                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-            حفظ السؤال
-          </button>
+          <div class="flex items-center gap-2">
+            {% if q.is_locked %}
+            <button type="button" onclick="document.getElementById('newVerQ{{ q.id }}').submit();"
+                    class="h-10 px-4 rounded-lg bg-primary-container/20 text-primary font-label-md font-bold hover:bg-primary-container/40 flex items-center gap-1">
+              <span class="material-symbols-outlined text-sm">restore_page</span>نسخة جديدة (v{{ (q.version or 1) + 1 }})
+            </button>
+            {% else %}
+            <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                    style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              حفظ السؤال
+            </button>
+            {% endif %}
+          </div>
         </div>
       </form>
 
       {# Hidden delete form used by the button above (avoids nesting forms) #}
       <form id="delQ{{ q.id }}" method="post" action="{{ url_for('lms.quiz_question_delete', qid=q.id) }}" class="hidden">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      </form>
+      <form id="newVerQ{{ q.id }}" method="post" action="{{ url_for('lms.quiz_question_new_version', qid=q.id) }}" class="hidden">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       </form>
     </details>

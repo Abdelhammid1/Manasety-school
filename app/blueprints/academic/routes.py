@@ -393,12 +393,17 @@ def sections_list():
     year = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
     sections = []
     if year:
-        sections = (
+        q = (
             Section.query.filter_by(school_id=_sid(), year_id=year.id)
             .join(Grade)
-            .order_by(Grade.order_index, Section.name)
-            .all()
         )
+        # Ticket #14 — scope-aware filtering.
+        from ...services.scopes import apply_scope
+        q = apply_scope(q, current_user,
+                        section_field=Section.id,
+                        grade_field=Section.grade_id,
+                        stage_field=Grade.stage)
+        sections = q.order_by(Grade.order_index, Section.name).all()
     return render_template("academic/sections_list.html", sections=sections, active_year=year)
 
 

@@ -39,6 +39,16 @@ def _default_cash_account() -> Account:
     return Account.query.filter_by(school_id=_sid(), code="1100").first()
 
 
+def _discount_account() -> Account:
+    """Ticket #17 — account 4900 for خصومات وتخفيضات. Falls back to the
+    first revenue-typed account so a school without a dedicated 4900
+    still gets its invoice booked correctly."""
+    return (
+        Account.query.filter_by(school_id=_sid(), code="4900").first()
+        or Account.query.filter_by(school_id=_sid(), code="4901").first()
+    )
+
+
 # ---------- T-8.1 Chart of accounts ----------
 
 @bp.route("/accounts")
@@ -288,6 +298,28 @@ def invoice_new():
             db.session.add(line)
             total += amt
             rev_lines[ft.revenue_account_id] = rev_lines.get(ft.revenue_account_id, Decimal(0)) + amt
+
+        # Ticket #17 — auto-apply approved StudentDiscount rows on this
+        # enrollment. Each applied discount is written as a NEGATIVE
+        # InvoiceLine so it's transparent to the parent, and the total
+        # is reduced accordingly. The accounting side crosses it to
+        # account 4900 (discounts) — see _discount_account() below.
+        from ...services.discounts import applicable_discounts_for
+        applied = applicable_discounts_for(enrollment_id, total)
+        discount_account = _discount_account()
+        for label, amount, _sd in applied:
+            db.session.add(InvoiceLine(
+                invoice_id=inv.id, fee_type_id=fee_ids[0] if fee_ids else None,
+                description=f"خصم: {label}",
+                amount=-amount,     # negative line
+            ))
+            total -= amount
+            if discount_account:
+                # Discount contra-revenue: DR discounts (expense-like),
+                # CR the AR that we'd otherwise have added below. Since
+                # journal_lines runs after this block we just record it
+                # as a separate contra-line.
+                rev_lines[discount_account.id] = rev_lines.get(discount_account.id, Decimal(0)) - amount
 
         inv.total_amount = total
 

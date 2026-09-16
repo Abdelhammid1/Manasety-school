@@ -171,7 +171,14 @@ def payroll_new():
         period_month = int(request.form["period_month"])
         base = Decimal(request.form.get("base_salary") or str(e.base_salary or 0))
         allowances = Decimal(request.form.get("allowances") or "0")
-        deductions = Decimal(request.form.get("deductions") or "0")
+        # Ticket #9 — auto-compute deductions from StaffAttendance
+        # (unpaid absences) unless the user overrode the field manually.
+        override = request.form.get("deductions")
+        if override and override.strip():
+            deductions = Decimal(override)
+        else:
+            from ...services.payroll_calc import compute_absence_deduction
+            deductions = compute_absence_deduction(e, period_year, period_month, base)
         net = base + allowances - deductions
 
         dup = Payroll.query.filter_by(

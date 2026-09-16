@@ -761,6 +761,58 @@ def quiz_question_delete(qid):
     return redirect(url_for("lms.quiz_questions", qid=quiz_id))
 
 
+@bp.route("/questions/<int:qid>/version", methods=["POST"],
+          endpoint="quiz_question_new_version")
+@login_required
+def quiz_question_new_version(qid):
+    """Ticket #19 — clone a locked Question into a new row on the same
+    Quiz (with version = old.version + 1, is_locked = False, appended
+    to the end). The teacher edits the clone; the original stays intact
+    so previous QuizAttempts still key on their answered version."""
+    q = Question.query.get_or_404(qid)
+    last = max((qq.order_index for qq in q.quiz.questions), default=0)
+    clone = Question(
+        quiz_id=q.quiz_id, order_index=last + 1,
+        kind=q.kind, prompt=q.prompt, points=q.points,
+        correct_short=q.correct_short,
+        source_bank_id=q.source_bank_id,
+        version=(q.version or 1) + 1, is_locked=False, locked_at=None,
+    )
+    db.session.add(clone); db.session.flush()
+    for c in q.choices:
+        db.session.add(Choice(
+            question_id=clone.id, order_index=c.order_index,
+            label=c.label, is_correct=c.is_correct,
+        ))
+    db.session.commit()
+    flash(f"تم إنشاء نسخة جديدة (الإصدار {clone.version}). عدّلها ثم احذف الأصل لو حاب.", "success")
+    return redirect(url_for("lms.quiz_questions", qid=q.quiz_id))
+
+
+@bp.route("/assignment-questions/<int:qid>/version", methods=["POST"],
+          endpoint="assignment_question_new_version")
+@login_required
+def assignment_question_new_version(qid):
+    q = AssignmentQuestion.query.get_or_404(qid)
+    last = max((qq.order_index for qq in q.assignment.questions), default=0)
+    clone = AssignmentQuestion(
+        assignment_id=q.assignment_id, order_index=last + 1,
+        kind=q.kind, prompt=q.prompt, points=q.points,
+        correct_short=q.correct_short,
+        source_bank_id=q.source_bank_id,
+        version=(q.version or 1) + 1, is_locked=False,
+    )
+    db.session.add(clone); db.session.flush()
+    for c in q.choices:
+        db.session.add(AssignmentChoice(
+            question_id=clone.id, order_index=c.order_index,
+            label=c.label, is_correct=c.is_correct,
+        ))
+    db.session.commit()
+    flash(f"تم إنشاء نسخة جديدة (الإصدار {clone.version}).", "success")
+    return redirect(url_for("lms.assignment_questions", aid=q.assignment_id))
+
+
 # ─── Question Bank ────────────────────────────────────────────────────────
 #
 # The school's reusable question pool. Teachers write questions once (tagged
@@ -1170,6 +1222,17 @@ def assignment_submit(aid):
             submission.score = auto_total
 
     submission.submitted_at = now
+
+    # Ticket #3 — sync into GradeEntry when the assignment is fully
+    # graded (no essay pending) and linked to an auto-syncing
+    # AssessmentComponent.
+    if a.questions and submission.score is not None:
+        try:
+            from ...services.lms_sync import sync_assignment_submission
+            sync_assignment_submission(submission)
+        except Exception:
+            current_app.logger.exception("lms_sync assignment failure")
+
     db.session.commit()
     flash("تم تسليم الواجب بنجاح.", "success")
     return redirect(url_for("lms.assignment_detail", aid=a.id))
@@ -1327,6 +1390,19 @@ def quiz_submit(qid):
     attempt.submitted_at = _tz_safe_now(attempt.started_at)
     attempt.score = total_awarded
     attempt.auto_graded = autograded_all
+
+    # Ticket #3 — mirror the score into GradeEntry when the quiz is
+    # linked to an auto-syncing AssessmentComponent. Only fires when
+    # the attempt is fully auto-graded — an essay awaiting a teacher
+    # would leave the SIS side inconsistent otherwise.
+    if autograded_all:
+        try:
+            from ...services.lms_sync import sync_quiz_attempt
+            sync_quiz_attempt(attempt)
+        except Exception:
+            # Sync must never block the student's submission.
+            current_app.logger.exception("lms_sync quiz failure")
+
     db.session.commit()
 
     flash(
