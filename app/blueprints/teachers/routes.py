@@ -81,11 +81,18 @@ def teacher_detail(teacher_id):
             )
             .all()
         )
+    # Pool of subjects the teacher could be qualified in — same school
+    # scope as the pickers elsewhere.
+    all_subjects = (
+        Subject.query.filter_by(school_id=_sid(), is_active=True)
+        .order_by(Subject.name).all()
+    )
     return render_template(
         "teachers/detail.html",
         teacher=teacher,
         assignments=assignments,
         active_year=active_year,
+        all_subjects=all_subjects,
     )
 
 
@@ -108,6 +115,25 @@ def teacher_edit(teacher_id):
         flash("تم تحديث بيانات المعلم.", "success")
         return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
     return render_template("teachers/form.html", teacher=teacher, form={}, users=users)
+
+
+@bp.route("/<int:teacher_id>/specialization", methods=["POST"])
+@login_required
+@require_permission("teachers", "edit")
+def teacher_specialization(teacher_id):
+    """Ticket #14 pt 2 — rewrite the teacher_subjects M2M for this
+    teacher. Called from teachers/detail.html qualification chips."""
+    teacher = _get(Teacher, teacher_id)
+    subject_ids = request.form.getlist("subject_ids", type=int)
+    all_subjects = Subject.query.filter_by(school_id=_sid()).all()
+    teacher.subjects = [s for s in all_subjects if s.id in subject_ids]
+    db.session.commit()
+    flash(
+        f"تم تحديث المواد المؤهَّل {teacher.full_name} لتدريسها "
+        f"({len(teacher.subjects)} مادة).",
+        "success",
+    )
+    return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
 
 
 @bp.route("/<int:teacher_id>/toggle", methods=["POST"])
@@ -314,39 +340,96 @@ def assignments_list():
 @login_required
 @require_permission("teachers", "edit")
 def section_assignments(section_id):
+    """Ticket #14 — assignments are now term-scoped.
+
+    The screen picks a term (?term_id=X, or the currently-open term of
+    the section's year as default). Subjects list is filtered to those
+    flagged for that term AND that grade; the teacher dropdown is
+    filtered to teachers qualified for the picked subject via the
+    teacher_subjects M2M — with an \"إظهار كل المعلمين\" override for
+    coverage / emergency assignments.
+    """
     section = _get(Section, section_id)
     year = section.year
-    teachers = (
+    # ── Term picker ────────────────────────────────────────────────
+    year_terms = (
+        Term.query.filter_by(school_id=_sid(), year_id=year.id)
+        .order_by(Term.order_index).all()
+    )
+    requested = request.args.get("term_id", type=int)
+    term = None
+    if requested:
+        term = next((t for t in year_terms if t.id == requested), None)
+    if term is None:
+        # Default: the currently open term, else the first, else None.
+        term = next((t for t in year_terms if t.is_open), None) or (year_terms[0] if year_terms else None)
+
+    # ── Subjects filtered by grade × term ─────────────────────────
+    subjects_q = (
+        Subject.query.filter_by(school_id=_sid(), is_active=True)
+        .join(Subject.grades).filter(Grade.id == section.grade_id)
+    )
+    if term is not None:
+        subjects_q = subjects_q.join(Subject.terms).filter(Term.id == term.id)
+    subjects = subjects_q.order_by(Subject.name).all()
+
+    # ── Teachers ──────────────────────────────────────────────────
+    all_teachers = (
         Teacher.query.filter_by(school_id=_sid(), is_active=True)
-        .order_by(Teacher.full_name)
-        .all()
+        .order_by(Teacher.full_name).all()
     )
-    subjects = (
-        Subject.query.filter_by(school_id=_sid())
-        .join(Subject.grades)
-        .filter(Grade.id == section.grade_id)
-        .all()
-    )
+    # For the initial GET render we pass ALL teachers; the client-side
+    # JS filters them by the currently-selected subject. Server-side
+    # validation on POST does the authoritative check.
 
     if request.method == "POST":
-        subject_id = int(request.form["subject_id"])
-        teacher_id = int(request.form["teacher_id"])
+        subject_id = request.form.get("subject_id", type=int)
+        teacher_id = request.form.get("teacher_id", type=int)
         weekly_periods = max(1, int(request.form.get("weekly_periods") or 1))
         confirmed = request.form.get("confirm_coteach") == "1"
+        override_specialization = request.form.get("show_all") == "1"
+
+        if not subject_id or not teacher_id:
+            flash("اختر المادة والمعلم.", "danger")
+            return redirect(url_for("teachers.section_assignments",
+                                    section_id=section.id, term_id=term.id if term else None))
+
+        teacher = Teacher.query.filter_by(id=teacher_id, school_id=_sid()).first()
+        subject = Subject.query.filter_by(id=subject_id, school_id=_sid()).first()
+        if teacher is None or subject is None:
+            flash("بيانات غير صالحة.", "danger")
+            return redirect(url_for("teachers.section_assignments",
+                                    section_id=section.id, term_id=term.id if term else None))
+
+        # Specialization check — refuse silently unless override is set.
+        # Empty teacher.subjects is treated as \"generalist\" (no
+        # specialization declared yet) and is allowed to teach anything.
+        if teacher.subjects and subject not in teacher.subjects and not override_specialization:
+            flash(
+                f"المعلم ({teacher.full_name}) غير مؤهَّل لتدريس ({subject.name}). "
+                "فعّل \"إظهار كل المعلمين\" في الفورم إذا كان هذا إسناداً استثنائيًا.",
+                "danger",
+            )
+            return redirect(url_for("teachers.section_assignments",
+                                    section_id=section.id, term_id=term.id if term else None))
 
         existing = Assignment.query.filter_by(
-            year_id=year.id, section_id=section.id, subject_id=subject_id,
+            year_id=year.id,
+            term_id=term.id if term else None,
+            section_id=section.id,
+            subject_id=subject_id,
             is_active=True,
         ).all()
         already_same = any(a.teacher_id == teacher_id for a in existing)
         if already_same:
-            flash("هذا المعلم مسنَد بالفعل لهذه المادة والفصل.", "warning")
-            return redirect(url_for("teachers.section_assignments", section_id=section.id))
+            flash("هذا المعلم مسنَد بالفعل لهذه المادة والفصل والفترة.", "warning")
+            return redirect(url_for("teachers.section_assignments",
+                                    section_id=section.id, term_id=term.id if term else None))
 
         if existing and not confirmed:
             others = "، ".join(a.teacher.full_name for a in existing)
             flash(
-                f"تنبيه (تدريس مشترك): المادة مسنَدة سابقًا إلى ({others}). "
+                f"تنبيه (تدريس مشترك): المادة مسنَدة سابقًا إلى ({others}) في هذه الفترة. "
                 "أكّد لإضافة معلم آخر.",
                 "warning",
             )
@@ -354,30 +437,46 @@ def section_assignments(section_id):
                 "teachers/assignment_confirm.html",
                 section=section, subject_id=subject_id, teacher_id=teacher_id,
                 weekly_periods=weekly_periods,
-                teachers=teachers, subjects=subjects, others=others,
+                teachers=all_teachers, subjects=subjects, others=others,
+                term=term,
             )
 
         a = Assignment(
-            school_id=_sid(), year_id=year.id, section_id=section.id,
+            school_id=_sid(), year_id=year.id,
+            term_id=term.id if term else None,
+            section_id=section.id,
             subject_id=subject_id, teacher_id=teacher_id,
             weekly_periods=weekly_periods,
         )
         db.session.add(a)
         db.session.commit()
         flash("تم الإسناد بنجاح.", "success")
-        return redirect(url_for("teachers.section_assignments", section_id=section.id))
+        return redirect(url_for("teachers.section_assignments",
+                                section_id=section.id, term_id=term.id if term else None))
 
-    assignments = (
-        Assignment.query.filter_by(
-            year_id=year.id, section_id=section.id, is_active=True
-        )
-        .order_by(Assignment.id)
-        .all()
+    # Assignments for this section, scoped to the selected term (with the
+    # legacy whole-year assignments — term_id NULL — always folded in so
+    # the historical data stays visible until re-tagged).
+    assignments_q = Assignment.query.filter_by(
+        year_id=year.id, section_id=section.id, is_active=True,
     )
+    if term is not None:
+        assignments_q = assignments_q.filter(
+            (Assignment.term_id == term.id) | (Assignment.term_id.is_(None))
+        )
+    assignments = assignments_q.order_by(Assignment.id).all()
+
+    # Build a {subject_id: [teacher_id, ...]} map so the JS filter can
+    # show only qualified teachers when a subject is picked.
+    teacher_subject_map = {
+        s.id: [t.id for t in all_teachers if s in t.subjects] for s in subjects
+    }
     return render_template(
         "teachers/section_assignments.html",
-        section=section, year=year, teachers=teachers, subjects=subjects,
+        section=section, year=year, term=term, year_terms=year_terms,
+        teachers=all_teachers, subjects=subjects,
         assignments=assignments,
+        teacher_subject_map=teacher_subject_map,
     )
 
 

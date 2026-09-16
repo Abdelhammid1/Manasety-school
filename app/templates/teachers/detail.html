@@ -101,6 +101,41 @@
         {% endif %}
       </section>
 
+      {# Ticket #14 pt 2 — teacher_subjects qualification checklist. #}
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+          <span class="material-symbols-outlined">verified</span>المواد المؤهَّل لتدريسها
+          <span class="font-label-md text-outline font-normal">— يستخدم لفلترة الإسناد</span>
+        </h2>
+        <form method="post" action="{{ url_for('teachers.teacher_specialization', teacher_id=teacher.id) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          {% set current_ids = teacher.subjects|map(attribute='id')|list %}
+          <div class="grid grid-cols-2 md:grid-cols-3 gap-space-sm">
+            {% for s in all_subjects %}
+            <label class="cursor-pointer">
+              <input type="checkbox" name="subject_ids" value="{{ s.id }}"
+                     class="peer sr-only" {% if s.id in current_ids %}checked{% endif %}>
+              <div class="p-2.5 rounded-lg border-2 border-outline-variant bg-surface-container-low text-center transition-all
+                          hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
+                <span class="font-label-md text-primary font-bold">{{ s.name }}</span>
+              </div>
+            </label>
+            {% else %}
+            <p class="col-span-full text-center text-outline py-space-md">لا مواد معرَّفة في المدرسة بعد.</p>
+            {% endfor %}
+          </div>
+          <div class="mt-space-md flex items-center justify-between gap-space-sm">
+            <p class="font-label-xs text-outline">
+              معلم بدون أي مادة يُعامَل كـ<b>عمومي</b> — يظهر في كل الإسنادات.
+            </p>
+            <button type="submit" class="h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+                    style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              <span class="material-symbols-outlined text-sm">save</span><span>حفظ المواد</span>
+            </button>
+          </div>
+        </form>
+      </section>
+
       {% if teacher.notes %}
       <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
         <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">

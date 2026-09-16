@@ -1,10 +1,15 @@
-{# Section assignments — the actual editing UI: existing assignments table +
-   quick-add form. #}
+{# Section assignments — Ticket #14. Now term-scoped:
+   - Term picker at the top (defaults to the currently-open term).
+   - Subjects list is already filtered server-side by (grade × term).
+   - Teacher dropdown filters client-side to the subject's qualified
+     teachers via teacher_subject_map, with a "show all" override for
+     coverage / emergency assignments. Explicit warning banner when the
+     override is on so the admin can't miss it. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}إسناد {{ section.name }}{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <a href="{{ url_for('teachers.assignments_list') }}" class="hover:text-primary">الإسناد</a>
+  <a href="{{ url_for('teachers.assignments_list') }}" class="hover:text-primary">إسناد التدريس</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <span class="text-primary font-bold">{{ section.grade.name }} — {{ section.name }}</span>
 {% endblock %}
@@ -12,25 +17,47 @@
 {% block page_content %}
 <div class="flex flex-col w-full gap-space-md">
   <div>
-    <h1 class="font-headline-lg text-headline-lg text-primary">إسناد فصل: {{ section.grade.name }} — {{ section.name }}</h1>
+    <h1 class="font-headline-lg text-headline-lg text-primary">إسناد التدريس: {{ section.grade.name }} — {{ section.name }}</h1>
     <p class="font-body-md text-body-md text-on-surface-variant mt-1">
       السنة: <b>{{ year.name }}</b> · {{ section.current_count }}/{{ section.capacity }} طالب
     </p>
   </div>
 
+  {# ── Term picker — swap between terms without leaving the page ── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <form method="get" class="flex items-center gap-space-sm flex-wrap">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الفترة الدراسية:</label>
+      {% for t in year_terms %}
+      <a href="{{ url_for('teachers.section_assignments', section_id=section.id, term_id=t.id) }}"
+         class="h-9 px-4 rounded-lg font-label-md font-bold flex items-center gap-2 transition-all
+                {% if term and term.id == t.id %}text-on-primary shadow-md{% else %}bg-surface-container-low text-primary hover:bg-surface-container{% endif %}"
+         {% if term and term.id == t.id %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+        <span class="material-symbols-outlined text-sm">{% if t.is_open %}lock_open{% else %}lock{% endif %}</span>
+        <span>{{ t.name }}</span>
+        {% if t.is_open %}<span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>{% endif %}
+      </a>
+      {% else %}
+      <span class="text-outline">لا توجد فترات دراسية معرَّفة لهذه السنة.</span>
+      {% endfor %}
+    </form>
+  </section>
+
+  {# ── Active assignments in this (section, term) ── #}
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
       <span class="material-symbols-outlined">assignment_ind</span>الإسنادات النشطة
+      {% if term %}<span class="font-label-md text-outline font-normal">— في {{ term.name }}</span>{% endif %}
     </h2>
     {% if assignments %}
     <div class="overflow-x-auto">
       <table class="min-w-full">
         <thead class="bg-surface-container-high">
           <tr class="text-right">
-            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">المادة</th>
-            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">المعلم</th>
-            <th class="px-4 py-3 font-label-lg text-label-lg text-primary">حصص أسبوعية</th>
-            <th class="px-4 py-3 font-label-lg text-label-lg text-primary text-center">إجراء</th>
+            <th class="px-4 py-3 font-label-lg text-primary">المادة</th>
+            <th class="px-4 py-3 font-label-lg text-primary">المعلم</th>
+            <th class="px-4 py-3 font-label-lg text-primary">الفترة</th>
+            <th class="px-4 py-3 font-label-lg text-primary">حصص أسبوعية</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
           </tr>
         </thead>
         <tbody>
@@ -41,14 +68,25 @@
                 <span class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
                   <span class="material-symbols-outlined text-sm">menu_book</span>
                 </span>
-                <span class="font-label-lg text-label-lg text-primary font-bold">{{ a.subject.name }}</span>
+                <span class="font-label-lg text-primary font-bold">{{ a.subject.name }}</span>
               </div>
             </td>
             <td class="px-4 py-3">
               <a href="{{ url_for('teachers.teacher_detail', teacher_id=a.teacher.id) }}" class="flex items-center gap-2 hover:text-primary">
                 <span class="w-8 h-8 rounded-full bg-secondary-container/40 text-secondary flex items-center justify-center font-bold">{{ a.teacher.full_name[:1] }}</span>
-                <span class="font-label-md text-label-md">{{ a.teacher.full_name }}</span>
+                <span class="font-label-md">{{ a.teacher.full_name }}</span>
               </a>
+            </td>
+            <td class="px-4 py-3">
+              {% if a.term %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">
+                <span class="material-symbols-outlined text-xs">event</span>{{ a.term.name }}
+              </span>
+              {% else %}
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-outline font-label-xs">
+                <span class="material-symbols-outlined text-xs">event_repeat</span>طوال السنة
+              </span>
+              {% endif %}
             </td>
             <td class="px-4 py-3">
               <form method="post" action="{{ url_for('teachers.assignment_update', assignment_id=a.id) }}" class="flex items-center gap-2">
@@ -75,20 +113,34 @@
     {% else %}
     <div class="text-center py-space-lg">
       <span class="material-symbols-outlined text-4xl text-outline">assignment_late</span>
-      <p class="mt-2 text-on-surface-variant">لا إسناد بعد لهذا الفصل.</p>
+      <p class="mt-2 text-on-surface-variant">لا إسناد بعد لهذا الفصل في هذه الفترة.</p>
     </div>
     {% endif %}
   </section>
 
+  {# ── Quick-add form ── #}
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
       <span class="material-symbols-outlined">add_circle</span>إسناد جديد
+      {% if term %}<span class="font-label-md text-outline font-normal">— في {{ term.name }}</span>{% endif %}
     </h2>
+
+    {% if not subjects %}
+    <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start gap-3">
+      <span class="material-symbols-outlined mt-0.5">warning</span>
+      <div class="font-body-md">
+        لا توجد مواد مربوطة بـ <b>{{ section.grade.name }}</b> والفترة <b>{{ term.name if term else '' }}</b>.
+        <a href="{{ url_for('teachers.subjects_list') }}" class="underline font-bold">حدّث ربط المادة بالصف والفترة</a> أولاً.
+      </div>
+    </div>
+    {% else %}
     <form method="post" class="grid grid-cols-1 md:grid-cols-4 gap-space-md items-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="flex flex-col gap-1.5 md:col-span-2">
         <label class="font-label-md text-label-md text-on-surface font-bold">المادة</label>
-        <select name="subject_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+        <select name="subject_id" id="subjectSel" required
+                onchange="filterTeachers()"
+                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر مادة —</option>
           {% for s in subjects %}
           <option value="{{ s.id }}">{{ s.name }}</option>
@@ -96,27 +148,88 @@
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">المعلم</label>
-        <select name="teacher_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+        <label class="font-label-md text-label-md text-on-surface font-bold flex items-center gap-2">
+          <span>المعلم</span>
+          <span id="teacherHint" class="font-label-xs text-outline"></span>
+        </label>
+        <select name="teacher_id" id="teacherSel" required
+                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
           {% for t in teachers %}
-          <option value="{{ t.id }}">{{ t.full_name }} — {{ t.specialization }}</option>
+          <option value="{{ t.id }}" data-generalist="{{ '1' if not t.subjects else '0' }}">
+            {{ t.full_name }}{% if t.specialization %} — {{ t.specialization }}{% endif %}
+          </option>
           {% endfor %}
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">حصص أسبوعياً</label>
         <input type="number" name="weekly_periods" value="4" min="1" max="30"
-               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
-      <div class="md:col-span-4 flex justify-end">
-        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+
+      <div class="md:col-span-4 flex items-center justify-between flex-wrap gap-space-sm">
+        <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg hover:bg-surface-container-low">
+          <input type="checkbox" name="show_all" value="1" id="showAllCb"
+                 onchange="filterTeachers()"
+                 class="w-5 h-5 rounded accent-error">
+          <span class="font-label-md text-on-surface font-bold">
+            <span class="material-symbols-outlined text-sm text-error align-middle">warning</span>
+            إظهار كل المعلمين (تخطّي فلتر التخصص)
+          </span>
+        </label>
+
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
                 style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
           <span class="material-symbols-outlined text-xl">link</span>
           <span>تأكيد الإسناد</span>
         </button>
       </div>
     </form>
+    {% endif %}
   </section>
 </div>
+
+<script>
+  // Ticket #14 pt 2 — filter the teacher <select> by the picked
+  // subject's qualified-teacher list (teacher_subject_map from the
+  // route). A generalist teacher (no subjects flagged) always shows so
+  // the school can bootstrap without pre-tagging.
+  //
+  // The override checkbox (show_all) reveals every teacher and swaps
+  // the label hint to a red warning so the admin can't miss it.
+  const teacherSubjectMap = {{ teacher_subject_map|tojson }};
+  function filterTeachers() {
+    const subj = document.getElementById('subjectSel');
+    const sel  = document.getElementById('teacherSel');
+    const hint = document.getElementById('teacherHint');
+    const override = document.getElementById('showAllCb').checked;
+    const sid = parseInt(subj.value || '0', 10);
+    const qualifiedIds = new Set(teacherSubjectMap[sid] || []);
+
+    let visible = 0;
+    for (const opt of sel.options) {
+      if (opt.value === '') continue;
+      const tid = parseInt(opt.value, 10);
+      const isGeneralist = opt.dataset.generalist === '1';
+      const isQualified  = qualifiedIds.has(tid);
+      const show = override || !sid || isQualified || isGeneralist;
+      opt.hidden = !show;
+      opt.disabled = !show;
+      if (show) visible++;
+    }
+    if (sel.selectedOptions[0] && sel.selectedOptions[0].hidden) sel.value = '';
+
+    if (override) {
+      hint.textContent = '⚠ فلتر التخصص متعطّل — اختر بحذر.';
+      hint.style.color = 'var(--md-sys-color-error, #B3261E)';
+    } else if (sid) {
+      hint.textContent = `متاح: ${visible} معلم`;
+      hint.style.color = '';
+    } else {
+      hint.textContent = '';
+    }
+  }
+  filterTeachers();
+</script>
 {% endblock %}
