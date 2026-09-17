@@ -19,7 +19,7 @@ from ..extensions import db
 from ..models import (
     GradeEntry, YearResult, Attendance, Enrollment,
     Student, Guardian, Invoice, Payment, User, Role, Assignment,
-    PassRule, AuditLog,
+    PassRule, AuditLog, PaymentMethod, JournalEntry,
 )
 
 
@@ -28,6 +28,11 @@ _WATCHED = [
     GradeEntry, YearResult, Attendance, Enrollment,
     Student, Guardian, Invoice, Payment, User, Role, Assignment,
     PassRule,
+    # Ticket "Additional 6" — reshaping payment-method mappings is the
+    # exact class of change that needs an audit trail (someone could
+    # silently point "نقدي" at a different account). JournalEntry
+    # rounds it out so every posting is captured, not just the shape.
+    PaymentMethod, JournalEntry,
 ]
 
 

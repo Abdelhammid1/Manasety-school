@@ -58,18 +58,19 @@
       <span class="font-title-md">الصافي المستحق</span>
       <span id="net" class="font-display-lg text-display-lg font-extrabold tabular-nums">0.00</span>
     </div>
-    <div class="flex flex-col gap-1.5">
-      <label class="font-label-md text-label-md text-on-surface font-bold">الحساب النقدي (لصرف الراتب) <span class="text-error">*</span></label>
-      <select name="cash_account_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-        <option value="">— اختر —</option>
-        {% for a in cash_accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
-      </select>
+    {# Ticket "Full financial automation" — this form ONLY creates the
+       accrual (استحقاق راتب). Actual disbursement happens on the
+       payroll detail screen via a payment method. No cash account
+       picker here anymore. #}
+    <div class="p-space-sm rounded-lg bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-2 font-label-md">
+      <span class="material-symbols-outlined text-sm">info</span>
+      دي شاشة استحقاق الراتب بس — الصرف الفعلي هيبقى من صفحة الراتب بعد الحفظ (بيسمح صرف كامل أو جزئي بأي طريقة دفع).
     </div>
     <div class="flex justify-end gap-space-sm">
       <a href="{{ url_for('hr.payroll_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">check_circle</span><span>صرف وقيده محاسبياً</span>
+        <span class="material-symbols-outlined">check_circle</span><span>تسجيل الاستحقاق</span>
       </button>
     </div>
   </form>

@@ -1,0 +1,121 @@
+{# Payroll detail — accrual balance + settle form.
+   Ticket "Full financial automation" — the settle form asks only
+   "من أي طريقة دفع تصرف؟" and never exposes an account picker. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}راتب {{ payroll.employee.full_name }} — {{ payroll.period_year }}/{{ '%02d' % payroll.period_month }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('hr.payroll_list') }}" class="hover:text-primary">الرواتب</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ payroll.employee.full_name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary p-space-lg"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="flex items-center justify-between flex-wrap gap-space-md">
+      <div>
+        <h1 class="font-headline-md font-bold">{{ payroll.employee.full_name }}</h1>
+        <p class="font-body-md opacity-90 mt-1">
+          {{ payroll.employee.job_title }} · شهر {{ payroll.period_year }}/{{ '%02d' % payroll.period_month }}
+        </p>
+      </div>
+      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
+                   {% if payroll.is_settled %}bg-[#10B981] text-white{% else %}bg-white/15{% endif %}">
+        {{ 'مصروف بالكامل' if payroll.is_settled else 'مستحق' }}
+      </span>
+    </div>
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-space-md mt-space-md">
+      {% for label, val, tone in [
+        ('الأساسي', payroll.base_salary, 'bg-white/10'),
+        ('البدلات', payroll.allowances, 'bg-white/10'),
+        ('الخصومات', payroll.deductions, 'bg-white/10'),
+        ('الصافي', payroll.net_pay, 'bg-white/20'),
+      ] %}
+      <div class="{{ tone }} rounded-xl p-space-md">
+        <p class="font-label-md opacity-80">{{ label }}</p>
+        <p class="font-headline-sm font-extrabold tabular-nums mt-1">{{ val|float|round(2) }}</p>
+      </div>
+      {% endfor %}
+    </div>
+    <div class="mt-space-md p-space-md rounded-xl bg-white/10 flex items-center justify-between">
+      <span class="font-title-md">المتبقّي للصرف</span>
+      <span class="font-display-md font-extrabold tabular-nums">{{ payroll.remaining|round(2) }}</span>
+    </div>
+  </section>
+
+  {# Settle form — only visible while there's a remaining balance #}
+  {% if payroll.remaining > 0.005 %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">payments</span>صرف الراتب
+    </h2>
+    <form method="post" action="{{ url_for('hr.payroll_settle', payroll_id=payroll.id) }}"
+          class="grid grid-cols-1 md:grid-cols-4 gap-space-md items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">المبلغ (اتركه فارغاً لصرف الكل)</label>
+        <input name="amount" type="number" step="0.01" min="0"
+               placeholder="{{ payroll.remaining|round(2) }}"
+               class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">صرفت الراتب منين؟</label>
+        <select name="payment_method_id" required
+                class="h-11 px-3 rounded-lg bg-surface-container-low">
+          {% for pm in payment_methods %}
+          <option value="{{ pm.id }}">{{ pm.name }}</option>
+          {% else %}
+          <option value="" disabled selected>— لا توجد طرق دفع —</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">تاريخ الصرف</label>
+        <input name="settled_at" type="date" value="{{ today }}"
+               class="h-11 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="md:col-span-4 flex items-end gap-space-sm">
+        <input name="notes" placeholder="ملاحظة (اختياري)"
+               class="h-11 flex-1 px-3 rounded-lg bg-surface-container-low">
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">check_circle</span><span>صرف</span>
+        </button>
+      </div>
+    </form>
+  </section>
+  {% endif %}
+
+  {# History #}
+  {% if payroll.settlements %}
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <header class="px-space-md py-space-sm bg-surface-container-high">
+      <h2 class="font-title-md text-primary font-bold">سجل الصرف</h2>
+    </header>
+    <table class="min-w-full">
+      <thead class="bg-surface-container">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-md text-primary">التاريخ</th>
+          <th class="px-4 py-3 font-label-md text-primary">المبلغ</th>
+          <th class="px-4 py-3 font-label-md text-primary">طريقة الدفع</th>
+          <th class="px-4 py-3 font-label-md text-primary">ملاحظة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in payroll.settlements|sort(attribute='settled_at') %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 tabular-nums" dir="ltr">{{ s.settled_at }}</td>
+          <td class="px-4 py-3 tabular-nums font-bold">{{ s.amount|round(2) }}</td>
+          <td class="px-4 py-3">{{ s.payment_method.name if s.payment_method else '—' }}</td>
+          <td class="px-4 py-3 text-on-surface-variant font-label-md">{{ s.notes or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

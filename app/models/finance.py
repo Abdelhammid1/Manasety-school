@@ -318,3 +318,44 @@ class Expense(db.Model):
     expense_account = db.relationship("Account", foreign_keys=[expense_account_id])
     cash_account = db.relationship("Account", foreign_keys=[cash_account_id])
     journal_entry = db.relationship("JournalEntry")
+
+
+# ─── Financial-automation ticket — PaymentMethod ─────────────────────
+#
+# Layer that hides accounting-account names from the daily UI. The
+# admin sees "نقدي"/"تحويل بنكي - الأهلي"/"آجل" and picks one; behind
+# it the record_payment / settle_accrual services book the correct
+# journal lines against `account_id`.
+
+# `kind` disambiguates the semantics for the ledger service:
+#   immediate_cash  — cash received now → DR the linked cash account
+#   immediate_bank  — bank transfer now → DR the linked bank account
+#   deferred        — no cash movement now → book against a liability
+#                     account (invoices leave the AR sub-account alone;
+#                     expenses/salary book against 2110/2210).
+PAYMENT_METHOD_KINDS = ("immediate_cash", "immediate_bank", "deferred")
+
+
+class PaymentMethod(db.Model):
+    __tablename__ = "payment_methods"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    name = db.Column(db.String(64), nullable=False)
+    kind = db.Column(db.String(16), nullable=False, default="immediate_cash")
+    # NULL when kind == "deferred" — the liability account is picked by
+    # the operation (invoices: none; expenses: 2110; salary: 2210 sub).
+    account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"))
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    account = db.relationship("Account", foreign_keys=[account_id])
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "name", name="uq_payment_method_school_name"),
+    )
+
+    @property
+    def is_deferred(self) -> bool:
+        return self.kind == "deferred"

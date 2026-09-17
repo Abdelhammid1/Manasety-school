@@ -46,7 +46,9 @@ DEFAULT_ROLES = [
         ("schedule", ["view"]), ("portal", PERMISSION_ACTIONS),
     ]),
     ("accountant",       "محاسب",         False, [
-        ("finance", PERMISSION_ACTIONS), ("expenses", PERMISSION_ACTIONS),
+        ("finance", PERMISSION_ACTIONS),
+        ("finance_transactions", PERMISSION_ACTIONS),
+        ("expenses", PERMISSION_ACTIONS),
     ]),
     ("warehouse",        "أمين مخزن",     False, [("expenses", ["view", "add"])]),
     ("parent",           "ولي أمر",       False, [("portal", ["view"])]),

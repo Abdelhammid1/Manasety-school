@@ -7,9 +7,9 @@ from .attendance import Attendance, DeviceToken, NotificationLog
 from .results import PassRule, AssessmentComponent, GradeEntry, YearResult
 from .finance import (
     Account, JournalEntry, JournalLine, FeeType, Invoice, InvoiceLine,
-    Installment, Payment, Vendor, Expense,
+    Installment, Payment, Vendor, Expense, PaymentMethod,
 )
-from .hr import Employee, Payroll
+from .hr import Employee, Payroll, PayrollSettlement
 from .material import Material
 from .lms import (
     Course, CourseSection, Unit, Lesson, CourseAssignment, Submission,
@@ -50,8 +50,8 @@ __all__ = [
     "PassRule", "AssessmentComponent", "GradeEntry", "YearResult",
     "Account", "JournalEntry", "JournalLine", "FeeType",
     "Invoice", "InvoiceLine", "Installment", "Payment",
-    "Vendor", "Expense",
-    "Employee", "Payroll",
+    "Vendor", "Expense", "PaymentMethod",
+    "Employee", "Payroll", "PayrollSettlement",
     "Material",
     # LMS
     "Course", "CourseSection", "Unit", "Lesson", "CourseAssignment", "Submission",

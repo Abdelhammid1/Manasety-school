@@ -1,0 +1,134 @@
+{# Payment-method admin — Ticket "Full financial automation".
+   Setup screen for a school. Once configured, this screen is rarely
+   revisited; the daily invoice/pay UI reads the labels from here. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}طرق الدفع — الإعدادات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.accounts') }}" class="hover:text-primary">المحاسبة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">طرق الدفع</span>
+{% endblock %}
+
+{% set KIND_LABELS = {
+     'immediate_cash': 'نقدي فوري',
+     'immediate_bank': 'بنك فوري',
+     'deferred':       'آجل (بدون حركة كاش الآن)',
+} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-4xl mx-auto gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">طرق الدفع</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        اربط اسم مبسّط (زي "نقدي" أو "تحويل الأهلي") بحساب في دليل الحسابات — بعد كده كل شاشة قبض/صرف بتعرض الأسماء دي بس.
+      </p>
+    </div>
+  </div>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold mb-space-md">إضافة طريقة دفع</h2>
+    <form method="post" action="{{ url_for('finance.payment_method_new') }}"
+          class="grid grid-cols-1 md:grid-cols-4 gap-space-md items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">الاسم</label>
+        <input name="name" required placeholder="مثال: تحويل الأهلي"
+               class="h-11 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">النوع</label>
+        <select name="kind" required id="kindSel"
+                class="h-11 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          {% for k, label in KIND_LABELS.items() %}
+          <option value="{{ k }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1 md:col-span-2" id="accWrap">
+        <label class="font-label-md font-bold text-on-surface">الحساب المرتبط</label>
+        <select name="account_id" id="accSel"
+                class="h-11 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— اختر —</option>
+          {% for a in postable_assets %}
+          <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+          {% endfor %}
+        </select>
+        <span class="font-label-xs text-outline">
+          للنوع "آجل" اترك الحقل ده فاضي — النظام هيحدد حساب الالتزام تلقائياً حسب العملية.
+        </span>
+      </div>
+      <div class="md:col-span-4">
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">add</span><span>إضافة</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">الاسم</th>
+          <th class="px-4 py-3 font-label-lg text-primary">النوع</th>
+          <th class="px-4 py-3 font-label-lg text-primary">الحساب المرتبط</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pm in methods %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ pm.name }}</td>
+          <td class="px-4 py-3 font-label-md">{{ KIND_LABELS.get(pm.kind, pm.kind) }}</td>
+          <td class="px-4 py-3 font-label-md">
+            {% if pm.account %}
+            <span class="font-mono" dir="ltr">{{ pm.account.code }}</span> — {{ pm.account.name }}
+            {% else %}
+            <span class="text-outline">—</span>
+            {% endif %}
+          </td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('finance.payment_method_toggle', pm_id=pm.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-xs font-bold
+                {% if pm.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+                {{ 'نشطة' if pm.is_active else 'موقوفة' }}
+              </button>
+            </form>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('finance.payment_method_delete', pm_id=pm.id) }}"
+                  onsubmit="return confirm('حذف طريقة الدفع ({{ pm.name|e }}) نهائياً؟');" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container inline-flex items-center justify-center">
+                <span class="material-symbols-outlined text-sm">delete</span>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="5" class="px-6 py-8 text-center text-outline">لا توجد طرق دفع بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+  (function () {
+    var kind = document.getElementById('kindSel');
+    var sel  = document.getElementById('accSel');
+    function toggle() {
+      var isDeferred = kind.value === 'deferred';
+      sel.required = !isDeferred;
+      sel.disabled = isDeferred;
+      if (isDeferred) sel.value = '';
+    }
+    if (kind && sel) { kind.addEventListener('change', toggle); toggle(); }
+  })();
+</script>
+{% endblock %}

@@ -24,9 +24,15 @@ class Student(db.Model):
     mother_phone = db.Column(db.String(32))
     address = db.Column(db.String(255))
     notes = db.Column(db.Text)
+    # Financial-automation ticket — subsidiary AR sub-account under 1210.
+    # Lazy-created by services.subsidiary.ensure_student_account on the
+    # first invoice; stays NULL until the student actually needs one.
+    ar_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"),
+                              nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     parent_user = db.relationship("User", foreign_keys=[parent_user_id], backref="children")
+    ar_account = db.relationship("Account", foreign_keys=[ar_account_id])
     enrollments = db.relationship(
         "Enrollment", backref="student", order_by="Enrollment.id.desc()"
     )

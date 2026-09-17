@@ -305,8 +305,13 @@ def invoice_new():
         .join(Student).order_by(Student.full_name).all()
     )
     fee_types = FeeType.query.filter_by(school_id=_sid(), is_active=True).order_by(FeeType.name).all()
-    ar = _ar_account()
-    if not ar:
+    # Ticket "Full financial automation" — invoice creation no longer
+    # asks for an AR account. The AR sub-account for the student is
+    # lazy-created inside `post_invoice_to_ledger`; a header 1210 has
+    # is_postable=False. We still surface a friendly error if the
+    # chart of accounts is empty on this school.
+    from ...models import Account
+    if not Account.query.filter_by(school_id=_sid()).first():
         flash("لم يُهيّأ دليل الحسابات. أنشئ الحسابات الأساسية أولاً.", "danger")
         return redirect(url_for("finance.accounts"))
     if not enrollments:
@@ -353,7 +358,6 @@ def invoice_new():
         db.session.flush()
 
         total = Decimal(0)
-        rev_lines = {}
         for fid, amt_raw in zip(fee_ids, amounts):
             amt = Decimal(amt_raw or "0")
             if amt <= 0:
@@ -367,16 +371,12 @@ def invoice_new():
             )
             db.session.add(line)
             total += amt
-            rev_lines[ft.revenue_account_id] = rev_lines.get(ft.revenue_account_id, Decimal(0)) + amt
 
         # Ticket #17 — auto-apply approved StudentDiscount rows on this
-        # enrollment. Each applied discount is written as a NEGATIVE
-        # InvoiceLine so it's transparent to the parent, and the total
-        # is reduced accordingly. The accounting side crosses it to
-        # account 4900 (discounts) — see _discount_account() below.
+        # enrollment. Written as negative InvoiceLine rows so the parent
+        # sees the breakdown; ledger service handles the contra-revenue.
         from ...services.discounts import applicable_discounts_for
         applied = applicable_discounts_for(enrollment_id, total)
-        discount_account = _discount_account()
         for label, amount, _sd in applied:
             db.session.add(InvoiceLine(
                 invoice_id=inv.id, fee_type_id=fee_ids[0] if fee_ids else None,
@@ -384,12 +384,6 @@ def invoice_new():
                 amount=-amount,     # negative line
             ))
             total -= amount
-            if discount_account:
-                # Discount contra-revenue: DR discounts (expense-like),
-                # CR the AR that we'd otherwise have added below. Since
-                # journal_lines runs after this block we just record it
-                # as a separate contra-line.
-                rev_lines[discount_account.id] = rev_lines.get(discount_account.id, Decimal(0)) - amount
 
         inv.total_amount = total
 
@@ -406,19 +400,17 @@ def invoice_new():
             ))
             accum += amt
 
-        # Auto-journal: DR AR, CR revenue accounts
-        journal_lines = [(ar.id, total, Decimal(0), "ذمم الطالب")]
-        for rev_id, amt in rev_lines.items():
-            journal_lines.append((rev_id, Decimal(0), amt, "إيراد رسوم"))
-        post_journal(
-            school_id=_sid(),
-            entry_date=issue,
-            description=f"فاتورة {number}",
-            reference=number,
-            lines=journal_lines,
-            related_kind="invoice",
-            related_id=inv.id,
-        )
+        db.session.flush()   # so `inv.lines` is queryable inside ledger
+        # Ticket "Full financial automation" — one call, no account choices.
+        # The service resolves the student's AR sub-account, splits credits
+        # per fee_type, and books the discount contra-line automatically.
+        from ...services.ledger import post_invoice_to_ledger, LedgerError
+        try:
+            post_invoice_to_ledger(inv, entry_date=issue)
+        except LedgerError as e:
+            db.session.rollback()
+            flash(str(e), "danger")
+            return redirect(url_for("finance.invoice_new"))
         db.session.commit()
 
         # T-8.5: notify parent on issue
@@ -457,8 +449,17 @@ def invoice_new():
 @require_permission("finance", "view")
 def invoice_detail(invoice_id):
     inv = _get(Invoice, invoice_id)
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True).order_by(Account.code).all()
-    return render_template("finance/invoice_detail.html", inv=inv, cash_accounts=cash_accounts)
+    # Ticket "Full financial automation" — payment methods replace the
+    # raw cash-account picker. `deferred` PMs are hidden here because
+    # they don't apply to collecting an invoice.
+    from ...models import PaymentMethod
+    payment_methods = (
+        PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
+        .filter(PaymentMethod.kind != "deferred")
+        .order_by(PaymentMethod.name).all()
+    )
+    return render_template("finance/invoice_detail.html", inv=inv,
+                           payment_methods=payment_methods)
 
 
 @bp.route("/invoices/<int:invoice_id>/print")
@@ -491,107 +492,167 @@ def invoice_print(invoice_id):
     return render_template("finance/invoice_print.html", inv=inv, download=False)
 
 
+# ---------- Bulk payment (Ticket "Additional 5") ---------------------
+
+@bp.route("/bulk-payment", methods=["GET", "POST"], endpoint="bulk_payment")
+@login_required
+@require_permission("finance_transactions", "add")
+def bulk_payment():
+    """Cover multiple unpaid/partial invoices with a single receipt.
+
+    UX:
+      GET — pick a guardian (or a student) → lists their unpaid invoices
+            oldest-due first, with a "auto FIFO" checkbox + per-line
+            amount inputs.
+      POST — validates + delegates to services.ledger.record_bulk_payment
+             which produces one balanced journal entry.
+    """
+    from ...models import PaymentMethod, Guardian, StudentGuardian
+    from ...services.ledger import (
+        record_bulk_payment, distribute_fifo, LedgerError,
+    )
+    guardian_id = request.values.get("guardian_id", type=int)
+    guardian = (
+        Guardian.query.filter_by(id=guardian_id, school_id=_sid()).first()
+        if guardian_id else None
+    )
+
+    invoices = []
+    if guardian:
+        student_ids = [
+            l.student_id for l in
+            StudentGuardian.query.filter_by(guardian_id=guardian.id).all()
+        ]
+        if student_ids:
+            invoices = (
+                Invoice.query
+                .join(Enrollment, Enrollment.id == Invoice.enrollment_id)
+                .filter(
+                    Invoice.school_id == _sid(),
+                    Enrollment.student_id.in_(student_ids),
+                    Invoice.status.in_(("sent", "partial", "overdue")),
+                )
+                .order_by(Invoice.due_date, Invoice.id).all()
+            )
+
+    payment_methods = (
+        PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
+        .filter(PaymentMethod.kind != "deferred")
+        .order_by(PaymentMethod.name).all()
+    )
+    guardians = (
+        Guardian.query.filter_by(school_id=_sid()).order_by(Guardian.full_name).all()
+    )
+
+    if request.method == "POST":
+        pm_id = request.form.get("payment_method_id", type=int)
+        auto_fifo = request.form.get("auto_fifo") == "1"
+        total = Decimal(request.form.get("total_amount") or "0")
+        try:
+            if auto_fifo:
+                if total <= 0:
+                    flash("أدخل الإجمالي المطلوب توزيعه.", "danger")
+                    return redirect(url_for("finance.bulk_payment",
+                                            guardian_id=guardian_id))
+                allocations = distribute_fifo(invoices, total)
+            else:
+                allocations = []
+                for inv in invoices:
+                    amt = Decimal(request.form.get(f"amt_{inv.id}") or "0")
+                    if amt > 0:
+                        allocations.append((inv, amt))
+            if not allocations:
+                flash("لم يتم تخصيص أي مبلغ.", "danger")
+                return redirect(url_for("finance.bulk_payment",
+                                        guardian_id=guardian_id))
+            _, payments = record_bulk_payment(
+                allocations, pm_id,
+                notes=(request.form.get("notes") or "").strip() or None,
+                reference=(request.form.get("reference") or "").strip() or None,
+            )
+        except LedgerError as e:
+            db.session.rollback()
+            flash(str(e), "danger")
+            return redirect(url_for("finance.bulk_payment",
+                                    guardian_id=guardian_id))
+        db.session.commit()
+        flash(f"تم تسجيل الدفعة على {len(payments)} فاتورة.", "success")
+        return redirect(url_for("finance.invoices_list"))
+
+    return render_template(
+        "finance/bulk_payment.html",
+        guardian=guardian, invoices=invoices,
+        guardians=guardians, payment_methods=payment_methods,
+    )
+
+
+@bp.route("/invoices/<int:invoice_id>/void", methods=["POST"])
+@login_required
+@require_permission("finance_transactions", "add")
+def invoice_void(invoice_id):
+    """Ticket "Additional 2" — void an untouched invoice (paid_amount == 0)
+    by posting a symmetric reversal of the original journal and marking
+    it cancelled."""
+    from ...services.ledger import void_invoice, LedgerError
+    inv = _get(Invoice, invoice_id)
+    reason = (request.form.get("reason") or "").strip() or "بدون سبب مذكور"
+    try:
+        void_invoice(inv, reason)
+    except LedgerError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+    db.session.commit()
+    flash(f"تم إلغاء الفاتورة {inv.number}.", "success")
+    return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+
+
 @bp.route("/invoices/<int:invoice_id>/pay", methods=["POST"])
 @login_required
-@require_permission("finance", "edit")
+@require_permission("finance_transactions", "add")
 def invoice_pay(invoice_id):
+    """Ticket "Full financial automation" — the UI asks only "استلمت
+    الفلوس فين؟" (payment_method_id). Everything else — student sub-
+    account, journal, installment distribution — is handled inside
+    services.ledger.record_payment / issue_refund."""
+    from ...services.ledger import record_payment, issue_refund, LedgerError
     inv = _get(Invoice, invoice_id)
-    amount = Decimal(request.form["amount"])
-    if amount <= 0:
+    try:
+        amount = Decimal(request.form.get("amount") or "0")
+    except Exception:
         flash("المبلغ غير صالح.", "danger")
         return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
     is_refund = request.form.get("is_refund") == "1"
-    method = request.form.get("method", "cash")
-    cash_account_id = int(request.form["cash_account_id"])
-    cash = _get(Account, cash_account_id)
-    ar = _ar_account()
-    if not ar:
-        abort(400)
+    payment_method_id = request.form.get("payment_method_id", type=int)
+    if not payment_method_id:
+        flash("اختر طريقة الدفع.", "danger")
+        return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
     pay_date = _parse_date(request.form.get("payment_date")) or date.today()
+    reference = (request.form.get("reference") or "").strip() or None
+    notes = (request.form.get("notes") or "").strip() or None
 
-    if is_refund:
-        if amount > Decimal(str(inv.paid_amount)):
-            flash("لا يمكن استرداد مبلغ أكبر من المدفوع.", "danger")
-            return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
-        inv.paid_amount = Decimal(str(inv.paid_amount)) - amount
-        # Reverse installment distribution LIFO (latest-paid first) so
-        # installment.paid_amount tracks invoice.paid_amount exactly
-        refund_remaining = amount
-        for inst in reversed(list(inv.installments)):
-            if refund_remaining <= 0:
-                break
-            paid = Decimal(str(inst.paid_amount))
-            if paid <= 0:
-                continue
-            take = min(paid, refund_remaining)
-            inst.paid_amount = paid - take
-            inst.status = "paid" if Decimal(str(inst.remaining)) <= 0 else "pending"
-            refund_remaining -= take
-        je = post_journal(
-            school_id=_sid(),
-            entry_date=pay_date,
-            description=f"استرداد على الفاتورة {inv.number}",
-            reference=inv.number,
-            lines=[
-                (ar.id, amount, Decimal(0), "إعادة الذمة"),
-                (cash.id, Decimal(0), amount, "خروج نقدية"),
-            ],
-            related_kind="payment", related_id=inv.id,
-        )
-        flash(f"تم استرداد {amount} من الفاتورة {inv.number}.", "success")
-    else:
-        if amount > Decimal(str(inv.remaining)):
-            flash("المبلغ أكبر من المتبقّي.", "danger")
-            return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
-        inv.paid_amount = Decimal(str(inv.paid_amount)) + amount
-        je = post_journal(
-            school_id=_sid(),
-            entry_date=pay_date,
-            description=f"دفعة على الفاتورة {inv.number}",
-            reference=inv.number,
-            lines=[
-                (cash.id, amount, Decimal(0), "تحصيل نقدي"),
-                (ar.id, Decimal(0), amount, "تخفيض ذمم"),
-            ],
-            related_kind="payment", related_id=inv.id,
-        )
-        # Distribute payment across installments
-        remaining = amount
-        for inst in inv.installments:
-            if remaining <= 0: break
-            r = Decimal(str(inst.remaining))
-            if r <= 0: continue
-            take = min(r, remaining)
-            inst.paid_amount = Decimal(str(inst.paid_amount)) + take
-            inst.status = "paid" if inst.remaining <= 0 else "pending"
-            remaining -= take
+    try:
+        if is_refund:
+            issue_refund(inv, amount, payment_method_id,
+                         reason=notes or "استرداد",
+                         refund_date=pay_date)
+            flash(f"تم استرداد {amount} من الفاتورة {inv.number}.", "success")
+        else:
+            record_payment(inv, amount, payment_method_id,
+                           payment_date=pay_date,
+                           reference=reference, notes=notes)
+            flash(f"تم تسجيل دفعة {amount} على الفاتورة {inv.number}.", "success")
+    except LedgerError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
-        flash(f"تم تسجيل دفعة {amount} على الفاتورة {inv.number}.", "success")
-
-    # Recompute status
-    if inv.paid_amount <= 0:
-        inv.status = "refunded" if is_refund else "sent"
-    elif inv.paid_amount >= inv.total_amount:
-        inv.status = "paid"
-    else:
-        inv.status = "partial"
-
-    payment = Payment(
-        school_id=_sid(),
-        invoice_id=inv.id,
-        payment_date=pay_date,
-        amount=amount,
-        method=method,
-        cash_account_id=cash.id,
-        is_refund=is_refund,
-        reference=(request.form.get("reference") or "").strip() or None,
-        notes=(request.form.get("notes") or "").strip() or None,
-        journal_entry_id=je.id,
-    )
-    db.session.add(payment)
     db.session.commit()
+
+    # Reload the last-added Payment row for the notification hook below.
+    payment = inv.payments[-1] if inv.payments else None
 
     # T-8.5: notify on payment
     phone = (inv.enrollment.student.parent_phone or "").strip()
@@ -613,10 +674,94 @@ def invoice_pay(invoice_id):
             },
             target_phone=phone,
             student_id=inv.enrollment.student_id,  # Sprint 11: parent-scoping FK
-            related_kind="payment", related_id=payment.id,
+            related_kind="payment", related_id=payment.id if payment else inv.id,
         )
 
     return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+
+
+# ---------- Payment methods (Ticket "Full financial automation") -----
+#
+# A tiny CRUD scoped to the school: name + kind + linked account. This
+# is the ONE place account IDs still show up in the UI — because the
+# admin is deliberately mapping "نقدي" → 1110 here at setup time so
+# the daily UI never has to.
+
+@bp.route("/payment-methods", endpoint="payment_methods_list")
+@login_required
+@require_permission("finance", "view")
+def payment_methods_list():
+    from ...models import PaymentMethod
+    methods = (
+        PaymentMethod.query.filter_by(school_id=_sid())
+        .order_by(PaymentMethod.kind, PaymentMethod.name).all()
+    )
+    postable_assets = (
+        Account.query.filter_by(school_id=_sid(), is_postable=True)
+        .filter(Account.type.in_(("asset", "liability")))
+        .order_by(Account.code).all()
+    )
+    return render_template(
+        "finance/payment_methods.html",
+        methods=methods, postable_assets=postable_assets,
+    )
+
+
+@bp.route("/payment-methods/new", methods=["POST"], endpoint="payment_method_new")
+@login_required
+@require_permission("finance", "edit")
+def payment_method_new():
+    from ...models import PaymentMethod, PAYMENT_METHOD_KINDS
+    name = (request.form.get("name") or "").strip()
+    kind = (request.form.get("kind") or "immediate_cash").strip()
+    account_id = request.form.get("account_id", type=int)
+    if not name:
+        flash("اسم طريقة الدفع مطلوب.", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
+    if kind not in PAYMENT_METHOD_KINDS:
+        flash("نوع طريقة الدفع غير معروف.", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
+    if kind != "deferred" and not account_id:
+        flash("لا بد من ربط طريقة الدفع بحساب (اختر أي حساب قابل للترحيل).", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
+    pm = PaymentMethod(
+        school_id=_sid(), name=name, kind=kind,
+        account_id=(account_id if kind != "deferred" else None),
+    )
+    db.session.add(pm)
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash("طريقة دفع بنفس الاسم موجودة بالفعل.", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
+    flash(f"تمت إضافة طريقة الدفع ({pm.name}).", "success")
+    return redirect(url_for("finance.payment_methods_list"))
+
+
+@bp.route("/payment-methods/<int:pm_id>/toggle",
+          methods=["POST"], endpoint="payment_method_toggle")
+@login_required
+@require_permission("finance", "edit")
+def payment_method_toggle(pm_id):
+    from ...models import PaymentMethod
+    pm = PaymentMethod.query.filter_by(id=pm_id, school_id=_sid()).first_or_404()
+    pm.is_active = not pm.is_active
+    db.session.commit()
+    flash("تم تحديث حالة طريقة الدفع.", "success")
+    return redirect(url_for("finance.payment_methods_list"))
+
+
+@bp.route("/payment-methods/<int:pm_id>/delete",
+          methods=["POST"], endpoint="payment_method_delete")
+@login_required
+@require_permission("finance", "delete")
+def payment_method_delete(pm_id):
+    from ...models import PaymentMethod
+    pm = PaymentMethod.query.filter_by(id=pm_id, school_id=_sid()).first_or_404()
+    db.session.delete(pm); db.session.commit()
+    flash("تم حذف طريقة الدفع.", "success")
+    return redirect(url_for("finance.payment_methods_list"))
 
 
 # ---------- T-9.1 Vendors + Expenses ----------
@@ -727,14 +872,49 @@ def expenses_list():
 @login_required
 @require_permission("expenses", "edit")
 def expense_new():
+    """Ticket "Full financial automation" + "Additional 1" — an expense
+    is booked as DR expense / CR payment_method.account. When the picked
+    method is `kind=deferred` the CR flips to the school's AP header
+    (role=ap_default) so the money is recorded as a liability instead."""
+    from ...models import PaymentMethod
     vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
     exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense", is_postable=True).order_by(Account.code).all()
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True).order_by(Account.code).all()
+    payment_methods = (
+        PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
+        .order_by(PaymentMethod.name).all()
+    )
     if request.method == "POST":
         amount = Decimal(request.form["amount"])
         d = _parse_date(request.form.get("date")) or date.today()
         ex_account = _get(Account, int(request.form["expense_account_id"]))
-        cash = _get(Account, int(request.form["cash_account_id"]))
+        pm_id = request.form.get("payment_method_id", type=int)
+        pm = PaymentMethod.query.filter_by(
+            id=pm_id, school_id=_sid(), is_active=True,
+        ).first() if pm_id else None
+        if not pm:
+            flash("اختر طريقة دفع صالحة.", "danger")
+            return redirect(url_for("finance.expense_new"))
+
+        if pm.kind == "deferred":
+            ap = Account.query.filter_by(
+                school_id=_sid(), account_role="ap_default",
+            ).first()
+            if not ap:
+                flash(
+                    "لا يوجد حساب افتراضي لذمم الموردين (ap_default). "
+                    "افتح دليل الحسابات وحدد حساباً.",
+                    "danger",
+                )
+                return redirect(url_for("finance.accounts"))
+            credit_account = ap
+            note = "التزام مورد (آجل)"
+        else:
+            if not pm.account_id:
+                flash("طريقة الدفع غير مرتبطة بحساب.", "danger")
+                return redirect(url_for("finance.expense_new"))
+            credit_account = _get(Account, pm.account_id)
+            note = f"خروج — {pm.name}"
+
         je = post_journal(
             school_id=_sid(),
             entry_date=d,
@@ -742,7 +922,7 @@ def expense_new():
             reference=(request.form.get("reference") or "").strip() or None,
             lines=[
                 (ex_account.id, amount, Decimal(0), "مصروف"),
-                (cash.id, Decimal(0), amount, "خروج نقدية"),
+                (credit_account.id, Decimal(0), amount, note),
             ],
             related_kind="expense", related_id=None,
         )
@@ -750,7 +930,7 @@ def expense_new():
             school_id=_sid(),
             vendor_id=int(request.form["vendor_id"]) if request.form.get("vendor_id") else None,
             expense_account_id=ex_account.id,
-            cash_account_id=cash.id,
+            cash_account_id=credit_account.id,
             date=d, amount=amount,
             description=request.form["description"].strip(),
             reference=(request.form.get("reference") or "").strip() or None,
@@ -758,12 +938,16 @@ def expense_new():
         )
         db.session.add(e)
         db.session.commit()
-        flash(f"تم تسجيل المصروف ({amount}) وقيده محاسبيًا.", "success")
+        flash(
+            f"تم تسجيل المصروف ({amount}) — "
+            + ("مستحق على المورد (آجل)." if pm.kind == "deferred" else "تم القيد المحاسبي."),
+            "success",
+        )
         return redirect(url_for("finance.expenses_list"))
     return render_template(
         "finance/expense_form.html",
-        vendors=vendors, exp_accounts=exp_accounts, cash_accounts=cash_accounts,
-        expense=None,
+        vendors=vendors, exp_accounts=exp_accounts,
+        payment_methods=payment_methods, expense=None,
     )
 
 
@@ -775,20 +959,43 @@ def expense_edit(exp_id):
     accounts, amount, and cash flow stay consistent — we delete the
     original entry (cascades lines) and post a fresh one, keeping the
     Expense row's identity."""
+    from ...models import PaymentMethod
     e = _get(Expense, exp_id)
     vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
     exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense", is_postable=True).order_by(Account.code).all()
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True).order_by(Account.code).all()
+    payment_methods = (
+        PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
+        .order_by(PaymentMethod.name).all()
+    )
 
     if request.method == "POST":
         amount = Decimal(request.form["amount"])
         d = _parse_date(request.form.get("date")) or date.today()
         ex_account = _get(Account, int(request.form["expense_account_id"]))
-        cash = _get(Account, int(request.form["cash_account_id"]))
         desc = request.form["description"].strip()
+        pm_id = request.form.get("payment_method_id", type=int)
+        pm = PaymentMethod.query.filter_by(
+            id=pm_id, school_id=_sid(), is_active=True,
+        ).first() if pm_id else None
+        if not pm:
+            flash("اختر طريقة دفع صالحة.", "danger")
+            return redirect(url_for("finance.expense_edit", exp_id=e.id))
+        if pm.kind == "deferred":
+            credit_account = Account.query.filter_by(
+                school_id=_sid(), account_role="ap_default",
+            ).first()
+            if not credit_account:
+                flash("لا يوجد حساب افتراضي لذمم الموردين.", "danger")
+                return redirect(url_for("finance.accounts"))
+            note = "التزام مورد (آجل)"
+        else:
+            credit_account = _get(Account, pm.account_id) if pm.account_id else None
+            if not credit_account:
+                flash("طريقة الدفع غير مرتبطة بحساب.", "danger")
+                return redirect(url_for("finance.expense_edit", exp_id=e.id))
+            note = f"خروج — {pm.name}"
 
-        # Replace the old journal entry with a fresh one carrying the new
-        # numbers. The cascade on JournalEntry.lines removes the old lines.
+        # Replace the old journal entry with a fresh one.
         if e.journal_entry_id:
             old_je = JournalEntry.query.get(e.journal_entry_id)
             if old_je:
@@ -802,13 +1009,13 @@ def expense_edit(exp_id):
             reference=(request.form.get("reference") or "").strip() or None,
             lines=[
                 (ex_account.id, amount, Decimal(0), "مصروف"),
-                (cash.id, Decimal(0), amount, "خروج نقدية"),
+                (credit_account.id, Decimal(0), amount, note),
             ],
             related_kind="expense", related_id=e.id,
         )
         e.vendor_id = int(request.form["vendor_id"]) if request.form.get("vendor_id") else None
         e.expense_account_id = ex_account.id
-        e.cash_account_id = cash.id
+        e.cash_account_id = credit_account.id
         e.date = d
         e.amount = amount
         e.description = desc
@@ -820,7 +1027,7 @@ def expense_edit(exp_id):
 
     return render_template(
         "finance/expense_form.html",
-        vendors=vendors, exp_accounts=exp_accounts, cash_accounts=cash_accounts,
+        vendors=vendors, exp_accounts=exp_accounts, payment_methods=payment_methods,
         expense=e,
     )
 

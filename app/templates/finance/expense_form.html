@@ -50,12 +50,13 @@
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">حساب الدفع (النقدية) <span class="text-error">*</span></label>
-        <select name="cash_account_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <label class="font-label-md text-label-md text-on-surface font-bold">دفعت منين؟ <span class="text-error">*</span></label>
+        <select name="payment_method_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
-          {% for a in cash_accounts %}
-          <option value="{{ a.id }}" {% if expense and expense.cash_account_id == a.id %}selected{% endif %}>
-            {{ a.code }} — {{ a.name }}
+          {% for pm in payment_methods %}
+          <option value="{{ pm.id }}">
+            {{ pm.name }}
+            {%- if pm.kind == 'deferred' %} · آجل — يسجَّل كالتزام{% endif -%}
           </option>
           {% endfor %}
         </select>

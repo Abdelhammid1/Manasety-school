@@ -42,6 +42,7 @@ def create_app(config_class=Config):
     from .blueprints.lms import bp as lms_bp
     from .blueprints.messaging import bp as messaging_bp
     from .blueprints.platform import bp as platform_bp
+    from .blueprints.cron import bp as cron_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
     app.register_blueprint(dashboard_bp, url_prefix="/")
@@ -60,6 +61,7 @@ def create_app(config_class=Config):
     app.register_blueprint(lms_bp, url_prefix="/lms")
     app.register_blueprint(messaging_bp, url_prefix="/msg")
     app.register_blueprint(platform_bp, url_prefix="/platform")
+    app.register_blueprint(cron_bp, url_prefix="/cron")
 
     @app.route("/")
     def index():

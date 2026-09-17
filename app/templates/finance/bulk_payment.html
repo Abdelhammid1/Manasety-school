@@ -1,0 +1,126 @@
+{# Bulk payment — Ticket "Additional 5". One receipt across many
+   invoices from the same guardian. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}قبض مجمّع{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.invoices_list') }}" class="hover:text-primary">الفواتير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">قبض مجمّع</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md text-primary font-bold flex items-center gap-2">
+      <span class="material-symbols-outlined">payments</span>قبض مجمّع من ولي أمر
+    </h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      اختر ولي الأمر → هيظهر كل الفواتير غير المسددة لأولاده. تقدر توزّع المبلغ بنفسك أو تخلي النظام يبدأ بالأقدم.
+    </p>
+    <form method="get" action="{{ url_for('finance.bulk_payment') }}" class="mt-space-md flex items-end gap-space-md">
+      <div class="flex flex-col gap-1 flex-1">
+        <label class="font-label-md font-bold text-on-surface">ولي الأمر</label>
+        <select name="guardian_id" class="h-11 px-3 rounded-lg bg-surface-container-low" onchange="this.form.submit()">
+          <option value="">— اختر —</option>
+          {% for g in guardians %}
+          <option value="{{ g.id }}" {% if guardian and g.id == guardian.id %}selected{% endif %}>
+            {{ g.full_name }}{% if g.phone %} — <span dir="ltr">{{ g.phone }}</span>{% endif %}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+    </form>
+  </section>
+
+  {% if guardian %}
+  <form method="post" action="{{ url_for('finance.bulk_payment', guardian_id=guardian.id) }}"
+        class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-space-md items-end">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">طريقة الدفع</label>
+        <select name="payment_method_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          {% for pm in payment_methods %}
+          <option value="{{ pm.id }}">{{ pm.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">توزيع تلقائي (FIFO)</label>
+        <label class="flex items-center gap-2 h-11 px-3 rounded-lg bg-surface-container-low cursor-pointer">
+          <input type="checkbox" name="auto_fifo" value="1" id="autoFifo" onchange="toggleAuto()">
+          <span class="font-label-md">وزّع الإجمالي على الأقدم أولاً</span>
+        </label>
+      </div>
+      <div class="flex flex-col gap-1" id="totalWrap" style="display:none">
+        <label class="font-label-md font-bold text-on-surface">إجمالي الدفعة</label>
+        <input name="total_amount" type="number" step="0.01" min="0"
+               class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">مرجع</label>
+        <input name="reference" placeholder="رقم إيصال (اختياري)"
+               class="h-11 px-3 rounded-lg bg-surface-container-low" dir="ltr">
+      </div>
+    </div>
+
+    {% if invoices %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container">
+          <tr class="text-right">
+            <th class="px-3 py-2 font-label-md text-primary">الفاتورة</th>
+            <th class="px-3 py-2 font-label-md text-primary">الطالب</th>
+            <th class="px-3 py-2 font-label-md text-primary">الاستحقاق</th>
+            <th class="px-3 py-2 font-label-md text-primary text-left">المتبقّي</th>
+            <th class="px-3 py-2 font-label-md text-primary text-left">المخصّص</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for inv in invoices %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-2 font-mono" dir="ltr">{{ inv.number }}</td>
+            <td class="px-3 py-2">{{ inv.enrollment.student.full_name }}</td>
+            <td class="px-3 py-2 tabular-nums" dir="ltr">{{ inv.due_date }}</td>
+            <td class="px-3 py-2 text-left tabular-nums font-bold">{{ inv.remaining|round(2) }}</td>
+            <td class="px-3 py-2 text-left">
+              <input name="amt_{{ inv.id }}" type="number" step="0.01" min="0"
+                     max="{{ inv.remaining|round(2) }}"
+                     class="manual-amt h-9 w-28 px-2 rounded-lg bg-surface-container-low text-left tabular-nums">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="flex items-center gap-space-sm">
+      <input name="notes" placeholder="ملاحظة (اختياري)"
+             class="h-11 flex-1 px-3 rounded-lg bg-surface-container-low">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">check_circle</span><span>تسجيل الدفعة المجمّعة</span>
+      </button>
+    </div>
+    {% else %}
+    <p class="text-center py-space-lg text-outline">لا توجد فواتير غير مسددة لأولاد ولي الأمر ده.</p>
+    {% endif %}
+  </form>
+
+  <script>
+    function toggleAuto() {
+      var wrap = document.getElementById('totalWrap');
+      var cb = document.getElementById('autoFifo');
+      wrap.style.display = cb.checked ? 'flex' : 'none';
+      document.querySelectorAll('.manual-amt').forEach(function (el) {
+        el.disabled = cb.checked;
+        if (cb.checked) el.value = '';
+      });
+    }
+  </script>
+  {% endif %}
+</div>
+{% endblock %}

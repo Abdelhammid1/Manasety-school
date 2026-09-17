@@ -120,22 +120,23 @@
                  value="{{ (inv.total_amount - inv.paid_amount)|round(2) }}"
                  class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
         </div>
+        {# Ticket "Full financial automation" — a single friendly
+           picker: "استلمت الفلوس فين؟". No account IDs. #}
         <div class="flex flex-col gap-1.5">
-          <label class="font-label-md text-label-md text-on-surface font-bold">طريقة الدفع</label>
-          <select name="method" class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-            <option value="cash">نقدي</option>
-            <option value="bank_transfer">تحويل بنكي</option>
-            <option value="card">بطاقة</option>
-            <option value="cheque">شيك</option>
-          </select>
-        </div>
-        <div class="flex flex-col gap-1.5">
-          <label class="font-label-md text-label-md text-on-surface font-bold">الحساب النقدي</label>
-          <select name="cash_account_id" required class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-            {% for a in cash_accounts %}
-            <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+          <label class="font-label-md text-label-md text-on-surface font-bold">استلمت الفلوس فين؟</label>
+          <select name="payment_method_id" required
+                  class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            {% for pm in payment_methods %}
+            <option value="{{ pm.id }}">{{ pm.name }}</option>
+            {% else %}
+            <option value="" disabled selected>— لا توجد طرق دفع مضبوطة —</option>
             {% endfor %}
           </select>
+          {% if not payment_methods %}
+          <a href="{{ url_for('finance.payment_methods_list') }}" class="text-primary underline font-label-xs">
+            أضف طرق دفع من إعدادات المدرسة
+          </a>
+          {% endif %}
         </div>
         <div class="flex flex-col gap-1.5">
           <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ الدفع</label>
@@ -173,14 +174,36 @@
           <input name="amount" type="number" step="0.01" min="0.01" required
                  placeholder="مبلغ الاسترداد" max="{{ inv.paid_amount }}"
                  class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-          <select name="cash_account_id" required class="h-11 px-4 rounded-xl bg-surface-container-low">
-            {% for a in cash_accounts %}
-            <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+          <select name="payment_method_id" required class="h-11 px-4 rounded-xl bg-surface-container-low">
+            {% for pm in payment_methods %}
+            <option value="{{ pm.id }}">{{ pm.name }} — من هنا يخرج الاسترداد</option>
             {% endfor %}
           </select>
           <button type="submit" class="h-11 rounded-xl bg-error text-on-error font-title-md font-bold flex items-center justify-center gap-2">
             <span class="material-symbols-outlined text-xl">payments</span>
             <span>استرداد الآن</span>
+          </button>
+        </form>
+      </details>
+    </section>
+    {% endif %}
+
+    {# Ticket "Additional 2" — Void button, only when nothing was paid. #}
+    {% if inv.paid_amount <= 0 and inv.status != 'cancelled' %}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <details>
+        <summary class="font-title-md text-title-md text-error font-bold flex items-center gap-2 cursor-pointer">
+          <span class="material-symbols-outlined">block</span>إلغاء الفاتورة
+        </summary>
+        <form method="post" action="{{ url_for('finance.invoice_void', invoice_id=inv.id) }}"
+              onsubmit="return confirm('إلغاء الفاتورة {{ inv.number }} — لا يمكن التراجع؟')"
+              class="mt-3 flex flex-col gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input name="reason" required placeholder="سبب الإلغاء"
+                 class="h-11 px-4 rounded-xl bg-surface-container-low">
+          <button type="submit" class="h-11 rounded-xl bg-error text-on-error font-title-md font-bold flex items-center justify-center gap-2">
+            <span class="material-symbols-outlined text-xl">block</span>
+            <span>إلغاء الفاتورة</span>
           </button>
         </form>
       </details>

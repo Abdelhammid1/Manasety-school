@@ -23,3 +23,6 @@ class Config:
     MAX_CONTENT_LENGTH = 10 * 1024 * 1024
     # Sprint 10 Phase 3 — Firebase Cloud Messaging service-account path (optional)
     FCM_SERVICE_ACCOUNT_PATH = os.environ.get("FCM_SERVICE_ACCOUNT_PATH")
+    # Ticket "Additional 3" — token protecting the /cron/tick endpoint
+    # that flips overdue invoices + sends payment reminders daily.
+    CRON_TOKEN = os.environ.get("CRON_TOKEN", "dev-cron-token-change-me")

@@ -8,6 +8,11 @@ PERMISSION_MODULES = [
     "users", "roles", "academic_years", "terms", "grades", "sections",
     "students", "teachers", "schedule", "attendance", "results",
     "finance", "expenses", "payroll", "portal",
+    # Ticket "Additional 6" — separate permission for actually posting
+    # payments / refunds / void / bulk collect / salary settle. `finance`
+    # keeps the read/write on invoices, chart of accounts, journal;
+    # `finance_transactions` gates the money-moving buttons on top.
+    "finance_transactions",
 ]
 PERMISSION_ACTIONS = ["view", "add", "edit", "delete"]
 

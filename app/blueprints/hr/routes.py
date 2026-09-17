@@ -144,17 +144,15 @@ def payroll_new():
         Employee.query.filter_by(school_id=_sid(), is_active=True)
         .order_by(Employee.full_name).all()
     )
-    # Ticket A — resolve salary expense via role, not hardcoded code.
+    # Ticket "Full financial automation" — payroll now creates an
+    # ACCRUAL (DR expense / CR employee 2210 sub-account). Actual
+    # payment (via PaymentMethod) happens on a separate settle route.
     salary_account = Account.query.filter_by(
         school_id=_sid(), account_role="payroll_salary_default",
     ).first()
-    cash_accounts = Account.query.filter_by(
-        school_id=_sid(), type="asset", is_postable=True,
-    ).order_by(Account.code).all()
 
-    # Every FK on Payroll is NOT NULL. Empty dropdowns would 500 on POST.
     if not employees:
-        flash("لا يوجد موظفون نشطون — أضف موظفاً قبل صرف الراتب.", "warning")
+        flash("لا يوجد موظفون نشطون — أضف موظفاً قبل استحقاق الراتب.", "warning")
         return redirect(url_for("hr.employees_list"))
     if not salary_account:
         flash(
@@ -163,25 +161,18 @@ def payroll_new():
             "danger",
         )
         return redirect(url_for("finance.accounts"))
-    if not cash_accounts:
-        flash("لا يوجد حساب نقدي (Asset) لصرف الراتب منه.", "danger")
-        return redirect(url_for("finance.accounts"))
 
     if request.method == "POST":
         employee_id = request.form.get("employee_id", type=int)
-        cash_id     = request.form.get("cash_account_id", type=int)
-        if employee_id not in [x.id for x in employees] or cash_id not in [c.id for c in cash_accounts]:
-            flash("اختر موظفاً وحساباً نقدياً صحيحين.", "danger")
-            return render_template(
-                "hr/payroll_form.html", employees=employees, cash_accounts=cash_accounts,
-            )
+        if employee_id not in [x.id for x in employees]:
+            flash("اختر موظفاً صحيحاً.", "danger")
+            return render_template("hr/payroll_form.html",
+                                   employees=employees, today=date.today())
         e = _get(Employee, employee_id)
         period_year = int(request.form["period_year"])
         period_month = int(request.form["period_month"])
         base = Decimal(request.form.get("base_salary") or str(e.base_salary or 0))
         allowances = Decimal(request.form.get("allowances") or "0")
-        # Ticket #9 — auto-compute deductions from StaffAttendance
-        # (unpaid absences) unless the user overrode the field manually.
         override = request.form.get("deductions")
         if override and override.strip():
             deductions = Decimal(override)
@@ -194,40 +185,92 @@ def payroll_new():
             employee_id=e.id, period_year=period_year, period_month=period_month,
         ).first()
         if dup:
-            flash("راتب هذا الشهر مسجَّل بالفعل لهذا الموظف.", "warning")
+            flash("استحقاق هذا الشهر مسجَّل بالفعل لهذا الموظف.", "warning")
             return redirect(url_for("hr.payroll_list"))
 
-        cash = _get(Account, cash_id)
-        pay_date = _parse_date(request.form.get("paid_at")) or date.today()
-        je = post_journal(
-            school_id=_sid(),
-            entry_date=pay_date,
-            description=f"راتب {e.full_name} — {period_year}/{period_month:02d}",
-            reference=f"PR-{period_year}{period_month:02d}-{e.id}",
-            lines=[
-                (salary_account.id, net, Decimal(0), "مصروف رواتب"),
-                (cash.id, Decimal(0), net, "صرف راتب"),
-            ],
-            related_kind="payroll", related_id=None,
-        )
-
+        accrual_date = _parse_date(request.form.get("paid_at")) or date.today()
         p = Payroll(
             school_id=_sid(),
             employee_id=e.id,
             period_year=period_year, period_month=period_month,
             base_salary=base, allowances=allowances, deductions=deductions,
-            net_pay=net, paid_at=pay_date, journal_entry_id=je.id,
+            net_pay=net,
         )
-        db.session.add(p)
+        db.session.add(p); db.session.flush()
+
+        from ...services.ledger import post_payroll_accrual, LedgerError
+        try:
+            je = post_payroll_accrual(p, salary_account, entry_date=accrual_date)
+            p.journal_entry_id = je.id
+        except LedgerError as ex:
+            db.session.rollback()
+            flash(str(ex), "danger")
+            return redirect(url_for("hr.payroll_new"))
         db.session.commit()
-        flash(f"تم صرف راتب {e.full_name} بمبلغ صافي {net} وقيده محاسبيًا.", "success")
-        return redirect(url_for("hr.payroll_list"))
+        flash(
+            f"تم تسجيل استحقاق راتب {e.full_name} بمبلغ صافي {net}. "
+            "افتح صف الراتب لصرفه (كامل أو جزئي).",
+            "success",
+        )
+        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
 
     return render_template(
         "hr/payroll_form.html",
-        employees=employees, cash_accounts=cash_accounts,
+        employees=employees,
         today=date.today(),
     )
+
+
+@bp.route("/payroll/<int:payroll_id>", methods=["GET"])
+@login_required
+@require_permission("payroll", "view")
+def payroll_detail(payroll_id):
+    """Detail view for one payroll accrual — shows the running balance
+    (net_pay − paid_amount) and lets the admin settle it fully or
+    partially through any active PaymentMethod."""
+    from ...models import PaymentMethod
+    p = Payroll.query.filter_by(id=payroll_id, school_id=_sid()).first_or_404()
+    payment_methods = (
+        PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
+        .filter(PaymentMethod.kind != "deferred")
+        .order_by(PaymentMethod.name).all()
+    )
+    return render_template("hr/payroll_detail.html",
+                           payroll=p, payment_methods=payment_methods,
+                           today=date.today())
+
+
+@bp.route("/payroll/<int:payroll_id>/settle", methods=["POST"])
+@login_required
+@require_permission("finance_transactions", "add")
+def payroll_settle(payroll_id):
+    from ...services.ledger import settle_accrual, LedgerError
+    p = Payroll.query.filter_by(id=payroll_id, school_id=_sid()).first_or_404()
+    try:
+        amount = Decimal(request.form.get("amount") or "0")
+    except Exception:
+        flash("المبلغ غير صالح.", "danger")
+        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+    pm_id = request.form.get("payment_method_id", type=int)
+    if not pm_id:
+        flash("اختر طريقة الدفع.", "danger")
+        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+    settled_at = _parse_date(request.form.get("settled_at")) or date.today()
+    notes = (request.form.get("notes") or "").strip() or None
+    try:
+        settle_accrual(p, pm_id, amount=amount if amount > 0 else None,
+                       settled_at=settled_at, notes=notes)
+    except LedgerError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+    db.session.commit()
+    flash(
+        "تم صرف الراتب بالكامل." if p.is_settled
+        else f"تم صرف دفعة {amount} — المتبقّي {p.remaining:.2f}.",
+        "success",
+    )
+    return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
 
 
 @bp.route("/payroll/<int:payroll_id>/delete", methods=["POST"])
