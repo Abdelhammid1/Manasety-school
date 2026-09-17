@@ -1,0 +1,70 @@
+{# Ticket G — reports hub. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}التقارير المالية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">التقارير</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-lg">
+  <div>
+    <h1 class="font-headline-lg text-primary flex items-center gap-2">
+      <span class="material-symbols-outlined">assessment</span>التقارير المالية والتشغيلية
+    </h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      كل تقرير بيقبل فلترة بالفترة الزمنية (?start=…&end=…) وبعضها بمركز التكلفة أو الحساب.
+    </p>
+  </div>
+
+  {% set FIN = [
+    ('report_trial_balance',       'ميزان المراجعة',           'balance'),
+    ('report_income_statement',    'قائمة الدخل',              'trending_up'),
+    ('report_balance_sheet',       'الميزانية العمومية',      'account_balance'),
+    ('report_cash_flow',           'قائمة التدفقات النقدية',  'waterfall_chart'),
+    ('report_general_ledger',      'دفتر الأستاذ العام',      'menu_book'),
+    ('report_aging',               'أعمار الديون',             'schedule'),
+    ('report_cost_centers',        'مراكز التكلفة (P&L)',      'workspaces'),
+  ] %}
+  {% set OP = [
+    ('report_collection',            'التحصيل حسب الصف',       'payments'),
+    ('report_overdue_by_grade',      'المتأخرات لكل صف',       'warning'),
+    ('report_discounts_grants',      'الخصومات والمنح',        'redeem'),
+    ('report_revenue_by_fee_type',   'الإيرادات حسب نوع الرسم', 'category'),
+    ('report_payroll_summary',       'ملخص الرواتب الشهري',    'group'),
+    ('report_cost_per_student',      'تكلفة الطالب الواحد',    'person'),
+    ('report_year_comparison',       'مقارنة السنوات',         'compare_arrows'),
+    ('report_forecast',              'توقعات التحصيل',         'forecast'),
+  ] %}
+
+  <section>
+    <h2 class="font-title-md text-primary font-bold mb-space-md">التقارير المالية المعيارية</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+      {% for ep, label, icon in FIN %}
+      <a href="{{ url_for('finance.' + ep) }}"
+         class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md flex items-center gap-space-sm">
+        <div class="w-10 h-10 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined">{{ icon }}</span>
+        </div>
+        <span class="font-title-md text-primary font-bold">{{ label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section>
+    <h2 class="font-title-md text-primary font-bold mb-space-md">التقارير التشغيلية</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+      {% for ep, label, icon in OP %}
+      <a href="{{ url_for('finance.' + ep) }}"
+         class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md flex items-center gap-space-sm">
+        <div class="w-10 h-10 rounded-lg bg-secondary-container/40 text-secondary flex items-center justify-center">
+          <span class="material-symbols-outlined">{{ icon }}</span>
+        </div>
+        <span class="font-title-md text-primary font-bold">{{ label }}</span>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+</div>
+{% endblock %}

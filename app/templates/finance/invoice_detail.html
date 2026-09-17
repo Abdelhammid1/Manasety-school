@@ -120,18 +120,37 @@
                  value="{{ (inv.total_amount - inv.paid_amount)|round(2) }}"
                  class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
         </div>
-        {# Ticket "Full financial automation" — a single friendly
-           picker: "استلمت الفلوس فين؟". No account IDs. #}
+        {# Ticket A — payment method shortcuts + "حساب آخر" free picker. #}
         <div class="flex flex-col gap-1.5">
           <label class="font-label-md text-label-md text-on-surface font-bold">استلمت الفلوس فين؟</label>
-          <select name="payment_method_id" required
+          <select name="payment_method_id" id="paySel"
+                  onchange="document.getElementById('otherAccWrap').style.display = this.value === '__other__' ? 'flex' : 'none'"
                   class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
             {% for pm in payment_methods %}
             <option value="{{ pm.id }}">{{ pm.name }}</option>
             {% else %}
             <option value="" disabled selected>— لا توجد طرق دفع مضبوطة —</option>
             {% endfor %}
+            <option value="__other__">— حساب آخر… —</option>
           </select>
+          <div id="otherAccWrap" class="flex flex-col gap-1" style="display:none">
+            <label class="font-label-md text-outline">اختر حساباً قابلاً للترحيل</label>
+            <input list="postableAccList" name="override_account_id_label"
+                   placeholder="ابحث بالاسم أو الكود…"
+                   oninput="var m = this.value.match(/^(\d[\w-]*)/); document.getElementById('overrideAccIdHidden').value = m ? (window.__accMap[m[1]] || '') : '';"
+                   class="h-11 px-3 rounded-lg bg-surface-container-low font-label-md">
+            <datalist id="postableAccList">
+              {% for a in postable_accounts %}
+              <option value="{{ a.code }} — {{ a.name }}"></option>
+              {% endfor %}
+            </datalist>
+            <input type="hidden" name="override_account_id" id="overrideAccIdHidden">
+            <script>
+              window.__accMap = window.__accMap || {
+                {% for a in postable_accounts %}"{{ a.code }}": {{ a.id }}{% if not loop.last %},{% endif %}{% endfor %}
+              };
+            </script>
+          </div>
           {% if not payment_methods %}
           <a href="{{ url_for('finance.payment_methods_list') }}" class="text-primary underline font-label-xs">
             أضف طرق دفع من إعدادات المدرسة

@@ -75,6 +75,18 @@
       <input name="description" required value="{{ expense.description if expense else '' }}"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
+    {# Ticket F — optional cost center. #}
+    {% if cost_centers %}
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">مركز التكلفة (اختياري)</label>
+      <select name="cost_center_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— بدون —</option>
+        {% for cc in cost_centers %}
+        <option value="{{ cc.id }}" {% if expense and expense.cost_center_id == cc.id %}selected{% endif %}>{{ cc.name }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    {% endif %}
 
     <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-3">
       <span class="material-symbols-outlined">info</span>

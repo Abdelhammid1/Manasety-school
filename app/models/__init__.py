@@ -9,7 +9,7 @@ from .finance import (
     Account, JournalEntry, JournalLine, FeeType, Invoice, InvoiceLine,
     Installment, Payment, Vendor, Expense, PaymentMethod,
     RecurringFeeSchedule, RecurringInvoiceLog,
-    BankStatementLine,
+    BankStatementLine, CostCenter,
 )
 from .hr import Employee, Payroll, PayrollSettlement, EmployeeAdvance
 from .material import Material
@@ -54,6 +54,7 @@ __all__ = [
     "Invoice", "InvoiceLine", "Installment", "Payment",
     "Vendor", "Expense", "PaymentMethod",
     "RecurringFeeSchedule", "RecurringInvoiceLog", "BankStatementLine",
+    "CostCenter",
     "Employee", "Payroll", "PayrollSettlement", "EmployeeAdvance",
     "Material",
     # LMS

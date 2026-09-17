@@ -1,0 +1,38 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}الميزانية العمومية{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الميزانية العمومية</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">الميزانية العمومية</h1>
+  {{ filter_form('finance.report_balance_sheet', at=at) }}
+  
+<section class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+  {% for title, rows, total, color in [
+       ('الأصول', data.assets, data.total_assets, '#10B981'),
+       ('الخصوم', data.liabilities, data.total_liabilities, '#EF4444'),
+       ('حقوق الملكية', data.equity, data.total_equity, '#7C3AED'),
+     ] %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold" style="color:{{ color }}">{{ title }}</h2>
+    <ul class="divide-y divide-outline-variant mt-2">
+      {% for r in rows %}
+      <li class="py-2 flex items-center justify-between">
+        <span class="text-sm"><code class="font-mono text-outline" dir="ltr">{{ r.code }}</code> {{ r.name }}</span>
+        <span class="tabular-nums font-bold">{{ r.amount|round(2) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="pt-2 mt-2 border-t border-outline-variant flex items-center justify-between font-bold">
+      <span>الإجمالي</span><span class="tabular-nums" style="color:{{ color }}">{{ total|round(2) }}</span>
+    </div>
+  </div>
+  {% endfor %}
+</section>
+
+</div>
+{% endblock %}

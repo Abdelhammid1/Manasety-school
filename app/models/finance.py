@@ -79,6 +79,11 @@ DEFAULT_ACCOUNT_TREE = [
     ("1430", "مبانٍ وتحسينات", "asset", "1400", True, None),
     ("1500", "مجمّع الإهلاك", "asset", "1000", False, None),
     ("1510", "مجمّع إهلاك الأصول الثابتة", "asset", "1500", True, None),
+    # Ticket C — extra asset leaves (schools domain).
+    ("1140", "مخزون بضاعة (كتب/زي مدرسي للبيع)", "asset", "1100", True, None),
+    ("1170", "عهدة نقدية تحت التسوية", "asset", "1100", True, None),
+    ("1220", "شيكات تحت التحصيل", "asset", "1200", True, None),
+    ("1440", "سيارات وباصات", "asset", "1400", True, None),
     # ── 2000 الخصوم ──
     ("2000", "الخصوم", "liability", None, False, None),
     ("2100", "ذمم دائنة", "liability", "2000", False, None),
@@ -91,10 +96,23 @@ DEFAULT_ACCOUNT_TREE = [
     ("2250", "ضريبة القيمة المضافة المستحقة", "liability", "2200", True, "vat_payable_default"),
     ("2300", "دفعات مقدّمة من أولياء الأمور", "liability", "2000", False, None),
     ("2310", "دفعات مقدّمة — رسوم دراسية", "liability", "2300", True, None),
+    # Ticket C — extra liability leaves.
+    ("2140", "شيكات مستحقة الدفع", "liability", "2100", True, None),
+    ("2260", "تأمينات مستردة لأولياء الأمور", "liability", "2300", True, None),
+    ("2270", "ضمانات وتأمينات موظفين", "liability", "2100", True, None),
+    ("2280", "التأمينات الاجتماعية المستحقة للموظفين", "liability", "2200", True, None),
+    # Ticket D — required aggregates + leaves for Quick Journal templates.
+    ("2290", "أمانات لدى الغير", "liability", "2000", False, None),
+    ("2291", "أمانات لدى الغير — عام", "liability", "2290", True, None),
+    ("2400", "قروض", "liability", "2000", False, None),
+    ("2410", "قروض قصيرة الأجل", "liability", "2400", True, None),
+    ("2420", "قروض طويلة الأجل", "liability", "2400", True, None),
     # ── 3000 حقوق الملكية ──
     ("3000", "حقوق الملكية", "equity", None, False, None),
     ("3100", "رأس المال", "equity", "3000", True, None),
     ("3200", "أرباح/خسائر مرحّلة", "equity", "3000", True, "retained_earnings_default"),
+    # Ticket D — owner drawings leaf.
+    ("3300", "مسحوبات المالك", "equity", "3000", True, None),
     # ── 4000 الإيرادات ──
     ("4000", "الإيرادات", "revenue", None, False, None),
     ("4100", "إيرادات رسوم دراسية", "revenue", "4000", False, None),
@@ -107,6 +125,15 @@ DEFAULT_ACCOUNT_TREE = [
     ("4900", "خصومات وتخفيضات (Contra-Revenue)", "revenue", "4000", False, None),
     ("4910", "خصم إخوة", "revenue", "4900", True, "discount_default"),
     ("4920", "منح دراسية", "revenue", "4900", True, None),
+    # Ticket C — extra revenue leaves.
+    ("4140", "إيرادات رسوم التقديم والقبول", "revenue", "4100", True, None),
+    ("4150", "إيرادات اختبارات القبول", "revenue", "4100", True, None),
+    ("4240", "إيرادات الزي المدرسي", "revenue", "4200", True, None),
+    ("4250", "إيرادات الكافتيريا/المقصف", "revenue", "4200", True, None),
+    ("4260", "إيرادات الأنشطة الصيفية", "revenue", "4200", True, None),
+    ("4270", "إيرادات تأجير المرافق (قاعات/ملاعب)", "revenue", "4200", True, None),
+    ("4290", "إيرادات التبرعات والدعم", "revenue", "4000", True, None),
+    ("4295", "إيرادات متنوعة أخرى", "revenue", "4000", True, None),
     # ── 5000 المصروفات ──
     ("5000", "المصروفات", "expense", None, False, None),
     ("5100", "المصروفات التشغيلية", "expense", "5000", False, None),
@@ -118,6 +145,19 @@ DEFAULT_ACCOUNT_TREE = [
     ("5160", "مصروف النقل والمواصلات", "expense", "5100", True, None),
     ("5200", "مصروفات أخرى", "expense", "5000", False, None),
     ("5210", "مصروفات متنوعة", "expense", "5200", True, None),
+    # Ticket C — extra expense leaves.
+    ("5115", "التأمينات الاجتماعية على المعلمين (حصة المدرسة)", "expense", "5100", True, None),
+    ("5170", "مصروف الأنشطة والرحلات المدرسية", "expense", "5100", True, None),
+    ("5180", "مصروف المسابقات والفعاليات", "expense", "5100", True, None),
+    ("5190", "مصروف تدريب وتطوير المعلمين", "expense", "5100", True, None),
+    ("5195", "مصروف اشتراكات المناهج والبرامج التعليمية", "expense", "5100", True, None),
+    ("5220", "مصروف التأمين", "expense", "5200", True, None),
+    ("5230", "مصروف الدعاية والتسويق", "expense", "5200", True, None),
+    ("5240", "مصروف استشارات قانونية ومحاسبية", "expense", "5200", True, None),
+    ("5250", "مصروف رسوم بنكية وتحويلات", "expense", "5200", True, None),
+    ("5260", "مصروف الأمن والحراسة", "expense", "5200", True, None),
+    ("5270", "مصروف النظافة", "expense", "5200", True, None),
+    ("5280", "مصروف إهلاك الأصول الثابتة", "expense", "5200", True, None),
 ]
 
 
@@ -189,6 +229,10 @@ class JournalLine(db.Model):
     debit = db.Column(db.Numeric(14, 2), default=0, nullable=False)
     credit = db.Column(db.Numeric(14, 2), default=0, nullable=False)
     description = db.Column(db.String(255))
+    # Ticket F — optional cost-center tag for management reports.
+    cost_center_id = db.Column(db.Integer,
+                               db.ForeignKey("cost_centers.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
 
     account = db.relationship("Account")
 
@@ -256,8 +300,13 @@ class InvoiceLine(db.Model):
     fee_type_id = db.Column(db.Integer, db.ForeignKey("fee_types.id"), nullable=False)
     description = db.Column(db.String(255))
     amount = db.Column(db.Numeric(12, 2), nullable=False)
+    # Ticket F — optional cost-center tag.
+    cost_center_id = db.Column(db.Integer,
+                               db.ForeignKey("cost_centers.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
 
     fee_type = db.relationship("FeeType")
+    cost_center = db.relationship("CostCenter")
 
 
 class Installment(db.Model):
@@ -333,9 +382,15 @@ class Expense(db.Model):
     journal_entry_id = db.Column(db.Integer, db.ForeignKey("journal_entries.id"))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    # Ticket F — optional cost-center tag.
+    cost_center_id = db.Column(db.Integer,
+                               db.ForeignKey("cost_centers.id", ondelete="SET NULL"),
+                               nullable=True, index=True)
+
     expense_account = db.relationship("Account", foreign_keys=[expense_account_id])
     cash_account = db.relationship("Account", foreign_keys=[cash_account_id])
     journal_entry = db.relationship("JournalEntry")
+    cost_center = db.relationship("CostCenter")
 
 
 # ─── Financial-automation ticket — PaymentMethod ─────────────────────
@@ -408,6 +463,52 @@ class RecurringFeeSchedule(db.Model):
 
     fee_type = db.relationship("FeeType")
     grade = db.relationship("Grade")
+
+
+class CostCenter(db.Model):
+    """Ticket F — cost/profit center for management reporting.
+    Optional 2-level hierarchy (name + code + parent). Applied on
+    JournalLine/Expense/InvoiceLine via a nullable FK — completely
+    optional, never blocks a posting."""
+    __tablename__ = "cost_centers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    name = db.Column(db.String(128), nullable=False)
+    code = db.Column(db.String(32))
+    parent_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"),
+                          nullable=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    parent = db.relationship("CostCenter", remote_side=[id], backref="children")
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "name", name="uq_cost_center_school_name"),
+    )
+
+
+DEFAULT_COST_CENTERS = [
+    "المرحلة الابتدائية",
+    "المرحلة المتوسطة",
+    "المرحلة الثانوية",
+    "النقل المدرسي",
+    "الأنشطة والرحلات",
+    "المقصف/الكافتيريا",
+    "الدورات الصيفية",
+    "الإدارة العامة",
+    "الصيانة والمرافق",
+]
+
+
+def ensure_default_cost_centers(school_id: int) -> None:
+    """Idempotently seed the 9 default cost centers for a school."""
+    for name in DEFAULT_COST_CENTERS:
+        exists = CostCenter.query.filter_by(school_id=school_id, name=name).first()
+        if exists is None:
+            db.session.add(CostCenter(school_id=school_id, name=name))
+    db.session.flush()
 
 
 class BankStatementLine(db.Model):

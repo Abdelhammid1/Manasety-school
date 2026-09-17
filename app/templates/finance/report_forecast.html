@@ -1,0 +1,41 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}توقعات التحصيل{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">توقعات التحصيل</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">توقعات التحصيل</h1>
+  
+  
+<form method="get" action="{{ url_for('finance.report_forecast') }}"
+      class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-end gap-space-md">
+  <div class="flex flex-col gap-1"><label class="font-label-md font-bold">عدد الشهور القادمة</label>
+    <input name="months" type="number" min="1" max="24" value="{{ months }}" class="h-11 w-32 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
+  <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold"
+          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">تحديث</button>
+</form>
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+  <table class="min-w-full">
+    <thead class="bg-surface-container-high">
+      <tr class="text-right"><th class="px-3 py-2 font-label-md text-primary">الشهر</th><th class="px-3 py-2 font-label-md text-primary text-left">المتوقع تحصيله</th></tr>
+    </thead>
+    <tbody>
+      {% for r in data.rows %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2 font-mono" dir="ltr">{{ r.period }}</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.expected|round(2) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="bg-surface-container-high">
+      <tr><th class="px-3 py-2 text-right">الإجمالي</th><th class="px-3 py-2 text-left tabular-nums font-bold">{{ data.total|round(2) }}</th></tr>
+    </tfoot>
+  </table>
+</section>
+
+</div>
+{% endblock %}

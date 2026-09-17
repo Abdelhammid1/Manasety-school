@@ -78,6 +78,7 @@ ACCOUNT_ROLES = [
 @login_required
 @require_permission("finance", "view")
 def accounts():
+    from ...services.system_codes import SYSTEM_ACCOUNT_CODES
     items = (
         Account.query.filter_by(school_id=_sid())
         .order_by(Account.code).all()
@@ -85,38 +86,55 @@ def accounts():
     roots = [a for a in items if a.parent_id is None]
     return render_template(
         "finance/accounts.html",
-        accounts=items, roots=roots, account_roles=ACCOUNT_ROLES,
+        accounts=items, roots=roots,
+        system_codes=SYSTEM_ACCOUNT_CODES,
     )
 
 
-@bp.route("/accounts/<int:account_id>/role", methods=["POST"])
+def _suggest_next_child_code(school_id: int, parent: Account) -> str:
+    """Ticket B — propose the next-free child code under `parent`.
+
+    Under a top-level root (parent.parent_id is None, code ends in 000):
+      step by 100 → 1100, 1200, … until unused.
+    Under a Level-2 aggregate (parent.parent_id is not None):
+      step by 10  → parent+10, +20, +30 … until unused.
+    Falls back to appending a numeric suffix when both step patterns are
+    exhausted (extremely rare)."""
+    used = {
+        r[0] for r in db.session.query(Account.code)
+        .filter(Account.school_id == school_id).all()
+    }
+    try:
+        base = int(parent.code)
+    except (TypeError, ValueError):
+        return f"{parent.code}-1"
+    if parent.parent_id is None:
+        # Level 1 root — step by 100 within its thousand-range.
+        step = 100
+        for candidate in range(base + step, base + 1000, step):
+            if str(candidate) not in used:
+                return str(candidate)
+    else:
+        step = 10
+        for candidate in range(base + step, base + 100, step):
+            if str(candidate) not in used:
+                return str(candidate)
+    return f"{parent.code}-1"
+
+
+@bp.route("/accounts/suggest-code", endpoint="account_suggest_code")
 @login_required
-@require_permission("finance", "edit")
-def account_set_role(account_id):
-    """Ticket A — pin a semantic role (ar_default, cash_default, …) on
-    a postable account. Enforces the (school_id, account_role) UNIQUE:
-    clearing any prior owner in the same school before applying."""
-    acc = Account.query.filter_by(id=account_id, school_id=_sid()).first_or_404()
-    role = (request.form.get("account_role") or "").strip() or None
-    if role and not acc.is_postable:
-        flash(
-            "لا يمكن تعيين دور افتراضي على حساب تجميعي — اختر حساباً فرعياً (مستوى 3).",
-            "danger",
-        )
-        return redirect(url_for("finance.accounts"))
-    if role and role not in {k for k, _ in ACCOUNT_ROLES}:
-        flash("دور غير معروف.", "danger")
-        return redirect(url_for("finance.accounts"))
-    if role:
-        prior = Account.query.filter_by(
-            school_id=_sid(), account_role=role,
-        ).filter(Account.id != acc.id).first()
-        if prior:
-            prior.account_role = None
-    acc.account_role = role
-    db.session.commit()
-    flash("تم تحديث الدور الافتراضي للحساب.", "success")
-    return redirect(url_for("finance.accounts"))
+@require_permission("finance", "view")
+def account_suggest_code():
+    """Ajax endpoint — called by account_form.html when the parent
+    dropdown changes. Returns {"code": "5150"}."""
+    pid = request.args.get("parent_id", type=int)
+    if not pid:
+        return {"code": ""}
+    parent = Account.query.filter_by(id=pid, school_id=_sid()).first()
+    if not parent:
+        return {"code": ""}
+    return {"code": _suggest_next_child_code(_sid(), parent)}
 
 
 @bp.route("/accounts/new", methods=["GET", "POST"])
@@ -131,19 +149,37 @@ def account_new():
     )
     if request.method == "POST":
         parent_id = int(request.form["parent_id"]) if request.form.get("parent_id") else None
+        parent = Account.query.get(parent_id) if parent_id else None
         # Row directly under a root (Level 1) → aggregate.
         # Row under a Level-2 aggregate → postable Level-3 leaf.
-        parent = Account.query.get(parent_id) if parent_id else None
         is_postable = bool(parent and parent.parent_id is not None)
+        code = (request.form.get("code") or "").strip()
+        # Ticket B — auto-fill if left blank (readonly mode).
+        if not code and parent:
+            code = _suggest_next_child_code(_sid(), parent)
+        # Ticket B — prefix-warning check: if user typed a manual code
+        # that doesn't share the parent's first digit, we warn but still
+        # accept (rare edge cases might justify it).
+        if parent and code and not code.startswith(parent.code[0]):
+            flash(
+                f"تحذير: الكود {code} لا يبدأ برقم تصنيف الأب ({parent.code[0]}). "
+                "تم الحفظ لكن راجعه.",
+                "warning",
+            )
         a = Account(
             school_id=_sid(),
-            code=request.form["code"].strip(),
+            code=code,
             name=request.form["name"].strip(),
             type=request.form["type"],
             parent_id=parent_id, is_postable=is_postable,
         )
         db.session.add(a)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            flash("الكود مستخدم بالفعل — اختر كوداً آخر.", "danger")
+            return render_template("finance/account_form.html", parents=parents)
         flash(f"تم إضافة الحساب {a.code} — {a.name}.", "success")
         return redirect(url_for("finance.accounts"))
     return render_template("finance/account_form.html", parents=parents)
@@ -470,17 +506,20 @@ def invoice_new():
 @require_permission("finance", "view")
 def invoice_detail(invoice_id):
     inv = _get(Invoice, invoice_id)
-    # Ticket "Full financial automation" — payment methods replace the
-    # raw cash-account picker. `deferred` PMs are hidden here because
-    # they don't apply to collecting an invoice.
     from ...models import PaymentMethod
     payment_methods = (
         PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
         .filter(PaymentMethod.kind != "deferred")
         .order_by(PaymentMethod.name).all()
     )
+    # Ticket A — full postable-account picker for "حساب آخر…".
+    postable_accounts = (
+        Account.query.filter_by(school_id=_sid(), is_postable=True)
+        .order_by(Account.code).all()
+    )
     return render_template("finance/invoice_detail.html", inv=inv,
-                           payment_methods=payment_methods)
+                           payment_methods=payment_methods,
+                           postable_accounts=postable_accounts)
 
 
 @bp.route("/invoices/<int:invoice_id>/print")
@@ -645,9 +684,12 @@ def invoice_pay(invoice_id):
         return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
     is_refund = request.form.get("is_refund") == "1"
-    payment_method_id = request.form.get("payment_method_id", type=int)
-    if not payment_method_id:
-        flash("اختر طريقة الدفع.", "danger")
+    # Ticket A — form can send EITHER payment_method_id (shortcut) OR
+    # override_account_id (free picker "حساب آخر"). At least one.
+    payment_method_id = request.form.get("payment_method_id", type=int) or None
+    override_account_id = request.form.get("override_account_id", type=int) or None
+    if not payment_method_id and not override_account_id:
+        flash("اختر طريقة الدفع أو حساب استلام.", "danger")
         return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
     pay_date = _parse_date(request.form.get("payment_date")) or date.today()
@@ -656,14 +698,15 @@ def invoice_pay(invoice_id):
 
     try:
         if is_refund:
-            issue_refund(inv, amount, payment_method_id,
+            issue_refund(inv, amount, payment_method_id or 0,
                          reason=notes or "استرداد",
                          refund_date=pay_date)
             flash(f"تم استرداد {amount} من الفاتورة {inv.number}.", "success")
         else:
             record_payment(inv, amount, payment_method_id,
                            payment_date=pay_date,
-                           reference=reference, notes=notes)
+                           reference=reference, notes=notes,
+                           override_account_id=override_account_id)
             flash(f"تم تسجيل دفعة {amount} على الفاتورة {inv.number}.", "success")
     except LedgerError as e:
         db.session.rollback()
@@ -707,6 +750,354 @@ def invoice_pay(invoice_id):
 # is the ONE place account IDs still show up in the UI — because the
 # admin is deliberately mapping "نقدي" → 1110 here at setup time so
 # the daily UI never has to.
+
+# ---------- Reports (Ticket G) --------------------------------------
+
+@bp.route("/reports", endpoint="reports_index")
+@login_required
+@require_permission("finance", "view")
+def reports_index():
+    return render_template("finance/reports_index.html")
+
+
+def _report_range():
+    end = _parse_date(request.args.get("end")) or date.today()
+    start = _parse_date(request.args.get("start")) or (end - timedelta(days=90))
+    return start, end
+
+
+@bp.route("/reports/trial-balance", endpoint="report_trial_balance")
+@login_required
+@require_permission("finance", "view")
+def report_trial_balance():
+    from ...services.reports import trial_balance
+    s, e = _report_range()
+    return render_template("finance/report_trial_balance.html",
+                           data=trial_balance(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/income-statement", endpoint="report_income_statement")
+@login_required
+@require_permission("finance", "view")
+def report_income_statement():
+    from ...services.reports import income_statement
+    s, e = _report_range()
+    return render_template("finance/report_income_statement.html",
+                           data=income_statement(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/balance-sheet", endpoint="report_balance_sheet")
+@login_required
+@require_permission("finance", "view")
+def report_balance_sheet():
+    from ...services.reports import balance_sheet
+    at = _parse_date(request.args.get("at")) or date.today()
+    return render_template("finance/report_balance_sheet.html",
+                           data=balance_sheet(_sid(), at=at), at=at)
+
+
+@bp.route("/reports/general-ledger", endpoint="report_general_ledger")
+@login_required
+@require_permission("finance", "view")
+def report_general_ledger():
+    from ...services.reports import general_ledger
+    s, e = _report_range()
+    account_id = request.args.get("account_id", type=int)
+    accounts = Account.query.filter_by(
+        school_id=_sid(), is_postable=True,
+    ).order_by(Account.code).all()
+    data = general_ledger(_sid(), account_id, start=s, end=e) if account_id else None
+    return render_template("finance/report_general_ledger.html",
+                           data=data, accounts=accounts,
+                           account_id=account_id, start=s, end=e)
+
+
+@bp.route("/reports/cash-flow", endpoint="report_cash_flow")
+@login_required
+@require_permission("finance", "view")
+def report_cash_flow():
+    from ...services.reports import cash_flow
+    s, e = _report_range()
+    return render_template("finance/report_cash_flow.html",
+                           data=cash_flow(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/aging", endpoint="report_aging")
+@login_required
+@require_permission("finance", "view")
+def report_aging():
+    from ...services.reports import aging_report
+    at = _parse_date(request.args.get("at")) or date.today()
+    return render_template("finance/report_aging.html",
+                           data=aging_report(_sid(), at=at), at=at)
+
+
+@bp.route("/reports/cost-centers", endpoint="report_cost_centers")
+@login_required
+@require_permission("finance", "view")
+def report_cost_centers():
+    from ...services.reports import cost_center_pl
+    s, e = _report_range()
+    return render_template("finance/report_cost_centers.html",
+                           data=cost_center_pl(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/collection", endpoint="report_collection")
+@login_required
+@require_permission("finance", "view")
+def report_collection():
+    from ...services.reports import collection_report
+    s, e = _report_range()
+    return render_template("finance/report_collection.html",
+                           data=collection_report(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/overdue-by-grade", endpoint="report_overdue_by_grade")
+@login_required
+@require_permission("finance", "view")
+def report_overdue_by_grade():
+    from ...services.reports import overdue_by_grade
+    at = _parse_date(request.args.get("at")) or date.today()
+    return render_template("finance/report_overdue_by_grade.html",
+                           data=overdue_by_grade(_sid(), at=at), at=at)
+
+
+@bp.route("/reports/revenue-by-fee-type", endpoint="report_revenue_by_fee_type")
+@login_required
+@require_permission("finance", "view")
+def report_revenue_by_fee_type():
+    from ...services.reports import revenue_by_fee_type
+    s, e = _report_range()
+    return render_template("finance/report_revenue_by_fee_type.html",
+                           data=revenue_by_fee_type(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/payroll-summary", endpoint="report_payroll_summary")
+@login_required
+@require_permission("finance", "view")
+def report_payroll_summary():
+    from ...services.reports import payroll_summary
+    return render_template("finance/report_payroll_summary.html",
+                           data=payroll_summary(_sid()))
+
+
+@bp.route("/reports/cost-per-student", endpoint="report_cost_per_student")
+@login_required
+@require_permission("finance", "view")
+def report_cost_per_student():
+    from ...services.reports import cost_per_student
+    s, e = _report_range()
+    return render_template("finance/report_cost_per_student.html",
+                           data=cost_per_student(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/discounts-grants", endpoint="report_discounts_grants")
+@login_required
+@require_permission("finance", "view")
+def report_discounts_grants():
+    from ...services.reports import discounts_grants
+    s, e = _report_range()
+    return render_template("finance/report_discounts_grants.html",
+                           data=discounts_grants(_sid(), start=s, end=e),
+                           start=s, end=e)
+
+
+@bp.route("/reports/year-comparison", endpoint="report_year_comparison")
+@login_required
+@require_permission("finance", "view")
+def report_year_comparison():
+    from ...services.reports import year_comparison
+    years = AcademicYear.query.filter_by(school_id=_sid()).order_by(AcademicYear.start_date.desc()).all()
+    year_a = request.args.get("year_a", type=int)
+    year_b = request.args.get("year_b", type=int)
+    data = year_comparison(_sid(), year_a, year_b) if year_a else None
+    return render_template("finance/report_year_comparison.html",
+                           data=data, years=years,
+                           year_a=year_a, year_b=year_b)
+
+
+@bp.route("/reports/forecast", endpoint="report_forecast")
+@login_required
+@require_permission("finance", "view")
+def report_forecast():
+    from ...services.reports import forecast_report
+    months = int(request.args.get("months", 6))
+    return render_template("finance/report_forecast.html",
+                           data=forecast_report(_sid(), months_ahead=months),
+                           months=months)
+
+
+# ---------- Cost Centers (Ticket F) ---------------------------------
+
+@bp.route("/cost-centers", endpoint="cost_centers_list")
+@login_required
+@require_permission("finance", "view")
+def cost_centers_list():
+    from ...models import CostCenter
+    items = (
+        CostCenter.query.filter_by(school_id=_sid())
+        .order_by(CostCenter.name).all()
+    )
+    return render_template("finance/cost_centers.html", items=items)
+
+
+@bp.route("/cost-centers/new", methods=["POST"], endpoint="cost_center_new")
+@login_required
+@require_permission("finance", "edit")
+def cost_center_new():
+    from ...models import CostCenter
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("اسم مركز التكلفة مطلوب.", "danger")
+        return redirect(url_for("finance.cost_centers_list"))
+    db.session.add(CostCenter(
+        school_id=_sid(), name=name,
+        code=(request.form.get("code") or "").strip() or None,
+    ))
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash("مركز تكلفة بنفس الاسم موجود بالفعل.", "danger")
+        return redirect(url_for("finance.cost_centers_list"))
+    flash("تمت الإضافة.", "success")
+    return redirect(url_for("finance.cost_centers_list"))
+
+
+@bp.route("/cost-centers/<int:cc_id>/toggle", methods=["POST"],
+          endpoint="cost_center_toggle")
+@login_required
+@require_permission("finance", "edit")
+def cost_center_toggle(cc_id):
+    from ...models import CostCenter
+    cc = CostCenter.query.filter_by(id=cc_id, school_id=_sid()).first_or_404()
+    cc.is_active = not cc.is_active
+    db.session.commit()
+    return redirect(url_for("finance.cost_centers_list"))
+
+
+@bp.route("/cost-centers/<int:cc_id>/delete", methods=["POST"],
+          endpoint="cost_center_delete")
+@login_required
+@require_permission("finance", "delete")
+def cost_center_delete(cc_id):
+    from ...models import CostCenter
+    cc = CostCenter.query.filter_by(id=cc_id, school_id=_sid()).first_or_404()
+    db.session.delete(cc); db.session.commit()
+    flash("تم الحذف.", "success")
+    return redirect(url_for("finance.cost_centers_list"))
+
+
+# ---------- Treasury dashboard (Ticket E) ---------------------------
+
+@bp.route("/treasury", endpoint="treasury")
+@login_required
+@require_permission("finance", "view")
+def treasury():
+    """Ticket E — treasury dashboard: cash + bank overview with quick
+    actions. Cash accounts = under 1100 with '1110' prefix / bank
+    accounts under 1120."""
+    all_cash_bank = (
+        Account.query.filter_by(school_id=_sid(), is_postable=True, type="asset")
+        .filter(Account.code.startswith("11"))
+        .order_by(Account.code).all()
+    )
+    cash_accounts = [a for a in all_cash_bank if a.code.startswith("111")]
+    bank_accounts = [a for a in all_cash_bank if a.code.startswith("112")]
+    cash_total = sum((a.balance for a in cash_accounts), 0.0)
+    bank_total = sum((a.balance for a in bank_accounts), 0.0)
+    return render_template(
+        "finance/treasury.html",
+        cash_accounts=cash_accounts, bank_accounts=bank_accounts,
+        cash_total=cash_total, bank_total=bank_total,
+        all_accounts=cash_accounts + bank_accounts,
+    )
+
+
+@bp.route("/treasury/transfer", methods=["POST"], endpoint="treasury_transfer")
+@login_required
+@require_permission("finance_transactions", "add")
+def treasury_transfer():
+    from ...services.ledger import record_transfer, LedgerError
+    try:
+        amount = Decimal(request.form.get("amount") or "0")
+    except Exception:
+        flash("المبلغ غير صالح.", "danger")
+        return redirect(url_for("finance.treasury"))
+    from_id = request.form.get("from_account_id", type=int)
+    to_id = request.form.get("to_account_id", type=int)
+    description = (request.form.get("description") or "").strip()
+    at = _parse_date(request.form.get("transfer_date")) or date.today()
+    try:
+        record_transfer(_sid(), from_id, to_id, amount,
+                        transfer_date=at, description=description)
+    except LedgerError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("finance.treasury"))
+    db.session.commit()
+    flash(f"تم تحويل {amount} بنجاح.", "success")
+    return redirect(url_for("finance.treasury"))
+
+
+# ---------- Quick Journal templates (Ticket D) ----------------------
+
+@bp.route("/quick-journal", endpoint="quick_journal_index")
+@login_required
+@require_permission("finance_transactions", "add")
+def quick_journal_index():
+    from ...services.quick_journal import TEMPLATES
+    return render_template("finance/quick_journal_index.html", templates=TEMPLATES)
+
+
+@bp.route("/quick-journal/<key>", methods=["GET", "POST"],
+          endpoint="quick_journal_run")
+@login_required
+@require_permission("finance_transactions", "add")
+def quick_journal_run(key):
+    from ...services.quick_journal import TEMPLATES, apply_journal_template, QuickJournalError
+    tpl = TEMPLATES.get(key)
+    if tpl is None:
+        abort(404)
+    postable_accounts = (
+        Account.query.filter_by(school_id=_sid(), is_postable=True)
+        .order_by(Account.code).all()
+    )
+    if request.method == "POST":
+        try:
+            amount = Decimal(request.form.get("amount") or "0")
+        except Exception:
+            flash("المبلغ غير صالح.", "danger")
+            return redirect(url_for("finance.quick_journal_run", key=key))
+        counter_account_id = request.form.get("counter_account_id", type=int)
+        extra_account_id = request.form.get("extra_account_id", type=int) or None
+        description = (request.form.get("description") or "").strip()
+        entry_date = _parse_date(request.form.get("entry_date")) or date.today()
+        try:
+            apply_journal_template(
+                key, _sid(), amount, counter_account_id, description,
+                entry_date=entry_date, extra_account_id=extra_account_id,
+            )
+        except QuickJournalError as e:
+            db.session.rollback()
+            flash(str(e), "danger")
+            return redirect(url_for("finance.quick_journal_run", key=key))
+        db.session.commit()
+        flash(f"تم تنفيذ القيد ({tpl['label']}).", "success")
+        return redirect(url_for("finance.quick_journal_index"))
+    return render_template(
+        "finance/quick_journal_run.html",
+        key=key, tpl=tpl, postable_accounts=postable_accounts,
+        today=date.today(),
+    )
+
 
 # ---------- Bank reconciliation (Ticket "Additional 10") ------------
 #
@@ -1135,17 +1526,22 @@ def expense_new():
     is booked as DR expense / CR payment_method.account. When the picked
     method is `kind=deferred` the CR flips to the school's AP header
     (role=ap_default) so the money is recorded as a liability instead."""
-    from ...models import PaymentMethod
+    from ...models import PaymentMethod, CostCenter
     vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
     exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense", is_postable=True).order_by(Account.code).all()
     payment_methods = (
         PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
         .order_by(PaymentMethod.name).all()
     )
+    cost_centers = (
+        CostCenter.query.filter_by(school_id=_sid(), is_active=True)
+        .order_by(CostCenter.name).all()
+    )
     if request.method == "POST":
         amount = Decimal(request.form["amount"])
         d = _parse_date(request.form.get("date")) or date.today()
         ex_account = _get(Account, int(request.form["expense_account_id"]))
+        cost_center_id = request.form.get("cost_center_id", type=int) or None
         pm_id = request.form.get("payment_method_id", type=int)
         pm = PaymentMethod.query.filter_by(
             id=pm_id, school_id=_sid(), is_active=True,
@@ -1167,9 +1563,8 @@ def expense_new():
                 from ...services.subsidiary import party_ap_account
                 credit_account = party_ap_account(vendor)
             else:
-                credit_account = Account.query.filter_by(
-                    school_id=_sid(), account_role="ap_default",
-                ).first()
+                from ...services.system_codes import get_account_by_code
+                credit_account = get_account_by_code(_sid(), "2110")
                 if not credit_account:
                     flash(
                         "لا يوجد حساب افتراضي لذمم الموردين — اختر مورداً أو "
@@ -1205,6 +1600,7 @@ def expense_new():
             description=request.form["description"].strip(),
             reference=(request.form.get("reference") or "").strip() or None,
             journal_entry_id=je.id,
+            cost_center_id=cost_center_id,
         )
         db.session.add(e)
         db.session.commit()
@@ -1218,6 +1614,7 @@ def expense_new():
         "finance/expense_form.html",
         vendors=vendors, exp_accounts=exp_accounts,
         payment_methods=payment_methods, expense=None,
+        cost_centers=cost_centers,
     )
 
 
@@ -1258,9 +1655,8 @@ def expense_edit(exp_id):
                 from ...services.subsidiary import party_ap_account
                 credit_account = party_ap_account(vendor)
             else:
-                credit_account = Account.query.filter_by(
-                    school_id=_sid(), account_role="ap_default",
-                ).first()
+                from ...services.system_codes import get_account_by_code
+                credit_account = get_account_by_code(_sid(), "2110")
                 if not credit_account:
                     flash("لا يوجد حساب افتراضي لذمم الموردين.", "danger")
                     return redirect(url_for("finance.accounts"))

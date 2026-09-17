@@ -198,9 +198,9 @@ def payroll_new():
     # Ticket "Full financial automation" — payroll now creates an
     # ACCRUAL (DR expense / CR employee 2210 sub-account). Actual
     # payment (via PaymentMethod) happens on a separate settle route.
-    salary_account = Account.query.filter_by(
-        school_id=_sid(), account_role="payroll_salary_default",
-    ).first()
+    from ...services.system_codes import get_account_by_code
+    # Ticket A — hardcoded system-code lookup: 5110 رواتب المعلمين
+    salary_account = get_account_by_code(_sid(), "5110")
 
     if not employees:
         flash("لا يوجد موظفون نشطون — أضف موظفاً قبل استحقاق الراتب.", "warning")

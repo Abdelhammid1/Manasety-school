@@ -1,0 +1,46 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}قائمة التدفقات النقدية{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">التدفقات النقدية</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">قائمة التدفقات النقدية</h1>
+  {{ filter_form('finance.report_cash_flow', start=start, end=end) }}
+  
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+  <table class="min-w-full">
+    <thead class="bg-surface-container-high">
+      <tr class="text-right">
+        <th class="px-3 py-2 font-label-md text-primary">الحساب</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">التدفق الداخل</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">التدفق الخارج</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">صافي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.rows %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2"><code class="font-mono text-outline" dir="ltr">{{ r.code }}</code> {{ r.name }}</td>
+        <td class="px-3 py-2 text-left tabular-nums text-[#065F46]">{{ r.inflow|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums text-error">{{ r.outflow|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.net|round(2) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="bg-surface-container-high">
+      <tr>
+        <th class="px-3 py-2 text-right">الإجماليات</th>
+        <th class="px-3 py-2 text-left tabular-nums text-[#065F46]">{{ data.total_in|round(2) }}</th>
+        <th class="px-3 py-2 text-left tabular-nums text-error">{{ data.total_out|round(2) }}</th>
+        <th class="px-3 py-2 text-left tabular-nums font-bold">{{ data.net_flow|round(2) }}</th>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+
+</div>
+{% endblock %}

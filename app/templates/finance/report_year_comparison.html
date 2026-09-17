@@ -1,0 +1,44 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}مقارنة السنوات{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">مقارنة السنوات</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">مقارنة السنوات</h1>
+  
+  
+<form method="get" action="{{ url_for('finance.report_year_comparison') }}"
+      class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-end gap-space-md flex-wrap">
+  <div class="flex flex-col gap-1"><label class="font-label-md font-bold">السنة أ</label>
+    <select name="year_a" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+      {% for y in years %}<option value="{{ y.id }}" {% if y.id == year_a %}selected{% endif %}>{{ y.name }}</option>{% endfor %}
+    </select></div>
+  <div class="flex flex-col gap-1"><label class="font-label-md font-bold">السنة ب (للمقارنة)</label>
+    <select name="year_b" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <option value="">— لا مقارنة —</option>
+      {% for y in years %}<option value="{{ y.id }}" {% if y.id == year_b %}selected{% endif %}>{{ y.name }}</option>{% endfor %}
+    </select></div>
+  <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold"
+          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">تحديث</button>
+</form>
+{% if data %}
+<section class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+  {% for label, y, t in [('السنة أ', data.year_a, data.totals_a), ('السنة ب', data.year_b, data.totals_b)] %}
+  {% if y %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold">{{ label }} — {{ y.name }}</h2>
+    <div class="flex items-center justify-between mt-space-md"><span>الإيرادات</span><span class="tabular-nums font-bold text-[#065F46]">{{ t.revenue|round(2) }}</span></div>
+    <div class="flex items-center justify-between mt-2"><span>المصروفات</span><span class="tabular-nums font-bold text-error">{{ t.expense|round(2) }}</span></div>
+    <div class="flex items-center justify-between mt-2 pt-2 border-t border-outline-variant"><span class="font-bold">الصافي</span><span class="tabular-nums font-bold">{{ (t.revenue - t.expense)|round(2) }}</span></div>
+  </div>
+  {% endif %}
+  {% endfor %}
+</section>
+{% endif %}
+
+</div>
+{% endblock %}

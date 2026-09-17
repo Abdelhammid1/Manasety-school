@@ -1,0 +1,46 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}التحصيل حسب الصف{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">التحصيل حسب الصف</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">التحصيل حسب الصف</h1>
+  {{ filter_form('finance.report_collection', start=start, end=end) }}
+  
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+  <table class="min-w-full">
+    <thead class="bg-surface-container-high">
+      <tr class="text-right">
+        <th class="px-3 py-2 font-label-md text-primary">الصف</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">المستحق</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">المحصّل</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">النسبة</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.rows %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2 font-bold">{{ r.grade }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.invoiced|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.paid|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.collection_rate }}%</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+    <tfoot class="bg-surface-container-high">
+      <tr>
+        <th class="px-3 py-2 text-right">الإجماليات</th>
+        <th class="px-3 py-2 text-left tabular-nums">{{ data.total_invoiced|round(2) }}</th>
+        <th class="px-3 py-2 text-left tabular-nums">{{ data.total_paid|round(2) }}</th>
+        <th class="px-3 py-2 text-left tabular-nums font-bold">{{ data.overall_rate }}%</th>
+      </tr>
+    </tfoot>
+  </table>
+</section>
+
+</div>
+{% endblock %}

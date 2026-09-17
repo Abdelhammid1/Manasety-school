@@ -1,0 +1,38 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}مراكز التكلفة — الربحية{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">مراكز التكلفة</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">مراكز التكلفة — الربحية</h1>
+  {{ filter_form('finance.report_cost_centers', start=start, end=end) }}
+  
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+  <table class="min-w-full">
+    <thead class="bg-surface-container-high">
+      <tr class="text-right">
+        <th class="px-3 py-2 font-label-md text-primary">المركز</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">الإيرادات</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">المصروفات</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">صافي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.rows %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2 font-bold">{{ r.center }}</td>
+        <td class="px-3 py-2 text-left tabular-nums text-[#065F46]">{{ r.revenue|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums text-error">{{ r.expense|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.net|round(2) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+</div>
+{% endblock %}

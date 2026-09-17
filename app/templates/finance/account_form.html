@@ -1,4 +1,7 @@
-{# New account form. #}
+{# Ticket B — new-account form:
+   · Parent select first, code auto-suggested and rendered readonly.
+   · "تعديل يدوي" toggle unlocks the code field for the rare custom case
+     and triggers a live uniqueness check before submit. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}حساب جديد{% endblock %}
 {% block topbar_crumb %}
@@ -11,11 +14,27 @@
   <h1 class="font-headline-lg text-headline-lg text-primary">إضافة حساب جديد</h1>
   <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">الحساب الأب <span class="text-error">*</span></label>
+      <select name="parent_id" id="parentSel" required onchange="suggestCode()"
+              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— اختر الأب —</option>
+        {% for a in parents %}<option value="{{ a.id }}" data-code="{{ a.code }}" data-type="{{ a.type }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+      </select>
+      <span class="font-label-xs text-outline">النوع سيُحدَّد تلقائياً من الأب، والكود يُقترح تلقائياً بعد الاختيار.</span>
+    </div>
+
     <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">الرمز <span class="text-error">*</span></label>
-        <input name="code" required dir="ltr" placeholder="1101"
-               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الكود <span class="text-error">*</span></label>
+        <div class="flex items-stretch gap-1">
+          <input name="code" id="codeInput" required dir="ltr" readonly
+                 class="h-12 flex-1 px-4 rounded-xl bg-surface-container-low font-mono focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <button type="button" onclick="toggleManual()" id="manualBtn"
+                  class="h-12 px-3 rounded-xl bg-primary-fixed text-primary font-label-md font-bold">تعديل يدوي</button>
+        </div>
+        <span class="font-label-xs text-outline" id="codeHint">يُقترح بعد اختيار الأب.</span>
       </div>
       <div class="md:col-span-2 flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">اسم الحساب <span class="text-error">*</span></label>
@@ -23,9 +42,10 @@
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
+
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">النوع <span class="text-error">*</span></label>
-      <select name="type" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      <select name="type" id="typeSel" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
         <option value="asset">أصول</option>
         <option value="liability">خصوم</option>
         <option value="equity">حقوق ملكية</option>
@@ -33,13 +53,7 @@
         <option value="expense">مصروفات</option>
       </select>
     </div>
-    <div class="flex flex-col gap-1.5">
-      <label class="font-label-md text-label-md text-on-surface font-bold">الحساب الأب (اختياري)</label>
-      <select name="parent_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-        <option value="">— لا يوجد —</option>
-        {% for a in parents %}<option value="{{ a.id }}"><code>{{ a.code }}</code> — {{ a.name }}</option>{% endfor %}
-      </select>
-    </div>
+
     <div class="flex justify-end">
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
@@ -48,4 +62,39 @@
     </div>
   </form>
 </div>
+
+<script>
+  function suggestCode() {
+    var sel = document.getElementById('parentSel');
+    var pid = sel.value;
+    if (!pid) return;
+    var opt = sel.selectedOptions[0];
+    // Inherit type from parent so tree stays consistent.
+    var t = opt.dataset.type;
+    if (t) document.getElementById('typeSel').value = t;
+    // Fetch a suggested code from the server.
+    fetch("{{ url_for('finance.account_suggest_code') }}?parent_id=" + pid)
+      .then(function(r) { return r.json(); })
+      .then(function(d) {
+        var el = document.getElementById('codeInput');
+        el.value = d.code || '';
+        document.getElementById('codeHint').textContent =
+          'الكود المقترح تلقائياً. اضغط "تعديل يدوي" لتغييره.';
+      });
+  }
+  function toggleManual() {
+    var el = document.getElementById('codeInput');
+    var btn = document.getElementById('manualBtn');
+    if (el.hasAttribute('readonly')) {
+      el.removeAttribute('readonly');
+      btn.textContent = 'إلغاء التعديل اليدوي';
+      document.getElementById('codeHint').textContent =
+        'الكود قابل للتعديل الآن. تأكد أنه غير مستخدم ويبدأ بنفس تصنيف الأب.';
+    } else {
+      el.setAttribute('readonly', 'readonly');
+      btn.textContent = 'تعديل يدوي';
+      suggestCode();
+    }
+  }
+</script>
 {% endblock %}

@@ -1,0 +1,42 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}ملخص الرواتب الشهري{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">ملخص الرواتب</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">ملخص الرواتب الشهري</h1>
+  
+  
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+  <table class="min-w-full">
+    <thead class="bg-surface-container-high">
+      <tr class="text-right">
+        <th class="px-3 py-2 font-label-md text-primary">الشهر</th>
+        <th class="px-3 py-2 font-label-md text-primary">عدد الموظفين</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">الأساسي</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">البدلات</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">الخصومات</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">الصافي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.rows %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2 tabular-nums" dir="ltr">{{ r.period }}</td>
+        <td class="px-3 py-2 tabular-nums">{{ r.count }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.base|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.allow|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.ded|round(2) }}</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.net|round(2) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+</div>
+{% endblock %}

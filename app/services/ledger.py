@@ -25,6 +25,7 @@ from .subsidiary import (
     ensure_student_account, ensure_employee_account,
     party_ar_account, party_payroll_account,
 )
+from .system_codes import get_account_by_code
 
 
 class LedgerError(Exception):
@@ -39,16 +40,14 @@ def _dec(v) -> Decimal:
 
 
 def _discount_account_for(school_id: int) -> Optional[Account]:
-    return Account.query.filter_by(
-        school_id=school_id, account_role="discount_default",
-    ).first()
+    from .system_codes import get_account_by_code
+    return get_account_by_code(school_id, "4910")
 
 
 def _ap_default_for(school_id: int) -> Optional[Account]:
     """AP header used for deferred expense bookings."""
-    return Account.query.filter_by(
-        school_id=school_id, account_role="ap_default",
-    ).first()
+    from .system_codes import get_account_by_code
+    return get_account_by_code(school_id, "2110")
 
 
 def _resolve_pm(school_id: int, payment_method_id: int) -> PaymentMethod:
@@ -103,9 +102,8 @@ def post_invoice_to_ledger(invoice: Invoice, *, entry_date: Optional[_date_cls] 
     # gross-of-tax and need to be reduced.
     tax_amt = _dec(invoice.tax_amount)
     if tax_amt > 0:
-        vat_acc = Account.query.filter_by(
-            school_id=invoice.school_id, account_role="vat_payable_default",
-        ).first()
+        from .system_codes import get_account_by_code
+        vat_acc = get_account_by_code(invoice.school_id, "2250")
         if vat_acc is not None:
             lines.append((vat_acc.id, Decimal(0), tax_amt, "ضريبة قيمة مضافة مستحقة"))
             rev_lines = [i for i, l in enumerate(lines) if l[2] > 0 and l[0] != vat_acc.id]
@@ -158,15 +156,21 @@ def post_invoice_to_ledger(invoice: Invoice, *, entry_date: Optional[_date_cls] 
 # ─── Payments (invoice reception) ────────────────────────────────────
 
 def record_payment(
-    invoice: Invoice, amount, payment_method_id: int,
+    invoice: Invoice, amount, payment_method_id: Optional[int],
     *, payment_date: Optional[_date_cls] = None,
     reference: Optional[str] = None, notes: Optional[str] = None,
+    override_account_id: Optional[int] = None,
     created_by: Optional[int] = None,
 ):
     """Record a real cash/bank receipt against an invoice.
 
-      DR   payment_method.account   (نقدي/بنك اللي دخلت فيه الفلوس)
+      DR   payment_method.account (or override_account_id if picked)
       CR   student's AR sub-account (يتخفّض دينها)
+
+    Ticket A — when the caller passes `override_account_id`, we bypass
+    PaymentMethod entirely and route the DR to that postable account.
+    The pm_name label falls back to the account name so the audit trail
+    still reads clearly.
     """
     amount = _dec(amount)
     if amount <= 0:
@@ -178,14 +182,28 @@ def record_payment(
             f"المبلغ ({amount:.2f}) أكبر من الرصيد المتبقّي ({remaining:.2f})."
         )
 
-    pm = _resolve_pm(invoice.school_id, payment_method_id)
-    if pm.kind == "deferred":
-        raise LedgerError(
-            "لا يمكن استخدام طريقة دفع مؤجلة لقبض الفاتورة — الفاتورة الأصلية "
-            "هي الالتزام."
-        )
-    if pm.account_id is None:
-        raise LedgerError("طريقة الدفع غير مرتبطة بحساب — راجع إعدادات طرق الدفع.")
+    pm = None
+    if override_account_id:
+        target_acc = Account.query.filter_by(
+            id=override_account_id, school_id=invoice.school_id, is_postable=True,
+        ).first()
+        if target_acc is None:
+            raise LedgerError("الحساب المختار غير صالح — يجب أن يكون قابلاً للترحيل.")
+        target_account_id = target_acc.id
+        label = target_acc.name
+    else:
+        if not payment_method_id:
+            raise LedgerError("اختر طريقة دفع أو حساب استلام.")
+        pm = _resolve_pm(invoice.school_id, payment_method_id)
+        if pm.kind == "deferred":
+            raise LedgerError(
+                "لا يمكن استخدام طريقة دفع مؤجلة لقبض الفاتورة — الفاتورة الأصلية "
+                "هي الالتزام."
+            )
+        if pm.account_id is None:
+            raise LedgerError("طريقة الدفع غير مرتبطة بحساب — راجع إعدادات طرق الدفع.")
+        target_account_id = pm.account_id
+        label = pm.name
 
     ar = party_ar_account(invoice)
     pay_date = payment_date or _date_cls.today()
@@ -196,7 +214,7 @@ def record_payment(
         description=f"سداد فاتورة {invoice.number}",
         reference=invoice.number,
         lines=[
-            (pm.account_id, amount, Decimal(0), f"استلام — {pm.name}"),
+            (target_account_id, amount, Decimal(0), f"استلام — {label}"),
             (ar.id, Decimal(0), amount, f"تخفيض ذمة — {invoice.enrollment.student.full_name}"),
         ],
         related_kind="payment", related_id=invoice.id,
@@ -227,8 +245,8 @@ def record_payment(
         invoice_id=invoice.id,
         payment_date=pay_date,
         amount=amount,
-        method=pm.name[:16],
-        cash_account_id=pm.account_id,
+        method=(pm.name if pm else label)[:16],
+        cash_account_id=target_account_id,
         reference=reference,
         notes=notes,
         journal_entry_id=je.id,
@@ -286,9 +304,7 @@ def issue_employee_advance(employee, amount, payment_method_id: int,
     if pm.kind == "deferred" or pm.account_id is None:
         raise LedgerError("اختر طريقة دفع فعلية للسلفة (نقدي/بنك).")
 
-    advance_acc = Account.query.filter_by(
-        school_id=employee.school_id, account_role="employee_advance_default",
-    ).first()
+    advance_acc = get_account_by_code(employee.school_id, "1160")
     if advance_acc is None:
         raise LedgerError(
             "لا يوجد حساب مُعيَّن لسلف الموظفين — حدّده من دليل الحسابات."
@@ -337,9 +353,7 @@ def apply_advance_deductions(payroll: Payroll) -> Decimal:
     if not active:
         return Decimal(0)
 
-    advance_acc = Account.query.filter_by(
-        school_id=payroll.school_id, account_role="employee_advance_default",
-    ).first()
+    advance_acc = get_account_by_code(payroll.school_id, "1160")
     if advance_acc is None:
         return Decimal(0)
     salary_payable = party_payroll_account(payroll.employee)
@@ -730,6 +744,41 @@ def send_payment_reminders(school_id: int, *, today=None) -> dict:
     return counts
 
 
+def record_transfer(school_id: int, from_account_id: int, to_account_id: int,
+                    amount, *, transfer_date=None, description: str = "",
+                    created_by: Optional[int] = None):
+    """Ticket E — move money between two treasury/bank accounts.
+
+      DR   to_account
+      CR   from_account
+
+    Both accounts must be postable leaves. No revenue/expense impact.
+    """
+    amount = _dec(amount)
+    if amount <= 0:
+        raise LedgerError("المبلغ يجب أن يكون أكبر من صفر.")
+    if from_account_id == to_account_id:
+        raise LedgerError("لا يمكن التحويل بين الحساب ونفسه.")
+
+    frm = Account.query.filter_by(id=from_account_id, school_id=school_id, is_postable=True).first()
+    to  = Account.query.filter_by(id=to_account_id,   school_id=school_id, is_postable=True).first()
+    if not frm or not to:
+        raise LedgerError("اختر حسابين قابلين للترحيل.")
+
+    at = transfer_date or _date_cls.today()
+    memo = description.strip() or f"تحويل من {frm.name} إلى {to.name}"
+
+    return post_journal(
+        school_id=school_id, entry_date=at, description=memo,
+        reference=None,
+        lines=[
+            (to.id, amount, Decimal(0), f"استلام تحويل — {frm.name}"),
+            (frm.id, Decimal(0), amount, f"إرسال تحويل — {to.name}"),
+        ],
+        related_kind="transfer", related_id=None,
+    )
+
+
 def close_fiscal_year(school_id: int, year, *, entry_date=None, dry_run=False):
     """Ticket "Additional 11" — zero out every P&L account into 3200
     retained earnings and mark the AcademicYear as closed.
@@ -791,9 +840,7 @@ def close_fiscal_year(school_id: int, year, *, entry_date=None, dry_run=False):
         expense_moves.append((acc.id, Decimal(0), net, f"إقفال مصروفات — {acc.name}"))
 
     net_income = total_revenue - total_expense
-    retained = Account.query.filter_by(
-        school_id=school_id, account_role="retained_earnings_default",
-    ).first()
+    retained = get_account_by_code(school_id, "3200")
 
     preview = {
         "total_revenue": float(total_revenue),

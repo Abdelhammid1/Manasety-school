@@ -1,0 +1,54 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}قائمة الدخل{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">قائمة الدخل</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-4xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">قائمة الدخل</h1>
+  {{ filter_form('finance.report_income_statement', start=start, end=end) }}
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-[#065F46] font-bold mb-space-sm">الإيرادات</h2>
+    <ul class="divide-y divide-outline-variant">
+      {% for r in data.revenue %}
+      <li class="p-space-sm flex items-center justify-between">
+        <span class="flex items-center gap-2"><code class="font-mono text-outline" dir="ltr">{{ r.code }}</code> {{ r.name }}</span>
+        <span class="tabular-nums font-bold">{{ r.amount|round(2) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="p-space-sm mt-space-sm rounded-lg bg-[#ECFDF5] text-[#065F46] flex items-center justify-between font-bold">
+      <span>إجمالي الإيرادات</span>
+      <span class="tabular-nums">{{ data.total_revenue|round(2) }}</span>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-error font-bold mb-space-sm">المصروفات</h2>
+    <ul class="divide-y divide-outline-variant">
+      {% for r in data.expense %}
+      <li class="p-space-sm flex items-center justify-between">
+        <span class="flex items-center gap-2"><code class="font-mono text-outline" dir="ltr">{{ r.code }}</code> {{ r.name }}</span>
+        <span class="tabular-nums font-bold">{{ r.amount|round(2) }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+    <div class="p-space-sm mt-space-sm rounded-lg bg-error-container/40 text-error flex items-center justify-between font-bold">
+      <span>إجمالي المصروفات</span>
+      <span class="tabular-nums">{{ data.total_expense|round(2) }}</span>
+    </div>
+  </section>
+
+  <section class="p-space-lg rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #2563EB 100%);">
+    <div class="flex items-center justify-between">
+      <span class="font-title-md">صافي الربح/الخسارة</span>
+      <span class="font-display-md tabular-nums font-extrabold">{{ data.net_income|round(2) }}</span>
+    </div>
+  </section>
+</div>
+{% endblock %}

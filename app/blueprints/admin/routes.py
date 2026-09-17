@@ -14,20 +14,70 @@ from ...models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
 @login_required
 @require_permission("users", "edit")
 def school_settings():
-    """School-wide settings screen — currently just the attendance mode
-    (ticket #8). Extend as more school-level knobs land."""
+    """Ticket H — 6-tab school-wide settings screen (org info, banks,
+    finance, academic, prints, notifications)."""
+    from ...models import Account, PaymentMethod
+    from decimal import Decimal
     school = db.session.get(School, current_user.school_id)
     if not school:
         abort(404)
+
     if request.method == "POST":
+        # Simple field-map covering every tab. Only whitelisted keys.
+        s = school
+        get = lambda k: (request.form.get(k) or "").strip() or None
+        # Tab 1 — establishment
+        s.name = get("name") or s.name
+        s.legal_name_ar = get("legal_name_ar")
+        s.legal_name_en = get("legal_name_en")
+        s.logo_url = get("logo_url")
+        s.license_number = get("license_number")
+        s.tax_number = get("tax_number")
+        s.address = get("address")
+        s.phone = get("phone")
+        s.email = get("email")
+        s.website = get("website")
+        # Tab 3 — finance
+        s.currency = get("currency") or "EGP"
+        s.currency_symbol = get("currency_symbol") or "ج.م"
+        try:
+            s.default_tax_rate = Decimal(request.form.get("default_tax_rate") or "0")
+        except Exception:
+            pass
+        try:
+            s.fiscal_year_start_month = int(request.form.get("fiscal_year_start_month") or 9)
+        except Exception:
+            pass
+        s.invoice_prefix = get("invoice_prefix") or "INV"
+        try:
+            s.invoice_start_number = int(request.form.get("invoice_start_number") or 1)
+        except Exception:
+            pass
+        s.rounding_policy = get("rounding_policy") or "normal"
+        # Tab 4 — academic
         mode = (request.form.get("attendance_mode") or "daily").strip()
-        if mode not in ("daily", "per_period", "both"):
-            mode = "daily"
-        school.attendance_mode = mode
+        if mode in ("daily", "per_period", "both"):
+            s.attendance_mode = mode
+        # Tab 5 — prints
+        s.invoice_header_text = get("invoice_header_text")
+        s.invoice_footer_text = get("invoice_footer_text")
+        s.invoice_policy_text = get("invoice_policy_text")
+        s.show_logo_on_prints = bool(request.form.get("show_logo_on_prints"))
+        # Tab 6 — notifications
+        s.reminder_days_before = get("reminder_days_before") or "7,3"
+        s.notify_channels = ",".join(request.form.getlist("notify_channels")) or "in_app,email"
         db.session.commit()
         flash("تم حفظ الإعدادات.", "success")
         return redirect(url_for("admin.school_settings"))
-    return render_template("admin/school_settings.html", school=school)
+
+    # Tab 2 — bank accounts derived from PaymentMethod(kind=immediate_bank).
+    bank_methods = (
+        PaymentMethod.query.filter_by(
+            school_id=current_user.school_id, kind="immediate_bank",
+        ).order_by(PaymentMethod.name).all()
+    )
+    return render_template("admin/school_settings.html",
+                           school=school, bank_methods=bank_methods)
 
 
 @bp.route("/audit")

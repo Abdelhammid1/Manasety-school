@@ -1,0 +1,157 @@
+{# Ticket E — treasury dashboard. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الخزينة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الخزينة</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-6xl mx-auto gap-space-md">
+
+  {# Top summary cards #}
+  <section class="grid grid-cols-1 md:grid-cols-4 gap-space-md">
+    <div class="p-space-md rounded-2xl text-on-primary shadow-md"
+         style="background: linear-gradient(135deg, #065F46 0%, #10B981 100%);">
+      <p class="font-label-md opacity-80">إجمالي النقدية</p>
+      <p class="font-display-md font-extrabold tabular-nums mt-1">{{ cash_total|round(2) }}</p>
+    </div>
+    <div class="p-space-md rounded-2xl text-on-primary shadow-md"
+         style="background: linear-gradient(135deg, #0C2461 0%, #2563EB 100%);">
+      <p class="font-label-md opacity-80">إجمالي البنوك</p>
+      <p class="font-display-md font-extrabold tabular-nums mt-1">{{ bank_total|round(2) }}</p>
+    </div>
+    <div class="p-space-md rounded-2xl text-on-primary shadow-md"
+         style="background: linear-gradient(135deg, #4C1D95 0%, #7C3AED 100%);">
+      <p class="font-label-md opacity-80">المجموع الكلي</p>
+      <p class="font-display-md font-extrabold tabular-nums mt-1">{{ (cash_total + bank_total)|round(2) }}</p>
+    </div>
+    <div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-md">
+      <p class="font-label-md text-outline">الحسابات النشطة</p>
+      <p class="font-display-md text-primary font-extrabold tabular-nums mt-1">{{ (cash_accounts|length) + (bank_accounts|length) }}</p>
+    </div>
+  </section>
+
+  {# Quick actions #}
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-space-md">
+    <a href="{{ url_for('finance.invoices_list') }}"
+       class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md flex items-center gap-space-sm">
+      <span class="material-symbols-outlined text-[#10B981]">payments</span>
+      <span class="font-title-md text-primary font-bold">قبض</span>
+    </a>
+    <a href="{{ url_for('finance.expense_new') }}"
+       class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md flex items-center gap-space-sm">
+      <span class="material-symbols-outlined text-error">payments</span>
+      <span class="font-title-md text-primary font-bold">دفع مصروف</span>
+    </a>
+    <button type="button" onclick="openModal('#xferModal')"
+            class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md flex items-center gap-space-sm">
+      <span class="material-symbols-outlined text-[#7C3AED]">swap_horiz</span>
+      <span class="font-title-md text-primary font-bold">تحويل</span>
+    </button>
+    <a href="{{ url_for('finance.quick_journal_index') }}"
+       class="p-space-md rounded-xl bg-surface-container-lowest shadow-sm hover:shadow-md flex items-center gap-space-sm">
+      <span class="material-symbols-outlined text-primary">bolt</span>
+      <span class="font-title-md text-primary font-bold">قيد سريع</span>
+    </a>
+  </section>
+
+  {# Cash + bank cards #}
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+        <span class="material-symbols-outlined text-[#10B981]">payments</span>الصندوق
+      </h2>
+      {% if cash_accounts %}
+      <ul class="flex flex-col gap-1">
+        {% for a in cash_accounts %}
+        <li class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <code class="font-mono text-outline" dir="ltr">{{ a.code }}</code>
+            <span class="font-label-lg text-primary font-bold">{{ a.name }}</span>
+          </div>
+          <span class="font-title-md tabular-nums font-bold {% if a.balance < 0 %}text-error{% else %}text-[#065F46]{% endif %}">{{ a.balance|round(2) }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-center py-space-md text-outline">لا حسابات صندوق مضبوطة.</p>
+      {% endif %}
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
+        <span class="material-symbols-outlined text-[#2563EB]">account_balance</span>البنوك
+      </h2>
+      {% if bank_accounts %}
+      <ul class="flex flex-col gap-1">
+        {% for a in bank_accounts %}
+        <li class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <code class="font-mono text-outline" dir="ltr">{{ a.code }}</code>
+            <span class="font-label-lg text-primary font-bold">{{ a.name }}</span>
+          </div>
+          <span class="font-title-md tabular-nums font-bold {% if a.balance < 0 %}text-error{% else %}text-[#065F46]{% endif %}">{{ a.balance|round(2) }}</span>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="text-center py-space-md text-outline">لا حسابات بنكية مضبوطة.</p>
+      {% endif %}
+    </section>
+  </div>
+</div>
+
+{# Transfer modal #}
+<div id="xferModal" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <form method="post" action="{{ url_for('finance.treasury_transfer') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex items-start gap-space-md">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined">swap_horiz</span>
+        </div>
+        <div class="flex-1">
+          <h3 class="font-title-md text-primary font-bold">تحويل بين حسابات النقدية/البنوك</h3>
+          <div class="mt-space-md grid grid-cols-1 md:grid-cols-2 gap-space-md">
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md font-bold">من حساب</label>
+              <select name="from_account_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+                {% for a in all_accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md font-bold">إلى حساب</label>
+              <select name="to_account_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+                {% for a in all_accounts %}<option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md font-bold">المبلغ</label>
+              <input name="amount" type="number" step="0.01" min="0.01" required class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums">
+            </div>
+            <div class="flex flex-col gap-1">
+              <label class="font-label-md font-bold">التاريخ</label>
+              <input name="transfer_date" type="date" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            </div>
+            <div class="flex flex-col gap-1 md:col-span-2">
+              <label class="font-label-md font-bold">ملاحظة</label>
+              <input name="description" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            </div>
+          </div>
+        </div>
+        <button type="button" data-modal-close class="text-outline hover:text-primary p-1">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+      <div class="mt-space-lg flex items-center justify-end gap-space-sm">
+        <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</button>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm">check_circle</span>تنفيذ التحويل
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

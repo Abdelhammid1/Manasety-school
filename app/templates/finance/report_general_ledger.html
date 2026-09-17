@@ -1,0 +1,70 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}دفتر الأستاذ العام{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">دفتر الأستاذ</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">دفتر الأستاذ العام</h1>
+  
+  
+<form method="get" action="{{ url_for('finance.report_general_ledger') }}"
+      class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-end gap-space-md flex-wrap">
+  <div class="flex flex-col gap-1 flex-1">
+    <label class="font-label-md font-bold">الحساب</label>
+    <select name="account_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <option value="">— اختر —</option>
+      {% for a in accounts %}
+      <option value="{{ a.id }}" {% if a.id == account_id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="font-label-md font-bold">من</label>
+    <input name="start" type="date" value="{{ start }}" class="h-11 px-3 rounded-lg bg-surface-container-low">
+  </div>
+  <div class="flex flex-col gap-1">
+    <label class="font-label-md font-bold">إلى</label>
+    <input name="end" type="date" value="{{ end }}" class="h-11 px-3 rounded-lg bg-surface-container-low">
+  </div>
+  <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold"
+          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">تحديث</button>
+</form>
+
+{% if data %}
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+  <header class="p-space-md bg-surface-container-high">
+    <h2 class="font-title-md text-primary font-bold">{{ data.account.code }} — {{ data.account.name }}</h2>
+  </header>
+  <table class="min-w-full">
+    <thead class="bg-surface-container">
+      <tr class="text-right">
+        <th class="px-3 py-2 font-label-md text-primary">التاريخ</th>
+        <th class="px-3 py-2 font-label-md text-primary">البيان</th>
+        <th class="px-3 py-2 font-label-md text-primary">المرجع</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">مدين</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">دائن</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">الرصيد</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.rows %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2 tabular-nums" dir="ltr">{{ r.date }}</td>
+        <td class="px-3 py-2">{{ r.description }}</td>
+        <td class="px-3 py-2 font-mono text-outline" dir="ltr">{{ r.reference or '—' }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.debit if r.debit > 0 else '' }}</td>
+        <td class="px-3 py-2 text-left tabular-nums">{{ r.credit if r.credit > 0 else '' }}</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.balance|round(2) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+
+</div>
+{% endblock %}

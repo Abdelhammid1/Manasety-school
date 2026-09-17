@@ -1,52 +1,183 @@
-{# School-wide settings screen. Sprint 18 lands the attendance_mode
-   toggle here — add more knobs beside it as they show up. #}
+{# Ticket H — 6-tab school settings. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}إعدادات المدرسة{% endblock %}
-{% block topbar_crumb %}<span class="material-symbols-outlined text-sm text-outline">chevron_left</span><span class="text-primary font-bold">إعدادات المدرسة</span>{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">إعدادات المدرسة</span>
+{% endblock %}
 
 {% block page_content %}
-<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
-  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
-    <h1 class="font-headline-lg text-primary font-bold">إعدادات {{ school.name }}</h1>
-    <p class="font-body-md text-on-surface-variant mt-1">إعدادات على مستوى المدرسة — بتأثر على كل المستخدمين.</p>
-  </section>
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-lg text-primary flex items-center gap-2">
+    <span class="material-symbols-outlined">settings</span>إعدادات المدرسة
+  </h1>
 
-  <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+  <form method="post" class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <nav class="flex overflow-x-auto bg-surface-container-high" role="tablist">
+      {% for id, label, icon in [
+        ('t1','بيانات المنشأة','apartment'),
+        ('t2','الحسابات البنكية','account_balance'),
+        ('t3','الإعدادات المالية','payments'),
+        ('t4','الإعدادات الأكاديمية','school'),
+        ('t5','القوالب والمطبوعات','print'),
+        ('t6','الإشعارات','notifications'),
+      ] %}
+      <button type="button" role="tab" data-tab="{{ id }}"
+              onclick="showTab('{{ id }}')"
+              class="tab-btn h-12 px-4 flex items-center gap-2 font-title-md font-bold border-b-4 border-transparent hover:text-primary whitespace-nowrap">
+        <span class="material-symbols-outlined text-lg">{{ icon }}</span>{{ label }}
+      </button>
+      {% endfor %}
+    </nav>
 
-    <div>
-      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-sm">
-        <span class="material-symbols-outlined">fact_check</span>وضع تسجيل الحضور
-      </h2>
-      <p class="font-label-md text-outline mb-space-sm">
-        بيحدد شكل شاشة رصد الحضور — يومي (سطر لكل طالب) ولا بالحصة (شبكة طلاب × حصص).
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
-        {% for k, lbl, desc, icon in [
-          ('daily', 'يومي', 'سطر واحد لكل طالب في اليوم — الوضع التقليدي.', 'view_agenda'),
-          ('per_period', 'بالحصة', 'شبكة طلاب × حصص — كل حصة رصد منفصل.', 'grid_on'),
-          ('both', 'الاثنين', 'الشاشتين متاحتين جنب بعض.', 'apps'),
-        ] %}
-        <label class="cursor-pointer">
-          <input type="radio" name="attendance_mode" value="{{ k }}" class="peer sr-only"
-                 {% if school.attendance_mode == k %}checked{% endif %}>
-          <div class="p-space-md rounded-xl border-2 border-outline-variant bg-surface-container-low text-center transition-all
-                      hover:border-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:shadow-md">
-            <span class="material-symbols-outlined text-2xl text-primary">{{ icon }}</span>
-            <div class="font-title-md text-primary font-bold mt-1">{{ lbl }}</div>
-            <div class="font-label-xs text-outline mt-1">{{ desc }}</div>
-          </div>
-        </label>
-        {% endfor %}
+    {# Tab 1 — Establishment #}
+    <div id="t1" class="tab p-space-lg flex flex-col gap-space-md">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">اسم المدرسة الظاهر</label>
+          <input name="name" value="{{ school.name or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الاسم القانوني (عربي)</label>
+          <input name="legal_name_ar" value="{{ school.legal_name_ar or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">Legal Name (English)</label>
+          <input name="legal_name_en" dir="ltr" value="{{ school.legal_name_en or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">رقم الترخيص التعليمي</label>
+          <input name="license_number" dir="ltr" value="{{ school.license_number or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الرقم الضريبي</label>
+          <input name="tax_number" dir="ltr" value="{{ school.tax_number or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الهاتف</label>
+          <input name="phone" dir="ltr" value="{{ school.phone or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">البريد الإلكتروني</label>
+          <input name="email" type="email" dir="ltr" value="{{ school.email or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">الموقع الإلكتروني</label>
+          <input name="website" dir="ltr" value="{{ school.website or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md font-bold">العنوان</label>
+          <textarea name="address" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ school.address or '' }}</textarea></div>
+        <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md font-bold">رابط الشعار (URL)</label>
+          <input name="logo_url" dir="ltr" value="{{ school.logo_url or '' }}" placeholder="https://..." class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
       </div>
     </div>
 
-    <div class="flex justify-end pt-space-md border-t border-outline-variant">
-      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
+    {# Tab 2 — Banks (read-only list; add via PaymentMethod screen) #}
+    <div id="t2" class="tab p-space-lg flex flex-col gap-space-md" style="display:none">
+      <p class="font-body-md text-on-surface-variant">
+        الحسابات البنكية للمدرسة تُدار كطرق دفع من نوع "بنك فوري". أضف حساب هنا:
+        <a class="text-primary font-bold" href="{{ url_for('finance.payment_methods_list') }}">إعدادات طرق الدفع</a>
+      </p>
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high"><tr class="text-right">
+          <th class="px-3 py-2 font-label-md text-primary">الاسم</th>
+          <th class="px-3 py-2 font-label-md text-primary">الحساب المرتبط</th>
+          <th class="px-3 py-2 font-label-md text-primary">الحالة</th>
+        </tr></thead>
+        <tbody>
+        {% for pm in bank_methods %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-3 py-2 font-bold">{{ pm.name }}</td>
+          <td class="px-3 py-2">{% if pm.account %}{{ pm.account.code }} — {{ pm.account.name }}{% else %}—{% endif %}</td>
+          <td class="px-3 py-2">{{ 'نشط' if pm.is_active else 'موقوف' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="3" class="px-3 py-6 text-center text-outline">لا حسابات بنكية.</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {# Tab 3 — Finance #}
+    <div id="t3" class="tab p-space-lg" style="display:none">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">العملة (رمز ISO)</label>
+          <input name="currency" dir="ltr" value="{{ school.currency }}" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">رمز العملة (للعرض)</label>
+          <input name="currency_symbol" value="{{ school.currency_symbol }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">نسبة ضريبة القيمة المضافة الافتراضية (%)</label>
+          <input name="default_tax_rate" type="number" min="0" max="100" step="0.01" value="{{ school.default_tax_rate }}" class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">شهر بداية السنة المالية</label>
+          <select name="fiscal_year_start_month" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            {% for m in range(1,13) %}<option value="{{ m }}" {% if school.fiscal_year_start_month == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
+          </select></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">بادئة رقم الفاتورة</label>
+          <input name="invoice_prefix" dir="ltr" value="{{ school.invoice_prefix }}" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">رقم الفاتورة الأولى</label>
+          <input name="invoice_start_number" type="number" min="1" value="{{ school.invoice_start_number }}" class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">سياسة التقريب</label>
+          <select name="rounding_policy" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            <option value="normal" {% if school.rounding_policy == 'normal' %}selected{% endif %}>عادي (نصف لأعلى)</option>
+            <option value="up" {% if school.rounding_policy == 'up' %}selected{% endif %}>دائماً لأعلى</option>
+            <option value="down" {% if school.rounding_policy == 'down' %}selected{% endif %}>دائماً لأسفل</option>
+          </select></div>
+      </div>
+    </div>
+
+    {# Tab 4 — Academic #}
+    <div id="t4" class="tab p-space-lg" style="display:none">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md font-bold">نمط تسجيل الحضور</label>
+          <select name="attendance_mode" class="h-11 px-3 rounded-lg bg-surface-container-low">
+            <option value="daily" {% if school.attendance_mode == 'daily' %}selected{% endif %}>يومي (سجل واحد لكل يوم)</option>
+            <option value="per_period" {% if school.attendance_mode == 'per_period' %}selected{% endif %}>بالحصة (سجل لكل حصة)</option>
+            <option value="both" {% if school.attendance_mode == 'both' %}selected{% endif %}>الاثنين معاً</option>
+          </select></div>
+      </div>
+    </div>
+
+    {# Tab 5 — Prints #}
+    <div id="t5" class="tab p-space-lg" style="display:none">
+      <div class="grid grid-cols-1 gap-space-md">
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">نص ترويسة الفاتورة</label>
+          <textarea name="invoice_header_text" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ school.invoice_header_text or '' }}</textarea></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">نص تذييل الفاتورة</label>
+          <textarea name="invoice_footer_text" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ school.invoice_footer_text or '' }}</textarea></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">السياسات والشروط أسفل الفاتورة</label>
+          <textarea name="invoice_policy_text" rows="3" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ school.invoice_policy_text or '' }}</textarea></div>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="show_logo_on_prints" value="1" {% if school.show_logo_on_prints %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+          <span class="font-label-md font-bold">إظهار الشعار على الفواتير المطبوعة</span>
+        </label>
+      </div>
+    </div>
+
+    {# Tab 6 — Notifications #}
+    <div id="t6" class="tab p-space-lg" style="display:none">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md font-bold">قنوات الإشعار</label>
+          <div class="flex items-center gap-space-md">
+            {% for k, label in [('in_app','داخل التطبيق'), ('email','البريد'), ('sms','رسائل نصية'), ('whatsapp','واتساب')] %}
+            <label class="flex items-center gap-1 cursor-pointer">
+              <input type="checkbox" name="notify_channels" value="{{ k }}"
+                     {% if k in school.notify_channels.split(',') %}checked{% endif %}
+                     class="w-5 h-5 rounded accent-primary">
+              <span class="font-label-md">{{ label }}</span>
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">أيام التذكير قبل الاستحقاق</label>
+          <input name="reminder_days_before" dir="ltr" value="{{ school.reminder_days_before }}" placeholder="7,3"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low font-mono">
+          <span class="font-label-xs text-outline">مثال: <span dir="ltr">7,3</span> = تذكيرات قبل الاستحقاق بأسبوع وبثلاثة أيام.</span></div>
+      </div>
+    </div>
+
+    <div class="p-space-lg border-t border-outline-variant flex justify-end">
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined">save</span>حفظ الإعدادات
+        <span class="material-symbols-outlined">save</span>حفظ كل الإعدادات
       </button>
     </div>
   </form>
 </div>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.tab').forEach(function(el){ el.style.display = 'none'; });
+    document.querySelectorAll('.tab-btn').forEach(function(el){
+      el.classList.remove('border-primary','text-primary');
+    });
+    var d = document.getElementById(id); if (d) d.style.display = '';
+    var b = document.querySelector('[data-tab="'+id+'"]');
+    if (b) b.classList.add('border-primary','text-primary');
+  }
+  showTab('t1');
+</script>
 {% endblock %}

@@ -1,6 +1,7 @@
-{# Chart of accounts — hierarchical (3-level) tree view.
-   Postable leaves show a "تعيين كافتراضي…" role dropdown; aggregates
-   show their rolled-up balance instead.  Ticket A + B. #}
+{# Chart of accounts — hierarchical tree.
+   Ticket A polish — role dropdown removed. Only "تجميعي" badge on
+   aggregate rows; leaves are the norm and go unbadged. System codes
+   (1110, 1210, 2110, 2210, 1160, 2250, 3200, 4910) show a lock chip. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}دليل الحسابات{% endblock %}
 {% block topbar_crumb %}
@@ -9,19 +10,13 @@
 {% endblock %}
 
 {% macro render_account(a, depth) %}
-  {% set is_root = a.parent_id is none %}
-  {% set is_agg  = not a.is_postable %}
-  {# Root aggregates render as a collapsible <details>; leaves render
-     as flat rows so the tree stays scannable. #}
   {% if a.children %}
-  <details class="rounded-xl {% if is_root %}bg-surface-container-low{% else %}bg-surface-container-lowest{% endif %} border border-outline-variant" {% if is_root %}open{% endif %}>
+  <details class="rounded-xl {% if a.parent_id is none %}bg-surface-container-low{% else %}bg-surface-container-lowest{% endif %} border border-outline-variant" {% if a.parent_id is none %}open{% endif %}>
     <summary class="p-space-sm cursor-pointer list-none flex items-center gap-space-sm">
-      <span class="material-symbols-outlined text-primary/60 transition-transform">expand_more</span>
+      <span class="material-symbols-outlined text-primary/60">expand_more</span>
       <code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ a.code }}</code>
       <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ a.name }}</span>
-      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
-        تجميعي
-      </span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">تجميعي</span>
       <span class="ms-auto font-label-md tabular-nums font-bold text-primary">{{ a.balance|round(2) }}</span>
     </summary>
     <div class="p-space-sm ps-space-lg flex flex-col gap-1">
@@ -34,32 +29,13 @@
   <div class="p-space-sm rounded-lg bg-surface-container-lowest border border-outline-variant/50 flex items-center gap-space-sm flex-wrap">
     <code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ a.code }}</code>
     <span class="font-label-lg text-label-lg text-on-surface">{{ a.name }}</span>
-    {% if a.is_postable %}
-    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
-      قابل للترحيل
-    </span>
-    {% else %}
-    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">تجميعي</span>
-    {% endif %}
-    {% if a.account_role %}
-    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold" dir="ltr">
-      {{ a.account_role }}
+    {% if a.code in system_codes %}
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold"
+          title="{{ system_codes[a.code] }}">
+      <span class="material-symbols-outlined text-xs">lock</span>حساب نظام — الكود ثابت
     </span>
     {% endif %}
-    {% if a.is_postable %}
-    <form method="post" action="{{ url_for('finance.account_set_role', account_id=a.id) }}" class="ms-auto flex items-center gap-1">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-      <select name="account_role"
-              class="h-8 px-2 rounded-lg bg-surface-container-low font-label-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
-        <option value="">— بدون دور افتراضي —</option>
-        {% for key, label in account_roles %}
-        <option value="{{ key }}" {% if a.account_role == key %}selected{% endif %}>{{ label }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="h-8 px-2 rounded-lg bg-primary text-on-primary font-label-xs font-bold">حفظ</button>
-    </form>
-    {% endif %}
-    <span class="font-label-md tabular-nums font-bold text-on-surface">{{ a.balance|round(2) }}</span>
+    <span class="ms-auto font-label-md tabular-nums font-bold text-on-surface">{{ a.balance|round(2) }}</span>
   </div>
   {% endif %}
 {% endmacro %}
@@ -67,25 +43,16 @@
 {% block page_content %}
 <div class="flex flex-col w-full gap-space-md">
   <div class="flex items-center justify-between flex-wrap gap-space-md">
-    <div>
+    <div class="flex items-center gap-space-sm">
       <h1 class="font-headline-lg text-headline-lg text-primary">شجرة دليل الحسابات</h1>
-      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
-        {{ accounts|length }} حساب — {{ (accounts|selectattr('is_postable')|list)|length }} منهم قابل للترحيل
-      </p>
+      <span title="الحسابات التجميعية للأرصدة فقط. الحسابات الفرعية (المستوى 3) هي المتاحة للترحيل في الفواتير والمصروفات."
+            class="material-symbols-outlined text-primary/60 cursor-help">info</span>
     </div>
     <a href="{{ url_for('finance.account_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
       <span class="material-symbols-outlined text-xl">account_tree</span><span>حساب جديد</span>
     </a>
-  </div>
-
-  <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-3">
-    <span class="material-symbols-outlined">info</span>
-    <div class="font-body-md">
-      الحسابات <b>التجميعية</b> (المستوى 1 و 2) لعرض الأرصدة فقط — لا يمكن الترحيل عليها.
-      الحسابات <b>القابلة للترحيل</b> (المستوى 3) هي وحدها المتاحة في الفواتير والدفعات والقيود اليدوية.
-    </div>
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">

@@ -1,0 +1,54 @@
+{% extends "partials/stitch_base.html" %}
+{% from "finance/_report_shell.html" import filter_form %}
+{% block title %}أعمار الديون{% endblock %}
+{% block topbar_crumb %}
+  <a href="{{ url_for('finance.reports_index') }}" class="hover:text-primary">التقارير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">أعمار الديون</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <h1 class="font-headline-md text-primary">أعمار الديون</h1>
+  {{ filter_form('finance.report_aging', at=at) }}
+  
+<section class="grid grid-cols-2 md:grid-cols-5 gap-space-md">
+  {% for k, label, color in [
+       ('current', 'حالية', '#10B981'),
+       ('d30', '1-30 يوم', '#F59E0B'),
+       ('d60', '31-60', '#F97316'),
+       ('d90', '61-90', '#EF4444'),
+       ('d90p', 'أكثر من 90', '#7F1D1D'),
+     ] %}
+  <div class="p-space-md rounded-xl text-on-primary shadow-md" style="background:{{ color }}">
+    <p class="font-label-md opacity-90">{{ label }}</p>
+    <p class="font-headline-md tabular-nums font-bold mt-1">{{ data.buckets[k]|round(2) }}</p>
+  </div>
+  {% endfor %}
+</section>
+<section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm mt-space-md">
+  <table class="min-w-full">
+    <thead class="bg-surface-container-high">
+      <tr class="text-right">
+        <th class="px-3 py-2 font-label-md text-primary">الفاتورة</th>
+        <th class="px-3 py-2 font-label-md text-primary">الطالب</th>
+        <th class="px-3 py-2 font-label-md text-primary">الاستحقاق</th>
+        <th class="px-3 py-2 font-label-md text-primary">التأخير</th>
+        <th class="px-3 py-2 font-label-md text-primary text-left">المتبقّي</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in data.invoices[:200] %}
+      <tr class="border-t border-outline-variant">
+        <td class="px-3 py-2 font-mono" dir="ltr">{{ r.number }}</td>
+        <td class="px-3 py-2">{{ r.student }}</td>
+        <td class="px-3 py-2 tabular-nums" dir="ltr">{{ r.due_date }}</td>
+        <td class="px-3 py-2 tabular-nums">{{ r.days_overdue }} يوم</td>
+        <td class="px-3 py-2 text-left tabular-nums font-bold">{{ r.remaining|round(2) }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+
+</div>
+{% endblock %}
