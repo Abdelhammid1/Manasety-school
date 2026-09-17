@@ -46,7 +46,9 @@
       <tbody>
         {% for r in rooms %}
         <tr class="border-t border-outline-variant">
-          <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ r.name }}</td>
+          <td class="px-4 py-3 font-label-lg text-primary font-bold">
+            <a href="{{ url_for('platform.room_detail', room_id=r.id) }}" class="hover:underline">{{ r.name }}</a>
+          </td>
           <td class="px-4 py-3 font-label-md text-outline" dir="ltr">{{ r.code or '—' }}</td>
           <td class="px-4 py-3 font-label-md">{{ type_labels.get(r.room_type, r.room_type) }}</td>
           <td class="px-4 py-3 text-center tabular-nums">{{ r.capacity or '—' }}</td>

@@ -370,20 +370,25 @@ def seed():
         db.session.flush()
 
         # ── Chart of accounts + fee types ───────────────────────────────
+        # Ticket B — reuse the shared 3-level tree; look up the postable
+        # leaves we need for demo invoices by code.
         print("Seeding chart of accounts + fee types...")
-        def add_acc(code, name, atype):
-            a = Account(school_id=school.id, code=code, name=name, type=atype, is_active=True, is_system=(atype in ("asset","revenue")))
-            db.session.add(a); db.session.flush()
-            return a
-        cash    = add_acc("1010","الصندوق النقدي","asset")
-        bank    = add_acc("1020","الحساب البنكي","asset")
-        ar      = add_acc("1100","ذمم الطلاب (AR)","asset")
-        rev_tut = add_acc("4100","إيرادات رسوم التعليم","revenue")
-        rev_bk  = add_acc("4200","إيرادات الكتب","revenue")
-        rev_bus = add_acc("4300","إيرادات النقل","revenue")
-        exp_sal = add_acc("5100","مصروف الرواتب","expense")
-        exp_ut  = add_acc("5200","مصروف المرافق","expense")
-        exp_mnt = add_acc("5300","مصروف الصيانة","expense")
+        from app.models.finance import ensure_default_chart
+        ensure_default_chart(school.id)
+        db.session.flush()
+
+        def _acc(code):
+            return Account.query.filter_by(school_id=school.id, code=code).first()
+
+        cash    = _acc("1110")   # الصندوق النقدي (cash_default)
+        bank    = _acc("1120")   # الحساب البنكي
+        ar      = _acc("1210")   # ذمم الطلاب (ar_default)
+        rev_tut = _acc("4110")   # رسوم دراسية سنوية (tuition_default)
+        rev_bk  = _acc("4210")   # رسوم كتب ومستلزمات
+        rev_bus = _acc("4220")   # رسوم نقل
+        exp_sal = _acc("5110")   # رواتب المعلمين (payroll_salary_default)
+        exp_ut  = _acc("5130")   # مصروف المرافق
+        exp_mnt = _acc("5140")   # مصروف الصيانة
 
         ft_tut = FeeType(school_id=school.id, name="رسوم دراسية سنوية", default_amount=Decimal("12000"), installable=True, revenue_account_id=rev_tut.id)
         ft_bk  = FeeType(school_id=school.id, name="رسوم الكتب",         default_amount=Decimal("650"),  installable=False, revenue_account_id=rev_bk.id)

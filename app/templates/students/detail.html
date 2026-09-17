@@ -13,6 +13,8 @@
 {% block page_content %}
 {% set active_e = None %}
 {% for e in student.enrollments %}{% if e.status == 'active' %}{% set active_e = e %}{% endif %}{% endfor %}
+{# Ticket C — post-enrollment CTA. `new_enrollment_id` comes from the
+   view; 0 when the URL didn't carry ?new_enrollment_id=… #}
 
 <div class="flex flex-col w-full gap-space-lg">
 
@@ -78,6 +80,34 @@
     </div>
   </section>
 
+  {# Ticket C — post-enrollment CTA. Shows on the redirect right after
+     /enroll succeeds. Optional — the admin can dismiss with the X button
+     or navigate away; the invoice form still works normally afterwards. #}
+  {% if new_enrollment_id > 0 %}
+  <section class="rounded-2xl p-space-lg shadow-md flex items-center gap-space-md flex-wrap"
+           style="background: linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%);">
+    <div class="w-12 h-12 rounded-xl bg-[#10B981] text-white flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-2xl">receipt_long</span>
+    </div>
+    <div class="flex-1 min-w-0">
+      <h2 class="font-title-md text-[#065F46] font-bold">تم تسجيل الطالب بنجاح</h2>
+      <p class="font-body-md text-[#065F46]/80 mt-1">
+        عايز تنشئ فاتورة الرسوم الدراسية دلوقتي؟ الطالب هيتظبط لك في الفورم أوتوماتيك.
+      </p>
+    </div>
+    <a href="{{ url_for('finance.invoice_new', enrollment_id=new_enrollment_id) }}"
+       class="h-11 px-5 rounded-xl text-white font-title-md font-bold flex items-center gap-2 shadow-sm"
+       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <span class="material-symbols-outlined">add_circle</span><span>إنشاء فاتورة الآن</span>
+    </a>
+    <a href="{{ url_for('students.student_detail', student_id=student.id) }}"
+       class="h-11 w-11 rounded-xl bg-white/60 text-[#065F46] flex items-center justify-center hover:bg-white"
+       title="تجاهل">
+      <span class="material-symbols-outlined">close</span>
+    </a>
+  </section>
+  {% endif %}
+
   <!-- Two-column layout -->
   <div class="grid grid-cols-1 lg:grid-cols-3 gap-space-lg">
     <div class="lg:col-span-2 flex flex-col gap-space-md">
@@ -103,25 +133,36 @@
         </div>
       </section>
 
-      <!-- Guardian card -->
+      {# Ticket #1 wiring — this card now reads from student.guardian_links
+         (source of truth) instead of the legacy parent_* columns. The
+         student_new/student_edit routes auto-upsert those links whenever
+         parent_name/mother_name are typed in, so both stay in sync. #}
+      {% set primary_link = (student.guardian_links | selectattr('is_primary') | first) or (student.guardian_links | first) %}
+      {% set mother_link = student.guardian_links | selectattr('relationship', 'equalto', 'أم') | first %}
       <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
         <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
           <span class="material-symbols-outlined">family_restroom</span>ولي الأمر
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md mt-space-md">
-          {% for label, val in [
-            ('اسم الأب / ولي الأمر', student.parent_name or '—'),
-            ('جوال الأب', student.parent_phone or '—'),
-            ('البريد الإلكتروني', student.parent_email or '—'),
-            ('اسم الأم', student.mother_name or '—'),
-            ('جوال الأم', student.mother_phone or '—')
+          {% for label, val, is_ltr in [
+            ('اسم ولي الأمر الأساسي', (primary_link.guardian.full_name if primary_link else (student.parent_name or '—')), false),
+            ('جوال ولي الأمر',         (primary_link.guardian.phone     if primary_link else (student.parent_phone or '—')), true),
+            ('البريد الإلكتروني',       (primary_link.guardian.email     if primary_link else (student.parent_email or '—')), true),
+            ('اسم الأم',              (mother_link.guardian.full_name  if mother_link  else (student.mother_name or '—')), false),
+            ('جوال الأم',             (mother_link.guardian.phone      if mother_link  else (student.mother_phone or '—')), true),
           ] %}
           <div class="flex flex-col">
             <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
-            <span class="font-body-md text-body-md text-on-surface font-semibold" {% if 'phone' in label|lower or 'email' in label|lower %}dir="ltr"{% endif %}>{{ val }}</span>
+            <span class="font-body-md text-body-md text-on-surface font-semibold" {% if is_ltr %}dir="ltr"{% endif %}>{{ val or '—' }}</span>
           </div>
           {% endfor %}
         </div>
+        {% if not primary_link %}
+        <p class="mt-space-md text-outline font-label-md">
+          <span class="material-symbols-outlined text-sm align-middle">info</span>
+          البيانات معروضة من الحقول القديمة — ادخل من "أولياء الأمور" واربط ولي أمر لتحديث المصدر.
+        </p>
+        {% endif %}
       </section>
 
       {# Ticket 1 — Guardians tab. Uses student.guardian_links (backfilled

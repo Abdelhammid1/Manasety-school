@@ -1,4 +1,6 @@
-{# Chart of accounts — Stitch _50. Grouped by type with running balance chip. #}
+{# Chart of accounts — hierarchical (3-level) tree view.
+   Postable leaves show a "تعيين كافتراضي…" role dropdown; aggregates
+   show their rolled-up balance instead.  Ticket A + B. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}دليل الحسابات{% endblock %}
 {% block topbar_crumb %}
@@ -6,21 +8,70 @@
   <span class="text-primary font-bold">دليل الحسابات</span>
 {% endblock %}
 
-{% block page_content %}
-{% set groups = {'asset':{'label':'الأصول','color':'#10B981','icon':'account_balance_wallet','items':[]},
-                 'liability':{'label':'الخصوم','color':'#EF4444','icon':'inventory_2','items':[]},
-                 'equity':{'label':'حقوق الملكية','color':'#0C2461','icon':'workspace_premium','items':[]},
-                 'revenue':{'label':'الإيرادات','color':'#0099CC','icon':'trending_up','items':[]},
-                 'expense':{'label':'المصروفات','color':'#F59E0B','icon':'trending_down','items':[]}} %}
-{% for a in accounts %}
-  {% if a.type in groups %}{% set _ = groups[a.type]['items'].append(a) %}{% endif %}
-{% endfor %}
+{% macro render_account(a, depth) %}
+  {% set is_root = a.parent_id is none %}
+  {% set is_agg  = not a.is_postable %}
+  {# Root aggregates render as a collapsible <details>; leaves render
+     as flat rows so the tree stays scannable. #}
+  {% if a.children %}
+  <details class="rounded-xl {% if is_root %}bg-surface-container-low{% else %}bg-surface-container-lowest{% endif %} border border-outline-variant" {% if is_root %}open{% endif %}>
+    <summary class="p-space-sm cursor-pointer list-none flex items-center gap-space-sm">
+      <span class="material-symbols-outlined text-primary/60 transition-transform">expand_more</span>
+      <code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ a.code }}</code>
+      <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ a.name }}</span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
+        تجميعي
+      </span>
+      <span class="ms-auto font-label-md tabular-nums font-bold text-primary">{{ a.balance|round(2) }}</span>
+    </summary>
+    <div class="p-space-sm ps-space-lg flex flex-col gap-1">
+      {% for child in a.children %}
+        {{ render_account(child, depth + 1) }}
+      {% endfor %}
+    </div>
+  </details>
+  {% else %}
+  <div class="p-space-sm rounded-lg bg-surface-container-lowest border border-outline-variant/50 flex items-center gap-space-sm flex-wrap">
+    <code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ a.code }}</code>
+    <span class="font-label-lg text-label-lg text-on-surface">{{ a.name }}</span>
+    {% if a.is_postable %}
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+      قابل للترحيل
+    </span>
+    {% else %}
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">تجميعي</span>
+    {% endif %}
+    {% if a.account_role %}
+    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold" dir="ltr">
+      {{ a.account_role }}
+    </span>
+    {% endif %}
+    {% if a.is_postable %}
+    <form method="post" action="{{ url_for('finance.account_set_role', account_id=a.id) }}" class="ms-auto flex items-center gap-1">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="account_role"
+              class="h-8 px-2 rounded-lg bg-surface-container-low font-label-xs focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— بدون دور افتراضي —</option>
+        {% for key, label in account_roles %}
+        <option value="{{ key }}" {% if a.account_role == key %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="h-8 px-2 rounded-lg bg-primary text-on-primary font-label-xs font-bold">حفظ</button>
+    </form>
+    {% endif %}
+    <span class="font-label-md tabular-nums font-bold text-on-surface">{{ a.balance|round(2) }}</span>
+  </div>
+  {% endif %}
+{% endmacro %}
 
+{% block page_content %}
 <div class="flex flex-col w-full gap-space-md">
   <div class="flex items-center justify-between flex-wrap gap-space-md">
     <div>
       <h1 class="font-headline-lg text-headline-lg text-primary">شجرة دليل الحسابات</h1>
-      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ accounts|length }} حساب</p>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {{ accounts|length }} حساب — {{ (accounts|selectattr('is_postable')|list)|length }} منهم قابل للترحيل
+      </p>
     </div>
     <a href="{{ url_for('finance.account_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
@@ -29,34 +80,18 @@
     </a>
   </div>
 
+  <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <div class="font-body-md">
+      الحسابات <b>التجميعية</b> (المستوى 1 و 2) لعرض الأرصدة فقط — لا يمكن الترحيل عليها.
+      الحسابات <b>القابلة للترحيل</b> (المستوى 3) هي وحدها المتاحة في الفواتير والدفعات والقيود اليدوية.
+    </div>
+  </div>
+
   <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
-    {% for key, grp in groups.items() %}
-    <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
-      <header class="p-space-md flex items-center justify-between border-b border-outline-variant" style="background: {{ grp.color }}15">
-        <div class="flex items-center gap-2">
-          <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white" style="background: {{ grp.color }}">
-            <span class="material-symbols-outlined">{{ grp.icon }}</span>
-          </div>
-          <h2 class="font-title-md text-title-md text-primary font-bold">{{ grp.label }}</h2>
-        </div>
-        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-white/60 font-label-md text-label-md font-bold text-primary">{{ grp['items']|length }}</span>
-      </header>
-      <ul class="divide-y divide-outline-variant">
-        {% for a in grp['items'] %}
-        <li class="p-space-sm flex items-center justify-between hover:bg-surface-container-low">
-          <div class="flex items-center gap-2">
-            <code class="font-mono text-label-md text-primary font-bold" dir="ltr">{{ a.code }}</code>
-            <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ a.name }}</span>
-            {% if a.parent %}<span class="font-label-xs text-label-xs text-outline">↰ {{ a.parent.name }}</span>{% endif %}
-          </div>
-          <span class="font-label-md text-label-md tabular-nums font-bold" style="color: {{ grp.color }}">
-            {{ a.balance|round(2) }}
-          </span>
-        </li>
-        {% else %}
-        <li class="p-space-md text-center text-on-surface-variant font-label-md">لا حسابات في هذه الفئة.</li>
-        {% endfor %}
-      </ul>
+    {% for a in roots %}
+    <section class="flex flex-col gap-space-sm">
+      {{ render_account(a, 0) }}
     </section>
     {% endfor %}
   </div>

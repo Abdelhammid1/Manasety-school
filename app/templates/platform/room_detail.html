@@ -1,0 +1,123 @@
+{# Ticket #7 (additional) — room-centric weekly schedule.
+   Rows = periods, columns = days. Each cell either shows the section +
+   subject + teacher currently booked on this room, or a compact form
+   that lets the admin book any (section, subject, teacher) triple
+   straight from here. Same conflict rules as the section-side editor. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}قاعة {{ room.name }} — الحجوزات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('platform.rooms_list') }}" class="hover:text-primary">القاعات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ room.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined">meeting_room</span>{{ room.name }}
+      </h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {% if room.code %}<span dir="ltr">{{ room.code }}</span> · {% endif %}
+        {{ room.room_type or 'classroom' }}
+        {% if room.capacity %} · سعة {{ room.capacity }}{% endif %}
+        {% if year %} · السنة: {{ year.name }}{% endif %}
+      </p>
+    </div>
+    <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
+                 {% if room.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+      {{ 'نشطة' if room.is_active else 'موقوفة' }}
+    </span>
+  </div>
+
+  {% if not year %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد سنة دراسية نشطة — لن تُعرض الحجوزات.</span>
+  </div>
+  {% elif not days or not periods %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد أيام/حصص معرّفة. أضفها من
+      <a href="{{ url_for('schedule.settings') }}" class="text-primary font-bold underline">إعدادات الجدول</a>.
+    </span>
+  </div>
+  {% endif %}
+
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr>
+            <th class="px-3 py-3 text-right font-label-lg text-primary sticky right-0 bg-surface-container-high z-10">الحصة</th>
+            {% for d in days %}
+            <th class="px-3 py-3 text-center font-label-lg text-primary">{{ d.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-3 sticky right-0 bg-surface-container-lowest z-10">
+              <div class="flex flex-col items-center">
+                <span class="font-label-lg text-label-lg text-primary font-bold">{{ p.name }}</span>
+                {% if p.start_time and p.end_time %}
+                <span class="font-label-xs text-outline" dir="ltr">{{ p.start_time.strftime('%H:%M') }} — {{ p.end_time.strftime('%H:%M') }}</span>
+                {% endif %}
+              </div>
+            </td>
+            {% for d in days %}
+            {% set slot = grid.get((d.id, p.id)) %}
+            <td class="p-2 align-top" style="min-width:180px">
+              {% if slot %}
+              <div class="p-3 rounded-lg bg-primary-container/10 border-2 border-primary/30 relative group">
+                <div class="font-label-md text-primary font-bold">
+                  {{ slot.section.grade.name }} / {{ slot.section.name }}
+                </div>
+                <div class="font-label-md text-secondary font-bold mt-1">{{ slot.subject.name }}</div>
+                <div class="font-label-xs text-on-surface-variant truncate">{{ slot.teacher.full_name }}</div>
+                <form method="post" action="{{ url_for('platform.room_slot_unbook', room_id=room.id, slot_id=slot.id) }}"
+                      onsubmit="return confirm('إلغاء حجز هذه القاعة على {{ slot.subject.name }} — {{ slot.section.grade.name }}/{{ slot.section.name }}؟\n\nالحصة نفسها هتفضل على جدول الشعبة، بس بدون قاعة.')"
+                      class="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="w-6 h-6 rounded-lg text-error hover:bg-error-container flex items-center justify-center" title="إلغاء الحجز">
+                    <span class="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </form>
+              </div>
+              {% else %}
+              <details class="rounded-lg border-2 border-dashed border-outline-variant hover:border-primary">
+                <summary class="p-3 cursor-pointer text-center text-outline hover:text-primary font-label-md list-none">
+                  <span class="material-symbols-outlined text-sm">add</span>
+                </summary>
+                <form method="post" action="{{ url_for('platform.room_slot_save', room_id=room.id) }}" class="p-2 flex flex-col gap-1">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="day_id" value="{{ d.id }}">
+                  <input type="hidden" name="period_id" value="{{ p.id }}">
+                  <select name="assignment_id" required
+                          class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <option value="">— اختر (الشعبة — المادة — المعلم) —</option>
+                    {% for a in assignments %}
+                    <option value="{{ a.id }}">
+                      {{ a.section.grade.name }}/{{ a.section.name }} — {{ a.subject.name }} — {{ a.teacher.full_name }}
+                    </option>
+                    {% endfor %}
+                  </select>
+                  <button type="submit" class="h-9 rounded-lg bg-primary text-on-primary font-label-md font-bold flex items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-sm">save</span><span>حجز</span>
+                  </button>
+                </form>
+              </details>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

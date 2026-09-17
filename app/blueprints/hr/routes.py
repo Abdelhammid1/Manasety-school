@@ -144,15 +144,24 @@ def payroll_new():
         Employee.query.filter_by(school_id=_sid(), is_active=True)
         .order_by(Employee.full_name).all()
     )
-    salary_account = Account.query.filter_by(school_id=_sid(), code="5100").first()
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset").order_by(Account.code).all()
+    # Ticket A — resolve salary expense via role, not hardcoded code.
+    salary_account = Account.query.filter_by(
+        school_id=_sid(), account_role="payroll_salary_default",
+    ).first()
+    cash_accounts = Account.query.filter_by(
+        school_id=_sid(), type="asset", is_postable=True,
+    ).order_by(Account.code).all()
 
     # Every FK on Payroll is NOT NULL. Empty dropdowns would 500 on POST.
     if not employees:
         flash("لا يوجد موظفون نشطون — أضف موظفاً قبل صرف الراتب.", "warning")
         return redirect(url_for("hr.employees_list"))
     if not salary_account:
-        flash("حساب مصروف الرواتب (5100) غير موجود في دليل الحسابات.", "danger")
+        flash(
+            "لا يوجد حساب مُعيَّن كـ «افتراضي رواتب المعلمين». افتح دليل "
+            "الحسابات وحدّد حساب مصروف الرواتب.",
+            "danger",
+        )
         return redirect(url_for("finance.accounts"))
     if not cash_accounts:
         flash("لا يوجد حساب نقدي (Asset) لصرف الراتب منه.", "danger")

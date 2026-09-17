@@ -80,6 +80,11 @@
               <div class="p-3 rounded-lg bg-primary-container/10 border-2 border-primary/30 relative group">
                 <div class="font-label-lg text-label-lg text-primary font-bold">{{ slot.subject.name }}</div>
                 <div class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ slot.teacher.full_name }}</div>
+                {% if slot.room %}
+                <div class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary-container/40 text-secondary font-label-xs">
+                  <span class="material-symbols-outlined text-xs">meeting_room</span>{{ slot.room.name }}
+                </div>
+                {% endif %}
                 <form method="post" action="{{ url_for('schedule.slot_delete', section_id=section.id, slot_id=slot.id) }}"
                       onsubmit="return confirm('حذف حصة {{ slot.subject.name }} ({{ d.name }} - {{ p.name }})؟')"
                       class="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -112,6 +117,15 @@
                       {% for t in entry.teachers %}
                     <option value="{{ t.id }}" data-subject="{{ sid }}">{{ t.full_name }}</option>
                       {% endfor %}
+                    {% endfor %}
+                  </select>
+                  {# Ticket #7 correction — optional room. Backend already
+                     honours room_id + does its own conflict check. #}
+                  <select name="room_id"
+                          class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md focus:outline-none focus:ring-2 focus:ring-primary/20">
+                    <option value="">— القاعة (اختياري) —</option>
+                    {% for r in rooms %}
+                    <option value="{{ r.id }}">{{ r.name }}{% if r.capacity %} · سعة {{ r.capacity }}{% endif %}</option>
                     {% endfor %}
                   </select>
                   <button type="submit" class="h-9 rounded-lg bg-primary text-on-primary font-label-md font-bold flex items-center justify-center gap-1">

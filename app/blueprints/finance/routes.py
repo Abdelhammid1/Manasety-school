@@ -31,25 +31,45 @@ def _get(model, oid):
     return obj
 
 
+def _role_account(role: str) -> Account:
+    """Ticket A — resolve a school's default account for a semantic role
+    (ar_default, cash_default, discount_default, payroll_salary_default …)
+    instead of looking up a hardcoded numeric code. The role is set on
+    the account row itself and is admin-editable, so schools that use a
+    different code numbering scheme still work."""
+    return Account.query.filter_by(
+        school_id=_sid(), account_role=role,
+    ).first()
+
+
 def _ar_account() -> Account:
-    return Account.query.filter_by(school_id=_sid(), code="1300").first()
+    return _role_account("ar_default")
 
 
 def _default_cash_account() -> Account:
-    return Account.query.filter_by(school_id=_sid(), code="1100").first()
+    return _role_account("cash_default")
 
 
 def _discount_account() -> Account:
-    """Ticket #17 — account 4900 for خصومات وتخفيضات. Falls back to the
-    first revenue-typed account so a school without a dedicated 4900
-    still gets its invoice booked correctly."""
-    return (
-        Account.query.filter_by(school_id=_sid(), code="4900").first()
-        or Account.query.filter_by(school_id=_sid(), code="4901").first()
-    )
+    """Ticket #17 — sibling-discount / scholarship line lives on the
+    Contra-Revenue leaf tagged with role=discount_default."""
+    return _role_account("discount_default")
 
 
 # ---------- T-8.1 Chart of accounts ----------
+
+# Ticket A — semantic account-role catalogue. Rendered as a dropdown on
+# each account row so the admin can pin the school's defaults without
+# touching the code.
+ACCOUNT_ROLES = [
+    ("ar_default",             "ذمم مدينة — افتراضي (Accounts Receivable)"),
+    ("cash_default",           "النقدية — افتراضي"),
+    ("discount_default",       "خصومات — افتراضي"),
+    ("payroll_salary_default", "رواتب المعلمين — افتراضي"),
+    ("tuition_default",        "إيرادات رسوم دراسية — افتراضي"),
+    ("ap_default",             "ذمم دائنة — افتراضي (Accounts Payable)"),
+]
+
 
 @bp.route("/accounts")
 @login_required
@@ -59,21 +79,65 @@ def accounts():
         Account.query.filter_by(school_id=_sid())
         .order_by(Account.code).all()
     )
-    return render_template("finance/accounts.html", accounts=items)
+    roots = [a for a in items if a.parent_id is None]
+    return render_template(
+        "finance/accounts.html",
+        accounts=items, roots=roots, account_roles=ACCOUNT_ROLES,
+    )
+
+
+@bp.route("/accounts/<int:account_id>/role", methods=["POST"])
+@login_required
+@require_permission("finance", "edit")
+def account_set_role(account_id):
+    """Ticket A — pin a semantic role (ar_default, cash_default, …) on
+    a postable account. Enforces the (school_id, account_role) UNIQUE:
+    clearing any prior owner in the same school before applying."""
+    acc = Account.query.filter_by(id=account_id, school_id=_sid()).first_or_404()
+    role = (request.form.get("account_role") or "").strip() or None
+    if role and not acc.is_postable:
+        flash(
+            "لا يمكن تعيين دور افتراضي على حساب تجميعي — اختر حساباً فرعياً (مستوى 3).",
+            "danger",
+        )
+        return redirect(url_for("finance.accounts"))
+    if role and role not in {k for k, _ in ACCOUNT_ROLES}:
+        flash("دور غير معروف.", "danger")
+        return redirect(url_for("finance.accounts"))
+    if role:
+        prior = Account.query.filter_by(
+            school_id=_sid(), account_role=role,
+        ).filter(Account.id != acc.id).first()
+        if prior:
+            prior.account_role = None
+    acc.account_role = role
+    db.session.commit()
+    flash("تم تحديث الدور الافتراضي للحساب.", "success")
+    return redirect(url_for("finance.accounts"))
 
 
 @bp.route("/accounts/new", methods=["GET", "POST"])
 @login_required
 @require_permission("finance", "edit")
 def account_new():
-    parents = Account.query.filter_by(school_id=_sid()).order_by(Account.code).all()
+    # Ticket B — parents dropdown only lists aggregate accounts
+    # (is_postable=False); a postable leaf can never be a parent.
+    parents = (
+        Account.query.filter_by(school_id=_sid(), is_postable=False)
+        .order_by(Account.code).all()
+    )
     if request.method == "POST":
+        parent_id = int(request.form["parent_id"]) if request.form.get("parent_id") else None
+        # Row directly under a root (Level 1) → aggregate.
+        # Row under a Level-2 aggregate → postable Level-3 leaf.
+        parent = Account.query.get(parent_id) if parent_id else None
+        is_postable = bool(parent and parent.parent_id is not None)
         a = Account(
             school_id=_sid(),
             code=request.form["code"].strip(),
             name=request.form["name"].strip(),
             type=request.form["type"],
-            parent_id=int(request.form["parent_id"]) if request.form.get("parent_id") else None,
+            parent_id=parent_id, is_postable=is_postable,
         )
         db.session.add(a)
         db.session.commit()
@@ -252,6 +316,12 @@ def invoice_new():
         flash("لا يوجد أنواع رسوم مفعّلة — أضف نوع رسم واحد على الأقل.", "warning")
         return redirect(url_for("finance.fee_types"))
 
+    # Ticket C — pre-select the enrollment when the CTA on the student
+    # detail / enroll flow passed ?enrollment_id=…
+    preselect_id = request.args.get("enrollment_id", type=int)
+    if preselect_id and preselect_id not in [e.id for e in enrollments]:
+        preselect_id = None
+
     if request.method == "POST":
         enrollment_id = request.form.get("enrollment_id", type=int)
         if enrollment_id not in [e.id for e in enrollments]:
@@ -377,7 +447,8 @@ def invoice_new():
         return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
     return render_template(
-        "finance/invoice_form.html", year=year, enrollments=enrollments, fee_types=fee_types,
+        "finance/invoice_form.html", year=year, enrollments=enrollments,
+        fee_types=fee_types, preselect_enrollment_id=preselect_id,
     )
 
 
@@ -386,7 +457,7 @@ def invoice_new():
 @require_permission("finance", "view")
 def invoice_detail(invoice_id):
     inv = _get(Invoice, invoice_id)
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset").order_by(Account.code).all()
+    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True).order_by(Account.code).all()
     return render_template("finance/invoice_detail.html", inv=inv, cash_accounts=cash_accounts)
 
 
@@ -657,8 +728,8 @@ def expenses_list():
 @require_permission("expenses", "edit")
 def expense_new():
     vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
-    exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense").order_by(Account.code).all()
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset").order_by(Account.code).all()
+    exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense", is_postable=True).order_by(Account.code).all()
+    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True).order_by(Account.code).all()
     if request.method == "POST":
         amount = Decimal(request.form["amount"])
         d = _parse_date(request.form.get("date")) or date.today()
@@ -706,8 +777,8 @@ def expense_edit(exp_id):
     Expense row's identity."""
     e = _get(Expense, exp_id)
     vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
-    exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense").order_by(Account.code).all()
-    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset").order_by(Account.code).all()
+    exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense", is_postable=True).order_by(Account.code).all()
+    cash_accounts = Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True).order_by(Account.code).all()
 
     if request.method == "POST":
         amount = Decimal(request.form["amount"])

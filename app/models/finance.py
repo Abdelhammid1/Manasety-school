@@ -18,21 +18,139 @@ class Account(db.Model):
     parent_id = db.Column(db.Integer, db.ForeignKey("accounts.id"))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_system = db.Column(db.Boolean, default=False, nullable=False)
+    # Ticket B — Level-1/Level-2 rows are containers (is_postable=False),
+    # only Level-3 leaves accept journal lines. Enforced by post_journal.
+    is_postable = db.Column(db.Boolean, default=True, nullable=False)
+    # Ticket A — semantic role that pins this account as the default for
+    # a specific operation (AR upserts, cash-received default, sibling
+    # discount, payroll-salary default…). Only meaningful on postable
+    # rows. UNIQUE per (school_id, role) — checked by DB constraint.
+    account_role = db.Column(db.String(32), nullable=True, index=True)
 
     parent = db.relationship("Account", remote_side=[id], backref="children")
 
     __table_args__ = (
         db.UniqueConstraint("school_id", "code", name="uq_account_school_code"),
+        db.UniqueConstraint("school_id", "account_role", name="uq_account_school_role"),
     )
 
     @property
     def balance(self) -> float:
+        """Ticket B — an aggregate (is_postable=False) account rolls up
+        its children's balances instead of running its own SUM(JournalLine).
+        Postable leaves keep the old behaviour: DR/CR side by account type.
+        """
+        if not self.is_postable and self.children:
+            return float(sum(c.balance for c in self.children))
         from sqlalchemy import func
         d = db.session.query(func.coalesce(func.sum(JournalLine.debit), 0)).filter_by(account_id=self.id).scalar() or 0
         c = db.session.query(func.coalesce(func.sum(JournalLine.credit), 0)).filter_by(account_id=self.id).scalar() or 0
         if self.type in ("asset", "expense"):
             return float(d) - float(c)
         return float(c) - float(d)
+
+
+# ─── Ticket B — default 3-level chart of accounts ────────────────────
+#
+# Each row: (code, name, type, parent_code, is_postable, account_role)
+# Level 1 (no parent)      → is_postable=False, no role
+# Level 2 (parent = L1)    → is_postable=False, no role
+# Level 3 (parent = L2)    → is_postable=True, optional role
+#
+# Referenced by both migration 0021 (existing-school reshape) and
+# seed.py (new-school bootstrap) so there's exactly one source of truth.
+
+DEFAULT_ACCOUNT_TREE = [
+    # ── 1000 الأصول ──
+    ("1000", "الأصول", "asset", None, False, None),
+    ("1100", "النقدية وما في حكمها", "asset", "1000", False, None),
+    ("1110", "الصندوق النقدي", "asset", "1100", True, "cash_default"),
+    ("1120", "الحساب البنكي", "asset", "1100", True, None),
+    ("1200", "ذمم مدينة", "asset", "1000", False, None),
+    ("1210", "ذمم الطلاب (AR)", "asset", "1200", True, "ar_default"),
+    ("1300", "مصروفات مقدّمة", "asset", "1000", False, None),
+    ("1310", "إيجارات مقدّمة", "asset", "1300", True, None),
+    ("1320", "تأمينات مستردة", "asset", "1300", True, None),
+    ("1400", "أصول ثابتة", "asset", "1000", False, None),
+    ("1410", "أثاث ومعدات", "asset", "1400", True, None),
+    ("1420", "أجهزة حاسوب وتقنية", "asset", "1400", True, None),
+    ("1430", "مبانٍ وتحسينات", "asset", "1400", True, None),
+    ("1500", "مجمّع الإهلاك", "asset", "1000", False, None),
+    ("1510", "مجمّع إهلاك الأصول الثابتة", "asset", "1500", True, None),
+    # ── 2000 الخصوم ──
+    ("2000", "الخصوم", "liability", None, False, None),
+    ("2100", "ذمم دائنة", "liability", "2000", False, None),
+    ("2110", "ذمم الموردين (AP)", "liability", "2100", True, "ap_default"),
+    ("2200", "مصروفات مستحقة", "liability", "2000", False, None),
+    ("2210", "رواتب مستحقة", "liability", "2200", True, None),
+    ("2220", "إيجار مستحق", "liability", "2200", True, None),
+    ("2230", "مرافق مستحقة (كهرباء/مياه/إنترنت)", "liability", "2200", True, None),
+    ("2240", "ضرائب مستحقة", "liability", "2200", True, None),
+    ("2300", "دفعات مقدّمة من أولياء الأمور", "liability", "2000", False, None),
+    ("2310", "دفعات مقدّمة — رسوم دراسية", "liability", "2300", True, None),
+    # ── 3000 حقوق الملكية ──
+    ("3000", "حقوق الملكية", "equity", None, False, None),
+    ("3100", "رأس المال", "equity", "3000", True, None),
+    ("3200", "أرباح/خسائر مرحّلة", "equity", "3000", True, None),
+    # ── 4000 الإيرادات ──
+    ("4000", "الإيرادات", "revenue", None, False, None),
+    ("4100", "إيرادات رسوم دراسية", "revenue", "4000", False, None),
+    ("4110", "رسوم دراسية سنوية", "revenue", "4100", True, "tuition_default"),
+    ("4120", "رسوم دراسية فصلية", "revenue", "4100", True, None),
+    ("4200", "إيرادات رسوم إضافية", "revenue", "4000", False, None),
+    ("4210", "رسوم كتب ومستلزمات", "revenue", "4200", True, None),
+    ("4220", "رسوم نقل", "revenue", "4200", True, None),
+    ("4230", "رسوم أنشطة إضافية", "revenue", "4200", True, None),
+    ("4900", "خصومات وتخفيضات (Contra-Revenue)", "revenue", "4000", False, None),
+    ("4910", "خصم إخوة", "revenue", "4900", True, "discount_default"),
+    ("4920", "منح دراسية", "revenue", "4900", True, None),
+    # ── 5000 المصروفات ──
+    ("5000", "المصروفات", "expense", None, False, None),
+    ("5100", "المصروفات التشغيلية", "expense", "5000", False, None),
+    ("5110", "رواتب المعلمين", "expense", "5100", True, "payroll_salary_default"),
+    ("5120", "رواتب الإداريين", "expense", "5100", True, None),
+    ("5130", "مصروف المرافق", "expense", "5100", True, None),
+    ("5140", "مصروف الصيانة", "expense", "5100", True, None),
+    ("5150", "مصروف القرطاسية والمستلزمات", "expense", "5100", True, None),
+    ("5160", "مصروف النقل والمواصلات", "expense", "5100", True, None),
+    ("5200", "مصروفات أخرى", "expense", "5000", False, None),
+    ("5210", "مصروفات متنوعة", "expense", "5200", True, None),
+]
+
+
+def ensure_default_chart(school_id: int) -> None:
+    """Idempotently populate the 3-level chart for a given school.
+
+    Called from seed.py on bootstrap AND from the migration when a school
+    has no accounts yet (fresh install). Existing rows are left alone so
+    running twice is safe; only missing codes are inserted."""
+    for code, name, type_, parent_code, is_postable, role in DEFAULT_ACCOUNT_TREE:
+        row = Account.query.filter_by(school_id=school_id, code=code).first()
+        parent_id = None
+        if parent_code:
+            parent = Account.query.filter_by(school_id=school_id, code=parent_code).first()
+            parent_id = parent.id if parent else None
+        if row is None:
+            db.session.add(Account(
+                school_id=school_id, code=code, name=name, type=type_,
+                parent_id=parent_id, is_postable=is_postable, account_role=role,
+                is_system=True,
+            ))
+        else:
+            # Refresh non-destructive fields on system accounts so shape
+            # upgrades roll forward cleanly. Never overwrite a role that
+            # a different account already owns.
+            row.name = row.name or name
+            if row.parent_id is None and parent_id:
+                row.parent_id = parent_id
+            row.is_postable = is_postable
+            if role and row.account_role is None:
+                conflict = Account.query.filter_by(
+                    school_id=school_id, account_role=role,
+                ).first()
+                if conflict is None:
+                    row.account_role = role
+    db.session.flush()
 
 
 class JournalEntry(db.Model):

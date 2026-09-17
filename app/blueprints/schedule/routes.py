@@ -8,7 +8,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import (
-    AcademicYear, Assignment, Day, Grade, Period, ScheduleSlot,
+    AcademicYear, Assignment, Day, Grade, Period, Room, ScheduleSlot,
     Section, Subject, Teacher,
 )
 
@@ -146,10 +146,16 @@ def section_schedule(section_id):
             year_id=year.id, section_id=section.id, is_active=True
         ).all()
     )
+    # Ticket #7 correction — surface active rooms so the slot form can
+    # offer a room dropdown (backend already accepts room_id).
+    rooms = (
+        Room.query.filter_by(school_id=_sid(), is_active=True)
+        .order_by(Room.name).all()
+    )
     return render_template(
         "schedule/section.html",
         section=section, year=year, days=days, periods=periods,
-        grid=grid, assignments=assignments,
+        grid=grid, assignments=assignments, rooms=rooms,
     )
 
 

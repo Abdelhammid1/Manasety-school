@@ -32,6 +32,21 @@ def post_journal(
     if total_d == 0:
         raise ValueError("Cannot post an empty journal entry")
 
+    # Ticket B — aggregate rows never accept a journal line. Bounce
+    # every posting to a leaf, with a message pointing at the offender.
+    from ..models import Account
+    account_ids = {aid for aid, _, _, _ in lines}
+    if account_ids:
+        aggregates = Account.query.filter(
+            Account.id.in_(account_ids), Account.is_postable.is_(False),
+        ).all()
+        if aggregates:
+            names = "، ".join(f"{a.code} — {a.name}" for a in aggregates)
+            raise ValueError(
+                f"لا يمكن الترحيل على حساب تجميعي: {names}. "
+                "اختر حساباً فرعياً (مستوى 3) قابل للترحيل."
+            )
+
     entry = JournalEntry(
         school_id=school_id,
         entry_date=entry_date,

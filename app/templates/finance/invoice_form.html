@@ -29,7 +29,9 @@
                   class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
             <option value="">— اختر —</option>
             {% for e in enrollments %}
-            <option value="{{ e.id }}">{{ e.student.full_name }} — {{ e.section.grade.name }} / {{ e.section.name }}</option>
+            <option value="{{ e.id }}" {% if preselect_enrollment_id == e.id %}selected{% endif %}>
+              {{ e.student.full_name }} — {{ e.section.grade.name }} / {{ e.section.name }}
+            </option>
             {% endfor %}
           </select>
         </div>

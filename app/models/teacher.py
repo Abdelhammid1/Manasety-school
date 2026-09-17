@@ -158,6 +158,9 @@ class ScheduleSlot(db.Model):
     period = db.relationship("Period")
     subject = db.relationship("Subject")
     teacher = db.relationship("Teacher")
+    # Ticket #7 correction — surface the room on the slot template so we
+    # can show "meeting_room: القاعة" beside the subject/teacher pair.
+    room = db.relationship("Room")
 
     __table_args__ = (
         db.UniqueConstraint(

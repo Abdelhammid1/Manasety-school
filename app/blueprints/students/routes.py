@@ -49,6 +49,85 @@ def _next_permanent_code() -> str:
     return f"{prefix}{max_n + 1:05d}"
 
 
+def _upsert_guardian_link(student, name, phone, *, relationship, is_primary):
+    """Ticket #1 — keep student.parent_*/mother_* fields in sync with
+    real Guardian rows.
+
+    Looks up an existing Guardian in this school by phone (same rule
+    the Guardian tab uses), creates one if none matches. Then ensures
+    an active StudentGuardian link exists — updating relationship/
+    is_primary on an existing link if needed. No-op when both name and
+    phone are empty.
+
+    Returns the Guardian row (or None if nothing was written).
+    """
+    from ...models import Guardian, StudentGuardian
+    name = (name or "").strip() or None
+    phone = (phone or "").strip() or None
+    if not name and not phone:
+        return None
+    sid = student.school_id
+
+    guardian = None
+    if phone:
+        guardian = Guardian.query.filter_by(school_id=sid, phone=phone).first()
+    if guardian is None and name:
+        # Same-school same-name fallback so parents typed in twice with
+        # no phone don't get duplicated. Matches backfill script's rule.
+        guardian = Guardian.query.filter_by(school_id=sid, full_name=name).first()
+    if guardian is None:
+        if not name:
+            # We won't create a phone-only Guardian without a name; the
+            # form's parent_name field is what carries it. Fall through
+            # silently to preserve backwards-compat for edits that only
+            # supply a phone.
+            return None
+        guardian = Guardian(school_id=sid, full_name=name, phone=phone)
+        db.session.add(guardian); db.session.flush()
+    else:
+        # Merge fresh info onto the existing Guardian (name upgrade,
+        # phone fill-in) without stomping non-empty values.
+        if name and not guardian.full_name:
+            guardian.full_name = name
+        if phone and not guardian.phone:
+            guardian.phone = phone
+
+    link = StudentGuardian.query.filter_by(
+        student_id=student.id, guardian_id=guardian.id,
+    ).first()
+    if link is None:
+        db.session.add(StudentGuardian(
+            student_id=student.id, guardian_id=guardian.id,
+            relationship=relationship, is_primary=is_primary,
+            can_receive_notifications=True,
+        ))
+    else:
+        # Only promote to primary if we're syncing the "father" record
+        # and no other link is primary yet; never demote an existing
+        # primary picked from the Guardians tab.
+        if is_primary and not any(
+            l.is_primary for l in student.guardian_links if l.id != link.id
+        ):
+            link.is_primary = True
+        if relationship and not link.relationship:
+            link.relationship = relationship
+    return guardian
+
+
+def _sync_student_guardians(student):
+    """Ticket #1 wiring — call after any student write that touched
+    parent_*/mother_* fields. Bridges the legacy flat fields with the
+    Guardian entity so the two never drift apart."""
+    _upsert_guardian_link(
+        student, student.parent_name, student.parent_phone,
+        relationship="أب", is_primary=True,
+    )
+    _upsert_guardian_link(
+        student, student.mother_name, student.mother_phone,
+        relationship="أم", is_primary=False,
+    )
+
+
 def _get(model, oid):
     obj = model.query.filter_by(id=oid, school_id=_sid()).first()
     if not obj:
@@ -142,6 +221,11 @@ def student_new():
                 notes=(request.form.get("notes") or "").strip() or None,
             )
             db.session.add(student)
+            db.session.flush()
+            # Ticket #1 — write to Guardian entity in the same transaction
+            # so the legacy parent_* fields and the new Guardian rows
+            # never drift out of sync.
+            _sync_student_guardians(student)
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -180,12 +264,16 @@ def student_detail(student_id):
             fin_totals["invoiced"] += float(inv.total_amount)
             fin_totals["paid"] += float(inv.paid_amount)
             fin_totals["remaining"] += float(inv.remaining)
+    # Ticket C — pass the CTA-trigger through as a plain int so the
+    # template doesn't need Jinja's int filter.
+    new_enrollment_id = request.args.get("new_enrollment_id", type=int) or 0
     return render_template(
         "students/detail.html",
         student=student,
         active_year=year,
         has_active_enrollment=has_active_enrollment,
         invoices=invoices, fin_totals=fin_totals,
+        new_enrollment_id=new_enrollment_id,
     )
 
 
@@ -315,6 +403,8 @@ def student_edit(student_id):
         student.mother_phone = (request.form.get("mother_phone") or "").strip() or None
         student.address = (request.form.get("address") or "").strip() or None
         student.notes = (request.form.get("notes") or "").strip() or None
+        # Ticket #1 — same guardian sync as student_new.
+        _sync_student_guardians(student)
         db.session.commit()
         flash("تم تحديث ملف الطالب.", "success")
         return redirect(url_for("students.student_detail", student_id=student.id))
@@ -375,11 +465,19 @@ def enroll(student_id):
         )
         db.session.add(enrollment)
         db.session.commit()
+        # Ticket C — land on the student detail page and surface an
+        # explicit "Create invoice now" CTA scoped to this enrollment.
+        # The flag is read by students/detail.html; the invoice_new
+        # route reads ?enrollment_id=… to pre-select the dropdown.
         flash(
-            f"تم قيد الطالب {student.full_name} في {section.grade.name} / {section.name}.",
+            f"تم قيد الطالب {student.full_name} في {section.grade.name} / {section.name}. "
+            "تقدر تنشئ فاتورة الرسوم لسنة القيد دلوقتي.",
             "success",
         )
-        return redirect(url_for("students.student_detail", student_id=student.id))
+        return redirect(url_for(
+            "students.student_detail",
+            student_id=student.id, new_enrollment_id=enrollment.id,
+        ))
 
     return render_template(
         "students/enroll.html", student=student, year=year, sections=sections, grades=grades

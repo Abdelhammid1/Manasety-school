@@ -28,26 +28,11 @@ from app.models import (
 from app.models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
 
 
-DEFAULT_ACCOUNTS = [
-    # (code, name, type, parent_code, is_system)
-    ("1000", "الأصول", "asset", None, True),
-    ("1100", "النقدية", "asset", "1000", True),
-    ("1200", "البنك", "asset", "1000", True),
-    ("1300", "ذمم الطلاب (مدينة)", "asset", "1000", True),
-    ("2000", "الخصوم", "liability", None, True),
-    ("2100", "ذمم الموردين (دائنة)", "liability", "2000", True),
-    ("3000", "حقوق الملكية", "equity", None, True),
-    ("3100", "رأس المال", "equity", "3000", True),
-    ("4000", "الإيرادات", "revenue", None, True),
-    ("4100", "إيرادات رسوم تعليمية", "revenue", "4000", True),
-    ("4200", "إيرادات رسوم مواصلات", "revenue", "4000", True),
-    ("4900", "إيرادات أخرى", "revenue", "4000", True),
-    ("5000", "المصروفات", "expense", None, True),
-    ("5100", "رواتب الموظفين", "expense", "5000", True),
-    ("5200", "الإيجار والمرافق", "expense", "5000", True),
-    ("5300", "الصيانة والمستلزمات", "expense", "5000", True),
-    ("5900", "مصروفات أخرى", "expense", "5000", True),
-]
+# Ticket B — the default chart of accounts is now a 3-level tree owned
+# by app.models.finance. Kept there as a single source of truth so
+# migration 0021 (existing-school reshape) and this seed (new-school
+# bootstrap) can never drift apart.
+from app.models.finance import ensure_default_chart
 
 
 DEFAULT_ROLES = [
@@ -105,20 +90,11 @@ def run():
                 print(f"✓ Created role: {name_ar}")
         db.session.commit()
 
-        for code, name, type_, parent_code, is_system in DEFAULT_ACCOUNTS:
-            existing = Account.query.filter_by(school_id=school.id, code=code).first()
-            if existing:
-                continue
-            parent = None
-            if parent_code:
-                parent = Account.query.filter_by(school_id=school.id, code=parent_code).first()
-            a = Account(
-                school_id=school.id, code=code, name=name, type=type_,
-                parent_id=parent.id if parent else None, is_system=is_system,
-            )
-            db.session.add(a)
-            print(f"✓ Created account: {code} {name}")
+        # Ticket B — hand chart-of-accounts creation to the shared
+        # helper. Idempotent; sets is_postable + account_role correctly.
+        ensure_default_chart(school.id)
         db.session.commit()
+        print(f"✓ Ensured default 3-level chart of accounts for {school.name}")
 
         admin_role = Role.query.filter_by(school_id=school.id, name="admin").first()
         admin = User.query.filter_by(school_id=school.id, username="admin").first()
