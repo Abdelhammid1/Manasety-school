@@ -29,13 +29,19 @@
           <span class="material-symbols-outlined">storefront</span>
         </div>
         <div class="flex flex-col min-w-0 flex-1">
-          <span class="font-title-md text-title-md text-primary font-bold truncate">{{ v.name }}</span>
+          <a href="{{ url_for('finance.vendor_detail', vendor_id=v.id) }}"
+             class="font-title-md text-title-md text-primary font-bold truncate hover:underline">{{ v.name }}</a>
           {% if v.phone %}<span class="font-label-md text-label-md text-outline" dir="ltr">{{ v.phone }}</span>{% endif %}
           {% if v.email %}<span class="font-label-xs text-label-xs text-outline truncate" dir="ltr">{{ v.email }}</span>{% endif %}
+          {% if v.tax_number %}<span class="font-label-xs text-outline" dir="ltr">TAX: {{ v.tax_number }}</span>{% endif %}
           {% if v.address %}<span class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ v.address }}</span>{% endif %}
         </div>
       </div>
       <div class="mt-space-md flex items-center gap-2">
+        <a href="{{ url_for('finance.vendor_detail', vendor_id=v.id) }}"
+           class="flex-1 h-9 rounded-lg bg-primary-fixed text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-primary-container/40">
+          <span class="material-symbols-outlined text-sm">receipt_long</span><span>كشف حساب</span>
+        </a>
         <a href="{{ url_for('finance.vendor_edit', vendor_id=v.id) }}"
            class="flex-1 h-9 rounded-lg bg-surface-container-low text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-surface-container">
           <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>

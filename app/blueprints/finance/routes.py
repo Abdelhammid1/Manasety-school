@@ -68,6 +68,9 @@ ACCOUNT_ROLES = [
     ("payroll_salary_default", "رواتب المعلمين — افتراضي"),
     ("tuition_default",        "إيرادات رسوم دراسية — افتراضي"),
     ("ap_default",             "ذمم دائنة — افتراضي (Accounts Payable)"),
+    ("vat_payable_default",    "ضريبة القيمة المضافة المستحقة"),
+    ("employee_advance_default", "سلف الموظفين — افتراضي"),
+    ("retained_earnings_default", "أرباح/خسائر مرحّلة (لإقفال السنة)"),
 ]
 
 
@@ -204,6 +207,7 @@ def fee_type_new():
             name=name,
             default_amount=Decimal(request.form.get("default_amount") or "0"),
             installable=bool(request.form.get("installable")),
+            is_taxable=bool(request.form.get("is_taxable")),
             revenue_account_id=rev_id,
         )
         db.session.add(f)
@@ -231,6 +235,7 @@ def fee_type_edit(ft_id):
         f.name = name
         f.default_amount = Decimal(request.form.get("default_amount") or "0")
         f.installable = bool(request.form.get("installable"))
+        f.is_taxable = bool(request.form.get("is_taxable"))
         f.revenue_account_id = rev_id
         db.session.commit()
         flash("تم تعديل نوع الرسم.", "success")
@@ -357,7 +362,16 @@ def invoice_new():
         db.session.add(inv)
         db.session.flush()
 
-        total = Decimal(0)
+        # Ticket "Additional 9" — read school's default VAT rate. If
+        # any of the picked fee types are is_taxable, we accumulate tax
+        # on their subtotals; the invoice's total_amount stays GROSS
+        # (net + tax) so downstream paid/remaining math is unchanged.
+        from ...models import School
+        school = db.session.get(School, _sid())
+        default_rate = Decimal(str(school.default_tax_rate or 0))
+
+        subtotal = Decimal(0)
+        taxable_subtotal = Decimal(0)
         for fid, amt_raw in zip(fee_ids, amounts):
             amt = Decimal(amt_raw or "0")
             if amt <= 0:
@@ -370,7 +384,14 @@ def invoice_new():
                 description=ft.name, amount=amt,
             )
             db.session.add(line)
-            total += amt
+            subtotal += amt
+            if ft.is_taxable:
+                taxable_subtotal += amt
+
+        tax_amount = (taxable_subtotal * default_rate / Decimal(100)).quantize(Decimal("0.01"))
+        inv.tax_rate = default_rate
+        inv.tax_amount = tax_amount
+        total = subtotal + tax_amount
 
         # Ticket #17 — auto-apply approved StudentDiscount rows on this
         # enrollment. Written as negative InvoiceLine rows so the parent
@@ -687,6 +708,207 @@ def invoice_pay(invoice_id):
 # admin is deliberately mapping "نقدي" → 1110 here at setup time so
 # the daily UI never has to.
 
+# ---------- Bank reconciliation (Ticket "Additional 10") ------------
+#
+# Import CSV of statement lines, auto-suggest matches against unmatched
+# JournalLines by (date, |amount|) — the admin confirms or edits per row.
+
+@bp.route("/bank-rec", endpoint="bank_rec")
+@login_required
+@require_permission("finance", "view")
+def bank_rec():
+    from ...models import BankStatementLine
+    bank_accounts = (
+        Account.query.filter_by(school_id=_sid(), type="asset", is_postable=True)
+        .order_by(Account.code).all()
+    )
+    account_id = request.args.get("account_id", type=int) or (bank_accounts[0].id if bank_accounts else None)
+    lines = []
+    suggestions: dict[int, list] = {}
+    if account_id:
+        lines = (
+            BankStatementLine.query.filter_by(school_id=_sid(), bank_account_id=account_id)
+            .order_by(BankStatementLine.statement_date, BankStatementLine.id).all()
+        )
+        # For unmatched lines, propose 5 candidate JournalLines by
+        # nearest (date, |amount|) on the same account.
+        from datetime import timedelta
+        for l in lines:
+            if l.is_matched:
+                continue
+            candidates = (
+                JournalLine.query
+                .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+                .filter(
+                    JournalLine.account_id == account_id,
+                    JournalEntry.entry_date >= l.statement_date - timedelta(days=5),
+                    JournalEntry.entry_date <= l.statement_date + timedelta(days=5),
+                    ((JournalLine.debit == abs(l.amount))
+                     | (JournalLine.credit == abs(l.amount))),
+                )
+                .order_by(JournalEntry.entry_date).limit(5).all()
+            )
+            suggestions[l.id] = candidates
+    return render_template(
+        "finance/bank_rec.html",
+        bank_accounts=bank_accounts, account_id=account_id,
+        lines=lines, suggestions=suggestions,
+    )
+
+
+@bp.route("/bank-rec/import", methods=["POST"], endpoint="bank_rec_import")
+@login_required
+@require_permission("finance", "edit")
+def bank_rec_import():
+    """CSV: statement_date (YYYY-MM-DD), description, amount, reference?
+    First row treated as header. Amount is signed (positive = DR to
+    bank account = money in, negative = CR = money out)."""
+    from ...models import BankStatementLine
+    import csv, io
+    account_id = request.form.get("account_id", type=int)
+    if not account_id:
+        flash("اختر الحساب البنكي أولاً.", "danger")
+        return redirect(url_for("finance.bank_rec"))
+    f = request.files.get("statement")
+    if not f or not f.filename:
+        flash("ارفع ملف الكشف (.csv).", "danger")
+        return redirect(url_for("finance.bank_rec", account_id=account_id))
+
+    text = f.read().decode("utf-8-sig", errors="replace")
+    reader = csv.reader(io.StringIO(text))
+    rows = list(reader)
+    if not rows:
+        flash("الملف فارغ.", "danger")
+        return redirect(url_for("finance.bank_rec", account_id=account_id))
+    inserted = 0
+    for i, row in enumerate(rows):
+        if i == 0:
+            # Skip header if the first cell isn't parsable as a date.
+            try:
+                _parse_date(row[0])
+            except Exception:
+                continue
+        if len(row) < 3:
+            continue
+        try:
+            d = _parse_date(row[0])
+            desc = (row[1] or "").strip()
+            amt = Decimal((row[2] or "0").replace(",", "").strip())
+        except Exception:
+            continue
+        reference = (row[3].strip() if len(row) > 3 else "") or None
+        db.session.add(BankStatementLine(
+            school_id=_sid(), bank_account_id=account_id,
+            statement_date=d, description=desc, amount=amt,
+            reference=reference,
+        ))
+        inserted += 1
+    db.session.commit()
+    flash(f"تم استيراد {inserted} سطر من كشف الحساب.", "success")
+    return redirect(url_for("finance.bank_rec", account_id=account_id))
+
+
+@bp.route("/bank-rec/<int:line_id>/match", methods=["POST"], endpoint="bank_rec_match")
+@login_required
+@require_permission("finance_transactions", "add")
+def bank_rec_match(line_id):
+    from ...models import BankStatementLine
+    line = BankStatementLine.query.filter_by(id=line_id, school_id=_sid()).first_or_404()
+    jl_id = request.form.get("journal_line_id", type=int)
+    if not jl_id:
+        flash("اختر سطر قيد للربط.", "danger")
+        return redirect(url_for("finance.bank_rec", account_id=line.bank_account_id))
+    jl = JournalLine.query.get(jl_id)
+    if not jl:
+        abort(404)
+    line.matched_journal_line_id = jl.id
+    line.is_matched = True
+    db.session.commit()
+    flash("تم ربط السطر بقيد النظام.", "success")
+    return redirect(url_for("finance.bank_rec", account_id=line.bank_account_id))
+
+
+@bp.route("/bank-rec/<int:line_id>/unmatch", methods=["POST"], endpoint="bank_rec_unmatch")
+@login_required
+@require_permission("finance_transactions", "add")
+def bank_rec_unmatch(line_id):
+    from ...models import BankStatementLine
+    line = BankStatementLine.query.filter_by(id=line_id, school_id=_sid()).first_or_404()
+    line.matched_journal_line_id = None
+    line.is_matched = False
+    db.session.commit()
+    return redirect(url_for("finance.bank_rec", account_id=line.bank_account_id))
+
+
+# ---------- Recurring fee schedules (Ticket "Additional 8") ---------
+
+@bp.route("/recurring", endpoint="recurring_list")
+@login_required
+@require_permission("finance", "view")
+def recurring_list():
+    from ...models import RecurringFeeSchedule
+    items = (
+        RecurringFeeSchedule.query.filter_by(school_id=_sid())
+        .order_by(RecurringFeeSchedule.id.desc()).all()
+    )
+    fee_types = FeeType.query.filter_by(school_id=_sid(), is_active=True).order_by(FeeType.name).all()
+    grades = Grade.query.filter_by(school_id=_sid()).order_by(Grade.order_index).all()
+    return render_template(
+        "finance/recurring_list.html",
+        items=items, fee_types=fee_types, grades=grades,
+    )
+
+
+@bp.route("/recurring/new", methods=["POST"], endpoint="recurring_new")
+@login_required
+@require_permission("finance", "edit")
+def recurring_new():
+    from ...models import RecurringFeeSchedule, RECURRING_FREQUENCIES
+    fee_type_id = request.form.get("fee_type_id", type=int)
+    freq = (request.form.get("frequency") or "monthly").strip()
+    day = request.form.get("day_of_period", type=int) or 1
+    grade_id = request.form.get("applies_to_grade_id", type=int) or None
+    if not fee_type_id:
+        flash("اختر نوع الرسم.", "danger")
+        return redirect(url_for("finance.recurring_list"))
+    if freq not in RECURRING_FREQUENCIES:
+        flash("تكرار غير معروف.", "danger")
+        return redirect(url_for("finance.recurring_list"))
+    if not (1 <= day <= 28):
+        flash("اليوم يجب أن يكون بين 1 و 28.", "danger")
+        return redirect(url_for("finance.recurring_list"))
+    db.session.add(RecurringFeeSchedule(
+        school_id=_sid(), fee_type_id=fee_type_id, frequency=freq,
+        day_of_period=day, applies_to_grade_id=grade_id,
+    ))
+    db.session.commit()
+    flash("تمت إضافة جدول رسوم متكرّر.", "success")
+    return redirect(url_for("finance.recurring_list"))
+
+
+@bp.route("/recurring/<int:rid>/toggle", methods=["POST"], endpoint="recurring_toggle")
+@login_required
+@require_permission("finance", "edit")
+def recurring_toggle(rid):
+    from ...models import RecurringFeeSchedule
+    r = RecurringFeeSchedule.query.filter_by(id=rid, school_id=_sid()).first_or_404()
+    r.is_active = not r.is_active
+    db.session.commit()
+    flash("تم تحديث حالة الجدول.", "success")
+    return redirect(url_for("finance.recurring_list"))
+
+
+@bp.route("/recurring/<int:rid>/delete", methods=["POST"], endpoint="recurring_delete")
+@login_required
+@require_permission("finance", "delete")
+def recurring_delete(rid):
+    from ...models import RecurringFeeSchedule
+    r = RecurringFeeSchedule.query.filter_by(id=rid, school_id=_sid()).first_or_404()
+    db.session.delete(r); db.session.commit()
+    flash("تم حذف الجدول.", "success")
+    return redirect(url_for("finance.recurring_list"))
+
+
 @bp.route("/payment-methods", endpoint="payment_methods_list")
 @login_required
 @require_permission("finance", "view")
@@ -776,11 +998,13 @@ def vendors_list():
 
 def _vendor_bind(v):
     """Copy the vendor form's plain-text fields onto `v`."""
-    v.name    = (request.form.get("name")    or "").strip()
-    v.phone   = (request.form.get("phone")   or "").strip() or None
-    v.email   = (request.form.get("email")   or "").strip() or None
-    v.address = (request.form.get("address") or "").strip() or None
-    v.notes   = (request.form.get("notes")   or "").strip() or None
+    v.name           = (request.form.get("name")           or "").strip()
+    v.phone          = (request.form.get("phone")          or "").strip() or None
+    v.email          = (request.form.get("email")          or "").strip() or None
+    v.address        = (request.form.get("address")        or "").strip() or None
+    v.tax_number     = (request.form.get("tax_number")     or "").strip() or None
+    v.contact_person = (request.form.get("contact_person") or "").strip() or None
+    v.notes          = (request.form.get("notes")          or "").strip() or None
 
 
 @bp.route("/vendors/new", methods=["GET", "POST"])
@@ -797,6 +1021,41 @@ def vendor_new():
         flash("تم إضافة المورد.", "success")
         return redirect(url_for("finance.vendors_list"))
     return render_template("finance/vendor_form.html", vendor=None)
+
+
+@bp.route("/vendors/<int:vendor_id>", endpoint="vendor_detail")
+@login_required
+@require_permission("expenses", "view")
+def vendor_detail(vendor_id):
+    """Ticket "Additional 7" — vendor profile + open-balance statement.
+
+    Statement reads the vendor's AP sub-account (if any) via JournalLine
+    so both original expense postings AND later settlements show up.
+    Falls back to an empty statement when no AP sub-account exists yet.
+    """
+    v = _get(Vendor, vendor_id)
+    lines = []
+    balance = Decimal(0)
+    if v.ap_account_id:
+        rows = (
+            db.session.query(JournalLine, JournalEntry)
+            .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+            .filter(JournalLine.account_id == v.ap_account_id)
+            .order_by(JournalEntry.entry_date, JournalLine.id).all()
+        )
+        for jl, je in rows:
+            debit = Decimal(str(jl.debit or 0))
+            credit = Decimal(str(jl.credit or 0))
+            balance += credit - debit  # AP is liability — credit positive
+            lines.append({
+                "date": je.entry_date, "description": je.description,
+                "reference": je.reference, "debit": debit, "credit": credit,
+                "balance": balance,
+            })
+    return render_template(
+        "finance/vendor_detail.html",
+        vendor=v, lines=lines, balance=balance,
+    )
 
 
 @bp.route("/vendors/<int:vendor_id>/edit", methods=["GET", "POST"])
@@ -895,19 +1154,30 @@ def expense_new():
             flash("اختر طريقة دفع صالحة.", "danger")
             return redirect(url_for("finance.expense_new"))
 
+        vendor_id = request.form.get("vendor_id", type=int)
+        vendor = Vendor.query.filter_by(id=vendor_id, school_id=_sid()).first() \
+            if vendor_id else None
         if pm.kind == "deferred":
-            ap = Account.query.filter_by(
-                school_id=_sid(), account_role="ap_default",
-            ).first()
-            if not ap:
-                flash(
-                    "لا يوجد حساب افتراضي لذمم الموردين (ap_default). "
-                    "افتح دليل الحسابات وحدد حساباً.",
-                    "danger",
-                )
-                return redirect(url_for("finance.accounts"))
-            credit_account = ap
-            note = "التزام مورد (آجل)"
+            # Ticket "Additional 7" — deferred expense books against the
+            # chosen vendor's AP sub-account (lazy-created here). Falls
+            # back to ap_default header only when no vendor is picked;
+            # if that header is is_postable=False on a later upgrade,
+            # the caller must pick a vendor.
+            if vendor:
+                from ...services.subsidiary import party_ap_account
+                credit_account = party_ap_account(vendor)
+            else:
+                credit_account = Account.query.filter_by(
+                    school_id=_sid(), account_role="ap_default",
+                ).first()
+                if not credit_account:
+                    flash(
+                        "لا يوجد حساب افتراضي لذمم الموردين — اختر مورداً أو "
+                        "حدّد حساباً افتراضياً من دليل الحسابات.",
+                        "danger",
+                    )
+                    return redirect(url_for("finance.expense_new"))
+            note = f"التزام مورد (آجل){' — ' + vendor.name if vendor else ''}"
         else:
             if not pm.account_id:
                 flash("طريقة الدفع غير مرتبطة بحساب.", "danger")
@@ -928,7 +1198,7 @@ def expense_new():
         )
         e = Expense(
             school_id=_sid(),
-            vendor_id=int(request.form["vendor_id"]) if request.form.get("vendor_id") else None,
+            vendor_id=vendor.id if vendor else None,
             expense_account_id=ex_account.id,
             cash_account_id=credit_account.id,
             date=d, amount=amount,
@@ -980,14 +1250,21 @@ def expense_edit(exp_id):
         if not pm:
             flash("اختر طريقة دفع صالحة.", "danger")
             return redirect(url_for("finance.expense_edit", exp_id=e.id))
+        vendor_id = request.form.get("vendor_id", type=int)
+        vendor = Vendor.query.filter_by(id=vendor_id, school_id=_sid()).first() \
+            if vendor_id else None
         if pm.kind == "deferred":
-            credit_account = Account.query.filter_by(
-                school_id=_sid(), account_role="ap_default",
-            ).first()
-            if not credit_account:
-                flash("لا يوجد حساب افتراضي لذمم الموردين.", "danger")
-                return redirect(url_for("finance.accounts"))
-            note = "التزام مورد (آجل)"
+            if vendor:
+                from ...services.subsidiary import party_ap_account
+                credit_account = party_ap_account(vendor)
+            else:
+                credit_account = Account.query.filter_by(
+                    school_id=_sid(), account_role="ap_default",
+                ).first()
+                if not credit_account:
+                    flash("لا يوجد حساب افتراضي لذمم الموردين.", "danger")
+                    return redirect(url_for("finance.accounts"))
+            note = f"التزام مورد (آجل){' — ' + vendor.name if vendor else ''}"
         else:
             credit_account = _get(Account, pm.account_id) if pm.account_id else None
             if not credit_account:

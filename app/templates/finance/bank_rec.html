@@ -1,0 +1,105 @@
+{# Bank reconciliation — Ticket "Additional 10". #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تسوية كشف الحساب البنكي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تسوية بنكية</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-6xl mx-auto gap-space-md">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md text-primary font-bold flex items-center gap-2">
+      <span class="material-symbols-outlined">account_balance</span>تسوية كشف الحساب البنكي
+    </h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      ارفع كشف الحساب (CSV: <code>date, description, amount, reference?</code>) — النظام يقترح لك السطر المطابق من قيود النظام، وأنت تؤكّد.
+    </p>
+    <form method="post" action="{{ url_for('finance.bank_rec_import') }}"
+          enctype="multipart/form-data"
+          class="mt-space-md grid grid-cols-1 md:grid-cols-3 gap-space-md items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">الحساب البنكي</label>
+        <select name="account_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          {% for a in bank_accounts %}
+          <option value="{{ a.id }}" {% if a.id == account_id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">ملف كشف الحساب (CSV)</label>
+        <input type="file" name="statement" accept=".csv,text/csv" required
+               class="h-11 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">upload_file</span><span>استيراد</span>
+      </button>
+    </form>
+  </section>
+
+  <form method="get" action="{{ url_for('finance.bank_rec') }}" class="flex items-center gap-space-sm">
+    <label class="font-label-md">عرض:</label>
+    <select name="account_id" onchange="this.form.submit()"
+            class="h-10 px-3 rounded-lg bg-surface-container-low">
+      {% for a in bank_accounts %}
+      <option value="{{ a.id }}" {% if a.id == account_id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  {% if lines %}
+  <section class="bg-surface-container-lowest rounded-2xl overflow-hidden shadow-sm">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-3 py-2 font-label-md text-primary">التاريخ</th>
+          <th class="px-3 py-2 font-label-md text-primary">البيان</th>
+          <th class="px-3 py-2 font-label-md text-primary text-left">المبلغ</th>
+          <th class="px-3 py-2 font-label-md text-primary">المطابقة</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for l in lines %}
+        <tr class="border-t border-outline-variant {% if l.is_matched %}bg-[#ECFDF5]/40{% else %}bg-[#FFF5F5]/40{% endif %}">
+          <td class="px-3 py-2 tabular-nums" dir="ltr">{{ l.statement_date }}</td>
+          <td class="px-3 py-2">{{ l.description or '—' }}</td>
+          <td class="px-3 py-2 text-left tabular-nums font-bold {% if l.amount < 0 %}text-error{% else %}text-[#065F46]{% endif %}">
+            {{ l.amount|float|round(2) }}
+          </td>
+          <td class="px-3 py-2">
+            {% if l.is_matched %}
+              <form method="post" action="{{ url_for('finance.bank_rec_unmatch', line_id=l.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button class="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs">
+                  <span class="material-symbols-outlined text-xs">check_circle</span>مطابَق — إلغاء الربط
+                </button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('finance.bank_rec_match', line_id=l.id) }}" class="flex items-center gap-1">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <select name="journal_line_id" required class="h-9 px-2 rounded-lg bg-surface-container-low font-label-md">
+                  <option value="">— اختر سطر مطابق —</option>
+                  {% for jl in suggestions.get(l.id, []) %}
+                  <option value="{{ jl.id }}">
+                    {{ jl.entry.entry_date }} · {{ jl.entry.description }} ·
+                    DR {{ jl.debit|float|round(2) }} / CR {{ jl.credit|float|round(2) }}
+                  </option>
+                  {% endfor %}
+                </select>
+                <button type="submit" class="h-9 px-3 rounded-lg bg-primary text-on-primary font-label-md font-bold">ربط</button>
+              </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% else %}
+  <p class="text-center py-space-xl text-outline">لا توجد سطور مستوردة بعد لهذا الحساب.</p>
+  {% endif %}
+</div>
+{% endblock %}

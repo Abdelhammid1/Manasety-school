@@ -73,6 +73,38 @@ class Payroll(db.Model):
         return self.remaining <= 0.005
 
 
+class EmployeeAdvance(db.Model):
+    """Ticket "Additional 12" — cash advance to an employee (سلفة).
+
+    Books DR 1160 سلف الموظفين / CR payment_method.account on issue.
+    Each new payroll accrual auto-deducts the next installment from
+    net_pay and posts a matching CR against the advance, until fully
+    settled."""
+    __tablename__ = "employee_advances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey("employees.id"), nullable=False, index=True)
+    amount = db.Column(db.Numeric(12, 2), nullable=False)
+    date_given = db.Column(db.Date, default=date.today, nullable=False)
+    # "full_next_month" = deduct the whole thing on the very next payroll.
+    # "installments"     = split across `installment_count` payrolls.
+    deduction_plan = db.Column(db.String(16), nullable=False, default="full_next_month")
+    installment_count = db.Column(db.Integer)
+    remaining_balance = db.Column(db.Numeric(12, 2), nullable=False)
+    status = db.Column(db.String(16), default="active", nullable=False)
+    journal_entry_id = db.Column(db.Integer, db.ForeignKey("journal_entries.id"))
+    notes = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    employee = db.relationship("Employee", backref="advances")
+    journal_entry = db.relationship("JournalEntry")
+
+    @property
+    def is_settled(self) -> bool:
+        return self.status == "settled" or float(self.remaining_balance) <= 0.005
+
+
 class PayrollSettlement(db.Model):
     """One concrete settlement (partial or full) of an accrued Payroll.
     Lets salaries be paid piecewise (سلفة) across multiple dates while

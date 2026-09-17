@@ -68,6 +68,8 @@ DEFAULT_ACCOUNT_TREE = [
     ("1120", "الحساب البنكي", "asset", "1100", True, None),
     ("1200", "ذمم مدينة", "asset", "1000", False, None),
     ("1210", "ذمم الطلاب (AR)", "asset", "1200", True, "ar_default"),
+    ("1150", "سلف ومستحقات موظفين", "asset", "1100", False, None),
+    ("1160", "سلف الموظفين", "asset", "1150", True, "employee_advance_default"),
     ("1300", "مصروفات مقدّمة", "asset", "1000", False, None),
     ("1310", "إيجارات مقدّمة", "asset", "1300", True, None),
     ("1320", "تأمينات مستردة", "asset", "1300", True, None),
@@ -86,12 +88,13 @@ DEFAULT_ACCOUNT_TREE = [
     ("2220", "إيجار مستحق", "liability", "2200", True, None),
     ("2230", "مرافق مستحقة (كهرباء/مياه/إنترنت)", "liability", "2200", True, None),
     ("2240", "ضرائب مستحقة", "liability", "2200", True, None),
+    ("2250", "ضريبة القيمة المضافة المستحقة", "liability", "2200", True, "vat_payable_default"),
     ("2300", "دفعات مقدّمة من أولياء الأمور", "liability", "2000", False, None),
     ("2310", "دفعات مقدّمة — رسوم دراسية", "liability", "2300", True, None),
     # ── 3000 حقوق الملكية ──
     ("3000", "حقوق الملكية", "equity", None, False, None),
     ("3100", "رأس المال", "equity", "3000", True, None),
-    ("3200", "أرباح/خسائر مرحّلة", "equity", "3000", True, None),
+    ("3200", "أرباح/خسائر مرحّلة", "equity", "3000", True, "retained_earnings_default"),
     # ── 4000 الإيرادات ──
     ("4000", "الإيرادات", "revenue", None, False, None),
     ("4100", "إيرادات رسوم دراسية", "revenue", "4000", False, None),
@@ -200,6 +203,10 @@ class FeeType(db.Model):
     installable = db.Column(db.Boolean, default=True, nullable=False)
     revenue_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # Ticket "Additional 9" — mark VAT-eligible fee types. Invoice
+    # posting reads this + School.default_tax_rate to derive tax_amount
+    # automatically. Untaxable rows post as before.
+    is_taxable = db.Column(db.Boolean, default=False, nullable=False)
 
     revenue_account = db.relationship("Account")
 
@@ -220,6 +227,10 @@ class Invoice(db.Model):
     status = db.Column(db.String(16), default="draft", nullable=False)
     total_amount = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     paid_amount = db.Column(db.Numeric(12, 2), default=0, nullable=False)
+    # Ticket "Additional 9" — cached VAT figures. total_amount stays the
+    # GROSS (net + tax) so paid/remaining math doesn't change.
+    tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
+    tax_amount = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     notes = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
@@ -293,11 +304,18 @@ class Vendor(db.Model):
     phone = db.Column(db.String(32))
     email = db.Column(db.String(128))
     address = db.Column(db.String(255))
+    # Ticket "Additional 7" — extra vendor profile fields + a dedicated
+    # AP sub-account under 2110 that gets lazy-created on first expense.
+    tax_number = db.Column(db.String(32))
+    contact_person = db.Column(db.String(160))
+    ap_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"),
+                              nullable=True, index=True)
     notes = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     expenses = db.relationship("Expense", backref="vendor")
+    ap_account = db.relationship("Account", foreign_keys=[ap_account_id])
 
 
 class Expense(db.Model):
@@ -359,3 +377,84 @@ class PaymentMethod(db.Model):
     @property
     def is_deferred(self) -> bool:
         return self.kind == "deferred"
+
+
+# ─── Ticket "Additional 8" — Recurring fee schedules ────────────────
+#
+# One row = "every month/term/year at day D, issue a fee-type F invoice
+# for every active student in grade G (or all)". The cron sweep in
+# services.ledger.generate_recurring_invoices materialises these into
+# Invoice rows. A (schedule, student, period-key) uniqueness guard
+# prevents duplicates on repeated sweeps.
+
+RECURRING_FREQUENCIES = ("monthly", "termly", "yearly")
+
+
+class RecurringFeeSchedule(db.Model):
+    __tablename__ = "recurring_fee_schedules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    fee_type_id = db.Column(db.Integer, db.ForeignKey("fee_types.id"),
+                            nullable=False, index=True)
+    frequency = db.Column(db.String(16), nullable=False, default="monthly")
+    day_of_period = db.Column(db.Integer, nullable=False, default=1)
+    applies_to_grade_id = db.Column(db.Integer, db.ForeignKey("grades.id"),
+                                    nullable=True, index=True)
+    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    last_run_at = db.Column(db.Date)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    fee_type = db.relationship("FeeType")
+    grade = db.relationship("Grade")
+
+
+class BankStatementLine(db.Model):
+    """Ticket "Additional 10" — one row from an imported bank statement.
+
+    `matched_journal_line_id` links to the JournalLine that mirrors this
+    bank movement (matched=True). Unmatched rows surface in the recon
+    UI as gaps that either need a fresh journal entry or a manual link
+    to an existing one."""
+    __tablename__ = "bank_statement_lines"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    bank_account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"), nullable=False, index=True)
+    statement_date = db.Column(db.Date, nullable=False, index=True)
+    description = db.Column(db.String(255))
+    amount = db.Column(db.Numeric(12, 2), nullable=False)  # signed: DR positive, CR negative
+    is_matched = db.Column(db.Boolean, default=False, nullable=False)
+    matched_journal_line_id = db.Column(db.Integer,
+                                        db.ForeignKey("journal_lines.id",
+                                                      ondelete="SET NULL"),
+                                        nullable=True)
+    reference = db.Column(db.String(64))
+    imported_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    bank_account = db.relationship("Account")
+    matched_journal_line = db.relationship("JournalLine")
+
+
+class RecurringInvoiceLog(db.Model):
+    """Guard against double-generation across cron ticks. period_key is
+    e.g. `2026-09` (monthly), `2026-T1` (termly), `2026` (yearly)."""
+    __tablename__ = "recurring_invoice_log"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False)
+    schedule_id = db.Column(db.Integer,
+                            db.ForeignKey("recurring_fee_schedules.id", ondelete="CASCADE"),
+                            nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id"),
+                           nullable=False, index=True)
+    period_key = db.Column(db.String(16), nullable=False)
+    invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"),
+                           nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("schedule_id", "student_id", "period_key",
+                            name="uq_recurring_run"),
+    )

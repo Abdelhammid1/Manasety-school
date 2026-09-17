@@ -14,7 +14,7 @@ even after a party is deleted the counter walks forward.
 from typing import Optional
 
 from ..extensions import db
-from ..models import Account, Student
+from ..models import Account, Student, Vendor
 from ..models.hr import Employee
 
 
@@ -23,6 +23,7 @@ from ..models.hr import Employee
 _KNOWN_HEADERS = {
     # code : (name, type, parent_code)
     "1210": ("ذمم الطلاب (AR)", "asset",     "1200"),
+    "2110": ("ذمم الموردين (AP)", "liability", "2100"),
     "2210": ("رواتب مستحقة",    "liability", "2200"),
 }
 
@@ -122,6 +123,23 @@ def ensure_employee_account(employee: Employee) -> Account:
     return row
 
 
+def ensure_vendor_account(vendor: Vendor) -> Account:
+    """Ticket "Additional 7" — same lazy pattern under 2110 (AP) for
+    vendors. `ap_default` still points at the header, so if an expense
+    is booked without picking a vendor we fall back to the header —
+    but if a vendor is chosen we route to their sub-account instead."""
+    if vendor.ap_account_id:
+        row = db.session.get(Account, vendor.ap_account_id)
+        if row is not None:
+            return row
+    row = create_party_subaccount(
+        vendor.school_id, "2110", f"{vendor.name} — مورد",
+    )
+    vendor.ap_account_id = row.id
+    db.session.flush()
+    return row
+
+
 def party_ar_account(invoice) -> Account:
     """Shortcut used by invoice-posting code — resolves the student
     behind an invoice, guarantees a sub-account, returns it."""
@@ -131,3 +149,7 @@ def party_ar_account(invoice) -> Account:
 
 def party_payroll_account(employee: Employee) -> Account:
     return ensure_employee_account(employee)
+
+
+def party_ap_account(vendor: Vendor) -> Account:
+    return ensure_vendor_account(vendor)

@@ -1,0 +1,115 @@
+{# Recurring fee schedules admin — Ticket "Additional 8". #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}جداول الرسوم المتكرّرة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.invoices_list') }}" class="hover:text-primary">الفواتير</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">جداول متكرّرة</span>
+{% endblock %}
+
+{% set FREQ = {'monthly': 'شهري', 'termly': 'فصلي', 'yearly': 'سنوي'} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-4xl mx-auto gap-space-md">
+  <div>
+    <h1 class="font-headline-lg text-primary">جداول الرسوم المتكرّرة</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      تعرّف نوع الرسم + التكرار + اليوم المفعِّل، والنظام يولّد فواتير تلقائياً لكل الطلاب المطابقين ضمن سنة نشطة — بدون تكرار على نفس الفترة.
+    </p>
+  </div>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold mb-space-md">إضافة جدول</h2>
+    <form method="post" action="{{ url_for('finance.recurring_new') }}"
+          class="grid grid-cols-1 md:grid-cols-5 gap-space-md items-end">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="font-label-md font-bold text-on-surface">نوع الرسم</label>
+        <select name="fee_type_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          {% for f in fee_types %}
+          <option value="{{ f.id }}">{{ f.name }} — {{ f.default_amount|float|round(2) }}</option>
+          {% else %}
+          <option value="" disabled>— لا توجد أنواع رسوم مفعّلة —</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">التكرار</label>
+        <select name="frequency" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+          {% for k, v in FREQ.items() %}
+          <option value="{{ k }}">{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">اليوم (1-28)</label>
+        <input name="day_of_period" type="number" min="1" max="28" value="1" required
+               class="h-11 px-3 rounded-lg bg-surface-container-low text-center tabular-nums">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">الصف المستهدف</label>
+        <select name="applies_to_grade_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— كل الصفوف —</option>
+          {% for g in grades %}
+          <option value="{{ g.id }}">{{ g.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-5">
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">add</span><span>إضافة الجدول</span>
+        </button>
+      </div>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <table class="min-w-full">
+      <thead class="bg-surface-container-high">
+        <tr class="text-right">
+          <th class="px-4 py-3 font-label-lg text-primary">نوع الرسم</th>
+          <th class="px-4 py-3 font-label-lg text-primary">التكرار</th>
+          <th class="px-4 py-3 font-label-lg text-primary">اليوم</th>
+          <th class="px-4 py-3 font-label-lg text-primary">الصف</th>
+          <th class="px-4 py-3 font-label-lg text-primary">آخر تشغيل</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
+          <th class="px-4 py-3 font-label-lg text-primary text-center">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in items %}
+        <tr class="border-t border-outline-variant">
+          <td class="px-4 py-3 font-bold text-primary">{{ r.fee_type.name if r.fee_type else '—' }}</td>
+          <td class="px-4 py-3 font-label-md">{{ FREQ.get(r.frequency, r.frequency) }}</td>
+          <td class="px-4 py-3 tabular-nums text-center">{{ r.day_of_period }}</td>
+          <td class="px-4 py-3 font-label-md">{{ r.grade.name if r.grade else 'كل الصفوف' }}</td>
+          <td class="px-4 py-3 tabular-nums text-outline" dir="ltr">{{ r.last_run_at or '—' }}</td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('finance.recurring_toggle', rid=r.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-xs font-bold
+                {% if r.is_active %}bg-[#ECFDF5] text-[#065F46]{% else %}bg-surface-container text-outline{% endif %}">
+                {{ 'نشط' if r.is_active else 'موقوف' }}
+              </button>
+            </form>
+          </td>
+          <td class="px-4 py-3 text-center">
+            <form method="post" action="{{ url_for('finance.recurring_delete', rid=r.id) }}"
+                  onsubmit="return confirm('حذف جدول الرسم؟')" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container">
+                <span class="material-symbols-outlined text-sm">delete</span>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="px-6 py-8 text-center text-outline">لا توجد جداول متكرّرة بعد.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

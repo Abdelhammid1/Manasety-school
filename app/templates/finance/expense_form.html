@@ -34,7 +34,9 @@
         <select name="vendor_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— بدون —</option>
           {% for v in vendors %}
-          <option value="{{ v.id }}" {% if expense and expense.vendor_id == v.id %}selected{% endif %}>{{ v.name }}</option>
+          {% set is_preselected = (expense and expense.vendor_id == v.id)
+                               or (not expense and request.args.get('vendor_id')|int(0) == v.id) %}
+          <option value="{{ v.id }}" {% if is_preselected %}selected{% endif %}>{{ v.name }}</option>
           {% endfor %}
         </select>
       </div>

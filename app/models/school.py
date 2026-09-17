@@ -18,6 +18,10 @@ class School(db.Model):
     #   both         → both modes available side-by-side
     attendance_mode = db.Column(db.String(16), default="daily",
                                 nullable=False, server_default="daily")
+    # Ticket "Additional 9" — default VAT rate applied to taxable
+    # invoice lines. 0 for most Egyptian schools, 15 for Saudi.
+    default_tax_rate = db.Column(db.Numeric(5, 2), default=0,
+                                 nullable=False, server_default="0")
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):

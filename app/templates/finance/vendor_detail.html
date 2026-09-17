@@ -1,0 +1,80 @@
+{# Vendor profile + statement — Ticket "Additional 7". #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ vendor.name }} — كشف حساب المورد{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.vendors_list') }}" class="hover:text-primary">الموردون</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ vendor.name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full max-w-5xl mx-auto gap-space-md">
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary p-space-lg"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="flex items-start justify-between flex-wrap gap-space-md">
+      <div>
+        <h1 class="font-headline-md font-bold">{{ vendor.name }}</h1>
+        <p class="font-body-md opacity-90 mt-1">
+          {% if vendor.contact_person %}المسؤول: {{ vendor.contact_person }} · {% endif %}
+          {% if vendor.phone %}<span dir="ltr">{{ vendor.phone }}</span> · {% endif %}
+          {% if vendor.tax_number %}رقم ضريبي: <span dir="ltr">{{ vendor.tax_number }}</span>{% endif %}
+        </p>
+        {% if vendor.address %}<p class="font-label-md opacity-80 mt-1">{{ vendor.address }}</p>{% endif %}
+      </div>
+      <div class="flex flex-col items-end gap-space-sm">
+        <div class="p-space-md rounded-xl bg-white/10 text-right">
+          <p class="font-label-md opacity-80">الرصيد المستحق للمورد</p>
+          <p class="font-display-md font-extrabold tabular-nums">{{ balance|float|round(2) }}</p>
+        </div>
+        <div class="flex items-center gap-space-sm">
+          <a href="{{ url_for('finance.vendor_edit', vendor_id=vendor.id) }}"
+             class="h-10 px-4 rounded-lg bg-white/10 backdrop-blur text-on-primary font-label-md font-bold flex items-center gap-1 hover:bg-white/20">
+            <span class="material-symbols-outlined text-sm">edit</span>تعديل
+          </a>
+          <a href="{{ url_for('finance.expense_new') }}?vendor_id={{ vendor.id }}"
+             class="h-10 px-4 rounded-lg bg-white text-primary font-label-md font-bold flex items-center gap-1 hover:bg-white/90">
+            <span class="material-symbols-outlined text-sm">add</span>مصروف على هذا المورد
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <header class="px-space-md py-space-sm bg-surface-container-high">
+      <h2 class="font-title-md text-primary font-bold">كشف حساب المورد</h2>
+    </header>
+    {% if not lines %}
+    <p class="p-space-lg text-center text-outline">لا توجد حركات بعد — أضف مصروفاً على هذا المورد بأي طريقة دفع.</p>
+    {% else %}
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container">
+          <tr class="text-right">
+            <th class="px-3 py-2 font-label-md text-primary">التاريخ</th>
+            <th class="px-3 py-2 font-label-md text-primary">البيان</th>
+            <th class="px-3 py-2 font-label-md text-primary">المرجع</th>
+            <th class="px-3 py-2 font-label-md text-primary text-left">مدين</th>
+            <th class="px-3 py-2 font-label-md text-primary text-left">دائن</th>
+            <th class="px-3 py-2 font-label-md text-primary text-left">الرصيد</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in lines %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-2 tabular-nums" dir="ltr">{{ l.date }}</td>
+            <td class="px-3 py-2">{{ l.description }}</td>
+            <td class="px-3 py-2 font-mono text-outline" dir="ltr">{{ l.reference or '—' }}</td>
+            <td class="px-3 py-2 text-left tabular-nums {% if l.debit > 0 %}text-error font-bold{% endif %}">{{ l.debit if l.debit > 0 else '—' }}</td>
+            <td class="px-3 py-2 text-left tabular-nums {% if l.credit > 0 %}text-[#065F46] font-bold{% endif %}">{{ l.credit if l.credit > 0 else '—' }}</td>
+            <td class="px-3 py-2 text-left tabular-nums font-bold">{{ l.balance|float|round(2) }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

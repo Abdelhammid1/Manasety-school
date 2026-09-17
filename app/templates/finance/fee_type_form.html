@@ -27,12 +27,18 @@
                value="{{ fee_type.default_amount if fee_type else 0 }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
-      <div class="flex items-end">
+      <div class="flex items-end gap-space-md">
         <label class="flex items-center gap-2 cursor-pointer">
           <input type="checkbox" name="installable" value="1"
                  {% if fee_type and fee_type.installable %}checked{% elif not fee_type %}checked{% endif %}
                  class="w-5 h-5 rounded accent-primary">
           <span class="font-label-md text-label-md text-on-surface font-bold">قابل للتقسيط</span>
+        </label>
+        <label class="flex items-center gap-2 cursor-pointer">
+          <input type="checkbox" name="is_taxable" value="1"
+                 {% if fee_type and fee_type.is_taxable %}checked{% endif %}
+                 class="w-5 h-5 rounded accent-primary">
+          <span class="font-label-md text-label-md text-on-surface font-bold">خاضع لضريبة القيمة المضافة</span>
         </label>
       </div>
     </div>

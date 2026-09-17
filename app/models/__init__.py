@@ -8,8 +8,10 @@ from .results import PassRule, AssessmentComponent, GradeEntry, YearResult
 from .finance import (
     Account, JournalEntry, JournalLine, FeeType, Invoice, InvoiceLine,
     Installment, Payment, Vendor, Expense, PaymentMethod,
+    RecurringFeeSchedule, RecurringInvoiceLog,
+    BankStatementLine,
 )
-from .hr import Employee, Payroll, PayrollSettlement
+from .hr import Employee, Payroll, PayrollSettlement, EmployeeAdvance
 from .material import Material
 from .lms import (
     Course, CourseSection, Unit, Lesson, CourseAssignment, Submission,
@@ -51,7 +53,8 @@ __all__ = [
     "Account", "JournalEntry", "JournalLine", "FeeType",
     "Invoice", "InvoiceLine", "Installment", "Payment",
     "Vendor", "Expense", "PaymentMethod",
-    "Employee", "Payroll", "PayrollSettlement",
+    "RecurringFeeSchedule", "RecurringInvoiceLog", "BankStatementLine",
+    "Employee", "Payroll", "PayrollSettlement", "EmployeeAdvance",
     "Material",
     # LMS
     "Course", "CourseSection", "Unit", "Lesson", "CourseAssignment", "Submission",

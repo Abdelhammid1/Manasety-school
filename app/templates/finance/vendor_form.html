@@ -29,6 +29,20 @@
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">الرقم الضريبي</label>
+        <input name="tax_number" dir="ltr"
+               value="{{ vendor.tax_number if vendor and vendor.tax_number else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">اسم المسؤول</label>
+        <input name="contact_person"
+               value="{{ vendor.contact_person if vendor and vendor.contact_person else '' }}"
+               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+      </div>
+    </div>
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">العنوان</label>
       <textarea name="address" rows="2" class="w-full px-4 py-2 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">{{ vendor.address if vendor and vendor.address else '' }}</textarea>

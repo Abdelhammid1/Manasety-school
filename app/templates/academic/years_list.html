@@ -54,11 +54,18 @@
           <span class="material-symbols-outlined text-sm">edit</span><span>تعديل</span>
         </a>
         {% if y.status == 'active' %}
+        <form method="post" action="{{ url_for('academic.year_close', year_id=y.id) }}" class="flex-1">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="dry_run" value="1">
+          <button type="submit" class="w-full h-10 rounded-lg bg-primary-fixed text-primary font-label-md font-bold flex items-center justify-center gap-1 hover:bg-primary-container/40">
+            <span class="material-symbols-outlined text-sm">preview</span><span>معاينة الإقفال</span>
+          </button>
+        </form>
         <form method="post" action="{{ url_for('academic.year_close', year_id=y.id) }}" class="flex-1"
-              onsubmit="return confirm('إغلاق السنة يجمّد قاعدة النجاح ولا يمكن التراجع. تأكيد؟')">
+              onsubmit="return confirm('إقفال السنة المالية سيقيّد صافي الربح/الخسارة إلى الأرباح المرحّلة ويجمّد قاعدة النجاح. تأكيد؟')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="w-full h-10 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center justify-center gap-1 hover:bg-error-container">
-            <span class="material-symbols-outlined text-sm">lock</span><span>إغلاق</span>
+            <span class="material-symbols-outlined text-sm">lock</span><span>إقفال السنة</span>
           </button>
         </form>
         {% endif %}

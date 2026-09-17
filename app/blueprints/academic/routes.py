@@ -90,19 +90,36 @@ def year_edit(year_id):
 @login_required
 @require_permission("academic_years", "edit")
 def year_close(year_id):
-    year = _get(AcademicYear, year_id)
-    year.status = "closed"
-    # Sprint 9 TC-7.1.2: freeze the pass rule so post-closure edits can't
-    # retroactively change historic results.
+    """Ticket "Additional 11" — close the fiscal year AND freeze the
+    pass rule at the same time. The finance service posts the
+    retained-earnings journal; the pass rule freeze is the SIS side.
+    """
     from ...models import PassRule
-    PassRule.query.filter_by(school_id=_sid(), year_id=year.id).update(
-        {"is_frozen": True}
-    )
+    from ...services.ledger import close_fiscal_year, LedgerError
+    year = _get(AcademicYear, year_id)
+    dry_run = request.form.get("dry_run") == "1"
+
+    try:
+        preview = close_fiscal_year(_sid(), year, dry_run=dry_run)
+    except LedgerError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("academic.years_list"))
+
+    if dry_run:
+        flash(
+            f"معاينة الإقفال — إيرادات: {preview['total_revenue']:.2f}، "
+            f"مصروفات: {preview['total_expense']:.2f}، صافي: {preview['net_income']:.2f}.",
+            "info",
+        )
+        return redirect(url_for("academic.years_list"))
+
+    PassRule.query.filter_by(school_id=_sid(), year_id=year.id).update({"is_frozen": True})
     db.session.commit()
     flash(
-        "تم إغلاق السنة (أرشيف). لا يمكن تعديل بياناتها التشغيلية "
-        "وتم تجميد قاعدة النجاح لهذه السنة.",
-        "info",
+        f"تم إقفال السنة {year.name} — صافي الربح/الخسارة: "
+        f"{preview['net_income']:.2f} رُحّل إلى حساب الأرباح المرحّلة.",
+        "success",
     )
     return redirect(url_for("academic.years_list"))
 

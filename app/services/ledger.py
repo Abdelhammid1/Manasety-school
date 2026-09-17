@@ -85,7 +85,8 @@ def post_invoice_to_ledger(invoice: Invoice, *, entry_date: Optional[_date_cls] 
     """Auto-post the invoice's journal on creation. No account choice
     from the caller. Debit = student's AR sub-account, credit = one
     line per fee_type + a discount contra-line if any negative InvoiceLine
-    is present (sibling discount / scholarship)."""
+    is present (sibling discount / scholarship) + a VAT payable line
+    if invoice.tax_amount is set (Ticket "Additional 9")."""
     ar = party_ar_account(invoice)   # lazy-creates if missing
     total = _dec(invoice.total_amount)
     if total <= 0:
@@ -95,6 +96,23 @@ def post_invoice_to_ledger(invoice: Invoice, *, entry_date: Optional[_date_cls] 
         (ar.id, total, Decimal(0), f"ذمم — {invoice.enrollment.student.full_name}"),
     ]
     lines.extend(_revenue_lines_by_fee_type(invoice))
+
+    # Ticket "Additional 9" — split off VAT from the last revenue line
+    # so the sum stays balanced. `invoice.tax_amount` is already
+    # included in total_amount (gross); revenue lines added above are
+    # gross-of-tax and need to be reduced.
+    tax_amt = _dec(invoice.tax_amount)
+    if tax_amt > 0:
+        vat_acc = Account.query.filter_by(
+            school_id=invoice.school_id, account_role="vat_payable_default",
+        ).first()
+        if vat_acc is not None:
+            lines.append((vat_acc.id, Decimal(0), tax_amt, "ضريبة قيمة مضافة مستحقة"))
+            rev_lines = [i for i, l in enumerate(lines) if l[2] > 0 and l[0] != vat_acc.id]
+            if rev_lines:
+                idx = rev_lines[0]
+                aid, dr, cr, desc = lines[idx]
+                lines[idx] = (aid, dr, cr - tax_amt, desc)
 
     # Discounts are negative InvoiceLine rows; aggregate their absolute
     # amount and post it to the discount account (contra-revenue debit).
@@ -249,6 +267,115 @@ def post_payroll_accrual(payroll: Payroll, salary_expense_account: Account,
         related_kind="payroll_accrual", related_id=payroll.id,
     )
     return je
+
+
+def issue_employee_advance(employee, amount, payment_method_id: int,
+                           *, deduction_plan: str = "full_next_month",
+                           installment_count: Optional[int] = None,
+                           date_given=None, notes: Optional[str] = None):
+    """Ticket "Additional 12" — hand out a cash advance to an employee.
+
+      DR   1160 سلف الموظفين
+      CR   payment_method.account
+    """
+    from ..models.hr import EmployeeAdvance
+    amount = _dec(amount)
+    if amount <= 0:
+        raise LedgerError("مبلغ السلفة يجب أن يكون أكبر من صفر.")
+    pm = _resolve_pm(employee.school_id, payment_method_id)
+    if pm.kind == "deferred" or pm.account_id is None:
+        raise LedgerError("اختر طريقة دفع فعلية للسلفة (نقدي/بنك).")
+
+    advance_acc = Account.query.filter_by(
+        school_id=employee.school_id, account_role="employee_advance_default",
+    ).first()
+    if advance_acc is None:
+        raise LedgerError(
+            "لا يوجد حساب مُعيَّن لسلف الموظفين — حدّده من دليل الحسابات."
+        )
+
+    at = date_given or _date_cls.today()
+    je = post_journal(
+        school_id=employee.school_id,
+        entry_date=at,
+        description=f"صرف سلفة — {employee.full_name}",
+        reference=None,
+        lines=[
+            (advance_acc.id, amount, Decimal(0), f"سلفة — {employee.full_name}"),
+            (pm.account_id, Decimal(0), amount, f"خروج — {pm.name}"),
+        ],
+        related_kind="employee_advance", related_id=None,
+    )
+    adv = EmployeeAdvance(
+        school_id=employee.school_id, employee_id=employee.id,
+        amount=amount, remaining_balance=amount,
+        date_given=at, deduction_plan=deduction_plan,
+        installment_count=installment_count if deduction_plan == "installments" else None,
+        journal_entry_id=je.id, notes=notes,
+    )
+    db.session.add(adv); db.session.flush()
+    return adv
+
+
+def apply_advance_deductions(payroll: Payroll) -> Decimal:
+    """Ticket "Additional 12" — deduct any active advance installments
+    from a payroll accrual. Called AFTER post_payroll_accrual so the
+    accrual booking is against the full net_pay, then this posts a
+    supplementary entry moving the deduction back to 1160.
+
+      DR   employee 2210 sub-account   (reduce the just-accrued liability)
+      CR   1160 سلف الموظفين          (recover the advance)
+
+    Returns the total amount deducted. Payroll.net_pay stays as-is;
+    Payroll.paid_amount rises by the deducted amount so the remaining
+    liability to actually cash-out shrinks. The employee's payslip
+    shows this line separately (rendered on payroll_detail.html)."""
+    from ..models.hr import EmployeeAdvance
+    active = EmployeeAdvance.query.filter_by(
+        employee_id=payroll.employee_id, status="active",
+    ).all()
+    if not active:
+        return Decimal(0)
+
+    advance_acc = Account.query.filter_by(
+        school_id=payroll.school_id, account_role="employee_advance_default",
+    ).first()
+    if advance_acc is None:
+        return Decimal(0)
+    salary_payable = party_payroll_account(payroll.employee)
+
+    net = _dec(payroll.net_pay)
+    total_deducted = Decimal(0)
+    for adv in active:
+        remaining_on_payroll = net - total_deducted
+        if remaining_on_payroll <= 0:
+            break
+        # Compute per-payroll installment.
+        if adv.deduction_plan == "installments" and (adv.installment_count or 0) > 0:
+            per = (_dec(adv.amount) / Decimal(adv.installment_count)).quantize(Decimal("0.01"))
+        else:
+            per = _dec(adv.remaining_balance)   # full_next_month → clear it
+        take = min(per, _dec(adv.remaining_balance), remaining_on_payroll)
+        if take <= 0:
+            continue
+
+        post_journal(
+            school_id=payroll.school_id,
+            entry_date=_date_cls.today(),
+            description=f"خصم سلفة — {payroll.employee.full_name}",
+            reference=f"PAYROLL-{payroll.id}",
+            lines=[
+                (salary_payable.id, take, Decimal(0), "خصم سلفة من راتب مستحق"),
+                (advance_acc.id, Decimal(0), take, "سداد سلفة"),
+            ],
+            related_kind="advance_deduction", related_id=adv.id,
+        )
+        adv.remaining_balance = _dec(adv.remaining_balance) - take
+        if adv.remaining_balance <= Decimal("0.005"):
+            adv.status = "settled"
+        payroll.paid_amount = _dec(payroll.paid_amount) + take
+        total_deducted += take
+    return total_deducted
 
 
 def settle_accrual(payroll: Payroll, payment_method_id: int, amount=None,
@@ -600,6 +727,212 @@ def send_payment_reminders(school_id: int, *, today=None) -> dict:
                 related_kind="reminder", related_id=inv.id,
             )
             counts[kind] += 1
+    return counts
+
+
+def close_fiscal_year(school_id: int, year, *, entry_date=None, dry_run=False):
+    """Ticket "Additional 11" — zero out every P&L account into 3200
+    retained earnings and mark the AcademicYear as closed.
+
+    Reads DR/CR sums from JournalLine directly so aggregate balances
+    aren't double-counted. `year` is the AcademicYear ORM instance.
+    When `dry_run` is True nothing is written; returns the preview.
+    """
+    from sqlalchemy import func
+    year_start, year_end = year.start_date, year.end_date
+
+    revenue_leaves = Account.query.filter_by(
+        school_id=school_id, type="revenue", is_postable=True,
+    ).all()
+    expense_leaves = Account.query.filter_by(
+        school_id=school_id, type="expense", is_postable=True,
+    ).all()
+
+    def _balance_in_range(acc_id: int) -> Decimal:
+        d = db.session.query(func.coalesce(func.sum(JournalLine.debit), 0)) \
+            .join(JournalLine.entry) \
+            .filter(JournalLine.account_id == acc_id,
+                    JournalEntry.entry_date >= year_start,
+                    JournalEntry.entry_date <= year_end).scalar() or 0
+        c = db.session.query(func.coalesce(func.sum(JournalLine.credit), 0)) \
+            .join(JournalLine.entry) \
+            .filter(JournalLine.account_id == acc_id,
+                    JournalEntry.entry_date >= year_start,
+                    JournalEntry.entry_date <= year_end).scalar() or 0
+        return Decimal(str(c)) - Decimal(str(d))  # revenue: CR positive; expense: DR positive (we'll flip)
+
+    total_revenue = Decimal(0)
+    revenue_moves: list[tuple[int, Decimal, Decimal, str]] = []
+    for acc in revenue_leaves:
+        net = _balance_in_range(acc.id)   # positive for revenues
+        if net == 0:
+            continue
+        total_revenue += net
+        revenue_moves.append((acc.id, net, Decimal(0), f"إقفال إيرادات — {acc.name}"))
+
+    total_expense = Decimal(0)
+    expense_moves: list[tuple[int, Decimal, Decimal, str]] = []
+    for acc in expense_leaves:
+        # For expenses, DR-CR is positive; flip sign to keep CR side above.
+        d = db.session.query(func.coalesce(func.sum(JournalLine.debit), 0)) \
+            .join(JournalLine.entry) \
+            .filter(JournalLine.account_id == acc.id,
+                    JournalEntry.entry_date >= year_start,
+                    JournalEntry.entry_date <= year_end).scalar() or 0
+        c = db.session.query(func.coalesce(func.sum(JournalLine.credit), 0)) \
+            .join(JournalLine.entry) \
+            .filter(JournalLine.account_id == acc.id,
+                    JournalEntry.entry_date >= year_start,
+                    JournalEntry.entry_date <= year_end).scalar() or 0
+        net = Decimal(str(d)) - Decimal(str(c))   # positive for expenses
+        if net == 0:
+            continue
+        total_expense += net
+        expense_moves.append((acc.id, Decimal(0), net, f"إقفال مصروفات — {acc.name}"))
+
+    net_income = total_revenue - total_expense
+    retained = Account.query.filter_by(
+        school_id=school_id, account_role="retained_earnings_default",
+    ).first()
+
+    preview = {
+        "total_revenue": float(total_revenue),
+        "total_expense": float(total_expense),
+        "net_income":    float(net_income),
+        "retained_earnings_account": retained.code if retained else None,
+        "revenue_lines_to_close": len(revenue_moves),
+        "expense_lines_to_close": len(expense_moves),
+    }
+    if dry_run:
+        return preview
+    if retained is None:
+        raise LedgerError(
+            "لا يوجد حساب مُعيَّن كـ «أرباح/خسائر مرحّلة». حدّده من دليل الحسابات."
+        )
+
+    lines = list(revenue_moves) + list(expense_moves)
+    if net_income > 0:
+        lines.append((retained.id, Decimal(0), net_income, "صافي الربح المرحّل"))
+    elif net_income < 0:
+        lines.append((retained.id, -net_income, Decimal(0), "صافي الخسارة المرحّلة"))
+
+    if not lines:
+        year.status = "closed"
+        return preview
+
+    post_journal(
+        school_id=school_id,
+        entry_date=entry_date or year.end_date,
+        description=f"إقفال السنة المالية {year.name}",
+        reference=f"YEAR-CLOSE-{year.id}",
+        lines=lines,
+        related_kind="year_close", related_id=year.id,
+    )
+    year.status = "closed"
+    return preview
+
+
+def _period_key(freq: str, today) -> str:
+    """Stable string used to dedup recurring invoices per (student,
+    schedule, period). Monthly = YYYY-MM, yearly = YYYY, termly falls
+    back to YYYY-Q<n> derived from month/3 so we don't need the school's
+    actual term calendar for the guard."""
+    from datetime import date as _d
+    if freq == "monthly":
+        return f"{today.year}-{today.month:02d}"
+    if freq == "yearly":
+        return f"{today.year}"
+    if freq == "termly":
+        return f"{today.year}-T{((today.month - 1) // 3) + 1}"
+    return today.isoformat()
+
+
+def generate_recurring_invoices(school_id: int, *, today=None) -> dict:
+    """Ticket "Additional 8" — sweep every active RecurringFeeSchedule
+    for a school and materialise invoices for every eligible student.
+
+    Idempotent via RecurringInvoiceLog (schedule_id, student_id,
+    period_key). One journal per invoice via post_invoice_to_ledger.
+
+    Returns {schedule_id: count} for the cron summary.
+    """
+    from datetime import date as _d, timedelta
+    from ..models import (
+        AcademicYear, RecurringFeeSchedule, RecurringInvoiceLog,
+        Enrollment, Student, Invoice, InvoiceLine, Installment, FeeType,
+    )
+    today = today or _d.today()
+    year = AcademicYear.query.filter_by(school_id=school_id, status="active").first()
+    if not year:
+        return {}
+
+    schedules = RecurringFeeSchedule.query.filter_by(
+        school_id=school_id, is_active=True,
+    ).all()
+    counts: dict[int, int] = {}
+
+    for sched in schedules:
+        # `day_of_period` is treated as day-of-month for monthly/yearly
+        # and day-of-quarter for termly. Only fire on the matching day.
+        if today.day != sched.day_of_period:
+            continue
+
+        ft = db.session.get(FeeType, sched.fee_type_id)
+        if not ft or not ft.is_active:
+            continue
+
+        eligible = Enrollment.query.filter_by(
+            school_id=school_id, year_id=year.id, status="active",
+        )
+        if sched.applies_to_grade_id:
+            eligible = eligible.filter(Enrollment.grade_id == sched.applies_to_grade_id)
+        eligible_list = eligible.all()
+        period_key = _period_key(sched.frequency, today)
+
+        for enr in eligible_list:
+            already = RecurringInvoiceLog.query.filter_by(
+                schedule_id=sched.id, student_id=enr.student_id,
+                period_key=period_key,
+            ).first()
+            if already:
+                continue
+
+            n = Invoice.query.filter_by(school_id=school_id).count() + 1
+            number = f"INV-{year.name}-R{sched.id}-{period_key}-{n:05d}"
+            due = today + timedelta(days=15)
+            amount = ft.default_amount or Decimal(0)
+            if amount <= 0:
+                continue
+
+            inv = Invoice(
+                school_id=school_id, enrollment_id=enr.id,
+                number=number, issue_date=today, due_date=due,
+                status="sent", total_amount=amount,
+            )
+            db.session.add(inv); db.session.flush()
+            db.session.add(InvoiceLine(
+                invoice_id=inv.id, fee_type_id=ft.id,
+                description=ft.name, amount=amount,
+            ))
+            db.session.add(Installment(
+                invoice_id=inv.id, due_date=due, amount=amount,
+            ))
+            db.session.flush()
+            try:
+                post_invoice_to_ledger(inv, entry_date=today)
+            except LedgerError:
+                # Rare — happens if a school has no student sub-account
+                # header. Skip this student, keep sweeping the rest.
+                db.session.rollback()
+                continue
+            db.session.add(RecurringInvoiceLog(
+                school_id=school_id, schedule_id=sched.id,
+                student_id=enr.student_id, period_key=period_key,
+                invoice_id=inv.id,
+            ))
+            counts[sched.id] = counts.get(sched.id, 0) + 1
+
+        sched.last_run_at = today
     return counts
 
 

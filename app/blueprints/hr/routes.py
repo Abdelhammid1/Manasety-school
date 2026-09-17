@@ -66,8 +66,59 @@ def employee_new():
 @login_required
 @require_permission("payroll", "view")
 def employee_detail(employee_id):
+    from ...models import PaymentMethod, EmployeeAdvance
     e = _get(Employee, employee_id)
-    return render_template("hr/employee_detail.html", employee=e)
+    payment_methods = (
+        PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
+        .filter(PaymentMethod.kind != "deferred")
+        .order_by(PaymentMethod.name).all()
+    )
+    advances = (
+        EmployeeAdvance.query.filter_by(employee_id=e.id)
+        .order_by(EmployeeAdvance.date_given.desc()).all()
+    )
+    return render_template("hr/employee_detail.html",
+                           employee=e, payment_methods=payment_methods,
+                           advances=advances)
+
+
+@bp.route("/employees/<int:employee_id>/advances/new", methods=["POST"])
+@login_required
+@require_permission("finance_transactions", "add")
+def employee_advance_new(employee_id):
+    """Ticket "Additional 12" — hand out a cash advance to an employee."""
+    from ...services.ledger import issue_employee_advance, LedgerError
+    e = _get(Employee, employee_id)
+    try:
+        amount = Decimal(request.form.get("amount") or "0")
+    except Exception:
+        flash("المبلغ غير صالح.", "danger")
+        return redirect(url_for("hr.employee_detail", employee_id=e.id))
+    pm_id = request.form.get("payment_method_id", type=int)
+    plan = (request.form.get("deduction_plan") or "full_next_month").strip()
+    installment_count = request.form.get("installment_count", type=int) or None
+    notes = (request.form.get("notes") or "").strip() or None
+    if not pm_id:
+        flash("اختر طريقة الدفع.", "danger")
+        return redirect(url_for("hr.employee_detail", employee_id=e.id))
+    try:
+        issue_employee_advance(
+            e, amount, pm_id,
+            deduction_plan=plan,
+            installment_count=installment_count,
+            notes=notes,
+        )
+    except LedgerError as ex:
+        db.session.rollback()
+        flash(str(ex), "danger")
+        return redirect(url_for("hr.employee_detail", employee_id=e.id))
+    db.session.commit()
+    flash(
+        f"تم صرف سلفة بمبلغ {amount} — هتُخصم من راتب "
+        + ("الشهر القادم." if plan == "full_next_month" else f"على {installment_count} أشهر."),
+        "success",
+    )
+    return redirect(url_for("hr.employee_detail", employee_id=e.id))
 
 
 @bp.route("/employees/<int:employee_id>/edit", methods=["GET", "POST"])
@@ -198,20 +249,24 @@ def payroll_new():
         )
         db.session.add(p); db.session.flush()
 
-        from ...services.ledger import post_payroll_accrual, LedgerError
+        from ...services.ledger import (
+            post_payroll_accrual, apply_advance_deductions, LedgerError,
+        )
         try:
             je = post_payroll_accrual(p, salary_account, entry_date=accrual_date)
             p.journal_entry_id = je.id
+            # Ticket "Additional 12" — auto-deduct any active advances.
+            deducted = apply_advance_deductions(p)
         except LedgerError as ex:
             db.session.rollback()
             flash(str(ex), "danger")
             return redirect(url_for("hr.payroll_new"))
         db.session.commit()
-        flash(
-            f"تم تسجيل استحقاق راتب {e.full_name} بمبلغ صافي {net}. "
-            "افتح صف الراتب لصرفه (كامل أو جزئي).",
-            "success",
-        )
+        msg = f"تم تسجيل استحقاق راتب {e.full_name} بمبلغ صافي {net}."
+        if deducted:
+            msg += f" خُصم من الاستحقاق {deducted:.2f} سداداً لسلف نشطة."
+        msg += " افتح صف الراتب لصرفه (كامل أو جزئي)."
+        flash(msg, "success")
         return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
 
     return render_template(
