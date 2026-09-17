@@ -32,8 +32,11 @@ def upgrade():
     bind = op.get_bind()
 
     with op.batch_alter_table('accounts', schema=None) as b:
+        # sa.true() renders as `1` on SQLite and `true` on Postgres —
+        # cross-dialect default. Same pattern the course-refactor
+        # migration adopted.
         b.add_column(sa.Column('is_postable', sa.Boolean(), nullable=False,
-                               server_default=sa.text('1')))
+                               server_default=sa.true()))
         b.add_column(sa.Column('account_role', sa.String(length=32), nullable=True))
         b.create_index(b.f('ix_accounts_account_role'), ['account_role'], unique=False)
         b.create_unique_constraint('uq_account_school_role',
@@ -92,19 +95,21 @@ def _apply_tree(bind, tree):
                 """), {"p": parent_id, "postable": effective_postable,
                        "role": claim_role, "id": code_to_id[code]})
             else:
-                result = bind.execute(sa.text("""
+                # Cross-dialect INSERT — cast bools via TRUE literal so
+                # Postgres accepts them.
+                bind.execute(sa.text("""
                     INSERT INTO accounts
                         (school_id, code, name, type, parent_id,
                          is_active, is_system, is_postable, account_role)
                     VALUES
-                        (:s, :code, :name, :type, :parent, 1, 1, :postable, :role)
+                        (:s, :code, :name, :type, :parent,
+                         TRUE, TRUE, :postable, :role)
                 """), {"s": sid, "code": code, "name": name, "type": type_,
                        "parent": parent_id, "postable": is_postable, "role": role})
-                new_id = result.lastrowid if hasattr(result, "lastrowid") else \
-                    bind.execute(
-                        sa.text("SELECT id FROM accounts WHERE school_id=:s AND code=:c"),
-                        {"s": sid, "c": code},
-                    ).scalar()
+                new_id = bind.execute(
+                    sa.text("SELECT id FROM accounts WHERE school_id=:s AND code=:c"),
+                    {"s": sid, "c": code},
+                ).scalar()
                 code_to_id[code] = new_id
 
 
