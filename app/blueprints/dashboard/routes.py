@@ -174,10 +174,15 @@ def _expenses_sum(sid: int, since: date) -> float:
 
 
 def _cash_on_hand(sid: int) -> float:
-    """Sum balances of asset accounts of the school (best-effort proxy for
-    liquid cash). Uses ``Account.balance`` @property from the finance model.
+    """Sum balances of cash + bank accounts only (codes under 1100:
+    1110 prefix for cash, 1120 prefix for bank) — not all asset accounts.
+    Uses ``Account.balance`` @property from the finance model.
     """
-    accts = Account.query.filter_by(school_id=sid, type="asset", is_active=True).all()
+    accts = (
+        Account.query.filter_by(school_id=sid, is_active=True, is_postable=True)
+        .filter(Account.code.startswith("11"))
+        .all()
+    )
     return sum(a.balance for a in accts)
 
 
