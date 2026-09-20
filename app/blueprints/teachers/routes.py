@@ -49,16 +49,37 @@ def teacher_new():
             flash("التخصص حقل إلزامي.", "danger")
             return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
 
+        full_name = request.form["full_name"].strip()
+        phone = (request.form.get("phone") or "").strip() or None
+        email = (request.form.get("email") or "").strip() or None
+
+        # Ticket #1 — the "link existing user" dropdown stays for admins
+        # who really need it, but the default path is now inline account
+        # creation from the same form.
+        user_id = int(request.form["user_id"]) if request.form.get("user_id") else None
+        if not user_id and request.form.get("create_account"):
+            from ...services.user_provisioning import provision_user
+            new_user, err = provision_user(
+                school_id=_sid(), kind="teacher", full_name=full_name,
+                username=request.form.get("account_username"),
+                password=request.form.get("account_password"),
+                email=email, phone=phone,
+            )
+            if err:
+                flash(err, "danger")
+                return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
+            user_id = new_user.id
+
         teacher = Teacher(
             school_id=_sid(),
-            full_name=request.form["full_name"].strip(),
+            full_name=full_name,
             national_id=(request.form.get("national_id") or "").strip() or None,
-            phone=(request.form.get("phone") or "").strip() or None,
-            email=(request.form.get("email") or "").strip() or None,
+            phone=phone,
+            email=email,
             specialization=request.form["specialization"].strip(),
             hire_date=_parse_date(request.form.get("hire_date")),
             notes=(request.form.get("notes") or "").strip() or None,
-            user_id=int(request.form["user_id"]) if request.form.get("user_id") else None,
+            user_id=user_id,
         )
         db.session.add(teacher)
         db.session.commit()

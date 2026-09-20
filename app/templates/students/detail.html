@@ -75,6 +75,15 @@
            class="h-11 px-5 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">group_add</span><span>تسجيل في السنة</span>
         </a>
+        {% else %}
+        {# Ticket #9 — one-click "add invoice" straight from the student
+           page; picks up the active enrollment so the form is already
+           pre-selected on arrival. #}
+        {% set _active_enr = (student.enrollments | selectattr('status', 'equalto', 'active') | list | first) %}
+        <a href="{{ url_for('finance.invoice_new', enrollment_id=_active_enr.id) if _active_enr else url_for('finance.invoice_new') }}"
+           class="h-11 px-5 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">receipt_long</span><span>فاتورة جديدة</span>
+        </a>
         {% endif %}
       </div>
     </div>

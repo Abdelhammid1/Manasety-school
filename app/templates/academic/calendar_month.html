@@ -77,9 +77,20 @@
         <span class="material-symbols-outlined text-sm">bolt</span>توليد
       </button>
     </form>
-    <p class="mt-space-sm font-label-xs text-outline">
-      لن يُستبدل أي يوم مسجّل يدوياً — التوليد يضيف فقط الأيام غير المُعرَّفة.
-    </p>
+    <div class="mt-space-sm flex items-center justify-between gap-space-sm flex-wrap">
+      <p class="font-label-xs text-outline">
+        لن يُستبدل أي يوم مسجّل يدوياً — التوليد يضيف فقط الأيام غير المُعرَّفة.
+      </p>
+      <form method="post" action="{{ url_for('academic.calendar_clear_weekends') }}"
+            onsubmit="return confirm('سيتم حذف جميع أيام العطلة الأسبوعية المُولَّدة تلقائياً في السنة. تأكيد؟');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit"
+                class="h-9 px-4 rounded-lg bg-error-container/40 text-error font-label-md font-bold hover:bg-error-container flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">delete_sweep</span>
+          حذف كل العطلات المُولَّدة
+        </button>
+      </form>
+    </div>
   </section>
 
   {# ── Month grid ── #}

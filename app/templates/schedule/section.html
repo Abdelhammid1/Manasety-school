@@ -11,14 +11,6 @@
 {% endblock %}
 
 {% block page_content %}
-{# Build a subject_id -> teachers list from active assignments so quick-add
-   only offers valid (subject, teacher) pairs for this section. #}
-{% set subj_teachers = {} %}
-{% for a in assignments %}
-  {% if a.subject_id not in subj_teachers %}{% set _ = subj_teachers.update({a.subject_id: {'subject': a.subject, 'teachers': []}}) %}{% endif %}
-  {% set _ = subj_teachers[a.subject_id]['teachers'].append(a.teacher) %}
-{% endfor %}
-
 <div class="flex flex-col w-full gap-space-md">
   <div class="flex items-center justify-between flex-wrap gap-space-md">
     <div>
@@ -49,6 +41,25 @@
     <span class="material-symbols-outlined">warning</span>
     <span>لا يوجد إسناد لهذا الفصل بعد. أضف الإسناد من <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="text-primary font-bold underline">صفحة الإسناد</a>.</span>
   </div>
+  {% endif %}
+
+  {# Ticket #5 — progress panel: each assignment shows allocated / required. #}
+  {% if assignment_options %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <h3 class="font-title-md text-primary font-bold mb-space-sm flex items-center gap-2">
+      <span class="material-symbols-outlined">assignment_ind</span>
+      إسنادات الفصل — التوزيع الأسبوعي
+    </h3>
+    <div class="flex items-center gap-2 flex-wrap">
+      {% for opt in assignment_options %}
+      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md
+                   {% if opt.full %}bg-[#ECFDF5] text-[#065F46]{% elif opt.allocated == 0 %}bg-error-container/40 text-error{% else %}bg-primary-container/20 text-primary{% endif %}">
+        <span class="font-bold">{{ opt.subject_name }} — {{ opt.teacher_name }}</span>
+        <span class="tabular-nums">·  {{ opt.allocated }} / {{ opt.required }}</span>
+      </span>
+      {% endfor %}
+    </div>
+  </section>
   {% endif %}
 
   <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
@@ -95,28 +106,24 @@
                 </form>
               </div>
               {% else %}
+              {% if assignment_options %}
               <details class="rounded-lg border-2 border-dashed border-outline-variant hover:border-primary">
                 <summary class="p-3 cursor-pointer text-center text-outline hover:text-primary font-label-md list-none">
                   <span class="material-symbols-outlined text-sm">add</span>
                 </summary>
+                {# Ticket #5 — pick from active teaching assignments; only
+                   the room stays free. #}
                 <form method="post" action="{{ url_for('schedule.slot_save', section_id=section.id) }}" class="p-2 flex flex-col gap-1">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="day_id" value="{{ d.id }}">
                   <input type="hidden" name="period_id" value="{{ p.id }}">
-                  <select name="subject_id" required onchange="onSubjChange(this)"
+                  <select name="assignment_id" required
                           class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md focus:outline-none focus:ring-2 focus:ring-primary/20">
-                    <option value="">— المادة —</option>
-                    {% for sid, entry in subj_teachers.items() %}
-                    <option value="{{ sid }}" data-teachers="{{ entry.teachers|map(attribute='id')|join(',') }}">{{ entry.subject.name }}</option>
-                    {% endfor %}
-                  </select>
-                  <select name="teacher_id" required
-                          class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md focus:outline-none focus:ring-2 focus:ring-primary/20">
-                    <option value="">— المعلم —</option>
-                    {% for sid, entry in subj_teachers.items() %}
-                      {% for t in entry.teachers %}
-                    <option value="{{ t.id }}" data-subject="{{ sid }}">{{ t.full_name }}</option>
-                      {% endfor %}
+                    <option value="">— اختر الإسناد —</option>
+                    {% for opt in assignment_options %}
+                    <option value="{{ opt.id }}" {% if opt.full %}disabled{% endif %}>
+                      {{ opt.subject_name }} — {{ opt.teacher_name }} ({{ opt.allocated }}/{{ opt.required }}){% if opt.full %} — مكتمل{% endif %}
+                    </option>
                     {% endfor %}
                   </select>
                   {# Ticket #7 correction — optional room. Backend already
@@ -133,6 +140,12 @@
                   </button>
                 </form>
               </details>
+              {% else %}
+              <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}"
+                 class="block p-3 rounded-lg border-2 border-dashed border-outline-variant text-center text-outline hover:text-primary hover:border-primary font-label-xs">
+                لا يوجد إسناد — أضف من هنا
+              </a>
+              {% endif %}
               {% endif %}
             </td>
             {% endfor %}
@@ -144,17 +157,4 @@
   </div>
 </div>
 
-<script>
-  function onSubjChange(sel){
-    // Filter teacher options in the sibling teacher select to match the subject
-    const form = sel.closest('form');
-    const teachers = (sel.selectedOptions[0]?.dataset.teachers || '').split(',').filter(Boolean);
-    form.querySelectorAll('select[name=teacher_id] option').forEach(o => {
-      if (!o.value) { o.hidden = false; return; }
-      o.hidden = !teachers.includes(o.dataset.subject);
-    });
-    const tSel = form.querySelector('select[name=teacher_id]');
-    tSel.value = '';
-  }
-</script>
 {% endblock %}

@@ -73,68 +73,95 @@
       </div>
     </div>
 
-    {# Role-aware nav #}
+    {# Role-aware nav — Admin sidebar organized into 10 groups per ticket #10 #}
     <nav class="flex flex-col gap-0.5 px-space-xs mt-space-xs" aria-label="التنقل الرئيسي">
 
       {% if _role in ('admin', 'admin_full', 'system_admin') or (current_user.is_authenticated and current_user.can('users','view')) %}
+        {# 1 · Dashboard #}
         {{ nav_item('dashboard.home', 'لوحة التحكم', 'dashboard') }}
 
+        {# 2 · Academic structure #}
         {% call group('admin-academic', 'البنية الأكاديمية', 'stairs') %}
           {{ nav_item('academic.years_list',     'السنوات الدراسية', 'event') }}
           {{ nav_item('academic.grades_list',    'الصفوف والمراحل', 'stairs') }}
           {{ nav_item('academic.sections_list',  'الفصول والشعب',   'meeting_room') }}
           {{ nav_item('academic.calendar_month', 'التقويم الدراسي',  'calendar_month') }}
-        {% endcall %}
-
-        {% call group('admin-members', 'الأعضاء', 'groups') %}
-          {{ nav_item('students.students_list',    'الطلاب',           'groups') }}
-          {{ nav_item('students.guardians_list',   'أولياء الأمور',     'supervisor_account') }}
-          {{ nav_item('students.promotion',        'ترقية نهاية السنة','trending_up') }}
-          {{ nav_item('teachers.teachers_list',    'المعلمون',         'menu_book') }}
-          {{ nav_item('teachers.assignments_list', 'إسناد التدريس',    'assignment_ind') }}
-          {{ nav_item('admin.users_list',          'المستخدمون',       'manage_accounts') }}
-          {{ nav_item('admin.roles_list',          'الأدوار والصلاحيات','admin_panel_settings') }}
-          {{ nav_item('admin.audit_log',           'سجل النشاط',        'history') }}
-          {{ nav_item('admin.school_settings',     'إعدادات المدرسة',   'settings') }}
-        {% endcall %}
-
-        {% call group('admin-lms', 'التعلم والأداء', 'auto_stories') %}
           {{ nav_item('teachers.subjects_list',  'المواد الدراسية',   'book') }}
           {{ nav_item('courses.list_courses',    'المقرّرات والدروس', 'auto_stories') }}
-          {{ nav_item('lms.bank_home',           'بنك الأسئلة',       'inventory_2') }}
-          {{ nav_item('lms.template_home',       'مكتبة الواجبات',    'bookmarks') }}
-          {{ nav_item('lms.assignments_home',    'واجبات الطلاب',     'assignment') }}
-          {{ nav_item('lms.quizzes_home',        'الاختبارات',         'quiz') }}
-          {{ nav_item('lms.announcements_home',  'الإعلانات',       'campaign') }}
-          {{ nav_item('schedule.index',          'الجدول المدرسي',  'calendar_month') }}
-          {{ nav_item('attendance.index',        'الحضور والغياب',  'fact_check') }}
-          {{ nav_item('results.grades_index',    'رصد الدرجات',     'grading') }}
-          {{ nav_item('results.scales_list',     'سلالم الدرجات',    'stacked_line_chart') }}
-          {{ nav_item('results.rubrics_list',    'الروبريكس',        'rule') }}
         {% endcall %}
 
-        {% call group('admin-ops', 'العمليات والتواصل', 'settings_suggest') %}
-          {{ nav_item('platform.rooms_list',       'القاعات',          'meeting_room') }}
-          {{ nav_item('platform.staff_attendance', 'حضور الموظفين',    'badge') }}
-          {{ nav_item('platform.substitutions_list','تغطية الحصص',     'sync_alt') }}
-          {{ nav_item('platform.imports_home',     'استيراد Excel',    'upload_file') }}
-          {{ nav_item('messaging.inbox',           'الرسائل',           'forum') }}
+        {# 3 · Schedule & rooms #}
+        {% call group('admin-schedule', 'الجدول والقاعات', 'schedule') %}
+          {{ nav_item('platform.rooms_list', 'القاعات',        'meeting_room') }}
+          {{ nav_item('schedule.index',      'الجدول المدرسي', 'calendar_month') }}
         {% endcall %}
 
-        {% call group('admin-finance', 'المالية والموارد البشرية', 'account_balance') %}
-          {{ nav_item('finance.invoices_list',  'الفواتير',          'receipt_long') }}
-          {{ nav_item('finance.expenses_list',  'المصروفات',         'payments') }}
-          {{ nav_item('finance.vendors_list',   'الموردون',          'storefront') }}
-          {{ nav_item('finance.fee_types',      'أنواع الرسوم',      'sell') }}
-          {{ nav_item('finance.discount_types', 'الخصومات والمنح',   'percent') }}
-          {{ nav_item('finance.treasury',      'الخزينة',            'account_balance_wallet') }}
-          {{ nav_item('finance.accounts',      'دليل الحسابات',     'account_tree') }}
-          {{ nav_item('finance.journal',       'قيود اليومية',      'menu_book') }}
-          {{ nav_item('finance.quick_journal_index', 'قيد سريع',    'bolt') }}
-          {{ nav_item('finance.cost_centers_list', 'مراكز التكلفة', 'category') }}
-          {{ nav_item('finance.reports',       'التقارير المالية',  'analytics') }}
-          {{ nav_item('hr.employees_list',     'الموظفون',          'badge') }}
-          {{ nav_item('hr.payroll_list',       'الرواتب',           'paid') }}
+        {# 4 · Teachers #}
+        {% call group('admin-teachers', 'المعلمون', 'menu_book') %}
+          {{ nav_item('teachers.teachers_list',      'المعلمون',      'menu_book') }}
+          {{ nav_item('teachers.assignments_list',   'إسناد التدريس', 'assignment_ind') }}
+          {{ nav_item('platform.substitutions_list', 'تغطية الحصص',   'sync_alt') }}
+        {% endcall %}
+
+        {# 5 · Students #}
+        {% call group('admin-students', 'الطلاب', 'groups') %}
+          {{ nav_item('students.students_list',  'الطلاب',           'groups') }}
+          {{ nav_item('students.guardians_list', 'أولياء الأمور',     'supervisor_account') }}
+          {{ nav_item('platform.imports_home',   'استيراد Excel',    'upload_file') }}
+          {{ nav_item('attendance.index',        'الحضور والغياب',    'fact_check') }}
+          {{ nav_item('students.promotion',      'ترقية نهاية السنة', 'trending_up') }}
+        {% endcall %}
+
+        {# 6 · Learning #}
+        {% call group('admin-learning', 'التعلم', 'auto_stories') %}
+          {{ nav_item('lms.bank_home',          'بنك الأسئلة',   'inventory_2') }}
+          {{ nav_item('lms.template_home',      'مكتبة الواجبات', 'bookmarks') }}
+          {{ nav_item('lms.assignments_home',   'واجبات الطلاب',  'assignment') }}
+          {{ nav_item('lms.announcements_home', 'الإعلانات',      'campaign') }}
+        {% endcall %}
+
+        {# 7 · Assessment #}
+        {% call group('admin-assessment', 'التقييم', 'grading') %}
+          {{ nav_item('lms.quizzes_home',      'الاختبارات',      'quiz') }}
+          {{ nav_item('results.grades_index',  'رصد الدرجات',    'grading') }}
+          {{ nav_item('results.scales_list',   'سلالم الدرجات',   'stacked_line_chart') }}
+          {{ nav_item('results.rubrics_list',  'معايير التقييم',  'rule') }}
+          {{ nav_item('results.settings',      'إعدادات النتائج', 'tune') }}
+        {% endcall %}
+
+        {# 8 · Finance #}
+        {% call group('admin-finance', 'المالية', 'account_balance') %}
+          {{ nav_item('finance.invoices_list',        'الفواتير',            'receipt_long') }}
+          {{ nav_item('finance.fee_types',            'أنواع الرسوم',        'sell') }}
+          {{ nav_item('finance.recurring_list',       'الرسوم المتكررة',     'event_repeat') }}
+          {{ nav_item('finance.discount_types',       'الخصومات والمنح',     'percent') }}
+          {{ nav_item('finance.student_discounts',    'خصومات الطلاب',       'discount') }}
+          {{ nav_item('finance.payment_methods_list', 'طرق الدفع',          'credit_card') }}
+          {{ nav_item('finance.treasury',             'الخزينة',             'savings') }}
+          {{ nav_item('finance.bank_rec',             'التسوية البنكية',     'account_balance_wallet') }}
+          {{ nav_item('finance.vendors_list',         'الموردون',            'storefront') }}
+          {{ nav_item('finance.expenses_list',        'المصروفات',           'payments') }}
+          {{ nav_item('finance.accounts',             'دليل الحسابات',       'account_tree') }}
+          {{ nav_item('finance.journal',              'قيود اليومية',        'menu_book') }}
+          {{ nav_item('finance.quick_journal_index',  'قيد سريع',           'edit_note') }}
+          {{ nav_item('finance.cost_centers_list',    'مراكز التكلفة',       'donut_small') }}
+          {{ nav_item('finance.reports_index',        'التقارير المالية',    'analytics') }}
+        {% endcall %}
+
+        {# 9 · HR #}
+        {% call group('admin-hr', 'الموارد البشرية', 'badge') %}
+          {{ nav_item('hr.employees_list',         'الموظفون',        'badge') }}
+          {{ nav_item('platform.staff_attendance', 'حضور الموظفين',   'fact_check') }}
+          {{ nav_item('hr.payroll_list',           'الرواتب',         'paid') }}
+        {% endcall %}
+
+        {# 10 · Settings & system #}
+        {% call group('admin-system', 'الإعدادات والنظام', 'settings') %}
+          {{ nav_item('admin.school_settings', 'إعدادات المدرسة',    'settings') }}
+          {{ nav_item('admin.users_list',      'المستخدمون',        'manage_accounts') }}
+          {{ nav_item('admin.roles_list',      'الأدوار والصلاحيات', 'admin_panel_settings') }}
+          {{ nav_item('admin.audit_log',       'سجل النشاط',        'history') }}
+          {{ nav_item('messaging.inbox',       'الرسائل',            'forum') }}
         {% endcall %}
 
       {% elif _role == 'teacher' %}
@@ -198,7 +225,7 @@
     transition:max-height 240ms ease, opacity 200ms ease;
   }
   #app-sidebar details.nav-group[open] > .nav-group-body{
-    max-height:800px;opacity:1;
+    max-height:1200px;opacity:1;
   }
   /* Mini state: hide headers, flatten items so icons are visible.        */
   body.sidebar-mini #app-sidebar details.nav-group > summary{display:none}

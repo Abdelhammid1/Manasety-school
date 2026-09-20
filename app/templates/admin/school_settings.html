@@ -12,7 +12,7 @@
     <span class="material-symbols-outlined">settings</span>إعدادات المدرسة
   </h1>
 
-  <form method="post" class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+  <form method="post" enctype="multipart/form-data" class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <nav class="flex overflow-x-auto bg-surface-container-high" role="tablist">
       {% for id, label, icon in [
@@ -52,8 +52,29 @@
           <input name="website" dir="ltr" value="{{ school.website or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
         <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md font-bold">العنوان</label>
           <textarea name="address" rows="2" class="w-full px-3 py-2 rounded-lg bg-surface-container-low">{{ school.address or '' }}</textarea></div>
-        <div class="flex flex-col gap-1 md:col-span-2"><label class="font-label-md font-bold">رابط الشعار (URL)</label>
-          <input name="logo_url" dir="ltr" value="{{ school.logo_url or '' }}" placeholder="https://..." class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-2 md:col-span-2">
+          <label class="font-label-md font-bold">شعار المدرسة</label>
+          <div class="flex items-center gap-space-md flex-wrap">
+            {% if school.logo_url %}
+            <img src="{{ school.logo_url }}" alt="الشعار الحالي"
+                 class="h-16 w-16 object-contain rounded-lg bg-surface-container-low p-1 border border-outline-variant">
+            {% endif %}
+            <div class="flex flex-col gap-1 flex-1 min-w-[240px]">
+              <input type="file" name="logo_file" accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                     class="block text-sm text-on-surface file:h-10 file:px-4 file:rounded-lg file:border-0 file:bg-primary-container/20 file:text-primary file:font-bold file:cursor-pointer">
+              <span class="font-label-xs text-outline">
+                اختر ملف صورة من جهازك (PNG / JPG / SVG / WebP، حتى ١٠ ميجابايت).
+              </span>
+            </div>
+          </div>
+          <details class="mt-space-sm">
+            <summary class="cursor-pointer text-outline hover:text-primary font-label-sm">
+              أو ضع رابط URL خارجي بدلاً من الرفع
+            </summary>
+            <input name="logo_url" dir="ltr" value="{{ school.logo_url or '' }}" placeholder="https://..."
+                   class="mt-2 w-full h-11 px-3 rounded-lg bg-surface-container-low">
+          </details>
+        </div>
       </div>
     </div>
 

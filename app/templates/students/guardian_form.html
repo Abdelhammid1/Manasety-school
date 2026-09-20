@@ -1,0 +1,103 @@
+{# Ticket #8 — standalone Guardian add form. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}ولي أمر جديد{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.guardians_list') }}" class="hover:text-primary">أولياء الأمور</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">إضافة</span>
+{% endblock %}
+
+{% block page_content %}
+{% macro fld(name, label, kind='text', value='', ph='', required=False) %}
+<div class="flex flex-col gap-1.5">
+  <label class="font-label-md text-on-surface font-bold">{{ label }}{% if required %} <span class="text-error">*</span>{% endif %}</label>
+  <input name="{{ name }}" type="{{ kind }}" value="{{ value }}" placeholder="{{ ph }}" {% if required %}required{% endif %}
+         class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+</div>
+{% endmacro %}
+
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-primary">إضافة ولي أمر</h1>
+
+  <form method="post" class="flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">supervisor_account</span>البيانات الشخصية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {{ fld('full_name', 'الاسم الكامل', value=form.get('full_name'), required=True) }}
+        {{ fld('phone', 'الجوال', kind='tel', value=form.get('phone'), ph='+9665...') }}
+        {{ fld('national_id', 'الرقم القومي', value=form.get('national_id')) }}
+        {{ fld('email', 'البريد الإلكتروني', kind='email', value=form.get('email')) }}
+        {{ fld('occupation', 'المهنة', value=form.get('occupation')) }}
+        {{ fld('address', 'العنوان', value=form.get('address')) }}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">key</span>حساب دخول ولي الأمر
+      </h2>
+      <label class="flex items-center gap-2 cursor-pointer mb-space-md">
+        <input type="checkbox" name="create_account" id="createAcctG" value="1" class="w-5 h-5 accent-primary">
+        <span class="font-label-md text-on-surface">إنشاء حساب دخول لبوابة ولي الأمر من نفس البيانات</span>
+      </label>
+      <div id="acctFieldsG" class="grid grid-cols-1 md:grid-cols-2 gap-space-md" style="display:none">
+        {{ fld('account_username', 'اسم المستخدم (اختياري)', ph='يُولَّد تلقائيًا لو تُرك فارغًا') }}
+        {{ fld('account_password', 'كلمة المرور (٨ أحرف على الأقل)', kind='password') }}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">school</span>ربط بالأبناء
+      </h2>
+      <p class="font-body-sm text-on-surface-variant mb-space-sm">
+        اختر الطلاب المرتبطين — يمكنك ربط أكثر من طالب (الإخوة) بولي أمر واحد.
+      </p>
+      <div class="flex items-center gap-space-sm mb-space-sm">
+        <label class="font-label-md text-on-surface font-bold">صلة القرابة</label>
+        <select name="relationship" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="أب">أب</option>
+          <option value="أم">أم</option>
+          <option value="جد">جد</option>
+          <option value="عم">عم/خال</option>
+          <option value="وصي">وصي شرعي</option>
+        </select>
+      </div>
+      <div class="max-h-80 overflow-y-auto rounded-xl bg-surface-container-low p-space-sm">
+        {% for s in students %}
+        <label class="flex items-center gap-3 p-2 hover:bg-surface-container-lowest rounded cursor-pointer">
+          <input type="checkbox" name="student_ids" value="{{ s.id }}" class="w-4 h-4 accent-primary">
+          <input type="radio" name="primary_student_id" value="{{ s.id }}" title="أساسي" class="w-4 h-4 accent-primary">
+          <span class="font-label-md text-primary">{{ s.full_name }}</span>
+          <span class="font-label-xs text-outline" dir="ltr">{{ s.permanent_code }}</span>
+        </label>
+        {% else %}
+        <p class="text-outline text-center">لا يوجد طلاب مسجّلون بعد.</p>
+        {% endfor %}
+      </div>
+    </section>
+
+    <div class="flex items-center justify-end gap-space-sm">
+      <a href="{{ url_for('students.guardians_list') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+      <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">save</span><span>حفظ</span>
+      </button>
+    </div>
+  </form>
+</div>
+
+<script>
+  (function(){
+    var cb = document.getElementById('createAcctG');
+    var wr = document.getElementById('acctFieldsG');
+    if (cb && wr) cb.addEventListener('change', function(){ wr.style.display = cb.checked ? '' : 'none'; });
+  })();
+</script>
+{% endblock %}

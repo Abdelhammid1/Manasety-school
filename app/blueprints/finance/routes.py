@@ -14,7 +14,7 @@ from ...extensions import db
 from ...models import (
     Account, AcademicYear, Enrollment, Expense, FeeType, Grade,
     Installment, Invoice, InvoiceLine, JournalEntry, JournalLine,
-    Payment, Section, Student, Vendor,
+    Payment, School, Section, Student, Vendor,
 )
 from ...services.accounting import post_journal
 from ...services.notifications import send_notification
@@ -373,9 +373,16 @@ def invoice_new():
         if enrollment_id not in [e.id for e in enrollments]:
             flash("اختر طالباً صحيحاً من القائمة.", "danger")
             return redirect(url_for("finance.invoice_new"))
-        issue = _parse_date(request.form.get("issue_date")) or date.today()
-        due = _parse_date(request.form.get("due_date")) or (issue + timedelta(days=30))
-        installments_count = int(request.form.get("installments_count") or "1")
+        try:
+            issue = _parse_date(request.form.get("issue_date")) or date.today()
+            due = _parse_date(request.form.get("due_date")) or (issue + timedelta(days=30))
+        except (ValueError, TypeError):
+            flash("صيغة التاريخ غير صحيحة — استخدم YYYY-MM-DD.", "danger")
+            return redirect(url_for("finance.invoice_new"))
+        try:
+            installments_count = int(request.form.get("installments_count") or "1")
+        except (TypeError, ValueError):
+            installments_count = 1
 
         fee_ids = request.form.getlist("fee_type_id", type=int)
         amounts = request.form.getlist("amount")
@@ -495,9 +502,11 @@ def invoice_new():
         flash(f"تم إنشاء الفاتورة {number} وقيدها محاسبيًا.", "success")
         return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
+    school = db.session.get(School, _sid())
     return render_template(
         "finance/invoice_form.html", year=year, enrollments=enrollments,
         fee_types=fee_types, preselect_enrollment_id=preselect_id,
+        school=school,
     )
 
 

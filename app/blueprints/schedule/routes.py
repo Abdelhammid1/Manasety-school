@@ -146,6 +146,29 @@ def section_schedule(section_id):
             year_id=year.id, section_id=section.id, is_active=True
         ).all()
     )
+
+    # Ticket #5 — one entry per active (subject, teacher) assignment,
+    # with a counter of how many slots are already allocated vs required.
+    # This drives the slot form's single "assignment" dropdown.
+    allocated_by_pair = defaultdict(int)
+    for s in slots:
+        allocated_by_pair[(s.subject_id, s.teacher_id)] += 1
+
+    assignment_options = []
+    for a in assignments:
+        allocated = allocated_by_pair[(a.subject_id, a.teacher_id)]
+        assignment_options.append({
+            "id": a.id,
+            "subject_id": a.subject_id,
+            "teacher_id": a.teacher_id,
+            "subject_name": a.subject.name,
+            "teacher_name": a.teacher.full_name,
+            "allocated": allocated,
+            "required": a.weekly_periods,
+            "remaining": max(0, a.weekly_periods - allocated),
+            "full": allocated >= a.weekly_periods,
+        })
+
     # Ticket #7 correction — surface active rooms so the slot form can
     # offer a room dropdown (backend already accepts room_id).
     rooms = (
@@ -155,7 +178,8 @@ def section_schedule(section_id):
     return render_template(
         "schedule/section.html",
         section=section, year=year, days=days, periods=periods,
-        grid=grid, assignments=assignments, rooms=rooms,
+        grid=grid, assignments=assignments,
+        assignment_options=assignment_options, rooms=rooms,
     )
 
 
@@ -167,8 +191,50 @@ def slot_save(section_id):
     year = section.year
     day_id = int(request.form["day_id"])
     period_id = int(request.form["period_id"])
-    subject_id = int(request.form["subject_id"])
-    teacher_id = int(request.form["teacher_id"])
+
+    # Ticket #5 — prefer assignment_id (subject + teacher come from the
+    # active assignment). Fall back to explicit subject_id/teacher_id for
+    # legacy callers.
+    assignment_id = request.form.get("assignment_id", type=int)
+    if assignment_id:
+        assignment = Assignment.query.filter_by(
+            id=assignment_id, school_id=_sid(),
+            year_id=year.id, section_id=section.id, is_active=True,
+        ).first()
+        if not assignment:
+            flash("الإسناد غير صالح لهذا الفصل.", "danger")
+            return redirect(url_for("schedule.section_schedule", section_id=section.id))
+        subject_id = assignment.subject_id
+        teacher_id = assignment.teacher_id
+
+        # Enforce the weekly count from the assignment. Skip the check
+        # when this cell already holds the same pair (an in-place edit).
+        already = (
+            ScheduleSlot.query.filter_by(
+                year_id=year.id, section_id=section.id,
+                subject_id=subject_id, teacher_id=teacher_id,
+            ).count()
+        )
+        existing_here = ScheduleSlot.query.filter_by(
+            year_id=year.id, section_id=section.id,
+            day_id=day_id, period_id=period_id,
+        ).first()
+        is_same_pair = (
+            existing_here
+            and existing_here.subject_id == subject_id
+            and existing_here.teacher_id == teacher_id
+        )
+        if not is_same_pair and already >= assignment.weekly_periods:
+            flash(
+                f"اكتمل توزيع ({assignment.subject.name} — {assignment.teacher.full_name}): "
+                f"{already} من {assignment.weekly_periods}. عدّل الإسناد أو احذف حصة قديمة.",
+                "danger",
+            )
+            return redirect(url_for("schedule.section_schedule", section_id=section.id))
+    else:
+        subject_id = int(request.form["subject_id"])
+        teacher_id = int(request.form["teacher_id"])
+
     # Ticket #7 — optional room assignment.
     room_id = request.form.get("room_id", type=int) or None
 

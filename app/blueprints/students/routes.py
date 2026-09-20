@@ -185,6 +185,16 @@ def students_list():
 @login_required
 @require_permission("students", "add")
 def student_new():
+    from ...models import Guardian, StudentGuardian
+    guardians_pool = (
+        Guardian.query.filter_by(school_id=_sid())
+        .order_by(Guardian.full_name).all()
+    )
+    render_kwargs = dict(
+        parent_users=_parent_users(),
+        guardians_pool=guardians_pool,
+    )
+
     if request.method == "POST":
         nid = (request.form.get("national_id") or "").strip() or None
         if nid:
@@ -195,13 +205,24 @@ def student_new():
                     "أكّد الحفظ إذا كنت متأكدًا.",
                     "warning",
                 )
-                return render_template("students/form.html", student=None, form=request.form, dup=dup, parent_users=_parent_users())
+                return render_template("students/form.html", student=None, form=request.form, dup=dup, **render_kwargs)
 
         try:
             dob = _parse_date(request.form.get("dob"))
         except ValueError:
             flash("تاريخ الميلاد غير صالح — استخدم صيغة YYYY-MM-DD.", "danger")
-            return render_template("students/form.html", student=None, form=request.form, dup=None, parent_users=_parent_users())
+            return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
+
+        parent_name = (request.form.get("parent_name") or "").strip() or None
+        parent_phone = (request.form.get("parent_phone") or "").strip() or None
+        parent_email = (request.form.get("parent_email") or "").strip() or None
+
+        # Ticket #7 — Guardian picker with three modes:
+        #   • guardian_mode=existing → link the picked Guardian
+        #   • guardian_mode=new_with_account → create Guardian + User inline
+        #   • guardian_mode=new (default) → create Guardian only, no account
+        guardian_mode = (request.form.get("guardian_mode") or "new").strip()
+        existing_guardian_id = request.form.get("existing_guardian_id", type=int)
 
         try:
             student = Student(
@@ -211,9 +232,9 @@ def student_new():
                 national_id=nid,
                 dob=dob,
                 gender=request.form.get("gender") or None,
-                parent_name=(request.form.get("parent_name") or "").strip() or None,
-                parent_phone=(request.form.get("parent_phone") or "").strip() or None,
-                parent_email=(request.form.get("parent_email") or "").strip() or None,
+                parent_name=parent_name,
+                parent_phone=parent_phone,
+                parent_email=parent_email,
                 parent_user_id=int(request.form["parent_user_id"]) if request.form.get("parent_user_id") else None,
                 mother_name=(request.form.get("mother_name") or "").strip() or None,
                 mother_phone=(request.form.get("mother_phone") or "").strip() or None,
@@ -222,10 +243,71 @@ def student_new():
             )
             db.session.add(student)
             db.session.flush()
-            # Ticket #1 — write to Guardian entity in the same transaction
-            # so the legacy parent_* fields and the new Guardian rows
-            # never drift out of sync.
-            _sync_student_guardians(student)
+
+            # Ticket #7 — link an existing Guardian if the admin picked one;
+            # otherwise fall through to the legacy sync path.
+            if guardian_mode == "existing" and existing_guardian_id:
+                g = Guardian.query.filter_by(
+                    id=existing_guardian_id, school_id=_sid(),
+                ).first()
+                if g:
+                    db.session.add(StudentGuardian(
+                        student_id=student.id, guardian_id=g.id,
+                        relationship="أب", is_primary=True,
+                        can_receive_notifications=True,
+                    ))
+                    if g.user_id and not student.parent_user_id:
+                        student.parent_user_id = g.user_id
+            else:
+                # Ticket #1 — bridge the legacy parent_* fields to Guardian.
+                _sync_student_guardians(student)
+
+                # Ticket #7 — if requested, create a login for the just-
+                # created guardian right after we synced the row.
+                if (guardian_mode == "new_with_account"
+                        and parent_name and student.guardian_links):
+                    primary_guardian = next(
+                        (l.guardian for l in student.guardian_links
+                         if l.is_primary), None,
+                    ) or student.guardian_links[0].guardian
+                    if primary_guardian and not primary_guardian.user_id:
+                        from ...services.user_provisioning import provision_user
+                        new_user, err = provision_user(
+                            school_id=_sid(), kind="parent",
+                            full_name=primary_guardian.full_name,
+                            username=request.form.get("guardian_account_username"),
+                            password=request.form.get("guardian_account_password"),
+                            email=parent_email, phone=parent_phone,
+                        )
+                        if err:
+                            db.session.rollback()
+                            flash(err, "danger")
+                            return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
+                        primary_guardian.user_id = new_user.id
+                        student.parent_user_id = new_user.id
+
+            # Ticket #7 — inline student account (parent-app / student portal).
+            if request.form.get("create_student_account"):
+                from ...services.user_provisioning import provision_user
+                new_user, err = provision_user(
+                    school_id=_sid(), kind="student",
+                    full_name=student.full_name,
+                    username=request.form.get("student_account_username"),
+                    password=request.form.get("student_account_password"),
+                    email=None, phone=None,
+                )
+                if err:
+                    db.session.rollback()
+                    flash(err, "danger")
+                    return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
+                # Student model has no user_id column; the account is
+                # created and linked via User.full_name matching. Log
+                # for admin visibility.
+                current_app.logger.info(
+                    "student account created for %s → user_id=%s",
+                    student.permanent_code, new_user.id,
+                )
+
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -234,11 +316,11 @@ def student_new():
                 "تعذّر حفظ ملف الطالب. راجع البيانات المدخلة، وإذا استمرت المشكلة تواصل مع الدعم الفني (تم تسجيل الخطأ).",
                 "danger",
             )
-            return render_template("students/form.html", student=None, form=request.form, dup=None, parent_users=_parent_users())
+            return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
 
         flash(f"تم إنشاء ملف الطالب — كود دائم: {student.permanent_code}", "success")
         return redirect(url_for("students.student_detail", student_id=student.id))
-    return render_template("students/form.html", student=None, form={}, dup=None, parent_users=_parent_users())
+    return render_template("students/form.html", student=None, form={}, dup=None, **render_kwargs)
 
 
 @bp.route("/<int:student_id>")
@@ -385,6 +467,75 @@ def guardians_list():
     return render_template("students/guardians_list.html", guardians=items, search=search)
 
 
+@bp.route("/guardians/new", methods=["GET", "POST"], endpoint="guardian_new")
+@login_required
+@require_permission("students", "add")
+def guardian_new():
+    """Ticket #8 — standalone Guardian creation from the guardians tab.
+    Optional inline User account + optional link to one or more students."""
+    from ...models import Guardian, StudentGuardian
+    students_pool = (
+        Student.query.filter_by(school_id=_sid())
+        .order_by(Student.full_name).limit(1000).all()
+    )
+    if request.method == "POST":
+        full_name = (request.form.get("full_name") or "").strip()
+        if not full_name:
+            flash("اسم ولي الأمر مطلوب.", "danger")
+            return render_template("students/guardian_form.html",
+                                   form=request.form, students=students_pool)
+        phone = (request.form.get("phone") or "").strip() or None
+        national_id = (request.form.get("national_id") or "").strip() or None
+        email = (request.form.get("email") or "").strip() or None
+
+        guardian = Guardian(
+            school_id=_sid(),
+            full_name=full_name,
+            phone=phone, national_id=national_id, email=email,
+            occupation=(request.form.get("occupation") or "").strip() or None,
+            address=(request.form.get("address") or "").strip() or None,
+        )
+        db.session.add(guardian); db.session.flush()
+
+        if request.form.get("create_account"):
+            from ...services.user_provisioning import provision_user
+            new_user, err = provision_user(
+                school_id=_sid(), kind="parent", full_name=full_name,
+                username=request.form.get("account_username"),
+                password=request.form.get("account_password"),
+                email=email, phone=phone,
+            )
+            if err:
+                db.session.rollback()
+                flash(err, "danger")
+                return render_template("students/guardian_form.html",
+                                       form=request.form, students=students_pool)
+            guardian.user_id = new_user.id
+
+        # Ticket #8 — link one or more students in the same step.
+        picked_student_ids = request.form.getlist("student_ids", type=int)
+        primary_student_id = request.form.get("primary_student_id", type=int)
+        for stu_id in picked_student_ids:
+            stu = Student.query.filter_by(id=stu_id, school_id=_sid()).first()
+            if not stu:
+                continue
+            db.session.add(StudentGuardian(
+                student_id=stu.id, guardian_id=guardian.id,
+                relationship=(request.form.get("relationship") or "أب").strip(),
+                is_primary=(stu.id == primary_student_id),
+                can_receive_notifications=True,
+            ))
+            if guardian.user_id and not stu.parent_user_id:
+                stu.parent_user_id = guardian.user_id
+
+        db.session.commit()
+        flash(f"تم إضافة ولي الأمر {guardian.full_name}.", "success")
+        return redirect(url_for("students.guardians_list"))
+
+    return render_template("students/guardian_form.html",
+                           form={}, students=students_pool)
+
+
 @bp.route("/<int:student_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("students", "edit")
@@ -408,7 +559,13 @@ def student_edit(student_id):
         db.session.commit()
         flash("تم تحديث ملف الطالب.", "success")
         return redirect(url_for("students.student_detail", student_id=student.id))
-    return render_template("students/form.html", student=student, form={}, dup=None, parent_users=_parent_users())
+    from ...models import Guardian
+    return render_template(
+        "students/form.html", student=student, form={}, dup=None,
+        parent_users=_parent_users(),
+        guardians_pool=Guardian.query.filter_by(school_id=_sid())
+            .order_by(Guardian.full_name).all(),
+    )
 
 
 def _parent_users():

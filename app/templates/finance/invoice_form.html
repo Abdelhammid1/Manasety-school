@@ -67,7 +67,7 @@
       <div class="mt-space-md flex items-center justify-end gap-space-sm p-space-md rounded-xl bg-surface-container-low">
         <span class="font-label-lg text-label-lg text-on-surface-variant">الإجمالي المتوقّع:</span>
         <span id="grandTotal" class="font-headline-md text-headline-md text-primary font-bold tabular-nums">0.00</span>
-        <span class="font-label-md text-label-md text-on-surface-variant">ر.س</span>
+        <span class="font-label-md text-label-md text-on-surface-variant">{{ (school.currency_symbol if school else 'ج.م') }}</span>
       </div>
     </section>
 

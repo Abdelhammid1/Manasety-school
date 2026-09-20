@@ -68,22 +68,78 @@
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
         <span class="material-symbols-outlined">family_restroom</span>ولي الأمر
       </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
-        {{ field('parent_name', 'اسم الأب / ولي الأمر', F.parent_name if F else '') }}
-        {{ field('parent_phone', 'جوال الأب', F.parent_phone if F else '', kind='tel', ph='+9665...') }}
-        {{ field('parent_email', 'البريد الإلكتروني', F.parent_email if F else '', kind='email') }}
-        {% call field('parent_user_id', 'حساب ولي الأمر (اختياري)', kind='select', help='اربط الطالب بحساب مستخدم من نوع ولي أمر لتفعيل بوابة ولي الأمر.') %}
-          <select name="parent_user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
-            <option value="">— بدون ربط —</option>
-            {% for u in parent_users %}
-            <option value="{{ u.id }}" {% if F and F.parent_user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
-            {% endfor %}
-          </select>
-        {% endcall %}
-        {{ field('mother_name', 'اسم الأم', F.mother_name if F else '') }}
-        {{ field('mother_phone', 'جوال الأم', F.mother_phone if F else '', kind='tel') }}
+
+      {% if not student %}
+      {# Ticket #7 — pick from the guardians already recorded in the school,
+         or create a new one (with an optional inline account). #}
+      <div class="flex items-center gap-space-md mb-space-md flex-wrap">
+        <label class="cursor-pointer">
+          <input type="radio" name="guardian_mode" value="new" class="peer sr-only" checked>
+          <span class="px-3 py-1.5 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">ولي أمر جديد</span>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="guardian_mode" value="existing" class="peer sr-only">
+          <span class="px-3 py-1.5 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">ربط بولي أمر موجود</span>
+        </label>
+        <label class="cursor-pointer">
+          <input type="radio" name="guardian_mode" value="new_with_account" class="peer sr-only">
+          <span class="px-3 py-1.5 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">جديد + حساب دخول</span>
+        </label>
+      </div>
+
+      <div data-guardian-existing class="mb-space-md" style="display:none">
+        <label class="font-label-md text-on-surface font-bold">اختر ولي الأمر</label>
+        <select name="existing_guardian_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— ابحث بالاسم أو الجوال —</option>
+          {% for g in guardians_pool %}
+          <option value="{{ g.id }}">{{ g.full_name }}{% if g.phone %} — {{ g.phone }}{% endif %}{% if g.national_id %} — {{ g.national_id }}{% endif %}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% endif %}
+
+      <div data-guardian-new>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+          {{ field('parent_name', 'اسم الأب / ولي الأمر', F.parent_name if F else '') }}
+          {{ field('parent_phone', 'جوال الأب', F.parent_phone if F else '', kind='tel', ph='+9665...') }}
+          {{ field('parent_email', 'البريد الإلكتروني', F.parent_email if F else '', kind='email') }}
+          {% call field('parent_user_id', 'حساب ولي الأمر (اختياري)', kind='select', help='اربط الطالب بحساب مستخدم من نوع ولي أمر لتفعيل بوابة ولي الأمر.') %}
+            <select name="parent_user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+              <option value="">— بدون ربط —</option>
+              {% for u in parent_users %}
+              <option value="{{ u.id }}" {% if F and F.parent_user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
+              {% endfor %}
+            </select>
+          {% endcall %}
+          {{ field('mother_name', 'اسم الأم', F.mother_name if F else '') }}
+          {{ field('mother_phone', 'جوال الأم', F.mother_phone if F else '', kind='tel') }}
+        </div>
+
+        {% if not student %}
+        <div data-guardian-account class="mt-space-md grid grid-cols-1 md:grid-cols-2 gap-space-md" style="display:none">
+          {{ field('guardian_account_username', 'اسم مستخدم ولي الأمر (اختياري)', '', ph='يُولَّد تلقائيًا لو تُرك فارغًا') }}
+          {{ field('guardian_account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password') }}
+        </div>
+        {% endif %}
       </div>
     </section>
+
+    {% if not student %}
+    {# Ticket #7 — inline student login account. #}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">key</span>حساب الطالب (اختياري)
+      </h2>
+      <label class="flex items-center gap-2 cursor-pointer mb-space-md">
+        <input type="checkbox" name="create_student_account" id="createStuAcct" value="1" class="w-5 h-5 accent-primary">
+        <span class="font-label-md text-on-surface">إنشاء حساب دخول للطالب من نفس البيانات</span>
+      </label>
+      <div id="stuAcctFields" class="grid grid-cols-1 md:grid-cols-2 gap-space-md" style="display:none">
+        {{ field('student_account_username', 'اسم مستخدم الطالب (اختياري)', '', ph='يُولَّد تلقائيًا لو تُرك فارغًا') }}
+        {{ field('student_account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password') }}
+      </div>
+    </section>
+    {% endif %}
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
@@ -91,6 +147,26 @@
       </h2>
       {{ field('notes', 'ملاحظات إدارية (اختياري)', F.notes if F else '', kind='textarea') }}
     </section>
+
+    <script>
+      (function(){
+        var modes = document.querySelectorAll('input[name="guardian_mode"]');
+        var newBlock = document.querySelector('[data-guardian-new]');
+        var existingBlock = document.querySelector('[data-guardian-existing]');
+        var acctBlock = document.querySelector('[data-guardian-account]');
+        function apply(){
+          var v = (document.querySelector('input[name="guardian_mode"]:checked') || {}).value;
+          if (existingBlock) existingBlock.style.display = (v === 'existing') ? '' : 'none';
+          if (newBlock) newBlock.style.display = (v === 'existing') ? 'none' : '';
+          if (acctBlock) acctBlock.style.display = (v === 'new_with_account') ? '' : 'none';
+        }
+        modes.forEach(function(r){ r.addEventListener('change', apply); });
+        apply();
+        var stu = document.getElementById('createStuAcct');
+        var stuFields = document.getElementById('stuAcctFields');
+        if (stu && stuFields) stu.addEventListener('change', function(){ stuFields.style.display = stu.checked ? '' : 'none'; });
+      })();
+    </script>
 
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('students.students_list') }}"

@@ -50,6 +50,7 @@
           <label class="font-label-md text-label-md text-on-surface font-bold">رقم الحساب البنكي</label>
           <input name="bank_account" value="{{ F.bank_account if F else '' }}" dir="ltr" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
         </div>
+        {% if F %}
         <div class="flex flex-col gap-1.5 md:col-span-2">
           <label class="font-label-md text-label-md text-on-surface font-bold">حساب المستخدم المرتبط (اختياري)</label>
           <select name="user_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
@@ -57,8 +58,48 @@
             {% for u in users %}<option value="{{ u.id }}" {% if F and F.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
           </select>
         </div>
+        {% endif %}
       </div>
     </section>
+
+    {% if not F %}
+    {# Ticket #1 — inline account creation. #}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">key</span>حساب دخول الموظف
+      </h2>
+      <label class="flex items-center gap-2 cursor-pointer mb-space-md">
+        <input type="checkbox" name="create_account" id="createAcctEmp" value="1" class="w-5 h-5 accent-primary">
+        <span class="font-label-md text-on-surface">إنشاء حساب دخول للموظف من نفس البيانات</span>
+      </label>
+      <div id="acctFieldsEmp" class="grid grid-cols-1 md:grid-cols-2 gap-space-md" style="display:none">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">اسم المستخدم (اختياري)</label>
+          <input name="account_username" class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">كلمة المرور (٨ أحرف على الأقل)</label>
+          <input name="account_password" type="password" class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+      </div>
+      <details class="mt-space-md">
+        <summary class="cursor-pointer text-outline hover:text-primary font-label-sm">ربط بحساب قائم بدلاً من إنشاء</summary>
+        <div class="mt-space-sm">
+          <select name="user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— بدون ربط —</option>
+            {% for u in users %}<option value="{{ u.id }}">{{ u.full_name }} ({{ u.username }})</option>{% endfor %}
+          </select>
+        </div>
+      </details>
+      <script>
+        (function(){
+          var cb = document.getElementById('createAcctEmp');
+          var wr = document.getElementById('acctFieldsEmp');
+          if (cb && wr) cb.addEventListener('change', function(){ wr.style.display = cb.checked ? '' : 'none'; });
+        })();
+      </script>
+    </section>
+    {% endif %}
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('hr.employees_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"

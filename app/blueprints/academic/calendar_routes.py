@@ -67,11 +67,11 @@ def calendar_month():
     for r in rows:
         by_date.setdefault(r.date, []).append(r)
 
-    # Build 6×7 grid starting from the Sunday on or before the 1st
-    # (week starts Sunday for schools we serve). Overflow days at the
-    # start/end come from adjacent months, marked greyed-out.
+    # Build 6×7 grid starting from the Saturday on or before the 1st
+    # (school week begins Sunday; header shows Saturday first). Overflow
+    # days at the start/end come from adjacent months, marked greyed-out.
     weekday_of_first = first.weekday()          # Mon=0 … Sun=6
-    days_before = (weekday_of_first + 1) % 7    # so Sun→0, Mon→1, …
+    days_before = (weekday_of_first + 2) % 7    # Sat→0, Sun→1, Mon→2, …
     grid_start = first - timedelta(days=days_before)
     cells = []
     for i in range(42):
@@ -134,6 +134,25 @@ def calendar_day_delete(day_id):
     db.session.delete(day); db.session.commit()
     flash("تم حذف اليوم.", "success")
     return redirect(url_for("academic.calendar_month", month=d.strftime("%Y-%m")))
+
+
+@bp.route("/calendar/clear-weekends", methods=["POST"],
+          endpoint="calendar_clear_weekends")
+@login_required
+@require_permission("academic_years", "delete")
+def calendar_clear_weekends():
+    """Bulk-delete every auto-generated weekend row for the active year.
+    Manually-added holidays/events are preserved."""
+    year = _active_year()
+    if not year:
+        flash("لا توجد سنة دراسية نشطة.", "danger")
+        return redirect(url_for("academic.calendar_month"))
+    n = SchoolCalendarDay.query.filter_by(
+        school_id=_sid(), academic_year_id=year.id, day_type="weekend",
+    ).delete(synchronize_session=False)
+    db.session.commit()
+    flash(f"تم حذف {n} يوم عطلة أسبوعية مُولَّد.", "success")
+    return redirect(url_for("academic.calendar_month"))
 
 
 @bp.route("/calendar/generate", methods=["POST"], endpoint="calendar_generate")

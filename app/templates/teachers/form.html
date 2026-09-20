@@ -46,21 +46,66 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
         {{ fld('specialization', 'التخصص', F.specialization if F else '', required=True, ph='مثال: الرياضيات — المرحلة الثانوية') }}
         {{ fld('hire_date', 'تاريخ التعيين', F.hire_date.strftime('%Y-%m-%d') if F and F.hire_date else '', kind='date') }}
-        <div class="flex flex-col gap-1.5">
-          <label class="font-label-md text-label-md text-on-surface font-bold">حساب المستخدم المرتبط (اختياري)</label>
-          <select name="user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+      </div>
+    </section>
+
+    {% if not teacher %}
+    {# Ticket #1 — inline account section: fill the same data once and
+       an active login for the teacher is created in the same commit. #}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">key</span>حساب الدخول للمعلم
+      </h2>
+      <label class="flex items-center gap-2 cursor-pointer mb-space-md">
+        <input type="checkbox" name="create_account" id="createAcct" value="1"
+               {% if form.get('create_account') %}checked{% endif %}
+               class="w-5 h-5 accent-primary">
+        <span class="font-label-md text-on-surface">إنشاء حساب دخول للمعلم من نفس البيانات</span>
+      </label>
+      <div id="acctFields" class="grid grid-cols-1 md:grid-cols-2 gap-space-md" {% if not form.get('create_account') %}style="display:none"{% endif %}>
+        {{ fld('account_username', 'اسم المستخدم (اختياري — يُولَّد تلقائيًا لو تُرك فارغًا)', form.get('account_username') if form else '', ph='مثلاً: teacher1234') }}
+        {{ fld('account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password', ph='••••••••') }}
+      </div>
+      <details class="mt-space-md">
+        <summary class="cursor-pointer text-outline hover:text-primary font-label-sm">ربط بحساب مستخدم قائم بدلًا من إنشاء جديد</summary>
+        <div class="mt-space-sm">
+          <select name="user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
             <option value="">— بدون ربط —</option>
             {% for u in users %}
-            <option value="{{ u.id }}" {% if F and F.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
+            <option value="{{ u.id }}">{{ u.full_name }} ({{ u.username }})</option>
             {% endfor %}
           </select>
         </div>
+      </details>
+    </section>
+    {% else %}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md text-on-surface font-bold">حساب المستخدم المرتبط (اختياري)</label>
+        <select name="user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+          <option value="">— بدون ربط —</option>
+          {% for u in users %}
+          <option value="{{ u.id }}" {% if teacher and teacher.user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
+          {% endfor %}
+        </select>
       </div>
     </section>
+    {% endif %}
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       {{ fld('notes', 'ملاحظات (اختياري)', F.notes if F else '', kind='textarea') }}
     </section>
+
+    <script>
+      (function(){
+        var cb = document.getElementById('createAcct');
+        var wr = document.getElementById('acctFields');
+        if (!cb || !wr) return;
+        cb.addEventListener('change', function(){
+          wr.style.display = cb.checked ? '' : 'none';
+        });
+      })();
+    </script>
 
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('teachers.teachers_list') }}"

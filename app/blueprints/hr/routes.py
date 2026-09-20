@@ -56,6 +56,21 @@ def employee_new():
         if not e.full_name or not e.job_title:
             flash("الاسم والمسمّى الوظيفي مطلوبان.", "danger")
             return render_template("hr/employee_form.html", employee=None, users=users)
+
+        # Ticket #1 — inline account creation.
+        if not e.user_id and request.form.get("create_account"):
+            from ...services.user_provisioning import provision_user
+            new_user, err = provision_user(
+                school_id=_sid(), kind="employee", full_name=e.full_name,
+                username=request.form.get("account_username"),
+                password=request.form.get("account_password"),
+                email=e.email, phone=e.phone,
+            )
+            if err:
+                flash(err, "danger")
+                return render_template("hr/employee_form.html", employee=None, users=users)
+            e.user_id = new_user.id
+
         db.session.add(e); db.session.commit()
         flash(f"تم إضافة الموظف {e.full_name}.", "success")
         return redirect(url_for("hr.employee_detail", employee_id=e.id))

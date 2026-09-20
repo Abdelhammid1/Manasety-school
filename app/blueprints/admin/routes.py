@@ -1,11 +1,39 @@
-from flask import abort, flash, redirect, render_template, request, url_for
+import os
+import secrets
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from werkzeug.utils import secure_filename
 
 from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import Role, User, AuditLog, School
 from ...models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
+
+
+LOGO_ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
+
+
+def _save_school_logo(school, file_storage):
+    """Ticket #2 — save a logo file uploaded from the settings form.
+
+    Writes into `static/uploads/logos/<school-id>-<random>.<ext>` and
+    returns the URL that should be stored in `school.logo_url`.
+    Returns None on validation failure (message flashed by caller).
+    """
+    if not file_storage or not file_storage.filename:
+        return None
+    name = secure_filename(file_storage.filename)
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in LOGO_ALLOWED_EXTS:
+        flash("امتداد ملف الشعار غير مدعوم — استخدم PNG/JPG/SVG/WebP.", "danger")
+        return None
+    upload_root = os.path.join(current_app.static_folder, "uploads", "logos")
+    os.makedirs(upload_root, exist_ok=True)
+    fname = f"{school.id}-{secrets.token_hex(6)}{ext}"
+    dest = os.path.join(upload_root, fname)
+    file_storage.save(dest)
+    return url_for("static", filename=f"uploads/logos/{fname}")
 
 
 # ---------- Ticket 6 — Audit log viewer ----------
@@ -17,7 +45,7 @@ def school_settings():
     """Ticket H — 6-tab school-wide settings screen (org info, banks,
     finance, academic, prints, notifications)."""
     from ...models import Account, PaymentMethod
-    from decimal import Decimal
+    from decimal import Decimal, InvalidOperation
     school = db.session.get(School, current_user.school_id)
     if not school:
         abort(404)
@@ -26,47 +54,75 @@ def school_settings():
         # Simple field-map covering every tab. Only whitelisted keys.
         s = school
         get = lambda k: (request.form.get(k) or "").strip() or None
-        # Tab 1 — establishment
-        s.name = get("name") or s.name
-        s.legal_name_ar = get("legal_name_ar")
-        s.legal_name_en = get("legal_name_en")
-        s.logo_url = get("logo_url")
-        s.license_number = get("license_number")
-        s.tax_number = get("tax_number")
-        s.address = get("address")
-        s.phone = get("phone")
-        s.email = get("email")
-        s.website = get("website")
-        # Tab 3 — finance
-        s.currency = get("currency") or "EGP"
-        s.currency_symbol = get("currency_symbol") or "ج.م"
+
         try:
-            s.default_tax_rate = Decimal(request.form.get("default_tax_rate") or "0")
+            # Tab 1 — establishment
+            s.name = get("name") or s.name
+            s.legal_name_ar = get("legal_name_ar")
+            s.legal_name_en = get("legal_name_en")
+            # Ticket #2 — file upload takes precedence over a manually
+            # typed URL. When neither is provided, keep the old value.
+            file_storage = request.files.get("logo_file")
+            if file_storage and file_storage.filename:
+                saved_url = _save_school_logo(s, file_storage)
+                if saved_url:
+                    s.logo_url = saved_url
+            else:
+                typed = get("logo_url")
+                if typed is not None:
+                    s.logo_url = typed
+            s.license_number = get("license_number")
+            s.tax_number = get("tax_number")
+            s.address = get("address")
+            s.phone = get("phone")
+            s.email = get("email")
+            s.website = get("website")
+            # Tab 3 — finance
+            s.currency = get("currency") or "EGP"
+            s.currency_symbol = get("currency_symbol") or "ج.م"
+            try:
+                s.default_tax_rate = Decimal(request.form.get("default_tax_rate") or "0")
+            except (InvalidOperation, ValueError):
+                pass
+            try:
+                s.fiscal_year_start_month = int(request.form.get("fiscal_year_start_month") or 9)
+            except (TypeError, ValueError):
+                pass
+            s.invoice_prefix = get("invoice_prefix") or "INV"
+            try:
+                s.invoice_start_number = int(request.form.get("invoice_start_number") or 1)
+            except (TypeError, ValueError):
+                pass
+            s.rounding_policy = get("rounding_policy") or "normal"
+            # Tab 4 — academic
+            mode = (request.form.get("attendance_mode") or "daily").strip()
+            if mode in ("daily", "per_period", "both"):
+                s.attendance_mode = mode
+            # Tab 5 — prints
+            s.invoice_header_text = get("invoice_header_text")
+            s.invoice_footer_text = get("invoice_footer_text")
+            s.invoice_policy_text = get("invoice_policy_text")
+            s.show_logo_on_prints = bool(request.form.get("show_logo_on_prints"))
+            # Tab 6 — notifications
+            s.reminder_days_before = get("reminder_days_before") or "7,3"
+            channels = request.form.getlist("notify_channels")
+            s.notify_channels = ",".join(channels) if channels else "in_app,email"
+            db.session.commit()
         except Exception:
-            pass
-        try:
-            s.fiscal_year_start_month = int(request.form.get("fiscal_year_start_month") or 9)
-        except Exception:
-            pass
-        s.invoice_prefix = get("invoice_prefix") or "INV"
-        try:
-            s.invoice_start_number = int(request.form.get("invoice_start_number") or 1)
-        except Exception:
-            pass
-        s.rounding_policy = get("rounding_policy") or "normal"
-        # Tab 4 — academic
-        mode = (request.form.get("attendance_mode") or "daily").strip()
-        if mode in ("daily", "per_period", "both"):
-            s.attendance_mode = mode
-        # Tab 5 — prints
-        s.invoice_header_text = get("invoice_header_text")
-        s.invoice_footer_text = get("invoice_footer_text")
-        s.invoice_policy_text = get("invoice_policy_text")
-        s.show_logo_on_prints = bool(request.form.get("show_logo_on_prints"))
-        # Tab 6 — notifications
-        s.reminder_days_before = get("reminder_days_before") or "7,3"
-        s.notify_channels = ",".join(request.form.getlist("notify_channels")) or "in_app,email"
-        db.session.commit()
+            db.session.rollback()
+            current_app.logger.exception("school settings save failed")
+            flash(
+                "تعذّر حفظ الإعدادات — راجع الحقول المرقّمة (النسب/التواريخ) "
+                "أو حاول لاحقًا. تم تسجيل الخطأ للدعم الفني.",
+                "danger",
+            )
+            bank_methods = (
+                PaymentMethod.query.filter_by(
+                    school_id=current_user.school_id, kind="immediate_bank",
+                ).order_by(PaymentMethod.name).all()
+            )
+            return render_template("admin/school_settings.html",
+                                   school=school, bank_methods=bank_methods)
         flash("تم حفظ الإعدادات.", "success")
         return redirect(url_for("admin.school_settings"))
 
