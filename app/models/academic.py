@@ -13,6 +13,12 @@ class AcademicYear(db.Model):
     status = db.Column(db.String(16), default="active", nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
+    def __str__(self):
+        # Templates like the Stitch topbar render `{{ active_year }}`
+        # directly — return the display name so pages don't leak
+        # SQLAlchemy's `<AcademicYear #1>` default repr.
+        return self.name or "—"
+
     terms = db.relationship("Term", backref="year", cascade="all, delete-orphan", order_by="Term.order_index")
     sections = db.relationship("Section", backref="year", cascade="all, delete-orphan")
 

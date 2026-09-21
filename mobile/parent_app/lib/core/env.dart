@@ -22,6 +22,9 @@ class Env {
 
   static const String appFlavor = 'parent';
 
+  /// Kept as `institutionNameAr` for source-compat but now returns the
+  /// Manasety product tagline shown under the wordmark on the login
+  /// screen (the app is no longer tied to a single school).
   static const String institutionNameAr =
-      'مؤسسة الشيخ صالح الشريف للتعليم القرآني';
+      'نظام إدارة التعلم الذكي · K-12';
 }

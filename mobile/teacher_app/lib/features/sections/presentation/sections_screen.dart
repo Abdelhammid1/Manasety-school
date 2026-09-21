@@ -50,7 +50,7 @@ class _S extends ConsumerState<SectionsScreen> {
               _FilterPills(active: _filter, totalAll: payload.totals.assignments,
                 onTap: (i) => setState(() => _filter = i)),
               const SizedBox(height: 14),
-              _DailyPromo(scheduledCount: payload.totals.periods,
+              _DailyPromo(weeklyPeriodCount: payload.totals.periods,
                 onTap: () => context.push(Routes.timetable)),
               const SizedBox(height: 14),
               _TotalsStrip(totals: payload.totals),
@@ -190,8 +190,17 @@ class _FilterPills extends StatelessWidget {
 }
 
 class _DailyPromo extends StatelessWidget {
-  const _DailyPromo({required this.scheduledCount, required this.onTap});
-  final int scheduledCount; final VoidCallback onTap;
+  const _DailyPromo({required this.weeklyPeriodCount, required this.onTap});
+  final int weeklyPeriodCount; final VoidCallback onTap;
+
+  static String _todayLabel() {
+    const months = ['يناير','فبراير','مارس','أبريل','مايو','يونيو',
+      'يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+    const days = ['الاثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت','الأحد'];
+    final now = DateTime.now();
+    return '${days[now.weekday - 1]}، ${now.day} ${months[now.month - 1]}';
+  }
+
   @override
   Widget build(BuildContext context) => Material(color: Colors.transparent,
     child: InkWell(onTap: onTap, borderRadius: BorderRadius.circular(16),
@@ -208,18 +217,18 @@ class _DailyPromo extends StatelessWidget {
               child: const Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.calendar_today_rounded, color: Colors.white, size: 12),
                 SizedBox(width: 6),
-                Text('الجدول الدراسي اليومي',
+                Text('الجدول الدراسي الأسبوعي',
                   style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
               ])),
             const Spacer(),
-            const Text('الأحد، ٢٢ أكتوبر',
-              style: TextStyle(color: Colors.white70, fontSize: 10)),
+            Text(_todayLabel(),
+              style: const TextStyle(color: Colors.white70, fontSize: 10)),
           ]),
           const SizedBox(height: 10),
-          Text('لديك اليوم $scheduledCount حصص مجدولة',
+          Text('لديك هذا الأسبوع $weeklyPeriodCount حصة مجدولة',
             style: const TextStyle(color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
-          const Text('الحصة القادمة: الرياضيات العامة (العاشر - أ) في مبنى العلوم',
+          const Text('اضغط لعرض جدول الأسبوع كاملاً',
             style: TextStyle(color: Colors.white70, fontSize: 11)),
         ]),
       )));

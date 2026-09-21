@@ -89,7 +89,7 @@ class _Body extends StatelessWidget {
         context.push(Routes.attendance)),
       const SizedBox(height: 10),
       for (int i = 0; i < upcoming.length; i++) ...[
-        _UpcomingPeriodRow(period: upcoming[i], index: i + 2),
+        _UpcomingPeriodRow(period: upcoming[i]),
         const SizedBox(height: 8),
       ],
       const SizedBox(height: 12),
@@ -320,10 +320,10 @@ class _CurrentPeriodCard extends StatelessWidget {
         style: const TextStyle(color: Colors.white70, fontSize: 12)),
       const SizedBox(height: 14),
       Row(children: [
-        const Icon(Icons.groups_rounded, size: 16, color: Colors.white70),
+        const Icon(Icons.access_time_rounded, size: 14, color: Colors.white70),
         const SizedBox(width: 6),
-        const Text('32 طالبًا حاضر',
-          style: TextStyle(color: Colors.white, fontSize: 12)),
+        Text(period.periodName ?? 'الحصة الحالية',
+          style: const TextStyle(color: Colors.white, fontSize: 12)),
         const Spacer(),
         Material(color: Colors.white,
           borderRadius: BorderRadius.circular(999),
@@ -342,8 +342,8 @@ class _CurrentPeriodCard extends StatelessWidget {
 }
 
 class _UpcomingPeriodRow extends StatelessWidget {
-  const _UpcomingPeriodRow({required this.period, required this.index});
-  final TodayPeriod period; final int index;
+  const _UpcomingPeriodRow({required this.period});
+  final TodayPeriod period;
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
@@ -353,7 +353,7 @@ class _UpcomingPeriodRow extends StatelessWidget {
     child: Row(children: [
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         const Text('الحصة', style: TextStyle(fontSize: 10, color: ManasetyBrand.onSurfaceVariant)),
-        Text('$index', style: const TextStyle(fontSize: 20,
+        Text('${period.periodOrder}', style: const TextStyle(fontSize: 20,
           fontWeight: FontWeight.w800, color: ManasetyBrand.navy)),
       ]),
       const SizedBox(width: 14),
@@ -370,11 +370,16 @@ class _UpcomingPeriodRow extends StatelessWidget {
           style: const TextStyle(fontSize: 11, color: ManasetyBrand.onSurfaceVariant)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text(period.start ?? '', style: const TextStyle(
-          fontFamily: 'monospace', fontSize: 13,
-          fontWeight: FontWeight.w800, color: ManasetyBrand.navy)),
+        Text(
+          period.start != null && period.end != null
+            ? '${period.start}-${period.end}'
+            : (period.start ?? ''),
+          style: const TextStyle(
+            fontFamily: 'monospace', fontSize: 12,
+            fontWeight: FontWeight.w800, color: ManasetyBrand.navy)),
         const SizedBox(height: 2),
-        const Text('طالب', style: TextStyle(fontSize: 10, color: ManasetyBrand.onSurfaceVariant)),
+        Text(period.periodName ?? 'حصة',
+          style: const TextStyle(fontSize: 10, color: ManasetyBrand.onSurfaceVariant)),
       ]),
     ]),
   );

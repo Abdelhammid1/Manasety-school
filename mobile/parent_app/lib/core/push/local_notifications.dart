@@ -10,7 +10,7 @@ class LocalNotifications {
 
   static const _channelId = 'manasety_default'; // ID stable — renaming would reset users' per-channel settings
   static const _channelName = 'بوابة ولي الأمر';
-  static const _channelDesc = 'إشعارات مؤسسة الشيخ صالح الشريف للتعليم القرآني';
+  static const _channelDesc = 'إشعارات منصتي — بوابة ولي الأمر';
 
   static Future<void> init() async {
     if (_initialized) return;

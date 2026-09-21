@@ -208,6 +208,18 @@ class _Body extends StatelessWidget {
           initial: initialScores, draft: draftScores,
           maxScore: component!.maxScore,
           onEditScore: onEditScore),
+        if (!loading && component == null) Padding(
+          padding: const EdgeInsets.symmetric(vertical: 32),
+          child: Column(children: [
+            const Icon(Icons.assignment_add, size: 40, color: ManasetyBrand.outline),
+            const SizedBox(height: 8),
+            const Text('اختر مكوّناً لبدء الرصد',
+              style: TextStyle(fontSize: 13, color: ManasetyBrand.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 4),
+            const Text('كل مكوّن له درجته العظمى وسيظهر أدناه جدول الرصد للطلاب.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 11, color: ManasetyBrand.onSurfaceVariant)),
+          ])),
       ]))),
     if (message != null) Container(
       color: (messageOk ? const Color(0xFF10B981) : ManasetyBrand.error).withValues(alpha: 0.1),

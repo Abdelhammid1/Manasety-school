@@ -342,13 +342,23 @@ def teacher_home():
             _Enr.status == "active",
         ).count()
 
-    # Today's periods this teacher teaches.
+    # Today's periods this teacher teaches — filter by weekday. The `days`
+    # table stores order_index 1..5 = Sunday..Thursday (KSA week).
+    # date.weekday(): Mon=0 .. Sun=6. So map Sun→1, Mon→2, …, Thu→5;
+    # Fri/Sat → no periods.
+    from datetime import date as _d
+    _wd_to_index = {6: 1, 0: 2, 1: 3, 2: 4, 3: 5}
+    today_order = _wd_to_index.get(_d.today().weekday())
     today_periods = []
-    if year:
-        slots = ScheduleSlot.query.filter_by(
-            teacher_id=t.id, year_id=year.id,
-        ).all()
+    if year and today_order is not None:
+        slots = (ScheduleSlot.query
+                 .join(ScheduleSlot.day)
+                 .filter(ScheduleSlot.teacher_id == t.id,
+                         ScheduleSlot.year_id == year.id)
+                 .all())
         for s in slots:
+            if not s.day or s.day.order_index != today_order:
+                continue
             today_periods.append({
                 "id": s.id,
                 "day": s.day.name if s.day else None,
@@ -361,7 +371,7 @@ def teacher_home():
                 "section": f"{s.section.grade.name}/{s.section.name}" if s.section and s.section.grade else None,
                 "room": s.room.name if s.room else None,
             })
-        today_periods.sort(key=lambda p: (p["day_order"], p["period_order"]))
+        today_periods.sort(key=lambda p: (p["period_order"], p["id"]))
 
     # Pending-grading rollup: assignments that belong to my courses with
     # submissions I haven't scored yet.
