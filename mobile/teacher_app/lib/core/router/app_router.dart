@@ -2,111 +2,49 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../features/attendance/presentation/take_attendance_screen.dart';
-import '../../features/auth/application/auth_controller.dart';
+import '../../features/announcements/presentation/announcements_screen.dart';
+import '../../features/assignments/presentation/assignments_screen.dart';
+import '../../features/attendance/presentation/attendance_hub_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
-import '../../features/grades/presentation/grade_picker_screen.dart';
-import '../../features/grades/presentation/grade_entry_screen.dart';
-import '../../features/home/presentation/main_scaffold.dart';
-import '../../features/materials/presentation/upload_material_screen.dart';
-import '../../features/profile/presentation/change_password_screen.dart';
-import '../../features/sections/presentation/section_detail_screen.dart';
-import '../../features/splash/presentation/welcome_splash_screen.dart';
-import 'package:manasety_ui/manasety_ui.dart';
+import '../../features/gradebook/presentation/gradebook_hub_screen.dart';
+import '../../features/home/presentation/home_screen.dart';
+import '../../features/materials/presentation/materials_screen.dart';
+import '../../features/messages/presentation/messages_screen.dart';
+import '../../features/profile/presentation/profile_screen.dart';
+import '../../features/quizzes/presentation/quizzes_screen.dart';
+import '../../features/sections/presentation/sections_screen.dart';
+import '../../features/splash/presentation/splash_screen.dart';
+import '../../features/timetable/presentation/timetable_screen.dart';
+import '../../shared/layout/teacher_shell.dart';
 import 'routes.dart';
 
-final routerProvider = Provider<GoRouter>((ref) {
-  final authNotifier = _AuthRouterListenable(ref);
-  ref.onDispose(authNotifier.dispose);
-
+final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: Routes.welcome,
-    refreshListenable: authNotifier,
-    redirect: (context, state) {
-      final auth = ref.read(authControllerProvider);
-      final loc = state.matchedLocation;
-      if (auth is AuthBooting) return null;
-      // Day 13 (v3) — the welcome splash owns navigation for its own
-      // lifetime; don't redirect away while it's showing.
-      if (loc == Routes.welcome) return null;
-      final loggedIn = auth is Authenticated;
-      if (!loggedIn && loc != Routes.login) return Routes.login;
-      if (loggedIn && loc == Routes.login) return Routes.home;
-      return null;
-    },
+    initialLocation: Routes.splash,
     routes: [
-      GoRoute(path: Routes.welcome, builder: (_, __) => const WelcomeSplashScreen()),
-      GoRoute(path: Routes.login, builder: (_, __) => const LoginScreen()),
-      GoRoute(path: Routes.home, builder: (_, __) => const MainScaffold()),
-      GoRoute(
-        path: '/sections/:id',
-        builder: (_, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return SectionDetailScreen(sectionId: id);
-        },
+      GoRoute(path: Routes.splash, builder: (_, __) => const SplashScreen()),
+      GoRoute(path: Routes.login,  builder: (_, __) => const LoginScreen()),
+
+      ShellRoute(
+        builder: (context, state, child) => TeacherShell(child: child),
+        routes: [
+          GoRoute(path: Routes.home,       builder: (_, __) => const HomeScreen()),
+          GoRoute(path: Routes.sections,   builder: (_, __) => const SectionsScreen()),
+          GoRoute(path: Routes.attendance, builder: (_, __) => const AttendanceHubScreen()),
+          GoRoute(path: Routes.gradebook,  builder: (_, __) => const GradebookHubScreen()),
+          GoRoute(path: Routes.profile,    builder: (_, __) => const ProfileScreen()),
+        ],
       ),
-      GoRoute(
-        path: '/sections/:id/attendance',
-        builder: (_, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          final dateStr = state.uri.queryParameters['date'];
-          final date = dateStr != null ? DateTime.tryParse(dateStr) : null;
-          return TakeAttendanceScreen(sectionId: id, initialDate: date);
-        },
-      ),
-      GoRoute(
-        path: '/sections/:id/grades',
-        builder: (_, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          return GradePickerScreen(sectionId: id);
-        },
-      ),
-      GoRoute(
-        path: '/sections/:id/grades/entry',
-        builder: (_, state) {
-          final id = int.parse(state.pathParameters['id']!);
-          final q = state.uri.queryParameters;
-          return GradeEntryScreen(
-            sectionId: id,
-            termId: int.parse(q['term']!),
-            subjectId: int.parse(q['subject']!),
-            componentId: int.parse(q['component']!),
-            componentName: q['name'] ?? '',
-            maxScore: double.tryParse(q['max'] ?? '') ?? 100.0,
-          );
-        },
-      ),
-      GoRoute(
-        path: '/materials/upload',
-        builder: (_, __) => const UploadMaterialScreen(),
-      ),
-      GoRoute(
-        path: '/profile/change-password',
-        builder: (_, __) => const ChangePasswordScreen(),
-      ),
+
+      GoRoute(path: Routes.timetable,      builder: (_, __) => const TimetableScreen()),
+      GoRoute(path: Routes.assignments,    builder: (_, __) => const AssignmentsScreen()),
+      GoRoute(path: Routes.quizzes,        builder: (_, __) => const QuizzesScreen()),
+      GoRoute(path: Routes.announcements,  builder: (_, __) => const AnnouncementsScreen()),
+      GoRoute(path: Routes.messages,       builder: (_, __) => const MessagesScreen()),
+      GoRoute(path: Routes.materials,      builder: (_, __) => const MaterialsScreen()),
     ],
-    errorBuilder: (_, state) => Scaffold(
-      body: Center(
-        child: Text(
-          'مسار غير معروف: ${state.uri}',
-          style: const TextStyle(color: AppColors.danger),
-        ),
-      ),
+    errorBuilder: (context, state) => Scaffold(
+      body: Center(child: Text('صفحة غير موجودة: ${state.uri}')),
     ),
   );
 });
-
-class _AuthRouterListenable extends ChangeNotifier {
-  _AuthRouterListenable(Ref ref) {
-    _sub = ref.listen<AuthState>(authControllerProvider, (_, __) {
-      notifyListeners();
-    }, fireImmediately: false);
-  }
-  late final ProviderSubscription<AuthState> _sub;
-
-  @override
-  void dispose() {
-    _sub.close();
-    super.dispose();
-  }
-}

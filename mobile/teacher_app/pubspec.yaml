@@ -1,10 +1,7 @@
 name: manasety_teacher
-description: بوابة المعلم — مدارس الشيخ صالح الشريف للتعليم القرآني
+description: تطبيق المعلم — منصتي K-12 LMS
 publish_to: 'none'
-# Day 13 — release-polish sprint bumped to 0.3.0. Version string in the
-# profile screen is now read at runtime from `package_info_plus` so this
-# number is the single source of truth.
-version: 0.4.1+6
+version: 1.0.0+1
 
 environment:
   sdk: ">=3.3.0 <4.0.0"
@@ -34,6 +31,7 @@ dependencies:
   image_picker: ^1.1.2
   file_picker: ^8.0.0+1
   url_launcher: ^6.3.0
+  flutter_svg: ^2.0.10+1
 
   # Shared UI (theme, brand widgets, palette) — single source of truth for
   # both parent_app and teacher_app. Every visual change lands here.
@@ -74,16 +72,16 @@ flutter:
   # design that Android's native splash API can't paint on its own.
   assets:
     - assets/images/splash-bg.png
+    - assets/brand/
 
 flutter_launcher_icons:
   android: launcher_icon
   ios: true
   image_path: "assets/images/logo-emblem.png"
   min_sdk_android: 23
-  # Day 13 — teacher uses goldInk (#7A5B00) background instead of navy so it
-  # visually differs from the parent app on a shared home screen. Adaptive
-  # foreground is now the safe-zone-baked emblem so nothing gets clipped.
-  adaptive_icon_background: "#7A5B00"
+  # Rebrand — Manasety navy (#1E3A8A). Teacher, parent, student apps
+  # share one visual family; adaptive foreground is the same emblem.
+  adaptive_icon_background: "#1E3A8A"
   adaptive_icon_foreground: "assets/images/logo-emblem-adaptive.png"
   remove_alpha_ios: true
 
@@ -92,18 +90,14 @@ flutter_launcher_icons:
 # eliminating the white default splash flash. Dark-mode colors declared now
 # so Day 2 (dark theme) doesn't need to revisit this file.
 flutter_native_splash:
-  # Day 13 (v3) - reverted to minimal OS-level splash. The illuminated
-  # manuscript design lives in a Flutter-side WelcomeSplashScreen instead,
-  # because Android 12+ splash API (which our Xiaomi/MIUI 15 device uses)
-  # only allows `color` + centered icon - `background_image` is silently
-  # dropped. The Flutter welcome screen shows the full design for ~1400ms
-  # after this OS splash dismisses, uniformly across all Android versions.
-  color: "#001556"
+  # Manasety navy for cold-launch. Flutter renders the full splash
+  # (wordmark + progress bar) once the OS handoff completes.
+  color: "#1E3A8A"
   image: assets/images/splash-blank.png
   color_dark: "#0B1220"
   image_dark: assets/images/splash-blank.png
   android_12:
-    color: "#001556"
+    color: "#1E3A8A"
     image: assets/images/splash-blank.png
     color_dark: "#0B1220"
     image_dark: assets/images/splash-blank.png

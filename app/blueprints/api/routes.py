@@ -246,25 +246,188 @@ def teacher_section_schedule(section_id):
 @bp.route("/teacher/sections", methods=["GET"])
 @jwt_required
 def teacher_sections():
+    """[TCH] Assigned sections roll-up for the "فصولي" screen.
+
+    Returns one row per (section × subject) assignment with the counts
+    that the design surfaces: enrolled students, weekly periods, and the
+    first schedule room seen for that pair. Also returns aggregates.
+    """
+    from ...models import Enrollment as _Enr
     t = _teacher_for(_user())
     if not t:
         return _err("not a teacher", 403)
     year = _active_year()
     if not year:
-        return jsonify({"sections": []})
+        return jsonify({"sections": [], "totals": {
+            "assignments": 0, "students": 0, "periods": 0}})
     assignments = Assignment.query.filter_by(
         teacher_id=t.id, year_id=year.id, is_active=True
     ).all()
-    seen = {}
+    rows = []
+    section_ids = set()
+    total_periods = 0
     for a in assignments:
-        if a.section_id not in seen:
-            seen[a.section_id] = {
-                "id": a.section.id,
-                "name": f"{a.section.grade.name} / {a.section.name}",
-                "subjects": [],
-            }
-        seen[a.section_id]["subjects"].append({"id": a.subject.id, "name": a.subject.name})
-    return jsonify({"sections": list(seen.values())})
+        # Weekly slots for this exact (section × subject) pair.
+        slots = ScheduleSlot.query.filter_by(
+            teacher_id=t.id, year_id=year.id,
+            section_id=a.section_id, subject_id=a.subject_id,
+        ).all()
+        weekly = len(slots)
+        room = None
+        for s in slots:
+            if s.room and s.room.name:
+                room = s.room.name
+                break
+        # Active enrollments in this section.
+        student_count = _Enr.query.filter_by(
+            section_id=a.section_id, year_id=year.id, status="active"
+        ).count()
+        rows.append({
+            "id": a.id,
+            "section_id": a.section.id,
+            "subject_id": a.subject.id,
+            "subject": a.subject.name,
+            "grade": a.section.grade.name if a.section.grade else None,
+            "class_name": a.section.name,
+            "student_count": student_count,
+            "weekly_periods": weekly,
+            "room": room,
+        })
+        section_ids.add(a.section_id)
+        total_periods += weekly
+    total_students = _Enr.query.filter(
+        _Enr.section_id.in_(section_ids or [-1]),
+        _Enr.year_id == year.id,
+        _Enr.status == "active",
+    ).count() if section_ids else 0
+    return jsonify({
+        "sections": rows,
+        "totals": {
+            "assignments": len(rows),
+            "students": total_students,
+            "periods": total_periods,
+        },
+    })
+
+
+@bp.route("/teacher/home", methods=["GET"])
+@jwt_required
+def teacher_home():
+    """Roll-up for the [TCH] Home screen: greeting, stats, today's
+    periods, pending grading, new messages."""
+    from datetime import date
+    from ...models import (
+        Announcement, Course, CourseAssignment, CourseSection,
+        Submission, Enrollment as _Enr,
+    )
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    year = _active_year()
+
+    # Sections this teacher owns via Assignment(teacher_id=t.id).
+    section_rows = Assignment.query.filter_by(
+        teacher_id=t.id,
+        year_id=year.id if year else None,
+        is_active=True,
+    ).all() if year else []
+    section_ids = list({a.section_id for a in section_rows})
+
+    # Total students across all owned sections (active enrollments only).
+    student_count = 0
+    if section_ids and year:
+        student_count = _Enr.query.filter(
+            _Enr.section_id.in_(section_ids),
+            _Enr.year_id == year.id,
+            _Enr.status == "active",
+        ).count()
+
+    # Today's periods this teacher teaches.
+    today_periods = []
+    if year:
+        slots = ScheduleSlot.query.filter_by(
+            teacher_id=t.id, year_id=year.id,
+        ).all()
+        for s in slots:
+            today_periods.append({
+                "id": s.id,
+                "day": s.day.name if s.day else None,
+                "day_order": s.day.order_index if s.day else 0,
+                "period_order": s.period.order_index if s.period else 0,
+                "period_name": s.period.name if s.period else None,
+                "start": s.period.start_time.strftime("%H:%M") if s.period and s.period.start_time else None,
+                "end":   s.period.end_time.strftime("%H:%M")   if s.period and s.period.end_time else None,
+                "subject": s.subject.name if s.subject else None,
+                "section": f"{s.section.grade.name}/{s.section.name}" if s.section and s.section.grade else None,
+                "room": s.room.name if s.room else None,
+            })
+        today_periods.sort(key=lambda p: (p["day_order"], p["period_order"]))
+
+    # Pending-grading rollup: assignments that belong to my courses with
+    # submissions I haven't scored yet.
+    pending = []
+    if section_ids:
+        # Every course published to any of my sections.
+        my_course_ids = list({
+            cs.course_id for cs in CourseSection.query.filter(
+                CourseSection.section_id.in_(section_ids),
+            ).all()
+        })
+        if my_course_ids:
+            cas = (
+                CourseAssignment.query.filter(
+                    CourseAssignment.course_id.in_(my_course_ids),
+                    CourseAssignment.is_published.is_(True),
+                ).all()
+            )
+            for c in cas:
+                ungraded = Submission.query.filter_by(
+                    assignment_id=c.id,
+                ).filter(Submission.score.is_(None)).count()
+                if ungraded > 0:
+                    pending.append({
+                        "id": c.id,
+                        "title": c.title,
+                        "subject": c.course.subject.name
+                            if c.course and getattr(c.course, "subject", None) else None,
+                        "ungraded_count": ungraded,
+                    })
+            pending.sort(key=lambda p: -p["ungraded_count"])
+            pending = pending[:5]
+
+    # Recent parent announcements OR messages (placeholder — messages
+    # feature lands next).
+    recent_messages = []
+    for a in Announcement.query.filter_by(
+        school_id=_sid(),
+    ).order_by(Announcement.created_at.desc()).limit(2).all():
+        author_name = None
+        if a.author_id:
+            u = User.query.get(a.author_id)
+            author_name = u.full_name if u else None
+        recent_messages.append({
+            "id": a.id,
+            "from": author_name or "إدارة المدرسة",
+            "subject": a.title,
+            "preview": (a.body or "")[:80],
+            "created_at": a.created_at.isoformat() if a.created_at else None,
+        })
+
+    return jsonify({
+        "teacher": {
+            "id": t.id, "full_name": t.full_name,
+            "specialization": t.specialization,
+        },
+        "stats": {
+            "today_period_count": len(today_periods),
+            "pending_grading": sum(p["ungraded_count"] for p in pending),
+            "student_count": student_count,
+            "section_count": len(section_ids),
+        },
+        "today_periods": today_periods,
+        "pending_grading": pending,
+        "recent_messages": recent_messages,
+    })
 
 
 @bp.route("/teacher/students", methods=["GET"])
