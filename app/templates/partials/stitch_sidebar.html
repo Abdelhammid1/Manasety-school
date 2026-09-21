@@ -127,6 +127,10 @@
           {{ nav_item('results.scales_list',   'سلالم الدرجات',   'stacked_line_chart') }}
           {{ nav_item('results.rubrics_list',  'معايير التقييم',  'rule') }}
           {{ nav_item('results.settings',      'إعدادات النتائج', 'tune') }}
+        {% endcall %}
+
+        {# 7.5 · NAFIS #}
+        {% call group('admin-nafis', 'نافس', 'insights') %}
           {{ nav_item('nafis.outcomes_home',   'نواتج التعلم (نافس)', 'menu_book') }}
           {{ nav_item('nafis.cycles_list',     'دورات نافس',        'quiz') }}
           {{ nav_item('nafis.gaps_home',       'الفجوات والخطط العلاجية', 'insights') }}
