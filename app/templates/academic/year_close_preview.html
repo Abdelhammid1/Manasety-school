@@ -1,0 +1,112 @@
+{# Ticket B (2026-09-21) — dedicated preview page for closing a fiscal
+   year. Shows the totals close_fiscal_year would post + a confirm
+   button that submits the actual close. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}معاينة إقفال السنة — {{ year.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('academic.years_list') }}" class="hover:text-primary">السنوات الدراسية</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">معاينة الإقفال</span>
+{% endblock %}
+
+{% block page_content %}
+{% set net = preview.net_income %}
+{% set is_profit = net >= 0 %}
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-on-surface-variant">معاينة إقفال السنة</span>
+        <h1 class="font-headline-lg text-primary font-bold mt-1">{{ year.name }}</h1>
+        <p class="font-body-md text-on-surface-variant mt-1">
+          {{ year.start_date }} → {{ year.end_date }}
+        </p>
+      </div>
+      <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
+                   {% if year.status == 'active' %}bg-primary-container/20 text-primary
+                   {% elif year.status == 'closed' %}bg-surface-container text-outline
+                   {% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %}">
+        {% if year.status == 'active' %}نشطة{% elif year.status == 'closed' %}مقفلة{% else %}{{ year.status }}{% endif %}
+      </span>
+    </div>
+  </section>
+
+  {# ── KPI row ── #}
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 text-on-surface-variant font-label-md">
+        <span class="material-symbols-outlined">trending_up</span>إجمالي الإيرادات
+      </div>
+      <p class="mt-2 font-headline-md text-primary font-bold tabular-nums">
+        {{ '%.2f'|format(preview.total_revenue) }}
+      </p>
+      <p class="mt-1 font-label-xs text-outline">{{ preview.revenue_lines_to_close }} حساب إيرادات سيُغلق</p>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 text-on-surface-variant font-label-md">
+        <span class="material-symbols-outlined">trending_down</span>إجمالي المصروفات
+      </div>
+      <p class="mt-2 font-headline-md text-error font-bold tabular-nums">
+        {{ '%.2f'|format(preview.total_expense) }}
+      </p>
+      <p class="mt-1 font-label-xs text-outline">{{ preview.expense_lines_to_close }} حساب مصروفات سيُغلق</p>
+    </div>
+    <div class="rounded-2xl p-space-lg shadow-sm"
+         style="background: {% if is_profit %}linear-gradient(135deg, #ECFDF5 0%, #D1FAE5 100%){% else %}linear-gradient(135deg, #FEF2F2 0%, #FEE2E2 100%){% endif %};">
+      <div class="flex items-center gap-2 font-label-md {% if is_profit %}text-[#065F46]{% else %}text-error{% endif %}">
+        <span class="material-symbols-outlined">{{ 'savings' if is_profit else 'warning' }}</span>
+        {{ 'صافي الربح' if is_profit else 'صافي الخسارة' }}
+      </div>
+      <p class="mt-2 font-headline-lg font-bold tabular-nums {% if is_profit %}text-[#065F46]{% else %}text-error{% endif %}">
+        {{ '%.2f'|format(net if is_profit else -net) }}
+      </p>
+      <p class="mt-1 font-label-xs {% if is_profit %}text-[#065F46]/80{% else %}text-error/80{% endif %}">
+        سيُرحّل إلى حساب:
+        <span dir="ltr">{{ preview.retained_earnings_account or 'غير مُعرَّف' }}</span>
+      </p>
+    </div>
+  </section>
+
+  {# ── What will happen ── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">info</span>ماذا سيحدث عند التأكيد؟
+    </h2>
+    <ol class="list-decimal pr-6 flex flex-col gap-1 text-body-md text-on-surface">
+      <li>يُنشأ قيد يومية واحد باسم <span class="font-mono" dir="ltr">YEAR-CLOSE-{{ year.id }}</span> يُقفل حسابات الإيرادات والمصروفات.</li>
+      <li>يُرحَّل صافي {{ 'الربح' if is_profit else 'الخسارة' }} ({{ '%.2f'|format(net if is_profit else -net) }}) إلى الأرباح المرحّلة.</li>
+      <li>تنتقل حالة السنة إلى «مقفلة» — لن تظهر كسنة نشطة في الشاشات.</li>
+      <li>تُجمَّد قواعد النجاح (PassRule) الخاصة بهذه السنة فلا يمكن تعديلها.</li>
+    </ol>
+    {% if not preview.retained_earnings_account %}
+    <div class="mt-space-md p-space-md rounded-xl bg-error-container/40 text-error flex items-start gap-2">
+      <span class="material-symbols-outlined">error</span>
+      <span class="font-body-md">لا يوجد حساب «أرباح/خسائر مرحّلة» بالكود <span dir="ltr" class="font-mono">3200</span> — لن يُسمح بالإقفال قبل إنشائه.</span>
+    </div>
+    {% endif %}
+  </section>
+
+  {# ── Actions ── #}
+  <div class="flex items-center justify-end gap-space-sm">
+    <a href="{{ url_for('academic.years_list') }}"
+       class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">
+      رجوع
+    </a>
+    {% if year.status == 'active' and preview.retained_earnings_account %}
+    <form method="post" action="{{ url_for('academic.year_close', year_id=year.id) }}"
+          onsubmit="return confirm('إقفال السنة المالية {{ year.name }} — لا يمكن التراجع بعد التأكيد. متأكد؟');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit"
+              class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+              style="background: linear-gradient(135deg, #DC2626 0%, #B91C1C 100%);">
+        <span class="material-symbols-outlined">lock</span>تأكيد الإقفال النهائي
+      </button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

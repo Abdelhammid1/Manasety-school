@@ -86,33 +86,43 @@ def year_edit(year_id):
     return render_template("academic/year_form.html", year=year)
 
 
-@bp.route("/years/<int:year_id>/close", methods=["POST"])
+@bp.route("/years/<int:year_id>/close", methods=["GET", "POST"])
 @login_required
 @require_permission("academic_years", "edit")
 def year_close(year_id):
     """Ticket "Additional 11" — close the fiscal year AND freeze the
     pass rule at the same time. The finance service posts the
     retained-earnings journal; the pass rule freeze is the SIS side.
+
+    Ticket B (2026-09-21) — GET renders a preview page showing the
+    computed revenue/expense/net numbers and a confirm button that
+    POSTs the actual close. Prior behavior (POST-only) 405'd anyone
+    who navigated to /academic/years/<id>/close in the URL bar; the
+    "معاينة الإقفال" button on the years list now also lands here.
     """
     from ...models import PassRule
     from ...services.ledger import close_fiscal_year, LedgerError
     year = _get(AcademicYear, year_id)
-    dry_run = request.form.get("dry_run") == "1"
 
+    # GET (or an explicit dry_run POST) → preview screen.
+    is_preview = request.method == "GET" or request.form.get("dry_run") == "1"
+    if is_preview:
+        try:
+            preview = close_fiscal_year(_sid(), year, dry_run=True)
+        except LedgerError as e:
+            flash(str(e), "danger")
+            return redirect(url_for("academic.years_list"))
+        return render_template(
+            "academic/year_close_preview.html", year=year, preview=preview,
+        )
+
+    # POST without dry_run → actually close.
     try:
-        preview = close_fiscal_year(_sid(), year, dry_run=dry_run)
+        preview = close_fiscal_year(_sid(), year, dry_run=False)
     except LedgerError as e:
         db.session.rollback()
         flash(str(e), "danger")
-        return redirect(url_for("academic.years_list"))
-
-    if dry_run:
-        flash(
-            f"معاينة الإقفال — إيرادات: {preview['total_revenue']:.2f}، "
-            f"مصروفات: {preview['total_expense']:.2f}، صافي: {preview['net_income']:.2f}.",
-            "info",
-        )
-        return redirect(url_for("academic.years_list"))
+        return redirect(url_for("academic.year_close", year_id=year.id))
 
     PassRule.query.filter_by(school_id=_sid(), year_id=year.id).update({"is_frozen": True})
     db.session.commit()

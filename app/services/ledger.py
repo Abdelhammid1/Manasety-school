@@ -787,7 +787,11 @@ def close_fiscal_year(school_id: int, year, *, entry_date=None, dry_run=False):
     aren't double-counted. `year` is the AcademicYear ORM instance.
     When `dry_run` is True nothing is written; returns the preview.
     """
+    # Ticket B (2026-09-21) — JournalLine + JournalEntry were referenced
+    # below without being imported; every attempt to close a year (or
+    # preview it) raised NameError before reaching the ORM.
     from sqlalchemy import func
+    from ..models import JournalLine, JournalEntry
     year_start, year_end = year.start_date, year.end_date
 
     revenue_leaves = Account.query.filter_by(

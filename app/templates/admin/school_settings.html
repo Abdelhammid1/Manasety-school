@@ -108,19 +108,30 @@
     <div id="t3" class="tab p-space-lg" style="display:none">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">العملة (رمز ISO)</label>
-          <input name="currency" dir="ltr" value="{{ school.currency }}" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+          <input name="currency" dir="ltr" value="{{ school.currency }}" maxlength="8" placeholder="EGP"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low font-mono">
+          <span class="font-label-xs text-outline">حتى ٨ أحرف (مثل EGP / SAR / AED).</span>
+        </div>
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">رمز العملة (للعرض)</label>
-          <input name="currency_symbol" value="{{ school.currency_symbol }}" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+          <input name="currency_symbol" value="{{ school.currency_symbol }}" maxlength="8"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low">
+          <span class="font-label-xs text-outline">مثل ج.م / ر.س / د.إ — حتى ٨ حروف.</span>
+        </div>
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">نسبة ضريبة القيمة المضافة الافتراضية (%)</label>
-          <input name="default_tax_rate" type="number" min="0" max="100" step="0.01" value="{{ school.default_tax_rate }}" class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
+          <input name="default_tax_rate" type="number" min="0" max="100" step="0.01" value="{{ school.default_tax_rate }}"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">شهر بداية السنة المالية</label>
           <select name="fiscal_year_start_month" class="h-11 px-3 rounded-lg bg-surface-container-low">
             {% for m in range(1,13) %}<option value="{{ m }}" {% if school.fiscal_year_start_month == m %}selected{% endif %}>{{ m }}</option>{% endfor %}
           </select></div>
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">بادئة رقم الفاتورة</label>
-          <input name="invoice_prefix" dir="ltr" value="{{ school.invoice_prefix }}" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+          <input name="invoice_prefix" dir="ltr" value="{{ school.invoice_prefix }}" maxlength="16"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low font-mono">
+          <span class="font-label-xs text-outline">حتى ١٦ حرف (مثل INV / SCH).</span>
+        </div>
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">رقم الفاتورة الأولى</label>
-          <input name="invoice_start_number" type="number" min="1" value="{{ school.invoice_start_number }}" class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
+          <input name="invoice_start_number" type="number" min="1" value="{{ school.invoice_start_number }}"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums"></div>
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">سياسة التقريب</label>
           <select name="rounding_policy" class="h-11 px-3 rounded-lg bg-surface-container-low">
             <option value="normal" {% if school.rounding_policy == 'normal' %}selected{% endif %}>عادي (نصف لأعلى)</option>

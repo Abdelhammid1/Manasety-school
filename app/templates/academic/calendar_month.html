@@ -31,7 +31,7 @@
         <p class="font-body-md text-on-surface-variant mt-1" dir="ltr">{{ year.name }}</p>
         {% endif %}
       </div>
-      <div class="flex items-center gap-space-sm">
+      <div class="flex items-center gap-space-sm flex-wrap">
         <a href="{{ url_for('academic.calendar_month', month=prev_month) }}"
            class="h-10 px-4 rounded-xl bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container flex items-center gap-1">
           <span class="material-symbols-outlined text-sm">chevron_right</span>الشهر السابق
@@ -44,6 +44,13 @@
            class="h-10 px-4 rounded-xl bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container flex items-center gap-1">
           الشهر التالي<span class="material-symbols-outlined text-sm">chevron_left</span>
         </a>
+        {# Ticket C (2026-09-21) — prominent "add day" CTA in the header
+           so users don't need to hunt for the hover-only + on each cell. #}
+        <button type="button" onclick="openAdd('')"
+                class="h-10 px-5 rounded-xl text-on-primary font-label-md font-bold shadow-md flex items-center gap-2"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm">add_circle</span>إضافة يوم / حدث
+        </button>
       </div>
     </div>
   </section>
@@ -102,14 +109,18 @@
     </div>
     <div class="grid grid-cols-7 gap-2">
       {% for cell in cells %}
+      {# Ticket C (2026-09-21) — the whole in-month cell is now a click
+         target for the add-day modal; the little + stays visible (no
+         hover) as a visual affordance. #}
       <div class="aspect-square rounded-xl p-2 flex flex-col gap-1 relative overflow-hidden
-                  {% if not cell.in_month %}bg-surface-container-low opacity-40{% else %}bg-surface-container-low hover:bg-surface-container transition-colors{% endif %}">
+                  {% if not cell.in_month %}bg-surface-container-low opacity-40{% else %}bg-surface-container-low hover:bg-primary-container/10 transition-colors cursor-pointer{% endif %}"
+           {% if cell.in_month %}onclick="if(!event.target.closest('form,button')) openAdd('{{ cell.date.isoformat() }}')"{% endif %}>
         <div class="flex items-center justify-between">
           <span class="font-label-md text-primary font-bold tabular-nums">{{ cell.date.day }}</span>
           {% if cell.in_month %}
-          <button type="button" onclick="openAdd('{{ cell.date.isoformat() }}')"
-                  class="w-6 h-6 rounded-full text-primary hover:bg-primary-container/20 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity"
-                  title="إضافة"><span class="material-symbols-outlined text-sm">add</span></button>
+          <button type="button" onclick="event.stopPropagation(); openAdd('{{ cell.date.isoformat() }}')"
+                  class="w-6 h-6 rounded-full bg-primary-container/20 text-primary hover:bg-primary-container/40 flex items-center justify-center transition-colors"
+                  title="إضافة يوم"><span class="material-symbols-outlined text-sm">add</span></button>
           {% endif %}
         </div>
         <div class="flex flex-col gap-0.5 mt-auto">
@@ -189,8 +200,10 @@
 </div>
 
 <script>
+  // Ticket C — accepts an empty iso (from the header CTA) so the user
+  // can pick the date inside the modal instead of forcing a cell click.
   function openAdd(iso) {
-    document.getElementById('dateInput').value = iso;
+    document.getElementById('dateInput').value = iso || '';
     openModal('#addDayModal');
   }
 </script>

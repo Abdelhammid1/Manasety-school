@@ -55,11 +55,17 @@ def school_settings():
         s = school
         get = lambda k: (request.form.get(k) or "").strip() or None
 
+        # Ticket #13 (2026-09-21) — hard cap every text field at its
+        # column length so a too-long paste from the browser can't hit
+        # PostgreSQL's VARCHAR limit and 500 the whole save.
+        def clip(val, n):
+            return (val[:n] if val else val)
+
         try:
             # Tab 1 — establishment
-            s.name = get("name") or s.name
-            s.legal_name_ar = get("legal_name_ar")
-            s.legal_name_en = get("legal_name_en")
+            s.name = clip(get("name"), 255) or s.name
+            s.legal_name_ar = clip(get("legal_name_ar"), 255)
+            s.legal_name_en = clip(get("legal_name_en"), 255)
             # Ticket #2 — file upload takes precedence over a manually
             # typed URL. When neither is provided, keep the old value.
             file_storage = request.files.get("logo_file")
@@ -71,29 +77,37 @@ def school_settings():
                 typed = get("logo_url")
                 if typed is not None:
                     s.logo_url = typed
-            s.license_number = get("license_number")
-            s.tax_number = get("tax_number")
-            s.address = get("address")
-            s.phone = get("phone")
-            s.email = get("email")
-            s.website = get("website")
+            s.license_number = clip(get("license_number"), 64)
+            s.tax_number = clip(get("tax_number"), 64)
+            s.address = clip(get("address"), 255)
+            s.phone = clip(get("phone"), 32)
+            s.email = clip(get("email"), 128)
+            s.website = clip(get("website"), 255)
             # Tab 3 — finance
-            s.currency = get("currency") or "EGP"
-            s.currency_symbol = get("currency_symbol") or "ج.م"
+            s.currency = clip(get("currency") or "EGP", 8)
+            s.currency_symbol = clip(get("currency_symbol") or "ج.م", 8)
             try:
-                s.default_tax_rate = Decimal(request.form.get("default_tax_rate") or "0")
+                rate = Decimal(request.form.get("default_tax_rate") or "0")
+                # Numeric(5,2) allows up to 999.99 — clamp to a sane VAT range.
+                if rate < 0:
+                    rate = Decimal(0)
+                if rate > Decimal(100):
+                    rate = Decimal(100)
+                s.default_tax_rate = rate
             except (InvalidOperation, ValueError):
                 pass
             try:
-                s.fiscal_year_start_month = int(request.form.get("fiscal_year_start_month") or 9)
+                month = int(request.form.get("fiscal_year_start_month") or 9)
+                s.fiscal_year_start_month = min(12, max(1, month))
             except (TypeError, ValueError):
                 pass
-            s.invoice_prefix = get("invoice_prefix") or "INV"
+            s.invoice_prefix = clip(get("invoice_prefix") or "INV", 16)
             try:
-                s.invoice_start_number = int(request.form.get("invoice_start_number") or 1)
+                start = int(request.form.get("invoice_start_number") or 1)
+                s.invoice_start_number = max(1, start)
             except (TypeError, ValueError):
                 pass
-            s.rounding_policy = get("rounding_policy") or "normal"
+            s.rounding_policy = clip(get("rounding_policy") or "normal", 16)
             # Tab 4 — academic
             mode = (request.form.get("attendance_mode") or "daily").strip()
             if mode in ("daily", "per_period", "both"):
