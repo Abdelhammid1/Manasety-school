@@ -831,7 +831,12 @@ def assignment_question_new_version(qid):
 # `lms_questions` + `lms_choices` and keeps a `source_bank_id` back-pointer.
 
 def _bank_query():
-    """Bank rows scoped to the current user's school + optional filters."""
+    """Bank rows scoped to the current user's school + optional filters.
+
+    The `source` querystring picks which bank tab is showing:
+      · `source=school` (default) → the school's own curriculum bank
+      · `source=nafis`            → the ETEC نافس bank
+    """
     q = BankQuestion.query.filter_by(school_id=current_user.school_id)
     subj = request.args.get("subject_id", type=int)
     grade = request.args.get("grade_id", type=int)
@@ -843,6 +848,20 @@ def _bank_query():
     term  = request.args.get("term_id",   type=int)
     unit  = request.args.get("unit_id",   type=int)
     lesson = request.args.get("lesson_id", type=int)
+    source = (request.args.get("source") or "school").strip()
+    if source not in ("school", "nafis"):
+        source = "school"
+    q = q.filter(BankQuestion.source == source)
+
+    # Nafis-only extras — only meaningful when source=nafis.
+    if source == "nafis":
+        level = (request.args.get("nafis_level") or "").strip()
+        if level in ("g3", "g6", "g9"):
+            q = q.filter(BankQuestion.nafis_level == level)
+        outcome_id = request.args.get("outcome_id", type=int)
+        if outcome_id:
+            q = q.filter(BankQuestion.outcome_id == outcome_id)
+
     if subj:  q = q.filter(BankQuestion.subject_id == subj)
     if grade: q = q.filter(BankQuestion.grade_id == grade)
     if year:  q = q.filter(BankQuestion.academic_year_id == year)
@@ -908,15 +927,33 @@ def _bank_form_extras(item=None):
 @bp.route("/bank", endpoint="bank_home")
 @login_required
 def bank_home():
-    """Bank browser — filterable list of the school's questions."""
+    """Bank browser — two tabs (School / NAFIS), same page, same filters."""
     items = _bank_query().limit(200).all()
     subjects, grades, years, terms = _bank_filter_options()
-    total = BankQuestion.query.filter_by(school_id=current_user.school_id).count()
+
+    # Tab counters — a single scoped query per bank so the tab shows
+    # the actual population, not just the filtered slice.
+    school_total = BankQuestion.query.filter_by(
+        school_id=current_user.school_id, source="school",
+    ).count()
+    nafis_total = BankQuestion.query.filter_by(
+        school_id=current_user.school_id, source="nafis",
+    ).count()
+
+    source = (request.args.get("source") or "school").strip()
+    if source not in ("school", "nafis"):
+        source = "school"
+
     return render_template(
         "lms/bank_list.html",
-        items=items, total=total,
+        items=items,
+        source=source,
+        school_total=school_total,
+        nafis_total=nafis_total,
+        total=(school_total if source == "school" else nafis_total),
         subjects=subjects, grades=grades, years=years, terms=terms,
         selected={
+            "source":     source,
             "subject_id": request.args.get("subject_id", type=int),
             "grade_id":   request.args.get("grade_id",   type=int),
             "year_id":    request.args.get("year_id",    type=int),
@@ -927,6 +964,8 @@ def bank_home():
             "kind":       request.args.get("kind", ""),
             "tag":        (request.args.get("tag") or "").strip(),
             "q":          (request.args.get("q")   or "").strip(),
+            "nafis_level":(request.args.get("nafis_level") or "").strip(),
+            "outcome_id": request.args.get("outcome_id", type=int),
         },
     )
 

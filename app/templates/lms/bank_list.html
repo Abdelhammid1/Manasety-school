@@ -21,24 +21,74 @@
          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
     <div class="flex items-start justify-between gap-space-md flex-wrap">
       <div>
-        <span class="font-label-md text-label-md text-on-surface-variant">مكتبة أسئلة المدرسة</span>
+        <span class="font-label-md text-label-md text-on-surface-variant">
+          {% if source == 'nafis' %}بنك أسئلة نافس — هيئة تقويم التعليم{% else %}مكتبة أسئلة المدرسة{% endif %}
+        </span>
         <h1 class="font-headline-lg text-headline-lg text-primary font-bold mt-1">بنك الأسئلة</h1>
         <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+          {% if source == 'nafis' %}
+          {{ total }} سؤال مربوط بمعايير نواتج التعلم — للتدريب على اختبار نافس الوطني.
+          {% else %}
           {{ total }} سؤال مسجّل — اكتب سؤالك مرة واحدة، وأعِد استخدامه في أي اختبار.
+          {% endif %}
         </p>
       </div>
-      <a href="{{ url_for('lms.bank_new') }}"
+      <a href="{{ url_for('lms.bank_new', source=source) }}"
          class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined text-xl">add_circle</span><span>سؤال جديد</span>
+        <span class="material-symbols-outlined text-xl">add_circle</span>
+        <span>{% if source == 'nafis' %}سؤال نافس جديد{% else %}سؤال جديد{% endif %}</span>
       </a>
     </div>
+  </section>
+
+  <!-- Bank source tabs — school vs NAFIS -->
+  <section class="bg-surface-container-lowest rounded-2xl p-space-sm shadow-sm">
+    <div class="flex items-center gap-space-sm">
+      {% for key, label, count, icon in [
+          ('school', 'بنك المدرسة',   school_total, 'menu_book'),
+          ('nafis',  'بنك نافس',       nafis_total,  'quiz'),
+      ] %}
+      <a href="{{ url_for('lms.bank_home', source=key) }}"
+         class="flex-1 h-14 rounded-xl px-space-md flex items-center gap-2 transition-all
+                {% if source == key %}text-on-primary shadow-md
+                {% else %}bg-surface-container-low text-on-surface hover:bg-surface-container{% endif %}"
+         {% if source == key %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+        <span class="material-symbols-outlined">{{ icon }}</span>
+        <span class="font-title-md font-bold">{{ label }}</span>
+        <span class="ml-auto font-label-md font-bold tabular-nums
+                     {% if source == key %}bg-white/20 text-white{% else %}bg-surface-container text-on-surface-variant{% endif %}
+                     px-2 py-0.5 rounded-full">
+          {{ count }}
+        </span>
+      </a>
+      {% endfor %}
+    </div>
+    {% if source == 'nafis' %}
+    <p class="mt-space-sm px-space-sm font-label-md text-on-surface-variant flex items-center gap-2">
+      <span class="material-symbols-outlined text-secondary text-sm">info</span>
+      كل سؤال هنا مربوط بمعيار من نواتج التعلم لهيئة التقويم — يُستخدم لتدريبات نافس فقط ولا يظهر في اختبارات المقررات العامة.
+    </p>
+    {% endif %}
   </section>
 
   <!-- Filters -->
   <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
     <form method="get" action="{{ url_for('lms.bank_home') }}"
           class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
+      {# Preserve the active tab across filter submissions. #}
+      <input type="hidden" name="source" value="{{ source }}">
+      {% if source == 'nafis' %}
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">مستوى نافس</label>
+        <select name="nafis_level" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          <option value="g3" {% if selected.nafis_level == 'g3' %}selected{% endif %}>الصف الثالث الابتدائي</option>
+          <option value="g6" {% if selected.nafis_level == 'g6' %}selected{% endif %}>الصف السادس الابتدائي</option>
+          <option value="g9" {% if selected.nafis_level == 'g9' %}selected{% endif %}>الصف الثالث المتوسط</option>
+        </select>
+      </div>
+      {% endif %}
       <div class="flex flex-col gap-1">
         <label class="font-label-md text-on-surface font-bold">المادة</label>
         <select name="subject_id" class="h-10 px-3 rounded-lg bg-surface-container-low">

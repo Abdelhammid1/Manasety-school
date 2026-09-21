@@ -398,6 +398,20 @@ class BankQuestion(db.Model):
     difficulty    = db.Column(db.String(10),  default="medium")   # easy | medium | hard
     tags          = db.Column(db.String(500), default="")         # comma-separated
 
+    # NAFIS separation — a question belongs to either the school's own
+    # curriculum bank ('school', the default) or the ETEC نافس bank
+    # ('nafis'). Same table, two clean partitions, one page with a tab
+    # picker. NAFIS questions carry `outcome_id` back to a specific
+    # LearningOutcome and `nafis_level` (g3 / g6 / g9) so drills can be
+    # scoped to the exam that grade sits.
+    source        = db.Column(db.String(16), nullable=False,
+                              default="school", server_default="school",
+                              index=True)
+    outcome_id    = db.Column(db.Integer,
+                              db.ForeignKey("learning_outcomes.id"),
+                              nullable=True, index=True)
+    nafis_level   = db.Column(db.String(4), nullable=True, index=True)
+
     created_at    = db.Column(db.DateTime(timezone=True), default=_utcnow)
     updated_at    = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -406,8 +420,9 @@ class BankQuestion(db.Model):
         cascade="all, delete-orphan",
         order_by="BankChoice.order_index",
     )
-    unit   = db.relationship("Unit",   foreign_keys=[unit_id])
-    lesson = db.relationship("Lesson", foreign_keys=[lesson_id])
+    unit    = db.relationship("Unit",   foreign_keys=[unit_id])
+    lesson  = db.relationship("Lesson", foreign_keys=[lesson_id])
+    outcome = db.relationship("LearningOutcome", foreign_keys=[outcome_id])
 
     @property
     def tag_list(self):
