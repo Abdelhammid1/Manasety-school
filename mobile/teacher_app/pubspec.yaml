@@ -77,12 +77,15 @@ flutter:
 flutter_launcher_icons:
   android: launcher_icon
   ios: true
-  image_path: "assets/images/logo-emblem.png"
+  # Session #6 — the real Manasety wordmark (منصتي / Manasety) from
+  # `app/static/img/logo-lockup-vertical.png`, replacing the older
+  # Sheikh Saleh Sharif floral emblem.
+  image_path: "assets/images/manasety-launcher.png"
   min_sdk_android: 23
-  # Rebrand — Manasety navy (#1E3A8A). Teacher, parent, student apps
-  # share one visual family; adaptive foreground is the same emblem.
+  # Teacher, parent, student apps share one visual family: navy square
+  # background with the white wordmark centered inside the 66% safe zone.
   adaptive_icon_background: "#1E3A8A"
-  adaptive_icon_foreground: "assets/images/logo-emblem-adaptive.png"
+  adaptive_icon_foreground: "assets/images/manasety-launcher-adaptive-foreground.png"
   remove_alpha_ios: true
 
 # Day 1 — branded cold-launch splash. Bridges the sub-second between OS launch

@@ -76,13 +76,15 @@ flutter:
 flutter_launcher_icons:
   android: launcher_icon
   ios: true
-  image_path: "assets/images/logo-emblem.png"
+  # Session #6 — replaced the Sheikh Saleh Sharif emblem with the real
+  # Manasety wordmark (منصتي / Manasety) exported from the vertical
+  # lockup PNG in `app/static/img/logo-lockup-vertical.png`.
+  image_path: "assets/images/manasety-launcher.png"
   min_sdk_android: 23
-  # Day 13 — parent stays navy (primary brand); adaptive foreground is now
-  # the safe-zone-baked emblem (628px inside 1024px canvas) so no petal is
-  # ever clipped by circular/squircle/teardrop masks.
-  adaptive_icon_background: "#001556"
-  adaptive_icon_foreground: "assets/images/logo-emblem-adaptive.png"
+  # Adaptive foreground = white-on-transparent wordmark inside the 66%
+  # safe zone, over a navy background — reads on every launcher mask.
+  adaptive_icon_background: "#1E3A8A"
+  adaptive_icon_foreground: "assets/images/manasety-launcher-adaptive-foreground.png"
   remove_alpha_ios: true
 
 # Day 1 — branded cold-launch splash. Bridges the sub-second between OS launch
