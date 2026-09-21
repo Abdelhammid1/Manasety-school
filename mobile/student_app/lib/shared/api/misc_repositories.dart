@@ -1,6 +1,6 @@
-/// Small repos + providers for the remaining student screens where the
-/// data shape is trivial (timetable, attendance, grades, announcements,
-/// report card). Kept in one file to reduce boilerplate.
+// Small repos + providers for the remaining student screens where the
+// data shape is trivial (timetable, attendance, grades, announcements,
+// report card). Kept in one file to reduce boilerplate.
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 

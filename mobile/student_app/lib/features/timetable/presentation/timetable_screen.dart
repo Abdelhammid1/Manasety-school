@@ -33,8 +33,8 @@ class TimetableScreen extends ConsumerWidget {
     );
   }
 
-  Widget _empty() => Center(child: Padding(padding: const EdgeInsets.all(24),
-    child: Column(mainAxisSize: MainAxisSize.min, children: const [
+  Widget _empty() => const Center(child: Padding(padding: EdgeInsets.all(24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(Icons.calendar_month_outlined, size: 72, color: ManasetyBrand.outline),
       SizedBox(height: 12),
       Text('لا جدول بعد', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),

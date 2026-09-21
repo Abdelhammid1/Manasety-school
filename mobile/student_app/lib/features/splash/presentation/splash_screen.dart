@@ -7,6 +7,7 @@ import 'package:manasety_ui/manasety_ui.dart';
 
 import '../../../core/router/routes.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../../shared/brand/manasety_wordmark.dart';
 
 /// Full-bleed brand gradient splash — mirrors [STU] Splash from the
 /// Stitch export. Decides whether to go to /login or /home based on the
@@ -52,16 +53,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text(
-                'منصتي',
-                style: TextStyle(
-                  fontSize: 48,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                  letterSpacing: -1.0,
-                ),
-              ),
-              const SizedBox(height: 8),
+              // Official Manasety wordmark (same SVG the web ships).
+              const ManasetyWordmark(height: 80, color: Colors.white),
+              const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                 decoration: BoxDecoration(

@@ -8,6 +8,7 @@ import '../../../core/api/dio_client.dart';
 import '../../../core/api/endpoints.dart';
 import '../../../core/router/routes.dart';
 import '../../../core/storage/secure_storage.dart';
+import '../../../shared/brand/manasety_wordmark.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -61,23 +62,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           child: Column(
             children: [
               const Spacer(),
-              // Placeholder logo — replaced with SVG on asset drop.
-              Container(
-                width: 96, height: 96,
-                decoration: BoxDecoration(
-                  gradient: ManasetyBrand.primaryGradient,
-                  borderRadius: BorderRadius.circular(ManasetyBrand.radius2xl),
-                  boxShadow: ManasetyBrand.shadowRaised,
-                ),
-                child: const Center(
-                  child: Text(
-                    'م',
-                    style: TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.w800),
-                  ),
-                ),
-              ),
+              // Official Manasety wordmark (same SVG the web ships).
+              const ManasetyWordmark(height: 72),
               const SizedBox(height: 12),
-              const Text('مدرستي', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, color: ManasetyBrand.onSurface)),
+              const Text('نظام إدارة التعلم K-12',
+                style: TextStyle(fontSize: 12, color: ManasetyBrand.onSurfaceVariant)),
               const SizedBox(height: 32),
 
               _Field(
@@ -121,7 +110,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 onPressed: _busy ? null : _submit,
               ),
               const Spacer(),
-              const Text('منصتي', style: TextStyle(color: ManasetyBrand.outline, fontSize: 12)),
+              const Opacity(opacity: 0.5, child: Text('منصتي',
+                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: ManasetyBrand.outline))),
             ],
           ),
         ),
