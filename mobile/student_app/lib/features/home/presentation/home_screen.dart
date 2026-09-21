@@ -1,48 +1,95 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:manasety_ui/manasety_ui.dart';
 
 import '../../../core/router/routes.dart';
+import '../data/home_repository.dart';
 
-/// [STU] Home / الرئيسية — hero + 3 stat tiles + today's periods
-/// scroller + upcoming deadlines + announcements ribbon.
-///
-/// Loads from `/student/home` — we render a loading skeleton until the
-/// real endpoint returns; falls back to sensible mocks while the API
-/// isn't wired yet so a fresh checkout is demo-able immediately.
+/// [STU] Home — data-driven. All content comes from `/student/home`.
+/// Loading = skeleton, error = retryable card, empty = empty state.
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(homeDataProvider);
     return Scaffold(
       backgroundColor: ManasetyBrand.surface,
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _Hero(),
-          const SizedBox(height: 16),
-          const _StatsRow(),
-          const SizedBox(height: 24),
-          const _SectionTitle('جدول اليوم'),
-          const SizedBox(height: 8),
-          const _TodayPeriodsScroller(),
-          const SizedBox(height: 24),
-          const _SectionTitle('الاستحقاقات القريبة'),
-          const SizedBox(height: 8),
-          const _UpcomingList(),
-          const SizedBox(height: 24),
-          const _AnnouncementsRibbon(),
-          const SizedBox(height: 24),
-        ],
+      body: RefreshIndicator(
+        onRefresh: () async => ref.refresh(homeDataProvider.future),
+        child: async.when(
+          data: (data) => _HomeBody(data: data),
+          loading: () => const _HomeSkeleton(),
+          error: (e, _) => _HomeError(error: e,
+            onRetry: () => ref.invalidate(homeDataProvider)),
+        ),
       ),
     );
   }
 }
 
-class _Hero extends StatelessWidget {
+class _HomeBody extends StatelessWidget {
+  const _HomeBody({required this.data});
+  final HomeData data;
+
   @override
   Widget build(BuildContext context) {
+    final s = data.student;
+    final stats = data.stats;
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        _Hero(name: (s['full_name'] as String?) ?? '',
+              classLabel: (s['class'] as String?) ?? '',
+              todaysPeriodCount: data.todayPeriods.length,
+              upcomingCount: data.upcoming.length),
+        const SizedBox(height: 16),
+        Row(children: [
+          Expanded(child: _StatTile(
+            value: stats.gpaPct == null ? '—' : '${stats.gpaPct!.toStringAsFixed(0)}%',
+            label: 'المعدل التراكمي')),
+          const SizedBox(width: 12),
+          Expanded(child: _StatTile(
+            value: '${stats.assignmentsSubmitted}/${stats.assignmentsTotal}',
+            label: 'واجبات مسلّمة')),
+          const SizedBox(width: 12),
+          Expanded(child: _StatTile(
+            value: stats.attendancePct == null ? '—' : '${stats.attendancePct!.toStringAsFixed(0)}%',
+            label: 'الحضور')),
+        ]),
+        const SizedBox(height: 24),
+        const _SectionTitle('جدول اليوم'),
+        const SizedBox(height: 8),
+        if (data.todayPeriods.isEmpty)
+          const _EmptyBlock(label: 'لا حصص مسجّلة اليوم')
+        else _TodayPeriodsScroller(periods: data.todayPeriods),
+        const SizedBox(height: 24),
+        const _SectionTitle('الاستحقاقات القريبة'),
+        const SizedBox(height: 8),
+        if (data.upcoming.isEmpty)
+          const _EmptyBlock(label: 'لا استحقاقات قريبة')
+        else _UpcomingList(items: data.upcoming),
+        const SizedBox(height: 24),
+        if (data.announcements.isNotEmpty)
+          _AnnouncementsRibbon(count: data.announcements.length),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
+class _Hero extends StatelessWidget {
+  const _Hero({required this.name, required this.classLabel,
+    required this.todaysPeriodCount, required this.upcomingCount});
+  final String name;
+  final String classLabel;
+  final int todaysPeriodCount;
+  final int upcomingCount;
+  @override
+  Widget build(BuildContext context) {
+    final greeting = 'مرحبًا يا ${name.isEmpty ? "طالب" : name}،';
+    final line2 = 'اليوم عندك $todaysPeriodCount حصص و$upcomingCount استحقاقات.';
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -50,63 +97,22 @@ class _Hero extends StatelessWidget {
         borderRadius: BorderRadius.circular(ManasetyBrand.radius2xl),
         boxShadow: ManasetyBrand.shadowDefault,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text('مرحبًا يا طارق أحمد،',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700)),
-              const Spacer(),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(ManasetyBrand.radiusLg),
-                ),
-                child: const Text(
-                  'الصف الثاني عشر — علوم',
-                  style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                ),
-              ),
-            ],
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Expanded(child: Text(greeting,
+            style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700))),
+          if (classLabel.isNotEmpty) Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(ManasetyBrand.radiusLg)),
+            child: Text(classLabel,
+              style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
           ),
-          const SizedBox(height: 6),
-          const Text('اليوم عندك ٤ حصص و٢ واجبات.',
-            style: TextStyle(color: Colors.white70, fontSize: 14)),
-          const SizedBox(height: 12),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.22),
-                borderRadius: BorderRadius.circular(ManasetyBrand.radiusLg),
-              ),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('اذهب لجدول اليوم', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 16),
-              ]),
-            ),
-          ),
-        ],
-      ),
+        ]),
+        const SizedBox(height: 6),
+        Text(line2, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+      ]),
     );
-  }
-}
-
-class _StatsRow extends StatelessWidget {
-  const _StatsRow();
-  @override
-  Widget build(BuildContext context) {
-    return Row(children: const [
-      Expanded(child: _StatTile(value: '٩٤%', label: 'المعدل التراكمي')),
-      SizedBox(width: 12),
-      Expanded(child: _StatTile(value: '١٨/٢٠', label: 'واجبات مسلّمة')),
-      SizedBox(width: 12),
-      Expanded(child: _StatTile(value: '٩٨%', label: 'الحضور')),
-    ]);
   }
 }
 
@@ -135,116 +141,100 @@ class _SectionTitle extends StatelessWidget {
   const _SectionTitle(this.text);
   final String text;
   @override
-  Widget build(BuildContext context) => Text(
-    text,
-    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: ManasetyBrand.onSurface),
-  );
+  Widget build(BuildContext context) => Text(text,
+    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: ManasetyBrand.onSurface));
 }
 
 class _TodayPeriodsScroller extends StatelessWidget {
-  const _TodayPeriodsScroller();
+  const _TodayPeriodsScroller({required this.periods});
+  final List<TodayPeriod> periods;
   @override
   Widget build(BuildContext context) {
-    final periods = const [
-      _Period('الرياضيات', '08:00', 'د. أحمد', false),
-      _Period('الفيزياء',  '09:00', 'د. ماجد', true),   // now
-      _Period('الكيمياء',  '10:00', 'د. سارة', false),
-      _Period('الأحياء',   '11:00', 'د. ليلى', false),
-    ];
     return SizedBox(
       height: 120,
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: periods.length,
         separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (_, i) => _PeriodCard(periods[i]),
+        itemBuilder: (_, i) {
+          final p = periods[i];
+          return Container(
+            width: 160,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: ManasetyBrand.surfaceContainerLowest,
+              borderRadius: BorderRadius.circular(ManasetyBrand.radiusXl),
+              border: Border.all(color: ManasetyBrand.outline.withValues(alpha: 0.2)),
+            ),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(p.start ?? '', style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: ManasetyBrand.onSurfaceVariant)),
+              const SizedBox(height: 8),
+              Text(p.subject ?? '—', style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ManasetyBrand.onSurface)),
+              const SizedBox(height: 4),
+              Text(p.teacher ?? '', style: const TextStyle(fontSize: 11, color: ManasetyBrand.onSurfaceVariant)),
+              const Spacer(),
+              if (p.room != null) Text('قاعة ${p.room}',
+                style: const TextStyle(fontSize: 11, color: ManasetyBrand.navy, fontWeight: FontWeight.w600)),
+            ]),
+          );
+        },
       ),
-    );
-  }
-}
-
-class _Period {
-  final String subject; final String time; final String teacher; final bool live;
-  const _Period(this.subject, this.time, this.teacher, this.live);
-}
-
-class _PeriodCard extends StatelessWidget {
-  const _PeriodCard(this.p);
-  final _Period p;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 160,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: ManasetyBrand.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(ManasetyBrand.radiusXl),
-        border: Border.all(color: ManasetyBrand.outline.withValues(alpha: 0.2)),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text(p.time, style: const TextStyle(fontFamily: 'monospace', fontSize: 12, color: ManasetyBrand.onSurfaceVariant)),
-          const Spacer(),
-          if (p.live) Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-            decoration: BoxDecoration(color: ManasetyBrand.success, borderRadius: BorderRadius.circular(999)),
-            child: const Text('الآن', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
-          ),
-        ]),
-        const SizedBox(height: 8),
-        Text(p.subject, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: ManasetyBrand.onSurface)),
-        const SizedBox(height: 4),
-        Text(p.teacher, style: const TextStyle(fontSize: 11, color: ManasetyBrand.onSurfaceVariant)),
-      ]),
     );
   }
 }
 
 class _UpcomingList extends StatelessWidget {
-  const _UpcomingList();
+  const _UpcomingList({required this.items});
+  final List<UpcomingItem> items;
   @override
   Widget build(BuildContext context) {
-    return Column(children: const [
-      _UpcomingItem('واجب الرياضيات — الفصل ٥', 'خلال ٣ ساعات', ManasetyBrand.warning),
-      _UpcomingItem('اختبار قصير — الفيزياء',  'غدًا',        ManasetyBrand.blue),
-      _UpcomingItem('تقرير مختبر — الكيمياء',   'الأسبوع القادم', ManasetyBrand.outline),
+    return Column(children: [
+      for (final it in items) Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: ManasetyBrand.surfaceContainerLowest,
+          borderRadius: BorderRadius.circular(ManasetyBrand.radiusXl),
+          border: Border.all(color: ManasetyBrand.outline.withValues(alpha: 0.2)),
+        ),
+        child: Row(children: [
+          Icon(it.kind == 'quiz' ? Icons.quiz_rounded : Icons.assignment_rounded,
+            color: ManasetyBrand.navy, size: 22),
+          const SizedBox(width: 10),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(it.title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+            if (it.subject != null) Text(it.subject!,
+              style: const TextStyle(fontSize: 11, color: ManasetyBrand.onSurfaceVariant)),
+          ])),
+          if (it.dueAt != null) Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: ManasetyBrand.warning.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(_shortDate(it.dueAt!),
+              style: const TextStyle(color: ManasetyBrand.warning, fontSize: 11, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+      ),
     ]);
   }
-}
 
-class _UpcomingItem extends StatelessWidget {
-  const _UpcomingItem(this.title, this.due, this.tone);
-  final String title; final String due; final Color tone;
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 8),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: ManasetyBrand.surfaceContainerLowest,
-        borderRadius: BorderRadius.circular(ManasetyBrand.radiusXl),
-        border: Border.all(color: ManasetyBrand.outline.withValues(alpha: 0.2)),
-      ),
-      child: Row(children: [
-        Container(width: 4, height: 32, decoration: BoxDecoration(color: tone, borderRadius: BorderRadius.circular(2))),
-        const SizedBox(width: 12),
-        Expanded(child: Text(title, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: ManasetyBrand.onSurface))),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(color: tone.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(999)),
-          child: Text(due, style: TextStyle(color: tone, fontSize: 11, fontWeight: FontWeight.w700)),
-        ),
-      ]),
-    );
+  String _shortDate(String iso) {
+    try {
+      final d = DateTime.parse(iso).toLocal();
+      return '${d.year}-${d.month.toString().padLeft(2,'0')}-${d.day.toString().padLeft(2,'0')}';
+    } catch (_) { return iso; }
   }
 }
 
 class _AnnouncementsRibbon extends StatelessWidget {
-  const _AnnouncementsRibbon();
+  const _AnnouncementsRibbon({required this.count});
+  final int count;
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => Navigator.of(context).pushNamed(Routes.announcements),
+      onTap: () => context.push(Routes.announcements),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -254,10 +244,84 @@ class _AnnouncementsRibbon extends StatelessWidget {
         child: Row(children: [
           const Icon(Icons.campaign_rounded, color: ManasetyBrand.navy),
           const SizedBox(width: 12),
-          const Expanded(child: Text('لديك إعلانان جديدان اليوم — اضغط للاطلاع', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
+          Expanded(child: Text('لديك $count إعلانات جديدة — اضغط للاطلاع',
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))),
           const Icon(Icons.chevron_left_rounded, color: ManasetyBrand.outline),
         ]),
       ),
     );
+  }
+}
+
+class _EmptyBlock extends StatelessWidget {
+  const _EmptyBlock({required this.label});
+  final String label;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(20),
+    decoration: BoxDecoration(
+      color: ManasetyBrand.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(ManasetyBrand.radiusXl),
+    ),
+    child: Center(child: Text(label,
+      style: const TextStyle(color: ManasetyBrand.onSurfaceVariant))),
+  );
+}
+
+class _HomeSkeleton extends StatelessWidget {
+  const _HomeSkeleton();
+  @override
+  Widget build(BuildContext context) {
+    Widget bar([double w = double.infinity, double h = 16]) => Container(
+      width: w, height: h,
+      decoration: BoxDecoration(color: ManasetyBrand.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(6)),
+    );
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(height: 120, decoration: BoxDecoration(
+          color: ManasetyBrand.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(ManasetyBrand.radius2xl))),
+        const SizedBox(height: 16),
+        Row(children: [for (int i = 0; i < 3; i++)
+          Expanded(child: Padding(padding: EdgeInsets.only(left: i < 2 ? 12 : 0),
+            child: Container(height: 68, decoration: BoxDecoration(
+              color: ManasetyBrand.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(ManasetyBrand.radius2xl))))),
+        ]),
+        const SizedBox(height: 24),
+        bar(120, 16),
+        const SizedBox(height: 12),
+        SizedBox(height: 120, child: ListView.separated(
+          scrollDirection: Axis.horizontal, itemCount: 3,
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
+          itemBuilder: (_, __) => Container(width: 160, decoration: BoxDecoration(
+            color: ManasetyBrand.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(ManasetyBrand.radiusXl))),
+        )),
+      ],
+    );
+  }
+}
+
+class _HomeError extends StatelessWidget {
+  const _HomeError({required this.error, required this.onRetry});
+  final Object error;
+  final VoidCallback onRetry;
+  @override
+  Widget build(BuildContext context) {
+    return ListView(children: [
+      const SizedBox(height: 80),
+      const Icon(Icons.wifi_off_rounded, size: 64, color: ManasetyBrand.outline),
+      const SizedBox(height: 12),
+      Center(child: Text(error is ApiException ? (error as ApiException).message : 'تعذّر تحميل البيانات',
+        style: const TextStyle(color: ManasetyBrand.onSurfaceVariant))),
+      const SizedBox(height: 16),
+      Center(child: TextButton.icon(
+        onPressed: onRetry, icon: const Icon(Icons.refresh_rounded),
+        label: const Text('حاول مرة أخرى'))),
+    ]);
   }
 }

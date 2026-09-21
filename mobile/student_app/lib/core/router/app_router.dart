@@ -2,11 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/announcements/presentation/announcement_detail_screen.dart';
 import '../../features/announcements/presentation/announcements_screen.dart';
+import '../../features/assignments/presentation/assignment_attempt_screen.dart';
 import '../../features/assignments/presentation/assignments_screen.dart';
+import '../../features/assignments/presentation/quiz_attempt_screen.dart';
 import '../../features/attendance/presentation/attendance_screen.dart';
 import '../../features/auth/presentation/login_screen.dart';
+import '../../features/courses/presentation/course_detail_screen.dart';
 import '../../features/courses/presentation/courses_screen.dart';
+import '../../features/courses/presentation/lesson_viewer_screen.dart';
 import '../../features/grades/presentation/grades_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
@@ -34,18 +39,34 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // Detail screens outside the shell (they push over the tab bar).
+      // Detail screens outside the shell (push over the tab bar).
+      GoRoute(path: Routes.announcements, builder: (_, __) => const AnnouncementsScreen()),
+      GoRoute(path: Routes.attendance,    builder: (_, __) => const AttendanceScreen()),
+      GoRoute(path: Routes.grades,        builder: (_, __) => const GradesScreen()),
       GoRoute(
-        path: Routes.announcements,
-        builder: (_, __) => const AnnouncementsScreen(),
+        path: Routes.courseDetail,
+        builder: (_, state) => CourseDetailScreen(
+          courseId: int.parse(state.pathParameters['id']!)),
       ),
       GoRoute(
-        path: Routes.attendance,
-        builder: (_, __) => const AttendanceScreen(),
+        path: Routes.lessonViewer,
+        builder: (_, state) => LessonViewerScreen(
+          lessonId: int.parse(state.pathParameters['id']!)),
       ),
       GoRoute(
-        path: Routes.grades,
-        builder: (_, __) => const GradesScreen(),
+        path: Routes.assignmentAttempt,
+        builder: (_, state) => AssignmentAttemptScreen(
+          assignmentId: int.parse(state.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: Routes.quizAttempt,
+        builder: (_, state) => QuizAttemptScreen(
+          quizId: int.parse(state.pathParameters['id']!)),
+      ),
+      GoRoute(
+        path: Routes.announcementDetail,
+        builder: (_, state) => AnnouncementDetailScreen(
+          announcementId: int.parse(state.pathParameters['id']!)),
       ),
     ],
     errorBuilder: (context, state) => Scaffold(

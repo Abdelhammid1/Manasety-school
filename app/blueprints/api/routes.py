@@ -1331,3 +1331,365 @@ def student_announcements():
         "created_at": a.created_at.isoformat() if a.created_at else None,
         "author": a.author.full_name if getattr(a, "author", None) else None,
     } for a in rows]})
+
+
+@bp.route("/student/announcements/<int:aid>", methods=["GET"])
+@jwt_required
+def student_announcement_detail(aid):
+    from ...models import Announcement
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    a = Announcement.query.filter_by(id=aid, school_id=_sid()).first()
+    if not a:
+        return _err("not found", 404)
+    author_name = None
+    if a.author_id:
+        u = User.query.get(a.author_id)
+        author_name = u.full_name if u else None
+    return jsonify({
+        "id": a.id,
+        "title": a.title,
+        "body": a.body,
+        "author": author_name,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+        "pinned": a.is_pinned,
+    })
+
+
+@bp.route("/student/lessons/<int:lid>", methods=["GET"])
+@jwt_required
+def student_lesson_view(lid):
+    from ...models import Lesson, CourseSection
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    lesson = Lesson.query.get(lid)
+    if not lesson or not lesson.is_published:
+        return _err("not found", 404)
+    # Access check: student must be enrolled in a section that publishes
+    # the parent course.
+    enr = _active_enrollment(student)
+    if enr:
+        allowed = CourseSection.query.filter_by(
+            course_id=lesson.course_id, section_id=enr.section_id,
+        ).first()
+        if not allowed:
+            return _err("not authorised", 403)
+    return jsonify({
+        "id": lesson.id,
+        "course_id": lesson.course_id,
+        "unit_id": lesson.unit_id,
+        "title": lesson.title,
+        "kind": lesson.kind,
+        "body": lesson.body,
+        "media_url": lesson.media_url,
+        "duration_minutes": lesson.duration_minutes,
+    })
+
+
+@bp.route("/student/assignments/<int:aid>", methods=["GET"])
+@jwt_required
+def student_assignment_detail(aid):
+    from ...models import (
+        CourseAssignment, Submission,
+        AssignmentQuestion, AssignmentChoice,
+    )
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    a = CourseAssignment.query.get(aid)
+    if not a or not a.is_published:
+        return _err("not found", 404)
+    # Questions + choices, if the assignment has any (smart assignments).
+    qs = (
+        AssignmentQuestion.query.filter_by(assignment_id=a.id)
+        .order_by(AssignmentQuestion.order_index).all()
+    )
+    out_qs = []
+    for q in qs:
+        choices = (
+            AssignmentChoice.query.filter_by(question_id=q.id)
+            .order_by(AssignmentChoice.order_index).all()
+        )
+        out_qs.append({
+            "id": q.id,
+            "kind": q.kind,
+            "prompt": q.prompt,
+            "points": float(q.points) if q.points is not None else None,
+            "choices": [{"id": ch.id, "label": ch.label} for ch in choices],
+        })
+    sub = Submission.query.filter_by(assignment_id=a.id, student_id=student.id).first()
+    return jsonify({
+        "id": a.id,
+        "title": a.title,
+        "instructions": a.instructions,
+        "due_at": a.due_at.isoformat() if a.due_at else None,
+        "max_score": float(a.max_score) if a.max_score is not None else None,
+        "questions": out_qs,
+        "submission": {
+            "id": sub.id,
+            "body": sub.body,
+            "file_url": sub.file_url,
+            "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
+            "score": float(sub.score) if sub.score is not None else None,
+            "feedback": sub.feedback,
+        } if sub else None,
+    })
+
+
+@bp.route("/student/assignments/<int:aid>/submit", methods=["POST"])
+@jwt_required
+def student_assignment_submit(aid):
+    from ...models import (
+        CourseAssignment, Submission,
+        AssignmentAnswer, AssignmentChoice,
+    )
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    a = CourseAssignment.query.get(aid)
+    if not a or not a.is_published:
+        return _err("not found", 404)
+
+    data = request.get_json(silent=True) or {}
+    sub = Submission.query.filter_by(assignment_id=a.id, student_id=student.id).first()
+    if sub is None:
+        sub = Submission(assignment_id=a.id, student_id=student.id)
+        db.session.add(sub); db.session.flush()
+    sub.body = data.get("body") or ""
+    sub.file_url = data.get("file_url") or ""
+    sub.submitted_at = datetime.utcnow()
+
+    # MCQ answers — { question_id: choice_id | text }
+    answers = data.get("answers") or {}
+    for qid_raw, val in answers.items():
+        try:
+            qid = int(qid_raw)
+        except (TypeError, ValueError):
+            continue
+        ans = AssignmentAnswer.query.filter_by(
+            submission_id=sub.id, question_id=qid,
+        ).first()
+        if ans is None:
+            ans = AssignmentAnswer(submission_id=sub.id, question_id=qid)
+            db.session.add(ans)
+        # Choice id (int) → choice_id; anything else → text_answer.
+        if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
+            ans.choice_id = int(val)
+            ans.text_answer = ""
+        else:
+            ans.choice_id = None
+            ans.text_answer = str(val or "")
+    db.session.commit()
+    return jsonify({"ok": True, "submission_id": sub.id})
+
+
+@bp.route("/student/quizzes", methods=["GET"])
+@jwt_required
+def student_quizzes():
+    from ...models import Course, CourseSection, Quiz, QuizAttempt
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    enr = _active_enrollment(student)
+    if not enr:
+        return jsonify({"quizzes": []})
+    section_course_ids = [
+        cs.course_id for cs in CourseSection.query.filter_by(
+            section_id=enr.section_id,
+        ).all()
+    ]
+    if not section_course_ids:
+        return jsonify({"quizzes": []})
+    quizzes = (
+        Quiz.query.filter(
+            Quiz.course_id.in_(section_course_ids),
+            Quiz.is_published.is_(True),
+        )
+        .order_by(Quiz.opens_at.asc().nullslast()).all()
+    )
+    attempts_by_qz = {a.quiz_id: a for a in QuizAttempt.query.filter_by(
+        student_id=student.id,
+    ).all()}
+    course_map = {c.id: c for c in Course.query.filter(
+        Course.id.in_(section_course_ids),
+    ).all()}
+    subjects_by_id = {
+        s.id: s.name for s in Subject.query.filter(
+            Subject.id.in_({c.subject_id for c in course_map.values() if c.subject_id}),
+        ).all()
+    }
+    out = []
+    for q in quizzes:
+        att = attempts_by_qz.get(q.id)
+        course = course_map.get(q.course_id)
+        out.append({
+            "id": q.id,
+            "title": q.title,
+            "subject": subjects_by_id.get(course.subject_id) if course else None,
+            "duration_minutes": q.duration_minutes,
+            "opens_at":  q.opens_at.isoformat()  if q.opens_at  else None,
+            "closes_at": q.closes_at.isoformat() if q.closes_at else None,
+            "status": (
+                "graded"    if att and att.score is not None
+                else "submitted" if att and att.submitted_at
+                else "in_progress" if att
+                else "not_started"
+            ),
+            "score": float(att.score) if att and att.score is not None else None,
+        })
+    return jsonify({"quizzes": out})
+
+
+@bp.route("/student/quizzes/<int:qid>/attempt", methods=["GET"])
+@jwt_required
+def student_quiz_attempt(qid):
+    from ...models import Quiz, Question, Choice
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    q = Quiz.query.get(qid)
+    if not q or not q.is_published:
+        return _err("not found", 404)
+    questions = (
+        Question.query.filter_by(quiz_id=q.id)
+        .order_by(Question.order_index).all()
+    )
+    out_qs = []
+    for qu in questions:
+        choices = (
+            Choice.query.filter_by(question_id=qu.id)
+            .order_by(Choice.order_index).all()
+        )
+        out_qs.append({
+            "id": qu.id,
+            "kind": qu.kind,
+            "prompt": qu.prompt,
+            "points": float(qu.points) if qu.points is not None else None,
+            "choices": [{"id": ch.id, "label": ch.label} for ch in choices],
+        })
+    return jsonify({
+        "quiz": {
+            "id": q.id, "title": q.title, "description": q.description,
+            "duration_minutes": q.duration_minutes,
+        },
+        "questions": out_qs,
+    })
+
+
+@bp.route("/student/quizzes/<int:qid>/submit", methods=["POST"])
+@jwt_required
+def student_quiz_submit(qid):
+    from ...models import Quiz, Question, Choice, QuizAttempt, Answer
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    q = Quiz.query.get(qid)
+    if not q or not q.is_published:
+        return _err("not found", 404)
+
+    data = request.get_json(silent=True) or {}
+    answers = data.get("answers") or {}   # { question_id: choice_id | text }
+
+    attempt = QuizAttempt(quiz_id=q.id, student_id=student.id,
+                          submitted_at=datetime.utcnow(), auto_graded=True)
+    db.session.add(attempt); db.session.flush()
+
+    total_points = Decimal(0)
+    awarded = Decimal(0)
+    for question in q.questions:
+        total_points += (question.points or Decimal(0))
+        val = answers.get(str(question.id)) or answers.get(question.id)
+        ans = Answer(attempt_id=attempt.id, question_id=question.id)
+        if question.kind in ("mcq", "tf") and (isinstance(val, int) or (isinstance(val, str) and val.isdigit())):
+            ans.choice_id = int(val)
+            chosen = Choice.query.get(ans.choice_id)
+            ans.is_correct = bool(chosen and chosen.is_correct)
+            if ans.is_correct:
+                ans.awarded_points = question.points or Decimal(0)
+                awarded += ans.awarded_points
+        elif question.kind == "short" and val is not None:
+            ans.text_answer = str(val)
+            correct = (question.correct_short or "").strip().lower()
+            ans.is_correct = bool(correct) and ans.text_answer.strip().lower() == correct
+            if ans.is_correct:
+                ans.awarded_points = question.points or Decimal(0)
+                awarded += ans.awarded_points
+        else:
+            ans.text_answer = str(val) if val is not None else ""
+        db.session.add(ans)
+
+    if total_points > 0:
+        attempt.score = (awarded * Decimal(100) / total_points).quantize(Decimal("0.01"))
+    else:
+        attempt.score = Decimal(0)
+    db.session.commit()
+    return jsonify({
+        "ok": True,
+        "attempt_id": attempt.id,
+        "score": float(attempt.score),
+        "awarded": float(awarded),
+        "total_points": float(total_points),
+    })
+
+
+@bp.route("/student/report-card/<int:term_id>", methods=["GET"])
+@jwt_required
+def student_report_card(term_id):
+    from ...models import GradeEntry, AssessmentComponent
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    enrollment_ids = [e.id for e in student.enrollments]
+    if not enrollment_ids:
+        return jsonify({"subjects": [], "summary": None})
+    # Every grade entry for this student whose component belongs to the
+    # requested term.
+    comps = AssessmentComponent.query.filter_by(term_id=term_id).all()
+    comp_ids = [c.id for c in comps]
+    if not comp_ids:
+        return jsonify({"subjects": [], "summary": None})
+    entries = GradeEntry.query.filter(
+        GradeEntry.enrollment_id.in_(enrollment_ids),
+        GradeEntry.component_id.in_(comp_ids),
+    ).all()
+
+    # Bucket by subject: accumulate awarded / max.
+    per_subject: dict[int, dict] = {}
+    for e in entries:
+        c = e.component
+        if not c or not c.subject_id:
+            continue
+        b = per_subject.setdefault(c.subject_id, {
+            "subject_id": c.subject_id, "awarded": 0.0, "max": 0.0,
+            "components": [],
+        })
+        b["awarded"] += float(e.score or 0)
+        b["max"]     += float(c.max_score or 0)
+        b["components"].append({
+            "name": c.name,
+            "score": float(e.score) if e.score is not None else None,
+            "max":   float(c.max_score) if c.max_score is not None else None,
+        })
+    # Attach subject names.
+    if per_subject:
+        subjects_by_id = {
+            s.id: s.name for s in Subject.query.filter(
+                Subject.id.in_(per_subject.keys()),
+            ).all()
+        }
+        for sid, b in per_subject.items():
+            b["subject"] = subjects_by_id.get(sid)
+            b["pct"] = round(b["awarded"] * 100 / b["max"], 2) if b["max"] else None
+    subjects = list(per_subject.values())
+    subjects.sort(key=lambda x: -(x["pct"] or 0))
+
+    # Summary.
+    tot_awarded = sum(b["awarded"] for b in subjects)
+    tot_max     = sum(b["max"]     for b in subjects)
+    summary = {
+        "overall_pct": round(tot_awarded * 100 / tot_max, 2) if tot_max else None,
+        "subject_count": len(subjects),
+    }
+    return jsonify({"subjects": subjects, "summary": summary})
