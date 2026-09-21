@@ -22,6 +22,17 @@ AppIcons.zip
 # NAFIS reference PDFs from ETEC (source docs, not code)
 دليل-*.pdf
 نواتج-التعلم-*.pdf
+
+# Stitch design export zips (kept in scratchpad, not repo)
+stitch_manasety_rtl_arabic_lms*.zip
+
+# Flutter build artifacts
+mobile/*/build/
+mobile/*/.dart_tool/
+mobile/*/ios/Pods/
+mobile/*/android/.gradle/
+mobile/*/.flutter-plugins
+mobile/*/.flutter-plugins-dependencies
 AppIcons/
 
 # Sprint 10 — teacher-uploaded materials + Firebase service account

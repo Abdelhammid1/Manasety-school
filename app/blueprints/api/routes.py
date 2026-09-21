@@ -909,3 +909,425 @@ def _parse_date(s):
         return datetime.strptime(s, "%Y-%m-%d").date()
     except (ValueError, TypeError):
         return None
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# Student mobile app endpoints (added 2026-09-21).
+#
+# A student user is linked to their `Student` row via `Student.user_id`
+# (see migration `k9r1s3u5v7w9_students_user_id`). Every route below
+# resolves the caller into a Student first, then scopes queries to that
+# student's active enrollment.
+# ═══════════════════════════════════════════════════════════════════════
+
+def _student_for(user):
+    """Resolve the current authenticated user to their Student row.
+
+    Returns None if no linked Student — the app should treat that as
+    "your account isn't linked to a student profile yet" and show a
+    friendly error rather than crashing.
+    """
+    return Student.query.filter_by(school_id=user.school_id, user_id=user.id).first()
+
+
+def _active_enrollment(student):
+    year = _active_year()
+    if not year:
+        return None
+    return Enrollment.query.filter_by(
+        student_id=student.id, year_id=year.id, status="active",
+    ).first()
+
+
+@bp.route("/student/home", methods=["GET"])
+@jwt_required
+def student_home():
+    """Roll-up for the [STU] Home screen: greeting, stats, today's
+    periods, upcoming deadlines, latest announcements."""
+    from ...models import Announcement, CourseAssignment, Submission
+    from ...models.attendance import Attendance as _Att   # noqa: F401
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    year = _active_year()
+    enr = _active_enrollment(student)
+
+    # ── Stats
+    stats = {"gpa_pct": None, "attendance_pct": None,
+             "assignments_submitted": 0, "assignments_total": 0}
+    if enr:
+        from ...models import Course, CourseAssignment, CourseSection, Submission
+        yr = YearResult.query.filter_by(enrollment_id=enr.id).first()
+        stats["gpa_pct"] = float(yr.average) if yr and yr.average else None
+
+        att_total = Attendance.query.filter_by(enrollment_id=enr.id).count()
+        att_present = Attendance.query.filter_by(
+            enrollment_id=enr.id, status="present",
+        ).count()
+        stats["attendance_pct"] = (
+            round(att_present * 100.0 / att_total, 1) if att_total else None
+        )
+
+        # Assignments visible to this student's section — via CourseSection.
+        section_course_ids = [
+            cs.course_id for cs in CourseSection.query.filter_by(
+                section_id=enr.section_id,
+            ).all()
+        ]
+        stats["assignments_total"] = (
+            CourseAssignment.query.filter(
+                CourseAssignment.course_id.in_(section_course_ids),
+                CourseAssignment.is_published.is_(True),
+            ).count() if section_course_ids else 0
+        )
+        stats["assignments_submitted"] = Submission.query.filter_by(
+            student_id=student.id,
+        ).count()
+
+    # ── Today's periods (from ScheduleSlot filtered by weekday name).
+    periods = []
+    today_wd = date.today().weekday()   # Mon=0..Sun=6
+    if enr and year:
+        slots = (
+            ScheduleSlot.query.filter_by(
+                year_id=year.id, section_id=enr.section_id,
+            ).all()
+        )
+        # Day.name is Arabic; keep the slot with a numeric `order_index` we can sort by.
+        for s in slots:
+            periods.append({
+                "id": s.id,
+                "day": s.day.name if s.day else None,
+                "day_order": s.day.order_index if s.day else 0,
+                "period_order": s.period.order_index if s.period else 0,
+                "period_name": s.period.name if s.period else None,
+                "start": s.period.start_time.strftime("%H:%M") if s.period and s.period.start_time else None,
+                "end":   s.period.end_time.strftime("%H:%M")   if s.period and s.period.end_time   else None,
+                "subject": s.subject.name if s.subject else None,
+                "teacher": s.teacher.full_name if s.teacher else None,
+                "room": s.room.name if s.room else None,
+            })
+        periods.sort(key=lambda p: (p["day_order"], p["period_order"]))
+
+    # ── Upcoming assignments (next 5 by due date).
+    upcoming = []
+    if enr:
+        from ...models import Course, CourseAssignment, CourseSection
+        section_course_ids = [
+            cs.course_id for cs in CourseSection.query.filter_by(
+                section_id=enr.section_id,
+            ).all()
+        ]
+        if section_course_ids:
+            cas = (
+                CourseAssignment.query.filter(
+                    CourseAssignment.course_id.in_(section_course_ids),
+                    CourseAssignment.is_published.is_(True),
+                )
+                .order_by(CourseAssignment.due_at.asc().nullslast())
+                .limit(5).all()
+            )
+            # Batch course→subject lookup.
+            course_map = {c.id: c for c in Course.query.filter(
+                Course.id.in_(section_course_ids),
+            ).all()}
+            subjects_by_id = {
+                s.id: s.name for s in Subject.query.filter(
+                    Subject.id.in_({c.subject_id for c in course_map.values() if c.subject_id}),
+                ).all()
+            }
+            for c in cas:
+                course = course_map.get(c.course_id)
+                upcoming.append({
+                    "id": c.id,
+                    "title": c.title,
+                    "kind": "assignment",
+                    "due_at": c.due_at.isoformat() if c.due_at else None,
+                    "subject": subjects_by_id.get(course.subject_id) if course else None,
+                })
+
+    # ── Announcements — visible to this student's section.
+    announcements = []
+    from sqlalchemy import or_
+    if enr:
+        anns = (
+            Announcement.query.filter_by(school_id=_sid())
+            .filter(or_(Announcement.section_id.is_(None),
+                        Announcement.section_id == enr.section_id))
+            .order_by(Announcement.created_at.desc())
+            .limit(3).all()
+        )
+        for a in anns:
+            announcements.append({
+                "id": a.id,
+                "title": a.title,
+                "preview": (a.body or "")[:120],
+                "created_at": a.created_at.isoformat() if a.created_at else None,
+            })
+
+    return jsonify({
+        "student": {
+            "id": student.id,
+            "full_name": student.full_name,
+            "permanent_code": student.permanent_code,
+            "class": (
+                f"{enr.section.grade.name} — {enr.section.name}"
+                if enr and enr.section else None
+            ),
+        },
+        "stats": stats,
+        "today_periods": periods,
+        "upcoming": upcoming,
+        "announcements": announcements,
+    })
+
+
+@bp.route("/student/courses", methods=["GET"])
+@jwt_required
+def student_courses():
+    from ...models import Course, CourseSection, Lesson
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    enr = _active_enrollment(student)
+    if not enr:
+        return jsonify({"courses": []})
+
+    # Every Course bound to this student's section via CourseSection.
+    cs_rows = CourseSection.query.filter_by(
+        section_id=enr.section_id, is_published=True,
+    ).all()
+    course_ids = [cs.course_id for cs in cs_rows]
+    courses = Course.query.filter(Course.id.in_(course_ids)).all() if course_ids else []
+    # Batch subject lookup so we don't re-query per course.
+    subject_ids = {c.subject_id for c in courses if c.subject_id}
+    subjects_by_id = {
+        s.id: s.name for s in Subject.query.filter(Subject.id.in_(subject_ids)).all()
+    } if subject_ids else {}
+    out = []
+    for c in courses:
+        total_lessons = (
+            db.session.query(db.func.count()).select_from(
+                __import__('sqlalchemy').text('lms_lessons')
+            ) if False else Lesson.query.filter_by(course_id=c.id, is_published=True).count()
+        )
+        out.append({
+            "id": c.id,
+            "title": c.title,
+            "subject": subjects_by_id.get(c.subject_id),
+            "teacher": None,   # resolved per-section via teacher.Assignment; wire later
+            "total_lessons": total_lessons,
+            "cover_url": c.cover_url or None,
+        })
+    return jsonify({"courses": out})
+
+
+@bp.route("/student/courses/<int:course_id>", methods=["GET"])
+@jwt_required
+def student_course_detail(course_id):
+    from ...models import Course, Unit, Lesson
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    course = Course.query.get(course_id)
+    if not course:
+        return _err("course not found", 404)
+    subject_name = None
+    if course.subject_id:
+        subj = Subject.query.get(course.subject_id)
+        subject_name = subj.name if subj else None
+    units = Unit.query.filter_by(course_id=course.id).order_by(Unit.order_index).all()
+    unit_rows = []
+    for u in units:
+        lessons = (
+            Lesson.query.filter_by(unit_id=u.id, is_published=True)
+            .order_by(Lesson.order_index).all()
+        )
+        unit_rows.append({
+            "id": u.id, "title": u.title,
+            "lessons": [{
+                "id": l.id, "title": l.title, "kind": l.kind,
+                "duration_minutes": l.duration_minutes,
+                "media_url": l.media_url,
+            } for l in lessons],
+        })
+    orphan = (
+        Lesson.query.filter_by(course_id=course.id, unit_id=None, is_published=True)
+        .order_by(Lesson.order_index).all()
+    )
+    return jsonify({
+        "course": {
+            "id": course.id, "title": course.title,
+            "teacher": None,   # resolved per-section via teacher.Assignment; wire later
+            "subject": subject_name,
+        },
+        "units": unit_rows,
+        "orphan_lessons": [{
+            "id": l.id, "title": l.title, "kind": l.kind,
+            "duration_minutes": l.duration_minutes,
+            "media_url": l.media_url,
+        } for l in orphan],
+    })
+
+
+@bp.route("/student/assignments", methods=["GET"])
+@jwt_required
+def student_assignments():
+    from ...models import Course, CourseAssignment, CourseSection, Submission
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    enr = _active_enrollment(student)
+    if not enr:
+        return jsonify({"assignments": []})
+    section_course_ids = [
+        cs.course_id for cs in CourseSection.query.filter_by(
+            section_id=enr.section_id,
+        ).all()
+    ]
+    if not section_course_ids:
+        return jsonify({"assignments": []})
+    cas = (
+        CourseAssignment.query.filter(
+            CourseAssignment.course_id.in_(section_course_ids),
+            CourseAssignment.is_published.is_(True),
+        )
+        .order_by(CourseAssignment.due_at.asc().nullslast()).all()
+    )
+    subs_by_ca = {s.assignment_id: s for s in Submission.query.filter_by(
+        student_id=student.id,
+    ).all()}
+    course_map = {c.id: c for c in Course.query.filter(
+        Course.id.in_(section_course_ids),
+    ).all()}
+    subjects_by_id = {
+        s.id: s.name for s in Subject.query.filter(
+            Subject.id.in_({c.subject_id for c in course_map.values() if c.subject_id}),
+        ).all()
+    }
+    out = []
+    for c in cas:
+        sub = subs_by_ca.get(c.id)
+        course = course_map.get(c.course_id)
+        out.append({
+            "id": c.id,
+            "title": c.title,
+            "subject": subjects_by_id.get(course.subject_id) if course else None,
+            "due_at": c.due_at.isoformat() if c.due_at else None,
+            "status": (
+                "graded" if sub and sub.score is not None
+                else "submitted" if sub
+                else "not_started"
+            ),
+            "score": float(sub.score) if sub and sub.score is not None else None,
+        })
+    return jsonify({"assignments": out})
+
+
+@bp.route("/student/schedule", methods=["GET"])
+@jwt_required
+def student_schedule():
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    year = _active_year()
+    enr = _active_enrollment(student)
+    if not (enr and year):
+        return jsonify({"schedule": []})
+    slots = ScheduleSlot.query.filter_by(
+        year_id=year.id, section_id=enr.section_id,
+    ).all()
+    out = [{
+        "day": s.day.name if s.day else None,
+        "day_order": s.day.order_index if s.day else 0,
+        "period_order": s.period.order_index if s.period else 0,
+        "period_name": s.period.name if s.period else None,
+        "start": s.period.start_time.strftime("%H:%M") if s.period and s.period.start_time else None,
+        "end":   s.period.end_time.strftime("%H:%M")   if s.period and s.period.end_time   else None,
+        "subject": s.subject.name if s.subject else None,
+        "teacher": s.teacher.full_name if s.teacher else None,
+        "room": s.room.name if s.room else None,
+    } for s in slots]
+    return jsonify({"schedule": out})
+
+
+@bp.route("/student/attendance", methods=["GET"])
+@jwt_required
+def student_attendance():
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    # All enrollments (any year) for a complete attendance history.
+    enrollment_ids = [e.id for e in student.enrollments]
+    if not enrollment_ids:
+        return jsonify({"attendance": []})
+    rows = (
+        Attendance.query.filter(Attendance.enrollment_id.in_(enrollment_ids))
+        .order_by(Attendance.date.desc()).limit(200).all()
+    )
+    return jsonify({"attendance": [{
+        "date": r.date.isoformat() if r.date else None,
+        "status": r.status,
+        "reason": r.notes or getattr(r, "excuse_reason", None),
+    } for r in rows]})
+
+
+@bp.route("/student/grades", methods=["GET"])
+@jwt_required
+def student_grades():
+    from ...models import GradeEntry
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    year = _active_year()
+    enrollment_ids = [e.id for e in student.enrollments]
+    entries = (
+        GradeEntry.query.filter(GradeEntry.enrollment_id.in_(enrollment_ids))
+        .order_by(GradeEntry.id.desc()).limit(200).all()
+        if enrollment_ids else []
+    )
+    out = []
+    for g in entries:
+        comp = g.component
+        out.append({
+            "id": g.id,
+            "term":      comp.term.name    if comp and comp.term else None,
+            "subject":   comp.subject.name if comp and comp.subject else None,
+            "component": comp.name         if comp else None,
+            "score": float(g.score) if g.score is not None else None,
+            "max":   float(comp.max_score) if comp and comp.max_score is not None else None,
+        })
+    yr = None
+    if year and enrollment_ids:
+        yr_row = YearResult.query.filter(
+            YearResult.enrollment_id.in_(enrollment_ids),
+        ).first()
+        if yr_row:
+            yr = {
+                "overall_percent": float(yr_row.average) if yr_row.average else None,
+                "status": yr_row.status,
+            }
+    return jsonify({"entries": out, "year_result": yr})
+
+
+@bp.route("/student/announcements", methods=["GET"])
+@jwt_required
+def student_announcements():
+    from ...models import Announcement
+    from sqlalchemy import or_
+    student = _student_for(_user())
+    if not student:
+        return _err("student profile not linked", 404)
+    enr = _active_enrollment(student)
+    q = Announcement.query.filter_by(school_id=_sid())
+    if enr:
+        q = q.filter(or_(Announcement.section_id.is_(None),
+                         Announcement.section_id == enr.section_id))
+    rows = q.order_by(Announcement.created_at.desc()).limit(50).all()
+    return jsonify({"announcements": [{
+        "id": a.id,
+        "title": a.title,
+        "body": a.body,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+        "author": a.author.full_name if getattr(a, "author", None) else None,
+    } for a in rows]})

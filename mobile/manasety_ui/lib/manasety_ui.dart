@@ -8,6 +8,7 @@ library;
 export 'src/theme/app_theme.dart';
 export 'src/theme/arabize.dart';
 export 'src/theme/colors.dart';
+export 'src/theme/manasety_brand.dart';
 export 'src/theme/manasety_page_transitions.dart';
 export 'src/theme/subject_palette.dart';
 export 'src/theme/tokens.dart';

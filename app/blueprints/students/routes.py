@@ -300,13 +300,10 @@ def student_new():
                     db.session.rollback()
                     flash(err, "danger")
                     return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
-                # Student model has no user_id column; the account is
-                # created and linked via User.full_name matching. Log
-                # for admin visibility.
-                current_app.logger.info(
-                    "student account created for %s → user_id=%s",
-                    student.permanent_code, new_user.id,
-                )
+                # Ticket (2026-09-21) — link the new User back to the
+                # Student row via `student.user_id` so the student
+                # mobile app can look up its own profile on login.
+                student.user_id = new_user.id
 
             db.session.commit()
         except Exception:

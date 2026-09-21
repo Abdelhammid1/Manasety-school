@@ -20,6 +20,9 @@ class Student(db.Model):
     parent_phone = db.Column(db.String(32))
     parent_email = db.Column(db.String(128))
     parent_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    # Student's own login (used by the student mobile app). Nullable — a
+    # student without an app account still exists as a school record.
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
     mother_name = db.Column(db.String(160))
     mother_phone = db.Column(db.String(32))
     address = db.Column(db.String(255))
@@ -32,6 +35,9 @@ class Student(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     parent_user = db.relationship("User", foreign_keys=[parent_user_id], backref="children")
+    user = db.relationship("User", foreign_keys=[user_id], backref=db.backref(
+        "student_profile", uselist=False,
+    ))
     ar_account = db.relationship("Account", foreign_keys=[ar_account_id])
     enrollments = db.relationship(
         "Enrollment", backref="student", order_by="Enrollment.id.desc()"
