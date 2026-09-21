@@ -1,0 +1,87 @@
+{# One NAFIS cycle — headline info + per-level result counters + phase-2
+   placeholders for the Excel importer and gap generation. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ cyc.name_ar }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('nafis.cycles_list') }}" class="hover:text-primary">دورات نافس</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ cyc.name_ar }}</span>
+{% endblock %}
+
+{% set status_colors = {
+    'upcoming':          '#94A3B8',
+    'active':            '#2563EB',
+    'completed':         '#8B5CF6',
+    'results_published': '#10B981',
+} %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md max-w-5xl mx-auto">
+
+  {# ── Header ─────────────────────────────────────────────── #}
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-on-surface-variant">دورة نافس</span>
+        <h1 class="font-headline-lg text-primary font-bold mt-1">{{ cyc.name_ar }}</h1>
+        <p class="font-body-md text-on-surface-variant mt-1" dir="ltr">
+          {{ (cyc.hijri_year ~ 'هـ') if cyc.hijri_year }}
+          {% if cyc.hijri_year and cyc.gregorian_year %} · {% endif %}
+          {{ cyc.gregorian_year if cyc.gregorian_year }}
+          {% if cyc.start_date and cyc.end_date %}
+            · {{ cyc.start_date.strftime('%Y-%m-%d') }} → {{ cyc.end_date.strftime('%Y-%m-%d') }}
+          {% endif %}
+        </p>
+      </div>
+      <div class="flex items-center gap-space-sm">
+        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold text-white"
+              style="background: {{ status_colors.get(cyc.status, '#94A3B8') }};">
+          {{ status_labels.get(cyc.status, cyc.status) }}
+        </span>
+        <a href="{{ url_for('nafis.cycle_edit', cycle_id=cyc.id) }}"
+           class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container flex items-center gap-1">
+          <span class="material-symbols-outlined text-sm">edit</span>تعديل
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {# ── Per-level result stats ─────────────────────────────── #}
+  <section class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+    {% for lvl in cyc.target_levels %}
+    {% set bucket = results_by_level.get(lvl, {'total': 0, 'students': []}) %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h3 class="font-title-md text-primary font-bold">{{ level_labels.get(lvl, lvl) }}</h3>
+      <p class="mt-space-sm font-label-md text-on-surface-variant">نتائج مُستوردة</p>
+      <p class="font-headline-md text-primary font-bold tabular-nums">{{ bucket.total }}</p>
+      <p class="font-label-xs text-outline mt-1">{{ bucket.students|length }} طالب</p>
+    </div>
+    {% endfor %}
+  </section>
+
+  {# ── Phase 2 placeholder — importer + gaps ─────────────── #}
+  <section class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-start gap-3">
+    <span class="material-symbols-outlined text-3xl">construction</span>
+    <div class="flex-1">
+      <h3 class="font-title-md font-bold">استيراد النتائج قادم</h3>
+      <p class="mt-1 font-body-md">
+        استيراد ملف Excel من هيئة تقويم التعليم بعد إعلان النتائج
+        سيربط كل طالب بمعياره ويولّد جدول الفجوات لكل صف.
+        احتفظ بالدورة جاهزة هنا — لن تحتاج لإعادة إنشائها لاحقاً.
+      </p>
+    </div>
+  </section>
+
+  {% if cyc.notes %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h3 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-sm">
+      <span class="material-symbols-outlined">sticky_note_2</span>ملاحظات
+    </h3>
+    <p class="font-body-md whitespace-pre-line">{{ cyc.notes }}</p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{# NAFIS cycle new + edit — same template driven by `cycle`. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if cycle %}تعديل الدورة{% else %}دورة جديدة{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('nafis.cycles_list') }}" class="hover:text-primary">دورات نافس</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{% if cycle %}تعديل{% else %}جديد{% endif %}</span>
+{% endblock %}
+
+{% block page_content %}
+{% set F = cycle %}
+{% set post_url = url_for('nafis.cycle_edit', cycle_id=F.id) if F else url_for('nafis.cycle_new') %}
+{% set selected_levels = (F.target_levels if F else ['g3','g6','g9']) %}
+
+<div class="max-w-4xl mx-auto flex flex-col gap-space-md">
+  <h1 class="font-headline-lg text-primary">
+    {% if F %}تعديل دورة نافس{% else %}إنشاء دورة نافس جديدة{% endif %}
+  </h1>
+
+  <form method="post" action="{{ post_url }}" class="flex flex-col gap-space-lg">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">quiz</span>البيانات الأساسية
+      </h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="font-label-md text-on-surface font-bold">اسم الدورة <span class="text-error">*</span></label>
+          <input name="name_ar" required value="{{ F.name_ar if F else 'دورة نافس ' ~ today.year }}"
+                 placeholder="مثال: دورة نافس 1447/2026"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">السنة الدراسية</label>
+          <select name="academic_year_id" class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <option value="">— بدون ربط —</option>
+            {% for y in years %}
+            <option value="{{ y.id }}" {% if F and F.academic_year_id == y.id %}selected{% endif %}>{{ y.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">الحالة</label>
+          <select name="status" class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+            {% for k, label in status_labels.items() %}
+            <option value="{{ k }}" {% if F and F.status == k or (not F and k == 'upcoming') %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">السنة الهجرية</label>
+          <input name="hijri_year" dir="ltr" value="{{ F.hijri_year if F else '1447' }}" maxlength="8"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low font-mono focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">السنة الميلادية</label>
+          <input name="gregorian_year" type="number" min="2020" max="2100"
+                 value="{{ F.gregorian_year if F else today.year }}"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low tabular-nums focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">تاريخ البدء</label>
+          <input name="start_date" type="date"
+                 value="{{ F.start_date.strftime('%Y-%m-%d') if F and F.start_date else '' }}"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">تاريخ الانتهاء</label>
+          <input name="end_date" type="date"
+                 value="{{ F.end_date.strftime('%Y-%m-%d') if F and F.end_date else '' }}"
+                 class="h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
+        </div>
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined">school</span>الصفوف المستهدفة
+      </h2>
+      <div class="flex items-center gap-space-md flex-wrap">
+        {% for k, label in level_labels.items() %}
+        <label class="cursor-pointer">
+          <input type="checkbox" name="levels" value="{{ k }}"
+                 class="peer sr-only"
+                 {% if k in selected_levels %}checked{% endif %}>
+          <span class="px-4 py-2 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">
+            {{ label }}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+      <p class="mt-space-sm font-label-xs text-outline">
+        نافس يُطبَّق فعليًا على هذه الصفوف الثلاثة فقط. يمكنك اختيار البعض إذا كانت مدرستك لا تُدرّس مرحلة معيّنة.
+      </p>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">ملاحظات</label>
+        <textarea name="notes" rows="3"
+                  placeholder="أي ملاحظات حول التطبيق أو التنظيم"
+                  class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">{{ F.notes if F else '' }}</textarea>
+      </div>
+    </section>
+
+    <div class="flex items-center justify-between gap-space-sm">
+      {% if F %}
+      <form method="post" action="{{ url_for('nafis.cycle_delete', cycle_id=F.id) }}"
+            onsubmit="return confirm('حذف الدورة نهائياً؟ لا يمكن التراجع.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="h-11 px-5 rounded-xl bg-error-container/40 text-error font-label-lg font-bold hover:bg-error-container flex items-center gap-2">
+          <span class="material-symbols-outlined">delete</span>حذف الدورة
+        </button>
+      </form>
+      {% else %}<span></span>{% endif %}
+      <div class="flex items-center gap-space-sm">
+        <a href="{{ url_for('nafis.cycles_list') }}"
+           class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
+        <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined">save</span>
+          <span>{% if F %}حفظ التعديلات{% else %}إنشاء الدورة{% endif %}</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

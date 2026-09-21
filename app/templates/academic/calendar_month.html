@@ -55,6 +55,31 @@
     </div>
   </section>
 
+  {# Ticket (2026-09-21) — when the current month falls outside the
+     school-year window but the year has generated entries elsewhere,
+     tell the admin so they don't think generation silently failed. #}
+  {% if outside_year_window and total_in_year > 0 %}
+  <section class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-md flex items-start gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <div class="flex-1">
+      <p class="font-label-lg font-bold">هذا الشهر خارج نطاق السنة الدراسية</p>
+      <p class="font-body-md mt-1">
+        السنة تحتوي {{ total_in_year }} يوم مسجّل، لكنها تبدأ في
+        <span dir="ltr">{{ year.start_date.strftime('%Y-%m-%d') }}</span> وتنتهي
+        <span dir="ltr">{{ year.end_date.strftime('%Y-%m-%d') }}</span>. اذهب إلى شهر
+        داخل الفترة لتظهر لك الأيام المسجّلة.
+      </p>
+      {% if year_start_month %}
+      <a href="{{ url_for('academic.calendar_month', month=year_start_month) }}"
+         class="mt-space-sm inline-flex h-9 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold items-center gap-1">
+        <span class="material-symbols-outlined text-sm">arrow_forward</span>
+        اذهب لبداية السنة الدراسية
+      </a>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+
   {# ── Bulk weekly-holiday generator ── #}
   <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
     <h3 class="font-title-md text-primary font-bold mb-space-sm flex items-center gap-2">

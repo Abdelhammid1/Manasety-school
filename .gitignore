@@ -18,6 +18,10 @@ migrations/versions/*.pyc
 *.log
 
 AppIcons.zip
+
+# NAFIS reference PDFs from ETEC (source docs, not code)
+دليل-*.pdf
+نواتج-التعلم-*.pdf
 AppIcons/
 
 # Sprint 10 — teacher-uploaded materials + Firebase service account

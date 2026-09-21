@@ -67,6 +67,17 @@ def calendar_month():
     for r in rows:
         by_date.setdefault(r.date, []).append(r)
 
+    # Ticket (2026-09-21) — when the year has generated entries but this
+    # specific month is outside the year window, the grid is empty and
+    # confuses admins. Detect it and hand the template a hint to jump.
+    total_in_year = SchoolCalendarDay.query.filter_by(
+        school_id=_sid(), academic_year_id=year.id,
+    ).count()
+    outside_year_window = (
+        year.start_date and year.end_date
+        and (last < year.start_date or first > year.end_date)
+    )
+
     # Build 6×7 grid starting from the Saturday on or before the 1st
     # (school week begins Sunday; header shows Saturday first). Overflow
     # days at the start/end come from adjacent months, marked greyed-out.
@@ -87,6 +98,9 @@ def calendar_month():
         year=year, anchor=first, cells=cells,
         prev_month=prev_anchor.isoformat()[:7],
         next_month=next_first.isoformat()[:7],
+        total_in_year=total_in_year,
+        outside_year_window=outside_year_window,
+        year_start_month=(year.start_date.strftime("%Y-%m") if year.start_date else None),
     )
 
 

@@ -331,20 +331,58 @@ def _get_lesson_or_404(lesson_id):
     return Lesson.query.get_or_404(lesson_id)
 
 
+LESSON_PDF_EXTS = {".pdf"}
+
+
+def _save_lesson_pdf(course, file_storage):
+    """Save an uploaded lesson PDF into static/uploads/lessons/.
+
+    Returns the URL to store in `lesson.media_url`, or None + flashes on
+    validation failure. Filenames are randomised so admins can re-upload
+    without cache issues.
+    """
+    import os, secrets
+    from flask import current_app
+    from werkzeug.utils import secure_filename
+    if not file_storage or not file_storage.filename:
+        return None
+    name = secure_filename(file_storage.filename)
+    ext = os.path.splitext(name)[1].lower()
+    if ext not in LESSON_PDF_EXTS:
+        flash("امتداد الملف غير مدعوم — ارفع ملف PDF.", "danger")
+        return None
+    upload_root = os.path.join(current_app.static_folder, "uploads", "lessons")
+    os.makedirs(upload_root, exist_ok=True)
+    fname = f"c{course.id}-{secrets.token_hex(6)}{ext}"
+    file_storage.save(os.path.join(upload_root, fname))
+    return url_for("static", filename=f"uploads/lessons/{fname}")
+
+
 @bp.route("/<int:course_id>/lessons/new", methods=["GET", "POST"], endpoint="lesson_new")
 @login_required
 def lesson_new(course_id):
     course = Course.query.get_or_404(course_id)
     if request.method == "POST":
+        kind = request.form.get("kind", "text")
+        # Ticket (2026-09-21) — inline PDF upload. When a PDF file is
+        # attached the served URL becomes the lesson's media_url; if a
+        # URL was typed too, the upload wins.
+        media_url = _embed_url(request.form.get("media_url", ""))
+        if kind == "pdf":
+            pdf_file = request.files.get("pdf_file")
+            saved = _save_lesson_pdf(course, pdf_file) if pdf_file else None
+            if saved:
+                media_url = saved
+
         last = max((l.order_index for l in course.lessons), default=0)
         lesson = Lesson(
             course_id=course.id,
             unit_id=request.form.get("unit_id", type=int) or None,
             order_index=last + 1,
             title=request.form["title"].strip(),
-            kind=request.form.get("kind", "text"),
+            kind=kind,
             body=request.form.get("body", ""),
-            media_url=_embed_url(request.form.get("media_url", "")),
+            media_url=media_url,
             duration_minutes=int(request.form.get("duration_minutes") or 0),
             is_published=bool(request.form.get("is_published", "1")),
         )
@@ -366,7 +404,15 @@ def lesson_edit(lesson_id):
         lesson.unit_id = request.form.get("unit_id", type=int) or None
         lesson.kind = request.form.get("kind", "text")
         lesson.body = request.form.get("body", "")
-        lesson.media_url = _embed_url(request.form.get("media_url", ""))
+
+        # Ticket — same inline PDF upload logic as lesson_new.
+        media_url = _embed_url(request.form.get("media_url", ""))
+        if lesson.kind == "pdf":
+            pdf_file = request.files.get("pdf_file")
+            saved = _save_lesson_pdf(course, pdf_file) if pdf_file else None
+            if saved:
+                media_url = saved
+        lesson.media_url = media_url
         lesson.duration_minutes = int(request.form.get("duration_minutes") or 0)
         lesson.is_published = bool(request.form.get("is_published"))
         db.session.commit()

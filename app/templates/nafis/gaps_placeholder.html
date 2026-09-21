@@ -1,0 +1,39 @@
+{# Phase 2 landing page for the gap dashboard — real charts light up
+   once NAFIS results are imported. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الفجوات والخطط العلاجية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الفجوات والخطط العلاجية</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="max-w-3xl mx-auto flex flex-col gap-space-md">
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-xl shadow-sm text-center">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <span class="material-symbols-outlined text-6xl text-primary">insights</span>
+    <h1 class="mt-space-md font-headline-lg text-primary font-bold">لوحة الفجوات قيد التجهيز</h1>
+    <p class="mt-space-md font-body-md text-on-surface-variant leading-relaxed">
+      بعد استيراد نتائج نافس من هيئة تقويم التعليم، ستظهر هنا:
+    </p>
+    <ul class="mt-space-md text-right list-disc pr-6 flex flex-col gap-2 text-body-md text-on-surface">
+      <li>خريطة حرارية للفجوات على مستوى الفصل ومستوى الصف.</li>
+      <li>ترتيب المعايير الأكثر ضعفًا في المدرسة (Top-10 weaknesses).</li>
+      <li>قائمة الطلاب حسب مدى الحاجة لخطط علاجية مع اقتراح تلقائي للمعايير المستهدفة.</li>
+      <li>تصدير رسالة لولي الأمر بحالة تحصيل الطالب.</li>
+    </ul>
+    <div class="mt-space-xl flex items-center justify-center gap-space-sm">
+      <a href="{{ url_for('nafis.cycles_list') }}"
+         class="h-11 px-5 rounded-xl bg-primary-container/20 text-primary font-title-md font-bold hover:bg-primary-container/40 flex items-center gap-2">
+        <span class="material-symbols-outlined">quiz</span>دورات نافس
+      </a>
+      <a href="{{ url_for('nafis.outcomes_home') }}"
+         class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        <span class="material-symbols-outlined">menu_book</span>كتالوج نواتج التعلم
+      </a>
+    </div>
+  </section>
+</div>
+{% endblock %}

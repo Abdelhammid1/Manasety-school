@@ -1,0 +1,151 @@
+{# NAFIS learning-outcomes catalog browser. Subject × level picker, then
+   an accordion tree of domains → subdomains → standards → indicators. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نواتج التعلم — نافس{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">نواتج التعلم (نافس)</span>
+{% endblock %}
+
+{% block page_content %}
+{# Recursively renders one node + its children. Kinds map to visuals:
+    domain    → bold subject-container band, always open
+    subdomain → medium-weight header inside details
+    standard  → outlined card with code chip + text
+    indicator → bullet list item                                #}
+{% macro node(row) %}
+  {% if row.kind == 'domain' %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+      <span class="material-symbols-outlined">category</span>{{ row.text_ar }}
+    </h2>
+    <div class="flex flex-col gap-space-md">
+      {% for c in kids.get(row.id, []) %}{{ node(c) }}{% endfor %}
+    </div>
+  </section>
+  {% elif row.kind == 'subdomain' %}
+  <details class="rounded-xl bg-surface-container-low overflow-hidden" open>
+    <summary class="p-space-md cursor-pointer font-label-lg font-bold text-primary flex items-center gap-2">
+      <span class="material-symbols-outlined text-lg">folder_open</span>{{ row.text_ar }}
+      <span class="ml-auto material-symbols-outlined text-outline nav-chevron">expand_more</span>
+    </summary>
+    <div class="p-space-md pt-0 flex flex-col gap-space-sm">
+      {% for c in kids.get(row.id, []) %}{{ node(c) }}{% endfor %}
+    </div>
+  </details>
+  {% elif row.kind == 'standard' %}
+  <article class="rounded-lg border-2 border-outline-variant bg-surface-container-lowest p-space-md flex flex-col gap-2">
+    <div class="flex items-start gap-2">
+      {% if row.code %}
+      <span class="shrink-0 font-mono text-xs px-2 py-1 rounded-md bg-primary-container/40 text-primary font-bold" dir="ltr">{{ row.code }}</span>
+      {% endif %}
+      <p class="font-body-md text-on-surface leading-relaxed">{{ row.text_ar }}</p>
+    </div>
+    {% set inds = kids.get(row.id, []) %}
+    {% if inds %}
+    <ul class="list-disc pr-6 flex flex-col gap-1 font-label-md text-on-surface-variant">
+      {% for i in inds %}<li>{{ i.text_ar }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+  </article>
+  {% endif %}
+{% endmacro %}
+
+<div class="flex flex-col w-full gap-space-md">
+
+  {# ── Hero ─────────────────────────────────────────────────── #}
+  <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="absolute top-0 right-0 left-0 h-1.5"
+         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+    <div class="flex items-start justify-between gap-space-md flex-wrap">
+      <div>
+        <span class="font-label-md text-on-surface-variant">نافس · نواتج التعلم</span>
+        <h1 class="font-headline-lg text-primary font-bold mt-1">
+          {{ subject_labels[subject] }} — {{ level_labels[level] }}
+        </h1>
+        <p class="font-body-md text-on-surface-variant mt-1">
+          كتالوج معايير هيئة تقويم التعليم لاختبارات نافس الوطنية
+          (الإصدار الثالث — 1447/2026).
+        </p>
+      </div>
+      <div class="flex items-center gap-space-md">
+        <div class="text-center">
+          <p class="font-headline-md text-primary font-bold tabular-nums">{{ total_standards }}</p>
+          <p class="font-label-xs text-outline">معيار</p>
+        </div>
+        <div class="text-center">
+          <p class="font-headline-md text-secondary font-bold tabular-nums">{{ total_indicators }}</p>
+          <p class="font-label-xs text-outline">مؤشّر</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# ── Filters ─────────────────────────────────────────────── #}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <form method="get" class="flex items-end gap-space-md flex-wrap">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">المادة</label>
+        <div class="flex items-center gap-2 flex-wrap">
+          {% for s in subjects %}
+          <label class="cursor-pointer">
+            <input type="radio" name="subject" value="{{ s }}" class="peer sr-only"
+                   {% if subject == s %}checked{% endif %} onchange="this.form.submit()">
+            <span class="px-3 py-1.5 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">
+              {{ subject_labels[s] }}
+            </span>
+          </label>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md font-bold text-on-surface">المستوى</label>
+        <div class="flex items-center gap-2 flex-wrap">
+          {% for l in levels %}
+          {# Skip g3 for science — no such NAFIS test. #}
+          {% if not (subject == 'science' and l == 'g3') %}
+          <label class="cursor-pointer">
+            <input type="radio" name="level" value="{{ l }}" class="peer sr-only"
+                   {% if level == l %}checked{% endif %} onchange="this.form.submit()">
+            <span class="px-3 py-1.5 rounded-lg border-2 border-outline-variant bg-surface-container-low font-label-md text-primary peer-checked:border-primary peer-checked:bg-primary-container/20 peer-checked:font-bold">
+              {{ level_labels[l] }}
+            </span>
+          </label>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+    </form>
+  </section>
+
+  {# ── Broad outcomes summary ─────────────────────────────── #}
+  {% if broad %}
+  <section class="bg-primary-container/10 rounded-2xl p-space-lg">
+    <h3 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-sm">
+      <span class="material-symbols-outlined">flag</span>الأهداف العريضة للمستوى
+    </h3>
+    <ol class="list-decimal pr-6 flex flex-col gap-2 text-body-md text-on-surface">
+      {% for b in broad %}<li>{{ b.text_ar }}</li>{% endfor %}
+    </ol>
+  </section>
+  {% endif %}
+
+  {# ── Tree ───────────────────────────────────────────────── #}
+  {% if roots %}
+  {% for r in roots %}{{ node(r) }}{% endfor %}
+  {% else %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لم يُحمَّل الكتالوج بعد. شغّل
+      <code dir="ltr" class="font-mono">python scripts/seed_nafis_outcomes.py</code>
+      لتعبئة الجداول.</span>
+  </div>
+  {% endif %}
+</div>
+
+<style>
+  details.rounded-xl[open] > summary .nav-chevron { transform: rotate(180deg); }
+  details.rounded-xl > summary .nav-chevron { transition: transform 200ms ease; }
+  details.rounded-xl > summary::-webkit-details-marker { display: none; }
+</style>
+{% endblock %}

@@ -20,7 +20,7 @@
     <p class="font-body-md text-body-md text-on-surface-variant mt-1">إلى مادة: <b>{{ course.title }}</b></p>
   </div>
 
-  <form method="post" action="{{ post_url }}" class="flex flex-col gap-space-md">
+  <form method="post" action="{{ post_url }}" enctype="multipart/form-data" class="flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
@@ -72,9 +72,27 @@
     </section>
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      {# PDF upload block — visible only when kind==pdf. #}
+      <div id="pdfUploadBlock" class="flex flex-col gap-1.5" style="display:{% if current_kind == 'pdf' %}flex{% else %}none{% endif %}">
+        <label class="font-label-md text-label-md text-on-surface font-bold">رفع ملف PDF من الجهاز</label>
+        {% if lesson and lesson.media_url and lesson.kind == 'pdf' %}
+        <div class="p-space-sm rounded-lg bg-primary-container/10 flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">picture_as_pdf</span>
+          <span class="font-label-sm text-primary">ملف مرفوع بالفعل — </span>
+          <a href="{{ lesson.media_url }}" target="_blank" class="text-primary underline font-label-sm">فتح</a>
+          <span class="font-label-xs text-outline">(ارفع ملفاً جديداً لاستبداله)</span>
+        </div>
+        {% endif %}
+        <input type="file" name="pdf_file" accept="application/pdf"
+               class="block text-sm text-on-surface file:h-11 file:px-5 file:rounded-lg file:border-0 file:bg-primary-container/20 file:text-primary file:font-bold file:cursor-pointer">
+        <span class="font-label-xs text-outline">
+          الملف يترفع مباشرة على المنصة، والطالب يقدر يفتحه أو يحمله من صفحة الدرس.
+        </span>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
         <div class="md:col-span-2 flex flex-col gap-1.5">
-          <label class="font-label-md text-label-md text-on-surface font-bold">رابط الوسيط</label>
+          <label class="font-label-md text-label-md text-on-surface font-bold">رابط الوسيط <span id="mediaUrlHint" class="font-label-xs text-outline">(أو استخدم الرفع أعلاه)</span></label>
           <input name="media_url" dir="ltr"
                  value="{{ lesson.media_url if lesson else '' }}"
                  placeholder="https://youtube.com/watch?v=... أو أي رابط فيديو/PDF"
@@ -121,4 +139,18 @@
     </div>
   </form>
 </div>
+
+<script>
+  (function(){
+    // Show the PDF upload block only when the "PDF" kind is selected.
+    const block = document.getElementById('pdfUploadBlock');
+    if (!block) return;
+    document.querySelectorAll('input[name="kind"]').forEach(function(r){
+      r.addEventListener('change', function(){
+        block.style.display = (r.checked && r.value === 'pdf') ? 'flex' : block.style.display;
+        if (r.checked) block.style.display = (r.value === 'pdf') ? 'flex' : 'none';
+      });
+    });
+  })();
+</script>
 {% endblock %}

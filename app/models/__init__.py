@@ -43,6 +43,15 @@ from .platform import (
     TranscriptSnapshot,
     ImportBatch,
 )
+# NAFIS (ETEC national assessment) — see models/nafis.py.
+from .nafis import (
+    LearningOutcome,
+    NafisCycle, NafisResult, NafisOutcomeScore,
+    StudentGap,
+    InterventionPlan, InterventionPlanOutcome, InterventionSession,
+    NAFIS_LEVELS, NAFIS_SUBJECTS, NAFIS_BANDS, NAFIS_CYCLE_STATUS,
+    GAP_SEVERITY, GAP_SOURCE, INTERVENTION_STATUS,
+)
 
 __all__ = [
     "School", "User", "Role",
@@ -82,4 +91,11 @@ __all__ = [
     "DiscountType", "StudentDiscount",
     "TranscriptSnapshot",
     "ImportBatch",
+    # NAFIS
+    "LearningOutcome",
+    "NafisCycle", "NafisResult", "NafisOutcomeScore",
+    "StudentGap",
+    "InterventionPlan", "InterventionPlanOutcome", "InterventionSession",
+    "NAFIS_LEVELS", "NAFIS_SUBJECTS", "NAFIS_BANDS", "NAFIS_CYCLE_STATUS",
+    "GAP_SEVERITY", "GAP_SOURCE", "INTERVENTION_STATUS",
 ]
