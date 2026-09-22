@@ -54,7 +54,7 @@
           <span>اعتماد الجاهز ({{ stats.pending }})</span>
         </a>
         {% endif %}
-        <a href="{{ url_for('lms.bank_new') }}"
+        <a href="{{ url_for('lms.bank_smart_new') }}"
            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-container-lowest text-primary hover:bg-surface-container-low transition-all font-label-lg text-label-lg shadow-md hover:shadow-lg">
           <span class="material-symbols-outlined text-[20px] text-secondary">add_circle</span>
           <span>إضافة سؤال ذكي</span>
@@ -345,7 +345,7 @@
             {{ '{:,}'.format(stats.total) }} سؤال
           </span>
         </div>
-        <a href="{{ url_for('lms.bank_new') }}" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-colors font-label-md text-label-md">
+        <a href="{{ url_for('lms.bank_smart_new') }}" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-colors font-label-md text-label-md">
           <span class="material-symbols-outlined text-[18px]">add</span>
           <span>سؤال جديد</span>
         </a>

@@ -1371,6 +1371,22 @@ def bank_new():
     )
 
 
+@bp.route("/bank/smart/new", methods=["GET", "POST"], endpoint="bank_smart_new")
+@login_required
+def bank_smart_new():
+    """Stitch lms_2 authoring form — 5-section smart-question editor.
+    Reuses `_bank_save` so the write path stays identical to the
+    classic form."""
+    if request.method == "POST":
+        return _bank_save(None)
+    subjects, grades, years, terms, _courses, units, lessons = _bank_form_extras()
+    return render_template(
+        "lms/bank_smart.html",
+        subjects=subjects, grades=grades, years=years, terms=terms,
+        units=units, lessons=lessons,
+    )
+
+
 @bp.route("/bank/<int:bid>/edit", methods=["GET", "POST"], endpoint="bank_edit")
 @login_required
 def bank_edit(bid):

@@ -1,0 +1,374 @@
+{# Smart Question authoring form — Stitch design "lms_2".
+   Posts to lms.bank_new (which reuses the existing _bank_save handler),
+   so this template is a visual upgrade of bank_form.html, not a fork
+   of the backend. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}إضافة سؤال ذكي — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.qbank_dashboard') }}" class="hover:text-primary">بنك الأسئلة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">إضافة سؤال ذكي جديد</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-space-lg pb-28">
+
+  {# Header card #}
+  <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-md bg-surface-container-lowest p-space-lg rounded-xl shadow-sm">
+    <div class="flex flex-col gap-1">
+      <div class="flex items-center gap-space-sm mt-1">
+        <div class="w-10 h-10 rounded-lg bg-secondary-fixed flex items-center justify-center text-secondary shadow-sm">
+          <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+        </div>
+        <div class="flex flex-col">
+          <h1 class="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">إضافة وتأليف سؤال ذكي جديد</h1>
+          <p class="font-body-sm text-body-sm text-on-surface-variant">محرر متقدم يدعم الصيغ الرياضية، وسوم مهارات بلوم، والمعايير المعتمدة</p>
+        </div>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-space-sm">
+      <div class="inline-flex items-center gap-2 px-space-md py-2 rounded-full bg-surface-container-low text-on-surface-variant font-label-md text-label-md">
+        <span class="w-2.5 h-2.5 rounded-full bg-secondary animate-pulse"></span>
+        <span>جلسة تحرير جديدة</span>
+      </div>
+      <a href="{{ url_for('lms.bank_home') }}"
+         class="h-10 px-space-md rounded-xl bg-surface-container-low text-primary hover:bg-secondary-fixed/40 font-label-lg text-label-lg font-bold flex items-center gap-2 transition-all">
+        <span class="material-symbols-outlined text-lg">drive_folder_upload</span>
+        <span>استيراد من بنك الأسئلة</span>
+      </a>
+    </div>
+  </div>
+
+  {# Stepper — visual anchor, not interactive #}
+  <div class="bg-surface-container-lowest p-space-md rounded-xl shadow-sm overflow-x-auto">
+    <div class="flex items-center justify-between min-w-[760px] gap-2 px-space-sm">
+      {% for step in [
+        ('1. الربط المنهجي', 'account_tree'),
+        ('2. نوع السؤال',   'tune'),
+        ('3. نص السؤال',    'functions'),
+        ('4. الاختيارات',    'checklist_rtl'),
+        ('5. التصنيف',      'category'),
+      ] %}
+        <div class="flex items-center gap-2.5{% if loop.index > 1 %} opacity-90{% endif %}">
+          <div class="w-8 h-8 rounded-full flex items-center justify-center font-label-md text-label-md font-bold shadow-sm
+                      {% if loop.index == 1 %}bg-primary text-on-primary{% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+            <span class="material-symbols-outlined text-base">{{ step[1] }}</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-label-md text-label-md font-bold {% if loop.index == 1 %}text-primary{% else %}text-on-surface{% endif %}">{{ step[0] }}</span>
+          </div>
+        </div>
+        {% if not loop.last %}
+        <div class="flex-1 h-1 {% if loop.index == 1 %}bg-primary{% else %}bg-surface-container-high{% endif %} rounded-full mx-2"></div>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('lms.bank_smart_new') }}" class="space-y-space-lg" id="smart-q-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# Section 1 — Curriculum linkage #}
+    <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="flex items-center justify-between pb-space-sm border-b border-surface-container-low">
+        <div class="flex items-center gap-space-sm">
+          <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-xl">account_tree</span>
+          </span>
+          <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">1. الربط المنهجي ونواتج التعلم</h2>
+        </div>
+        <span class="hidden md:inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-low text-on-surface-variant font-label-xs text-label-xs">
+          <span class="material-symbols-outlined text-sm">info</span>
+          <span>ربط السؤال بالخطة الدراسية والمعايير الوطنية</span>
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+        {# Subject #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface flex items-center gap-1" for="subject_id">
+            <span>المادة الدراسية</span><span class="text-error font-bold">*</span>
+          </label>
+          <div class="relative">
+            <select required name="subject_id" id="subject_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">اختر المادة…</option>
+              {% for s in subjects %}
+              <option value="{{ s.id }}">{{ s.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        {# Grade #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface flex items-center gap-1" for="grade_id">
+            <span>المرحلة / الصف</span><span class="text-error font-bold">*</span>
+          </label>
+          <div class="relative">
+            <select required name="grade_id" id="grade_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">اختر الصف…</option>
+              {% for g in grades %}
+              <option value="{{ g.id }}">{{ g.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        {# Term #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="term_id">الفصل الدراسي</label>
+          <div class="relative">
+            <select name="term_id" id="term_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">— بدون تحديد —</option>
+              {% for t in terms %}
+              <option value="{{ t.id }}">{{ t.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+        {# Unit #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="unit_id">الوحدة</label>
+          <div class="relative">
+            <select name="unit_id" id="unit_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">— بدون تحديد —</option>
+              {% for u in units %}
+              <option value="{{ u.id }}">{{ u.title }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        {# Lesson #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="lesson_id">الدرس</label>
+          <div class="relative">
+            <select name="lesson_id" id="lesson_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">— بدون تحديد —</option>
+              {% for l in lessons %}
+              <option value="{{ l.id }}">{{ l.title }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        {# Academic Year #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="year_id">العام الدراسي</label>
+          <div class="relative">
+            <select name="year_id" id="year_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">— بدون تحديد —</option>
+              {% for y in years %}
+              <option value="{{ y.id }}">{{ y.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# Section 2 — Question type #}
+    <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="flex items-center justify-between pb-space-sm border-b border-surface-container-low">
+        <div class="flex items-center gap-space-sm">
+          <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-xl">tune</span>
+          </span>
+          <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">2. تحديد نمط ونوع السؤال</h2>
+        </div>
+        <span class="font-label-xs text-label-xs text-secondary font-bold bg-secondary-fixed/50 px-2.5 py-1 rounded-full">اختر نمط التقييم</span>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md" id="kind-cards">
+        {% for k, name, ico, desc, pill in [
+          ('mcq',   'اختيار من متعدد (MCQ)', 'checklist_rtl', '4 خيارات مع إجابة وحيدة صحيحة', 'تصحيح فوري'),
+          ('tf',    'صواب / خطأ',            'rule',          'خياران ثنائيان للمفاهيم السريعة',   'ثنائي البدائل'),
+          ('short', 'إجابة قصيرة / رقمية',    'pin',           'مطابقة نصية دقيقة أو ناتج حسابي',   'تطابق رياضي'),
+          ('essay', 'سؤال مقالي مركب',        'article',       'تصحيح بمعيار سلم التقييم (Rubric)',  'تصحيح يدوي / ذكي'),
+        ] %}
+        <label class="relative p-space-md rounded-xl bg-surface-container-lowest hover:bg-surface-container-low flex flex-col gap-space-sm cursor-pointer transition-all shadow-sm group has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:checked]:bg-gradient-to-b has-[:checked]:from-primary/5 has-[:checked]:to-transparent">
+          <input type="radio" name="kind" value="{{ k }}" class="sr-only peer"
+                 {% if loop.index == 1 %}checked{% endif %}>
+          <div class="flex items-center justify-between">
+            <div class="w-9 h-9 rounded-lg bg-surface-container-high text-on-surface group-has-[:checked]:bg-primary group-has-[:checked]:text-on-primary flex items-center justify-center transition-colors">
+              <span class="material-symbols-outlined text-xl">{{ ico }}</span>
+            </div>
+            <div class="w-5 h-5 rounded-full bg-surface-container-high peer-checked:bg-primary flex items-center justify-center text-on-primary transition-colors">
+              <span class="material-symbols-outlined text-xs peer-checked:inline hidden">check</span>
+            </div>
+          </div>
+          <div class="flex flex-col">
+            <h3 class="font-title-md text-title-md font-bold text-on-surface group-has-[:checked]:text-primary">{{ name }}</h3>
+            <p class="font-body-sm text-body-sm text-on-surface-variant">{{ desc }}</p>
+          </div>
+          <span class="font-label-xs text-label-xs font-bold self-start mt-auto px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant group-has-[:checked]:bg-primary-fixed group-has-[:checked]:text-primary">{{ pill }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# Section 3 — Prompt #}
+    <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="flex items-center justify-between pb-space-sm border-b border-surface-container-low">
+        <div class="flex items-center gap-space-sm">
+          <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-xl">functions</span>
+          </span>
+          <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">3. صياغة نص السؤال</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="font-label-xs text-label-xs text-secondary font-bold bg-secondary-fixed/40 px-2 py-1 rounded-md">LaTeX جاهز</span>
+        </div>
+      </div>
+      {# Faux toolbar — visual only #}
+      <div class="rounded-xl bg-surface-container-low p-space-sm flex flex-wrap items-center gap-2 select-none">
+        <div class="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg">
+          {% for lbl in ['B','I','U'] %}
+            <span class="w-8 h-8 rounded flex items-center justify-center font-bold text-on-surface hover:bg-surface-container-low cursor-default">{{ lbl }}</span>
+          {% endfor %}
+          <div class="w-px h-5 bg-surface-container-high mx-1"></div>
+          {% for ico in ['format_list_bulleted','format_list_numbered_rtl','image','table_chart'] %}
+            <span class="w-8 h-8 rounded flex items-center justify-center text-on-surface cursor-default">
+              <span class="material-symbols-outlined text-lg">{{ ico }}</span>
+            </span>
+          {% endfor %}
+        </div>
+        <div class="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg text-on-surface font-title-md text-title-md" style="font-family:'Cambria Math','Latin Modern Math',serif;">
+          {% for glyph in ['x²','√','∫','∑','π','÷','≠','≤'] %}
+            <span class="w-9 h-8 rounded flex items-center justify-center cursor-default">{{ glyph }}</span>
+          {% endfor %}
+        </div>
+      </div>
+      <textarea required name="prompt" rows="6"
+                placeholder="اكتب نص السؤال هنا… يمكنك تضمين معادلات LaTeX داخل $$ … $$"
+                class="w-full min-h-[160px] p-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm resize-y"></textarea>
+    </section>
+
+    {# Section 4 — Choices (only visible for mcq/tf/multi via JS) #}
+    <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md" id="choices-section">
+      <div class="flex items-center justify-between pb-space-sm border-b border-surface-container-low">
+        <div class="flex items-center gap-space-sm">
+          <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-xl">checklist_rtl</span>
+          </span>
+          <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">4. الاختيارات والإجابة الصحيحة</h2>
+        </div>
+        <span class="font-label-xs text-label-xs text-on-surface-variant">حدد الإجابة الصحيحة برادِر خانة التأشير</span>
+      </div>
+      <div class="flex flex-col gap-space-sm" id="choice-rows">
+        {% for letter in ['أ','ب','ج','د'] %}
+        <div class="flex items-center gap-space-sm p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container-lowest transition-colors">
+          <div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center font-title-md text-title-md font-bold text-primary">{{ letter }}</div>
+          <input type="text" name="choice_label" placeholder="نص الخيار {{ letter }}"
+                 class="flex-1 h-11 px-space-md rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary"/>
+          <label class="inline-flex items-center gap-2 px-space-md py-2 rounded-full bg-surface-container-lowest cursor-pointer">
+            <input type="radio" name="choice_correct" value="{{ loop.index0 }}"
+                   {% if loop.index == 1 %}checked{% endif %}
+                   class="w-4 h-4 accent-primary"/>
+            <span class="font-label-md text-label-md text-on-surface font-bold">صحيح</span>
+          </label>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="text-label-sm text-outline">للمقالي والإجابة القصيرة يتم تجاهل الاختيارات؛ استخدم حقل «الإجابة النصية».</div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="correct_short">إجابة نصية / رقمية (للسؤال القصير)</label>
+          <input type="text" name="correct_short" id="correct_short"
+                 placeholder="مثال: 42 — تُقارن نصياً بعد استبعاد الفراغات"
+                 class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"/>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="points">درجات السؤال</label>
+          <input type="number" name="points" id="points" step="0.5" min="0" value="1"
+                 class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"/>
+        </div>
+      </div>
+    </section>
+
+    {# Section 5 — Classification #}
+    <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="flex items-center justify-between pb-space-sm border-b border-surface-container-low">
+        <div class="flex items-center gap-space-sm">
+          <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-xl">category</span>
+          </span>
+          <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">5. تصنيف السؤال والوسوم</h2>
+        </div>
+        <span class="font-label-xs text-label-xs text-on-surface-variant">مستوى بلوم يُقاس تلقائياً من الوسوم</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-space-md" id="difficulty-cards">
+        {% for lvl, ar, hint, tone in [
+          ('easy',      'سهل',        'مفاهيم أساسية',       'bg-emerald-50 text-emerald-700 ring-emerald-200'),
+          ('medium',    'متوسط',      'تطبيق مباشر',          'bg-sky-50 text-sky-700 ring-sky-200'),
+          ('hard',      'صعب',        'ربط بين مفاهيم',        'bg-amber-50 text-amber-700 ring-amber-200'),
+          ('very_hard', 'صعب جداً',    'تحليل وتقييم',          'bg-rose-50 text-rose-700 ring-rose-200'),
+        ] %}
+        <label class="p-space-md rounded-xl bg-surface-container-low cursor-pointer flex flex-col gap-1 shadow-sm transition-all has-[:checked]:ring-2 has-[:checked]:{{ tone.split(' ')[-1] }} has-[:checked]:{{ tone.split(' ')[0] }}">
+          <input type="radio" name="difficulty" value="{{ lvl }}" class="sr-only peer"
+                 {% if lvl == 'medium' %}checked{% endif %}>
+          <div class="flex items-center justify-between">
+            <span class="font-title-md text-title-md font-bold text-on-surface peer-checked:{{ tone.split(' ')[1] }}">{{ ar }}</span>
+            <span class="w-5 h-5 rounded-full bg-surface-container-high peer-checked:bg-primary flex items-center justify-center text-on-primary text-xs">
+              <span class="material-symbols-outlined text-[14px] hidden peer-checked:inline">check</span>
+            </span>
+          </div>
+          <span class="font-label-sm text-label-sm text-on-surface-variant">{{ hint }}</span>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-label-md font-bold text-on-surface" for="tags">وسوم المهارة / بلوم / الفصل (مفصولة بفواصل)</label>
+        <input type="text" name="tags" id="tags"
+               placeholder="مثال: تفاضل, تطبيق, بلوم-تحليل, الوحدة-3"
+               class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"/>
+      </div>
+    </section>
+
+    {# Sticky bottom bar #}
+    <div class="fixed bottom-0 left-0 right-72 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high shadow-[0_-4px_16px_rgba(0,0,0,0.03)] py-3 px-space-lg flex items-center justify-between">
+      <div class="flex items-center gap-2 font-label-md text-label-md text-outline">
+        <span class="material-symbols-outlined text-secondary">tips_and_updates</span>
+        <span>سيتم حفظ السؤال في بنك المدرسة بحالة «معتمد» جاهز للاستخدام</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('lms.qbank_dashboard') }}"
+           class="inline-flex items-center gap-2 px-5 h-12 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg">
+          <span class="material-symbols-outlined text-[20px]">close</span><span>إلغاء</span>
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[22px]">save</span>
+          <span>حفظ السؤال في البنك</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+
+{# Hide the choices row for essay/short automatically #}
+<script>
+(function(){
+  const rows = document.getElementById('choice-rows');
+  const form = document.getElementById('smart-q-form');
+  function sync(){
+    const kind = (form.querySelector('input[name=kind]:checked') || {}).value;
+    rows.style.display = (kind === 'mcq' || kind === 'multi' || kind === 'tf') ? '' : 'none';
+  }
+  form.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener('change', sync));
+  sync();
+})();
+</script>
+{% endblock %}
