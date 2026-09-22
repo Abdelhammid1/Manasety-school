@@ -924,6 +924,95 @@ def _bank_form_extras(item=None):
     return subjects, grades, years, terms, courses, units, lessons
 
 
+@bp.route("/bank/dashboard", endpoint="qbank_dashboard")
+@login_required
+def qbank_dashboard():
+    """Analytics-heavy landing page for the school's question bank.
+
+    Same shape as /api/admin/question_bank/dashboard, but server-side
+    rendered as the Stitch `lms_1` design so the page paints in one
+    request (no client-side JS needed).
+    """
+    sid = current_user.school_id
+    source = (request.args.get("source") or "school").strip()
+    if source not in ("school", "nafis"):
+        source = "school"
+
+    subject_id = request.args.get("subject_id", type=int)
+    state      = (request.args.get("review_state") or "").strip() or None
+    difficulty = (request.args.get("difficulty") or "").strip() or None
+
+    q = BankQuestion.query.filter_by(school_id=sid, source=source)
+    if subject_id: q = q.filter(BankQuestion.subject_id == subject_id)
+
+    total = q.count()
+    state_rows = q.with_entities(
+        BankQuestion.review_state, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.review_state).all()
+    states = {s: n for s, n in state_rows}
+    stats = {
+        "total":     total,
+        "approved":  states.get("approved", 0),
+        "pending":   states.get("pending", 0),
+        "draft":     states.get("draft", 0),
+        "no_answer": states.get("no_answer", 0),
+        "duplicate": states.get("duplicate", 0),
+        "rejected":  states.get("rejected", 0),
+        "coverage_pct": (states.get("approved", 0) * 100 // total) if total else 0,
+    }
+
+    diff_rows = q.with_entities(
+        BankQuestion.difficulty, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.difficulty).all()
+    difficulty_totals = {d: n for d, n in diff_rows}
+    difficulty_out = {
+        "easy":      difficulty_totals.get("easy", 0),
+        "medium":    difficulty_totals.get("medium", 0),
+        "hard":      difficulty_totals.get("hard", 0),
+        "very_hard": difficulty_totals.get("very_hard", 0),
+    }
+
+    subj_rows = q.with_entities(
+        BankQuestion.subject_id, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.subject_id).order_by(
+        db.func.count(BankQuestion.id).desc()
+    ).all()
+    by_subject = []
+    for s_id, n in subj_rows:
+        s = Subject.query.get(s_id) if s_id else None
+        by_subject.append({
+            "subject_id": s_id,
+            "subject_name": s.name if s else "بدون تصنيف",
+            "count": n,
+        })
+    subject_count = len([r for r in by_subject if r["subject_id"]])
+    avg_per_subject = (total / subject_count) if subject_count else 0
+
+    # Question list — filtered slice, 30 rows, newest first.
+    lq = q
+    if state:      lq = lq.filter(BankQuestion.review_state == state)
+    if difficulty: lq = lq.filter(BankQuestion.difficulty == difficulty)
+    items = lq.order_by(BankQuestion.created_at.desc()).limit(30).all()
+
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    return render_template(
+        "lms/qbank_dashboard.html",
+        stats=stats,
+        difficulty=difficulty_out,
+        by_subject=by_subject,
+        subject_count=subject_count,
+        avg_per_subject=avg_per_subject,
+        items=items,
+        subjects=subjects,
+        selected={
+            "source": source,
+            "subject_id": subject_id,
+            "review_state": state or "",
+            "difficulty": difficulty or "",
+        },
+    )
+
+
 @bp.route("/bank", endpoint="bank_home")
 @login_required
 def bank_home():

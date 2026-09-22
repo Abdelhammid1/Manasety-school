@@ -1,0 +1,429 @@
+{# Question Bank Dashboard — Stitch design "lms_1".
+   Extends the shared stitch_base (sidebar + topbar). Data is precomputed
+   server-side to match the /api/admin/question_bank/dashboard shape, so
+   the page renders in one paint on GET. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}بنك الأسئلة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">بنك الأسئلة</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-lg">
+
+  {# ── 1. Hero ─────────────────────────────────────────────────── #}
+  <section class="relative w-full rounded-2xl overflow-hidden p-space-lg lg:p-space-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary shadow-xl">
+    <div class="absolute -left-12 -bottom-16 w-80 h-80 rounded-full bg-secondary-container/20 blur-3xl pointer-events-none"></div>
+    <div class="absolute right-1/4 -top-20 w-96 h-96 rounded-full bg-surface-tint/25 blur-3xl pointer-events-none"></div>
+    <svg class="absolute inset-0 w-full h-full opacity-10 pointer-events-none stroke-current" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M-100 120 C 300 0, 600 240, 1400 60" stroke-dasharray="8 6" stroke-width="2"/>
+      <path d="M-50 200 C 400 80, 800 320, 1600 140" stroke-width="1.5"/>
+      <circle cx="85%" cy="30%" r="90" stroke-dasharray="6 4" stroke-width="1.5"/>
+      <circle cx="20%" cy="85%" r="60" stroke-width="1"/>
+    </svg>
+    <div class="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-space-lg">
+      <div class="flex flex-col gap-space-xs max-w-2xl">
+        <div class="flex items-center gap-space-xs font-label-md text-label-md text-primary-fixed-dim">
+          <span>الرئيسية</span>
+          <span class="material-symbols-outlined text-[16px]">chevron_left</span>
+          <span class="text-on-primary font-semibold">بنك الأسئلة والتقييم الأكاديمي</span>
+        </div>
+        <h1 class="font-display-hero text-display-hero text-on-primary tracking-tight mt-1">
+          {{ stats.total|default(0) }} سؤال في بنك الأسئلة
+        </h1>
+        <div class="flex flex-wrap items-center gap-space-xs mt-2 text-primary-fixed">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/15 backdrop-blur-md font-label-md text-label-md">
+            <span class="material-symbols-outlined text-[16px] text-secondary-fixed-dim">hub</span>
+            {{ subject_count }} مادة تخصصية
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/15 backdrop-blur-md font-label-md text-label-md">
+            <span class="material-symbols-outlined text-[16px] text-secondary-fixed-dim">verified_user</span>
+            {{ stats.approved }} سؤال معتمد
+          </span>
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-surface-container-lowest/15 backdrop-blur-md font-label-md text-label-md">
+            <span class="material-symbols-outlined text-[16px] text-secondary-fixed-dim">calculate</span>
+            متوسط {{ '%.1f'|format(avg_per_subject) }} سؤال / مادة
+          </span>
+        </div>
+      </div>
+      <div class="flex items-center gap-space-sm shrink-0 flex-wrap">
+        {% if stats.pending > 0 %}
+        <a href="{{ url_for('lms.bank_home') }}?source=school&review_state=pending"
+           class="flex items-center gap-2 px-5 py-3 rounded-xl bg-surface-container-lowest/15 hover:bg-surface-container-lowest/25 text-on-primary backdrop-blur-md transition-all font-label-lg text-label-lg shadow-sm">
+          <span class="material-symbols-outlined text-[20px] text-secondary-fixed">check_circle</span>
+          <span>اعتماد الجاهز ({{ stats.pending }})</span>
+        </a>
+        {% endif %}
+        <a href="{{ url_for('lms.bank_new') }}"
+           class="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-container-lowest text-primary hover:bg-surface-container-low transition-all font-label-lg text-label-lg shadow-md hover:shadow-lg">
+          <span class="material-symbols-outlined text-[20px] text-secondary">add_circle</span>
+          <span>إضافة سؤال ذكي</span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  {# ── 2. Four KPI cards ────────────────────────────────────────── #}
+  {% set coverage = stats.coverage_pct or 0 %}
+  <section class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-space-md">
+    {# Approved #}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+      <div class="flex items-start justify-between">
+        <div class="flex flex-col">
+          <span class="font-label-md text-label-md text-outline">الأسئلة المعتمدة نهائياً</span>
+          <span class="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">{{ '{:,}'.format(stats.approved) }}</span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed/50 text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[26px]">task_alt</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 flex flex-col gap-1.5">
+        <div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+          <div class="bg-primary-container h-full rounded-full" style="width: {{ coverage }}%"></div>
+        </div>
+        <div class="flex justify-between items-center font-label-xs text-label-xs">
+          <span class="text-secondary font-semibold">{{ coverage }}% من إجمالي المستودع</span>
+          <span class="text-outline">جاهز للاختبارات</span>
+        </div>
+      </div>
+    </div>
+    {# Pending review #}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+      <div class="flex items-start justify-between">
+        <div class="flex flex-col">
+          <span class="font-label-md text-label-md text-outline">قيد المراجعة والتدقيق</span>
+          <span class="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">{{ stats.pending }}</span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-tertiary-fixed text-tertiary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[26px]">pending_actions</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 flex items-center justify-between">
+        <span class="px-2.5 py-1 rounded-full bg-tertiary-fixed/60 text-on-tertiary-fixed font-label-xs text-label-xs font-semibold">
+          تتطلب اعتماد المشرف
+        </span>
+        <span class="font-label-xs text-label-xs text-outline">
+          {% if stats.pending > 0 %}يومي{% else %}لا شيء منتظر{% endif %}
+        </span>
+      </div>
+    </div>
+    {# No answer #}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+      <div class="flex items-start justify-between">
+        <div class="flex flex-col">
+          <span class="font-label-md text-label-md text-outline">بدون مفتاح إجابة</span>
+          <span class="font-headline-lg text-headline-lg font-bold mt-1 {% if stats.no_answer > 0 %}text-error{% else %}text-on-surface{% endif %}">{{ stats.no_answer }}</span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-error-container text-on-error-container flex items-center justify-center">
+          <span class="material-symbols-outlined text-[26px]">quiz</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 flex items-center justify-between">
+        <span class="px-2.5 py-1 rounded-full bg-error-container text-on-error-container font-label-xs text-label-xs font-semibold">
+          تحتاج استكمال فوري
+        </span>
+        <a class="font-label-xs text-label-xs text-primary font-semibold hover:underline"
+           href="{{ url_for('lms.bank_home') }}?source=school&review_state=no_answer">عرض المتأخرة</a>
+      </div>
+    </div>
+    {# Duplicates #}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+      <div class="flex items-start justify-between">
+        <div class="flex flex-col">
+          <span class="font-label-md text-label-md text-outline">تكرار ذكي متشابه</span>
+          <span class="font-headline-lg text-headline-lg text-on-surface font-bold mt-1">{{ stats.duplicate }}</span>
+        </div>
+        <div class="w-12 h-12 rounded-xl bg-secondary-fixed text-on-secondary-container flex items-center justify-center">
+          <span class="material-symbols-outlined text-[26px]">content_copy</span>
+        </div>
+      </div>
+      <div class="mt-4 pt-3 flex items-center justify-between">
+        <span class="px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs font-semibold">
+          مكتشف بالذكاء الاصطناعي
+        </span>
+        <span class="font-label-xs text-label-xs text-secondary font-semibold">دمج مقترح</span>
+      </div>
+    </div>
+  </section>
+
+  {# ── 3. Tri-chart hub — donut + difficulty bars + subject coverage ──── #}
+  {% set total = stats.total or 1 %}
+  {% set pct_approved  = (stats.approved  * 100 // total) %}
+  {% set pct_pending   = (stats.pending   * 100 // total) %}
+  {% set pct_draft     = (stats.draft     * 100 // total) %}
+  {% set pct_no_answer = (stats.no_answer * 100 // total) %}
+  {% set pct_duplicate = (stats.duplicate * 100 // total) %}
+  {% set pct_rejected  = (stats.rejected  * 100 // total) %}
+
+  {# Circumference used for the donut math (2πr with r=46 ≈ 289). #}
+  {% set c = 289 %}
+  {% set da_ok  = (stats.approved  * c / total)|round(1) %}
+  {% set da_pr  = (stats.pending   * c / total)|round(1) %}
+  {% set da_dr  = (stats.draft     * c / total)|round(1) %}
+  {% set da_no  = (stats.no_answer * c / total)|round(1) %}
+  {% set da_dup = (stats.duplicate * c / total)|round(1) %}
+  {% set da_re  = (stats.rejected  * c / total)|round(1) %}
+
+  <section class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+    {# Chart A — status donut #}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col">
+      <div class="flex items-center justify-between pb-3">
+        <div class="flex flex-col">
+          <h2 class="font-title-md text-title-md text-on-surface font-bold">توزيع حالات الأسئلة</h2>
+          <span class="font-label-xs text-label-xs text-outline">تغطية الجودة والجاهزية</span>
+        </div>
+        <span class="material-symbols-outlined text-outline text-[20px]">pie_chart</span>
+      </div>
+      <div class="relative flex items-center justify-center my-4">
+        <svg class="w-48 h-48 -rotate-90 transform" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#f2f4f7" stroke-width="16"/>
+          {# Six semantic slices, ordered so the offsets stack.  #}
+          {% set _o0 = 0 %}
+          {% set _o1 = _o0 + da_ok %}
+          {% set _o2 = _o1 + da_pr %}
+          {% set _o3 = _o2 + da_dr %}
+          {% set _o4 = _o3 + da_no %}
+          {% set _o5 = _o4 + da_dup %}
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#1e3a8a" stroke-dasharray="{{ da_ok }} {{ c }}" stroke-dashoffset="{{ -_o0 }}" stroke-linecap="round" stroke-width="16"/>
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#0099cc" stroke-dasharray="{{ da_pr }} {{ c }}" stroke-dashoffset="{{ -_o1 }}" stroke-width="16"/>
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#78d1ff" stroke-dasharray="{{ da_dr }} {{ c }}" stroke-dashoffset="{{ -_o2 }}" stroke-width="16"/>
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#ba1a1a" stroke-dasharray="{{ da_no }} {{ c }}" stroke-dashoffset="{{ -_o3 }}" stroke-width="16"/>
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#757682" stroke-dasharray="{{ da_dup }} {{ c }}" stroke-dashoffset="{{ -_o4 }}" stroke-width="16"/>
+          <circle cx="60" cy="60" fill="transparent" r="46" stroke="#d8dadd" stroke-dasharray="{{ da_re }} {{ c }}" stroke-dashoffset="{{ -_o5 }}" stroke-width="16"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center text-center pointer-events-none">
+          <span class="font-headline-sm text-headline-sm text-on-surface font-extrabold leading-none">{{ '{:,}'.format(stats.total) }}</span>
+          <span class="font-label-xs text-label-xs text-outline mt-1">إجمالي المستودع</span>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-2 pt-2">
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-primary-container shrink-0"></span>       <span class="font-label-xs text-label-xs text-on-surface-variant truncate">معتمد ({{ pct_approved }}%)</span></div>
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-secondary shrink-0"></span>               <span class="font-label-xs text-label-xs text-on-surface-variant truncate">قيد المراجعة ({{ pct_pending }}%)</span></div>
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-secondary-fixed-dim shrink-0"></span>     <span class="font-label-xs text-label-xs text-on-surface-variant truncate">مسودات ({{ pct_draft }}%)</span></div>
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-error shrink-0"></span>                   <span class="font-label-xs text-label-xs text-on-surface-variant truncate">بدون إجابة ({{ pct_no_answer }}%)</span></div>
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-outline shrink-0"></span>                 <span class="font-label-xs text-label-xs text-on-surface-variant truncate">متشابهات ({{ pct_duplicate }}%)</span></div>
+        <div class="flex items-center gap-2"><span class="w-2.5 h-2.5 rounded-full bg-surface-dim shrink-0"></span>             <span class="font-label-xs text-label-xs text-on-surface-variant truncate">مؤرشف ومرفوض ({{ pct_rejected }}%)</span></div>
+      </div>
+    </div>
+
+    {# Chart B — difficulty bars #}
+    {% set diff_max = [difficulty.easy, difficulty.medium, difficulty.hard, difficulty.very_hard]|max or 1 %}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+      <div class="flex items-center justify-between pb-2">
+        <div class="flex flex-col">
+          <h2 class="font-title-md text-title-md text-on-surface font-bold">مستويات الصعوبة</h2>
+          <span class="font-label-xs text-label-xs text-outline">تصنيف بلوم للمهارات</span>
+        </div>
+        <span class="material-symbols-outlined text-outline text-[20px]">bar_chart</span>
+      </div>
+      <div class="h-44 flex items-end justify-between gap-3 px-2 pt-6">
+        {% for label, val, cls in [
+            ('سهل',       difficulty.easy,      'from-secondary to-secondary-fixed'),
+            ('متوسط',     difficulty.medium,    'from-primary to-surface-tint'),
+            ('صعب',       difficulty.hard,      'from-tertiary-container to-tertiary-fixed-dim'),
+            ('صعب جداً',  difficulty.very_hard, 'from-error to-error-container'),
+        ] %}
+        {% set pct = (val * 100 // diff_max) if diff_max else 0 %}
+        <div class="flex-1 flex flex-col items-center gap-2 h-full justify-end group">
+          <span class="font-label-xs text-label-xs font-bold text-on-surface">{{ val }}</span>
+          <div class="w-full bg-surface-container-high rounded-xl h-full flex items-end p-1" style="max-height: {{ pct }}%">
+            <div class="w-full bg-gradient-to-t {{ cls }} rounded-lg h-full transition-all duration-500"></div>
+          </div>
+          <span class="font-label-xs text-label-xs text-on-surface-variant font-semibold">{{ label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div class="mt-4 pt-3 flex items-center justify-between font-label-xs text-label-xs text-outline">
+        <span>توزيع الصعوبة</span>
+        <span class="font-semibold text-primary">إجمالي: {{ (difficulty.easy + difficulty.medium + difficulty.hard + difficulty.very_hard) }} سؤال</span>
+      </div>
+    </div>
+
+    {# Chart C — subject coverage #}
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col justify-between">
+      <div class="flex items-center justify-between pb-2">
+        <div class="flex flex-col">
+          <h2 class="font-title-md text-title-md text-on-surface font-bold">تغطية الأقسام والتخصصات</h2>
+          <span class="font-label-xs text-label-xs text-outline">نسبة إنجاز بنوك المقررات</span>
+        </div>
+        <span class="material-symbols-outlined text-outline text-[20px]">layers</span>
+      </div>
+      {% set top_max = by_subject[0].count if by_subject else 1 %}
+      <div class="space-y-2.5 mt-1 overflow-y-auto max-h-56 pr-1">
+        {% for row in by_subject[:8] %}
+        {% set p = (row.count * 100 // (top_max or 1)) %}
+        <div class="flex flex-col gap-1">
+          <div class="flex items-center justify-between font-label-xs text-label-xs">
+            <span class="text-on-surface font-semibold flex items-center gap-1.5">
+              <span class="material-symbols-outlined text-[15px] text-primary">functions</span>
+              {{ row.subject_name }}
+            </span>
+            <span class="text-primary font-bold">{{ row.count }}</span>
+          </div>
+          <div class="w-full bg-surface-container-high h-2 rounded-full overflow-hidden">
+            <div class="bg-primary-container h-full rounded-full" style="width: {{ p }}%"></div>
+          </div>
+        </div>
+        {% else %}
+        <div class="py-8 text-center text-outline font-label-md text-label-md">لا تصنيفات بعد</div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+
+  {# ── 4. Filter aside + question table ──────────────────────────── #}
+  <section class="flex flex-col xl:flex-row gap-space-md items-start w-full">
+    {# Filter panel #}
+    <aside class="w-full xl:w-72 shrink-0 bg-surface-container-lowest rounded-2xl p-5 shadow-sm space-y-4">
+      <div class="flex items-center justify-between pb-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[20px]">tune</span>
+          <h3 class="font-headline-sm text-headline-sm text-on-surface">تصفية مخصصة</h3>
+        </div>
+        <a href="{{ url_for('lms.qbank_dashboard') }}" class="font-label-xs text-label-xs text-secondary hover:text-primary transition-colors">إعادة تعيين</a>
+      </div>
+      <form method="get" class="space-y-3">
+        <div class="flex flex-col gap-1">
+          <label class="font-label-xs text-label-xs text-on-surface-variant font-semibold">المصدر</label>
+          <div class="relative">
+            <select name="source" class="w-full h-11 px-3 bg-surface-container-low rounded-xl font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30 appearance-none">
+              <option value="school" {% if selected.source == 'school' %}selected{% endif %}>بنك المدرسة</option>
+              <option value="nafis"  {% if selected.source == 'nafis'  %}selected{% endif %}>بنك نافس (ETEC)</option>
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-xs text-label-xs text-on-surface-variant font-semibold">المادة</label>
+          <div class="relative">
+            <select name="subject_id" class="w-full h-11 px-3 bg-surface-container-low rounded-xl font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30 appearance-none">
+              <option value="">كل المواد</option>
+              {% for s in subjects %}
+              <option value="{{ s.id }}" {% if selected.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-xs text-label-xs text-on-surface-variant font-semibold">الحالة الأكاديمية</label>
+          <div class="relative">
+            <select name="review_state" class="w-full h-11 px-3 bg-surface-container-low rounded-xl font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30 appearance-none">
+              <option value="">كل الحالات</option>
+              {% for val, label in [('approved','معتمد'),('pending','قيد المراجعة'),('draft','مسودة'),('no_answer','بدون إجابة'),('duplicate','متشابه'),('rejected','مرفوض')] %}
+              <option value="{{ val }}" {% if selected.review_state == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1">
+          <label class="font-label-xs text-label-xs text-on-surface-variant font-semibold">درجة الصعوبة</label>
+          <div class="relative">
+            <select name="difficulty" class="w-full h-11 px-3 bg-surface-container-low rounded-xl font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30 appearance-none">
+              <option value="">كل المستويات</option>
+              {% for val, label in [('easy','سهل'),('medium','متوسط'),('hard','صعب'),('very_hard','صعب جداً')] %}
+              <option value="{{ val }}" {% if selected.difficulty == val %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline pointer-events-none text-[18px]">expand_more</span>
+          </div>
+        </div>
+        <button type="submit" class="w-full mt-4 flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-colors font-label-lg text-label-lg">
+          <span class="material-symbols-outlined text-[20px]">filter_list</span>
+          <span>تطبيق التصفية</span>
+        </button>
+      </form>
+    </aside>
+
+    {# Questions table #}
+    <main class="flex-1 w-full min-w-0 bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col gap-space-md">
+      <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-space-sm pb-2">
+        <div class="flex items-center gap-space-xs">
+          <h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">قائمة الأسئلة المفصلة</h3>
+          <span class="px-2.5 py-0.5 rounded-full bg-surface-container font-label-xs text-label-xs text-secondary font-semibold">
+            {{ '{:,}'.format(stats.total) }} سؤال
+          </span>
+        </div>
+        <a href="{{ url_for('lms.bank_new') }}" class="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-primary-container text-on-primary hover:bg-primary transition-colors font-label-md text-label-md">
+          <span class="material-symbols-outlined text-[18px]">add</span>
+          <span>سؤال جديد</span>
+        </a>
+      </div>
+
+      <div class="overflow-x-auto w-full">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-surface-container-low font-label-md text-label-md text-outline">
+              <th class="py-3.5 px-4 rounded-r-xl font-semibold">#</th>
+              <th class="py-3.5 px-4 font-semibold min-w-[260px]">نص السؤال</th>
+              <th class="py-3.5 px-3 font-semibold">المادة</th>
+              <th class="py-3.5 px-3 font-semibold">الصعوبة</th>
+              <th class="py-3.5 px-3 font-semibold">الحالة</th>
+              <th class="py-3.5 px-3 font-semibold">التاريخ</th>
+              <th class="py-3.5 px-4 rounded-l-xl text-center font-semibold">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-surface-container-high/40 font-body-sm text-body-sm">
+            {% set state_meta = {
+                'approved': ('معتمد', 'bg-secondary-fixed/50 text-on-secondary-container', 'bg-secondary'),
+                'pending':  ('قيد المراجعة', 'bg-tertiary-fixed/60 text-on-tertiary-fixed', 'bg-tertiary'),
+                'draft':    ('مسودة', 'bg-surface-container text-outline', 'bg-outline'),
+                'no_answer':('بدون إجابة', 'bg-error-container text-on-error-container', 'bg-error'),
+                'duplicate':('متشابه', 'bg-surface-container text-secondary', 'bg-secondary'),
+                'rejected': ('مرفوض', 'bg-surface-dim text-on-surface-variant', 'bg-surface-dim'),
+            } %}
+            {% set diff_meta = {
+                'easy':      ('سهل', 'bg-secondary-fixed text-on-secondary-container'),
+                'medium':    ('متوسط', 'bg-surface-container text-primary'),
+                'hard':      ('صعب', 'bg-tertiary-fixed text-tertiary'),
+                'very_hard': ('صعب جداً', 'bg-error-container text-on-error-container'),
+            } %}
+            {% for q in items %}
+            {% set st = state_meta.get(q.review_state, ('—', 'bg-surface-container text-outline', 'bg-outline')) %}
+            {% set df = diff_meta.get(q.difficulty, ('—', 'bg-surface-container text-outline')) %}
+            <tr class="hover:bg-surface-container-low/60 transition-colors">
+              <td class="py-4 px-4 font-semibold text-outline">#{{ q.id }}</td>
+              <td class="py-4 px-4">
+                <div class="flex flex-col gap-1">
+                  <span class="font-semibold text-on-surface line-clamp-1">{{ q.prompt|truncate(90) }}</span>
+                  <div class="flex items-center gap-2">
+                    <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs text-label-xs">
+                      {% if q.kind == 'mcq' %}اختيار من متعدد{% elif q.kind == 'multi' %}متعدد الإجابات{% elif q.kind == 'tf' %}صح/خطأ{% elif q.kind == 'short' %}إجابة قصيرة{% elif q.kind == 'essay' %}مقالي{% else %}{{ q.kind }}{% endif %}
+                    </span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-4 px-3 text-on-surface-variant font-medium">
+                {{ q.subject.name if q.subject else '—' }}
+              </td>
+              <td class="py-4 px-3">
+                <span class="px-2.5 py-1 rounded-full {{ df[1] }} font-label-xs text-label-xs font-semibold">{{ df[0] }}</span>
+              </td>
+              <td class="py-4 px-3">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full {{ st[1] }} font-label-xs text-label-xs font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full {{ st[2] }}"></span>{{ st[0] }}
+                </span>
+              </td>
+              <td class="py-4 px-3 text-outline font-label-xs text-label-xs">
+                {% if q.created_at %}{{ q.created_at.strftime('%Y-%m-%d') }}{% endif %}
+              </td>
+              <td class="py-4 px-4 text-center">
+                <div class="flex items-center justify-center gap-1 text-outline">
+                  <a href="{{ url_for('lms.bank_edit', bid=q.id) }}" class="p-1.5 hover:text-secondary transition-colors" title="تعديل">
+                    <span class="material-symbols-outlined text-[18px]">edit</span>
+                  </a>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7" class="py-12 text-center text-outline">لا أسئلة مطابقة للتصفية.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </section>
+
+</div>
+{% endblock %}
