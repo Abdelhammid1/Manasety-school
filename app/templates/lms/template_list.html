@@ -21,9 +21,22 @@
           احفظ الواجب مرة واحدة، ثم انسخه على أي فصل أو مادة تانية بضغطة زر.
         </p>
       </div>
-      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-primary font-label-md font-bold">
-        <span class="material-symbols-outlined text-sm">inventory_2</span>{{ items|length }} قالب
-      </span>
+      <div class="flex items-center gap-space-sm flex-wrap">
+        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-fixed text-primary font-label-md font-bold">
+          <span class="material-symbols-outlined text-sm">inventory_2</span>{{ items|length }} قالب
+        </span>
+        <a href="{{ url_for('lms.templates_gallery') }}"
+           class="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-surface-container-low text-primary hover:bg-surface-container transition-colors font-label-lg text-label-lg font-bold">
+          <span class="material-symbols-outlined text-lg">grid_view</span>
+          <span>معرض النماذج</span>
+        </a>
+        <a href="{{ url_for('lms.template_new') }}"
+           class="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-on-primary font-label-lg text-label-lg font-bold shadow-sm hover:shadow-md transition-all"
+           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-lg">add</span>
+          <span>إنشاء قالب جديد</span>
+        </a>
+      </div>
     </div>
   </section>
 

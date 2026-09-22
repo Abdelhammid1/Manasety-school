@@ -215,8 +215,8 @@
    here is that the student cannot recover from an exit attempt.
    The overlay is opaque, swallows every event, and always sits above the
    exam via a z-index one tick over the sticky top bar. #}
-<div id="exitWarn" hidden
-     class="fixed inset-0 z-[110] bg-error/95 backdrop-blur-md flex items-center justify-center p-6"
+<div id="exitWarn"
+     class="hidden fixed inset-0 z-[110] bg-error/95 backdrop-blur-md items-center justify-center p-6"
      onclick="event.stopPropagation()" oncontextmenu="return false">
   <div class="max-w-lg w-full bg-surface-container-lowest rounded-3xl p-8 shadow-2xl text-center space-y-4">
     <div class="mx-auto w-16 h-16 rounded-2xl bg-error-container text-error flex items-center justify-center">
@@ -245,7 +245,12 @@
   const cards = Array.from(document.querySelectorAll('.question-card'));
   const cells = Array.from(document.querySelectorAll('.q-cell'));
   let cur = 1;
-  let started = false;
+  let started = false;      // student clicked "بدء" — form is answerable
+  let fsArmed = false;      // fullscreen was entered at least once — the
+                            // exit-enforcement listeners only fire after this,
+                            // so an initial permission prompt or a browser
+                            // that silently refuses fullscreen can't false-fire
+                            // the warning before the student ever sees Q1
   let submitting = false;
 
   // ── Question navigation ─────────────────────────────────────────
@@ -352,7 +357,10 @@
     if (!started || submitting) return;
     if (exitTimer !== null) return;  // already counting down — don't restart
     const overlay = document.getElementById('exitWarn');
-    overlay.hidden = false;
+    // Tailwind's .flex overrides the [hidden] HTML attribute (CSS specificity
+    // beats user-agent styles), so display state MUST be toggled by class.
+    overlay.classList.remove('hidden');
+    overlay.classList.add('flex');
     // Freeze the exam form so a click that slips through can't change answers.
     document.getElementById('quizForm').style.pointerEvents = 'none';
     let s = 5;
@@ -370,17 +378,24 @@
   }
   // Swallow Escape while the warning is up so it can't close via any handler.
   window.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && !document.getElementById('exitWarn').hidden){
+    if (e.key === 'Escape' && !document.getElementById('exitWarn').classList.contains('hidden')){
       e.stopImmediatePropagation();
       e.preventDefault();
     }
   }, true);
 
   document.addEventListener('fullscreenchange', () => {
-    if (started && !inFs() && !submitting) triggerExitWarn('fullscreen-exit');
+    if (inFs()) {
+      fsArmed = true;  // first (or subsequent) successful entry — enforce from here on
+      return;
+    }
+    if (fsArmed && started && !submitting) triggerExitWarn('fullscreen-exit');
   });
   document.addEventListener('visibilitychange', () => {
-    if (started && document.hidden && !submitting) triggerExitWarn('tab-switch');
+    // Same guard as fullscreen: don't fire until we've actually entered
+    // fullscreen once. Otherwise Brave/Chrome's permission overlay for the
+    // fullscreen request itself briefly hides the tab and false-fires this.
+    if (fsArmed && started && document.hidden && !submitting) triggerExitWarn('tab-switch');
   });
 
   // ── Submit paths ──────────────────────────────────────────────────
