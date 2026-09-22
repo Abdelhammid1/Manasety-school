@@ -1,0 +1,449 @@
+{# Template Detail + Question Picker — Stitch design "lms_6".
+   Shows a template, its attached items, and an inline picker that lets
+   the admin add bank questions in one click. Three POST forms:
+    - attach   → /lms/assessment-templates/<tid>/items/attach
+    - remove   → /lms/assessment-templates/<tid>/items/<iid>/delete
+    - save     → /lms/assessment-templates/<tid>/items/save (points + order)
+#}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ template.title }} — تفاصيل النموذج{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.qbank_dashboard') }}" class="hover:text-primary">بنك الأسئلة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.templates_gallery') }}" class="hover:text-primary">النماذج</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold truncate max-w-md">{{ template.title }}</span>
+{% endblock %}
+{% block page_content %}
+{# Filter form lives at the top, outside picker — HTML forbids nesting.
+   The picker filter inputs bind to it via `form="filter-form"`. #}
+<form method="get" action="{{ url_for('lms.template_detail', tid=template.id) }}"
+      id="filter-form" class="hidden"></form>
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-28">
+
+  {# Breadcrumb + back #}
+  <div class="flex flex-wrap items-center justify-between gap-4 py-1">
+    <div class="font-label-md text-label-md text-on-surface-variant">
+      لوحة إدارة النموذج — استعرض الأسئلة المرفقة وأضف الجديد من البنك.
+    </div>
+    <a href="{{ url_for('lms.templates_gallery') }}"
+       class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest text-on-surface-variant hover:text-primary hover:bg-surface-container text-label-lg font-label-lg shadow-sm transition-all">
+      <span class="material-symbols-outlined text-lg">arrow_forward</span>
+      <span>العودة للنماذج</span>
+    </a>
+  </div>
+
+  {# Hero card #}
+  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-6 md:p-8 text-on-primary shadow-lg">
+    <div class="pointer-events-none absolute -left-16 -top-16 w-80 h-80 rounded-full bg-secondary-container/20 blur-3xl"></div>
+    <div class="pointer-events-none absolute right-1/3 -bottom-20 w-96 h-96 rounded-full bg-primary-fixed-dim/15 blur-3xl"></div>
+    <div class="relative z-10 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+      <div class="flex items-start gap-5 flex-1 min-w-0">
+        <div class="w-16 h-16 rounded-2xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+          <span class="material-symbols-outlined text-3xl text-on-primary" style="font-variation-settings: 'FILL' 1;">bookmark_added</span>
+        </div>
+        <div class="flex flex-col gap-3 min-w-0">
+          <h1 class="font-headline-lg text-headline-lg font-bold text-on-primary tracking-tight leading-tight">
+            {{ template.title }}
+          </h1>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-on-primary/20 backdrop-blur-sm text-on-primary font-label-xs text-label-xs">
+              <span class="material-symbols-outlined text-xs">tune</span>
+              <span>{% if template.kind == 'exam' %}نموذج اختبار{% else %}نموذج واجب{% endif %}</span>
+            </span>
+            {% set state_map = {
+              'published': ('منشور ومعتمد', 'bg-emerald-500/20', 'text-emerald-200', 'bg-emerald-400'),
+              'draft':     ('مسودة',        'bg-amber-500/20',   'text-amber-200',   'bg-amber-400'),
+              'archived':  ('مؤرشف',         'bg-rose-500/20',    'text-rose-200',    'bg-rose-400'),
+            } %}
+            {% set st = state_map.get(template.state, state_map['draft']) %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full {{ st[1] }} {{ st[2] }} font-label-xs text-label-xs">
+              <span class="w-2 h-2 rounded-full {{ st[3] }} animate-pulse"></span>
+              <span>{{ st[0] }}</span>
+            </span>
+            {% if template.subject %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-on-primary/15 backdrop-blur-sm text-on-primary font-label-xs text-label-xs">
+              <span class="material-symbols-outlined text-xs">functions</span>
+              <span>{{ template.subject.name }}</span>
+            </span>
+            {% endif %}
+            {% if template.grade %}
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-on-primary/15 backdrop-blur-sm text-on-primary font-label-xs text-label-xs">
+              <span class="material-symbols-outlined text-xs">school</span>
+              <span>{{ template.grade.name }}</span>
+            </span>
+            {% endif %}
+            {% if template.code %}
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-on-primary/25 text-on-primary font-label-xs text-label-xs font-mono font-bold tracking-wider">
+              #{{ template.code }}
+            </span>
+            {% endif %}
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-on-primary/10 text-on-primary/80 font-label-xs text-label-xs">
+              <span class="material-symbols-outlined text-xs">event</span>
+              <span>{{ template.created_at.strftime('%Y-%m-%d') if template.created_at else '' }}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      <div class="flex items-center gap-3 shrink-0 self-stretch lg:self-center">
+        <a href="{{ url_for('lms.template_edit', tid=template.id) }}"
+           class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-on-primary/15 hover:bg-on-primary/25 text-on-primary font-label-lg text-label-lg font-medium backdrop-blur-sm transition-all">
+          <span class="material-symbols-outlined text-xl">edit</span>
+          <span>تعديل النموذج</span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  {# 4 KPI cards #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-3">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant font-semibold">إجمالي الأسئلة</span>
+        <div class="w-10 h-10 rounded-xl bg-primary-fixed flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined text-xl">quiz</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-baseline gap-2">
+          <span class="font-headline-lg text-headline-lg font-bold text-primary">{{ stats.total }}</span>
+          <span class="font-title-md text-title-md text-on-surface-variant">سؤالاً</span>
+        </div>
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-3">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant font-semibold">مجموع الدرجات</span>
+        <div class="w-10 h-10 rounded-xl bg-tertiary-fixed flex items-center justify-center text-tertiary">
+          <span class="material-symbols-outlined text-xl">military_tech</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-baseline gap-2">
+          <span class="font-headline-lg text-headline-lg font-bold text-tertiary">{{ '{:g}'.format(stats.points) }}</span>
+          <span class="font-title-md text-title-md text-on-surface-variant">درجة</span>
+        </div>
+        <p class="font-label-xs text-label-xs text-on-surface-variant mt-1">
+          {% if stats.total %}متوسط {{ '{:.2f}'.format(stats.points / stats.total) }} درجة لكل فقرة{% else %}لا فقرات بعد{% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-3">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant font-semibold">توزيع الصعوبة</span>
+        <div class="w-10 h-10 rounded-xl bg-secondary-fixed flex items-center justify-center text-secondary">
+          <span class="material-symbols-outlined text-xl">bar_chart</span>
+        </div>
+      </div>
+      {% set diff = stats.difficulty %}
+      {% set d_total = diff.easy + diff.medium + diff.hard + diff.very_hard %}
+      <div class="space-y-2">
+        <div class="w-full h-3 rounded-full bg-surface-container overflow-hidden flex">
+          {% if d_total %}
+          <div class="bg-emerald-500 h-full" style="width: {{ diff.easy/d_total*100 }}%"></div>
+          <div class="bg-sky-500 h-full" style="width: {{ diff.medium/d_total*100 }}%"></div>
+          <div class="bg-amber-500 h-full" style="width: {{ diff.hard/d_total*100 }}%"></div>
+          <div class="bg-rose-500 h-full" style="width: {{ diff.very_hard/d_total*100 }}%"></div>
+          {% endif %}
+        </div>
+        <div class="flex items-center justify-between font-label-xs text-label-xs text-on-surface-variant pt-1">
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-emerald-500"></span>سهل {{ diff.easy }}</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-sky-500"></span>متوسط {{ diff.medium }}</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span>صعب {{ diff.hard }}</span>
+          <span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-rose-500"></span>جداً {{ diff.very_hard }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-5 shadow-sm flex flex-col justify-between gap-3">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-label-md text-on-surface-variant font-semibold">آخر تحديث</span>
+        <div class="w-10 h-10 rounded-xl bg-surface-container-high flex items-center justify-center text-on-surface-variant">
+          <span class="material-symbols-outlined text-xl">schedule</span>
+        </div>
+      </div>
+      <div>
+        <div class="flex items-baseline gap-2">
+          <span class="font-headline-lg text-headline-lg font-bold text-on-surface">{{ template.updated_at.strftime('%Y-%m-%d') if template.updated_at else '—' }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# Attached items — form for points + reorder + remove #}
+  <div class="space-y-3">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <h2 class="font-title-md text-title-md font-bold text-on-surface">الأسئلة داخل النموذج</h2>
+        <span class="px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs font-semibold">
+          {{ items|length }} سؤال مرفق
+        </span>
+      </div>
+      <a href="#picker-panel"
+         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-semibold shadow-sm hover:shadow-md transition-all">
+        <span class="material-symbols-outlined text-lg">add_circle</span>
+        <span>إضافة أسئلة من البنك</span>
+      </a>
+    </div>
+
+    <form method="post" action="{{ url_for('lms.template_items_save', tid=template.id) }}"
+          class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="overflow-x-auto">
+        <table class="w-full text-right border-collapse">
+          <thead>
+            <tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
+              <th class="py-3.5 px-4 font-semibold w-16 text-center">الترتيب</th>
+              <th class="py-3.5 px-4 font-semibold">نص السؤال والنوع</th>
+              <th class="py-3.5 px-4 font-semibold">المحور والمنهج</th>
+              <th class="py-3.5 px-4 font-semibold">مستوى الصعوبة</th>
+              <th class="py-3.5 px-4 font-semibold w-40">الدرجة المخصصة</th>
+              <th class="py-3.5 px-4 font-semibold w-20 text-center">الإجراءات</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-surface-container-high font-body-sm text-body-sm">
+            {% set diff_pill = {
+              'easy':      ('سهل',   'bg-emerald-100 text-emerald-800', 'bg-emerald-600'),
+              'medium':    ('متوسط', 'bg-sky-100 text-sky-800',           'bg-sky-600'),
+              'hard':      ('صعب',   'bg-amber-100 text-amber-800',       'bg-amber-600'),
+              'very_hard': ('صعب جداً', 'bg-rose-100 text-rose-800',       'bg-rose-600'),
+            } %}
+            {% set kind_pill = {
+              'mcq':   ('اختيار من متعدد (MCQ)', 'bg-primary-fixed text-on-primary-fixed'),
+              'multi': ('متعدد الإجابات',         'bg-primary-fixed text-on-primary-fixed'),
+              'tf':    ('صواب / خطأ',            'bg-tertiary-fixed text-on-tertiary-fixed'),
+              'short': ('إجابة قصيرة',           'bg-secondary-fixed text-on-secondary-fixed'),
+              'essay': ('سؤال مقالي',            'bg-surface-container-high text-on-surface-variant'),
+            } %}
+            {% for it in items %}
+            {% set bq = it.bank_question %}
+            {% set kp = kind_pill.get(bq.kind, ('—', 'bg-surface-container-high text-on-surface-variant')) %}
+            {% set dp = diff_pill.get(bq.difficulty, ('—', 'bg-surface-container text-outline', 'bg-outline')) %}
+            <tr class="hover:bg-surface-container-low/60 transition-colors group">
+              <td class="py-4 px-4 text-center">
+                <div class="flex items-center justify-center gap-1 font-mono font-bold text-on-surface-variant">
+                  <span class="material-symbols-outlined text-outline opacity-60 text-lg">drag_indicator</span>
+                  <span>#{{ '{:02d}'.format(loop.index) }}</span>
+                </div>
+                <input type="hidden" name="order_{{ it.id }}" value="{{ loop.index }}">
+              </td>
+              <td class="py-4 px-4">
+                <div class="flex flex-col gap-1.5 max-w-xl">
+                  <span class="font-body-md text-body-md text-on-surface font-medium leading-relaxed line-clamp-2">
+                    {{ bq.prompt }}
+                  </span>
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full {{ kp[1] }} font-label-xs text-label-xs">
+                      {{ kp[0] }}
+                    </span>
+                    <span class="font-label-xs text-label-xs text-outline">المعرف: Q-{{ bq.id }}</span>
+                  </div>
+                </div>
+              </td>
+              <td class="py-4 px-4">
+                <span class="font-label-md text-label-md text-on-surface-variant font-medium">
+                  {{ bq.subject.name if bq.subject else '—' }}
+                </span>
+              </td>
+              <td class="py-4 px-4">
+                <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full {{ dp[1] }} font-label-xs text-label-xs font-semibold">
+                  <span class="w-1.5 h-1.5 rounded-full {{ dp[2] }}"></span>
+                  {{ dp[0] }}
+                </span>
+              </td>
+              <td class="py-4 px-4">
+                <div class="flex items-center gap-1.5">
+                  <input name="points_{{ it.id }}" type="number" step="0.5" min="0"
+                         value="{{ (it.points_override if it.points_override is not none else bq.points) or 1 }}"
+                         class="w-16 h-9 px-2 text-center rounded-lg bg-surface-container-low font-bold text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+                  <span class="font-label-xs text-label-xs text-on-surface-variant">درجة</span>
+                </div>
+              </td>
+              <td class="py-4 px-4 text-center">
+                <button type="submit" name="remove" value="{{ it.id }}"
+                        formaction="{{ url_for('lms.template_item_delete', tid=template.id, iid=it.id) }}"
+                        formmethod="post"
+                        class="p-2 rounded-lg text-error hover:bg-error-container/40 transition-colors" title="حذف من النموذج">
+                  <span class="material-symbols-outlined text-xl">delete</span>
+                </button>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="6" class="py-12 text-center">
+                <div class="flex flex-col items-center gap-3">
+                  <div class="w-14 h-14 rounded-2xl bg-surface-container-low text-outline flex items-center justify-center">
+                    <span class="material-symbols-outlined text-3xl">inbox</span>
+                  </div>
+                  <div class="font-title-md text-title-md text-on-surface font-bold">لا أسئلة بعد</div>
+                  <p class="font-label-md text-label-md text-outline">ابدأ بإضافة أسئلة من بنك المدرسة أدناه.</p>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if items %}
+      <div class="p-4 border-t border-surface-container-low flex justify-end">
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg hover:bg-primary-container transition-colors">
+          <span class="material-symbols-outlined text-lg">save</span>
+          <span>حفظ التغييرات</span>
+        </button>
+      </div>
+      {% endif %}
+    </form>
+  </div>
+
+  {# Question picker #}
+  <form method="post" action="{{ url_for('lms.template_items_attach', tid=template.id) }}"
+        id="picker-panel"
+        class="bg-surface-container-low rounded-3xl p-6 lg:p-7 shadow-sm space-y-6 relative overflow-hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="pointer-events-none absolute -right-20 -top-20 w-72 h-72 rounded-full bg-primary-fixed/30 blur-2xl"></div>
+
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-2xl bg-primary text-on-primary flex items-center justify-center shadow-sm">
+          <span class="material-symbols-outlined text-2xl">auto_awesome</span>
+        </div>
+        <div>
+          <h2 class="font-title-md text-title-md font-bold text-on-surface flex items-center gap-2">
+            <span>اختر أسئلة من بنك المدرسة</span>
+            <span class="px-2.5 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs">مستودع الأسئلة</span>
+          </h2>
+          <p class="font-body-sm text-body-sm text-on-surface-variant">
+            {{ picker.total }} سؤال في البنك — حدد الفقرات لإدراجها مباشرة
+          </p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2 self-end md:self-auto font-label-sm text-label-sm text-on-surface-variant">
+        <span class="material-symbols-outlined text-base text-secondary">verified</span>
+        <span>أسئلة معتمدة فقط</span>
+      </div>
+    </div>
+
+    {# Filters (GET to same page with query params) #}
+    <div class="relative z-10 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3 items-center bg-surface-container-lowest p-4 rounded-2xl shadow-xs">
+      <div class="lg:col-span-4 relative">
+        <span class="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-outline text-xl pointer-events-none">search</span>
+        <input form="filter-form" name="q" value="{{ filters.q }}"
+               placeholder="ابحث في نص السؤال…"
+               class="w-full h-11 pr-11 pl-4 rounded-xl bg-surface-container-low font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary/30"/>
+      </div>
+      <div class="lg:col-span-3">
+        <select form="filter-form" name="subject_id"
+                class="w-full h-11 px-4 rounded-xl bg-surface-container-low font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30">
+          <option value="">جميع المواد</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}" {% if filters.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="lg:col-span-2">
+        <select form="filter-form" name="difficulty"
+                class="w-full h-11 px-4 rounded-xl bg-surface-container-low font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30">
+          <option value="">جميع المستويات</option>
+          <option value="easy"      {% if filters.difficulty == 'easy'      %}selected{% endif %}>سهل</option>
+          <option value="medium"    {% if filters.difficulty == 'medium'    %}selected{% endif %}>متوسط</option>
+          <option value="hard"      {% if filters.difficulty == 'hard'      %}selected{% endif %}>صعب</option>
+          <option value="very_hard" {% if filters.difficulty == 'very_hard' %}selected{% endif %}>صعب جداً</option>
+        </select>
+      </div>
+      <div class="lg:col-span-2">
+        <select form="filter-form" name="kind"
+                class="w-full h-11 px-4 rounded-xl bg-surface-container-low font-body-sm text-body-sm text-on-surface focus:outline-none focus:ring-2 focus:ring-primary/30">
+          <option value="">جميع الأنواع</option>
+          <option value="mcq"   {% if filters.kind == 'mcq'   %}selected{% endif %}>اختيار من متعدد</option>
+          <option value="tf"    {% if filters.kind == 'tf'    %}selected{% endif %}>صواب/خطأ</option>
+          <option value="short" {% if filters.kind == 'short' %}selected{% endif %}>إجابة قصيرة</option>
+          <option value="essay" {% if filters.kind == 'essay' %}selected{% endif %}>مقالي</option>
+        </select>
+      </div>
+      <div class="lg:col-span-1 text-center">
+        <button form="filter-form" type="submit"
+                class="text-secondary hover:text-primary font-label-sm text-label-sm font-semibold transition-colors flex items-center justify-center gap-1 w-full">
+          <span class="material-symbols-outlined text-base">filter_alt</span>
+          <span>تصفية</span>
+        </button>
+      </div>
+    </div>
+
+    {# Cards grid #}
+    <div class="relative z-10 grid grid-cols-1 md:grid-cols-2 gap-4">
+      {% for bq in picker.rows %}
+      {% set dp = diff_pill.get(bq.difficulty, ('—', 'bg-surface-container text-outline', 'bg-outline')) %}
+      {% set kp = kind_pill.get(bq.kind, ('—', 'bg-surface-container-high text-on-surface-variant')) %}
+      {% set already = bq.id in attached_ids %}
+      <label class="relative rounded-2xl p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-4
+                    {% if already %}bg-surface-container opacity-60 cursor-not-allowed{% else %}bg-surface-container-lowest cursor-pointer has-[:checked]:bg-[#f0f4fc] has-[:checked]:ring-2 has-[:checked]:ring-primary{% endif %}">
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex items-center gap-3">
+            <input type="checkbox" name="bank_ids" value="{{ bq.id }}"
+                   {% if already %}disabled{% endif %}
+                   class="w-5 h-5 rounded accent-primary cursor-pointer"/>
+            <span class="px-2.5 py-0.5 rounded-full {{ kp[1] }} font-label-xs text-label-xs font-semibold">{{ kp[0] }}</span>
+            {% if already %}
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-label-xs text-label-xs font-bold">
+              <span class="material-symbols-outlined text-[14px]">check</span>مضاف
+            </span>
+            {% endif %}
+          </div>
+          <span class="font-mono font-bold text-xs {% if already %}text-outline{% else %}text-primary{% endif %}">#Q-{{ bq.id }}</span>
+        </div>
+        <p class="font-body-md text-body-md text-on-surface font-medium leading-relaxed line-clamp-3">
+          {{ bq.prompt }}
+        </p>
+        <div class="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-surface-container/60">
+          <div class="flex items-center gap-2 flex-wrap">
+            {% if bq.subject %}
+            <span class="px-2.5 py-1 rounded-lg bg-surface-container-low font-label-xs text-label-xs text-on-surface-variant font-medium">{{ bq.subject.name }}</span>
+            {% endif %}
+            <span class="px-2.5 py-1 rounded-lg {{ dp[1] }} font-label-xs text-label-xs font-bold">{{ dp[0] }}</span>
+          </div>
+          <span class="font-label-sm text-label-sm font-bold text-on-surface">{{ '{:g}'.format(bq.points or 1) }} درجة</span>
+        </div>
+      </label>
+      {% else %}
+      <div class="md:col-span-2 text-center py-10 text-outline">
+        لا أسئلة تطابق التصفية الحالية. جرّب إزالة بعض الفلاتر أو أضف أسئلة معتمدة من بنك الأسئلة.
+      </div>
+      {% endfor %}
+    </div>
+
+    {# Sticky-inside action bar #}
+    <div class="sticky bottom-4 z-20 bg-surface-container-lowest/95 backdrop-blur-md rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+      <div class="flex items-center gap-2.5">
+        <span class="material-symbols-outlined text-primary text-2xl" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+        <div class="flex flex-col">
+          <span class="font-label-lg text-label-lg font-bold text-on-surface">حدد الأسئلة التي تريد إدراجها</span>
+          <span class="font-label-xs text-label-xs text-on-surface-variant">التحديد يعتمد أرقام معرّفات البنك — سيتم تخطي الأسئلة المضافة سابقاً.</span>
+        </div>
+      </div>
+      <button type="submit"
+              class="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-bold shadow-sm hover:shadow-md transition-all">
+        <span class="material-symbols-outlined text-xl">playlist_add_check</span>
+        <span>إضافة الأسئلة المحددة إلى النموذج</span>
+      </button>
+    </div>
+  </form>
+
+  {# Global sticky bottom bar #}
+  <div class="fixed bottom-0 right-72 left-0 z-30 bg-surface-container-lowest/90 backdrop-blur-md py-3.5 px-8 flex items-center justify-between gap-4 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]">
+    <div class="flex items-center gap-3 min-w-0">
+      <div class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping shrink-0"></div>
+      <div class="flex items-center gap-2 text-on-surface-variant font-label-md text-label-md min-w-0">
+        {% if template.code %}<span class="font-mono font-bold text-primary">#{{ template.code }}</span><span>•</span>{% endif %}
+        <span class="font-semibold text-on-surface truncate">{{ stats.total }} سؤال ({{ '{:g}'.format(stats.points) }} درجة)</span>
+      </div>
+    </div>
+    <div class="flex items-center gap-3">
+      <a href="{{ url_for('lms.templates_gallery') }}"
+         class="px-5 py-2.5 rounded-xl bg-surface-container text-on-surface-variant hover:text-on-surface font-label-lg text-label-lg font-medium transition-colors">
+        إغلاق
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1149,6 +1149,155 @@ def template_edit(tid):
     return render_template("lms/template_new.html", template=t, subjects=subjects)
 
 
+# ─── Template Detail + Question Picker (Stitch lms_6) ──────────────────
+@bp.route("/assessment-templates/<int:tid>", endpoint="template_detail")
+@login_required
+def template_detail(tid):
+    """Stitch lms_6 — a template's items list plus an inline picker
+    that pulls from the school bank. GET-only; the write paths live at
+    lms.template_items_attach / template_item_delete / template_items_save."""
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+
+    items = (
+        AssessmentTemplateItem.query
+        .filter_by(template_id=t.id)
+        .order_by(AssessmentTemplateItem.order_index).all()
+    )
+    attached_ids = {it.bank_question_id for it in items}
+
+    diff_totals = {"easy": 0, "medium": 0, "hard": 0, "very_hard": 0}
+    total_points = 0.0
+    for it in items:
+        bq = it.bank_question
+        if not bq:
+            continue
+        diff_totals[bq.difficulty] = diff_totals.get(bq.difficulty, 0) + 1
+        pts = it.points_override if it.points_override is not None else bq.points
+        total_points += float(pts or 0)
+
+    # Picker — approved school-source rows, with optional filters from query.
+    filters = {
+        "q":          (request.args.get("q") or "").strip(),
+        "subject_id": request.args.get("subject_id", type=int),
+        "difficulty": (request.args.get("difficulty") or "").strip(),
+        "kind":       (request.args.get("kind") or "").strip(),
+    }
+    pool = BankQuestion.query.filter(
+        BankQuestion.school_id == sid,
+        BankQuestion.source == "school",
+        BankQuestion.review_state == "approved",
+    )
+    if filters["subject_id"]:
+        pool = pool.filter(BankQuestion.subject_id == filters["subject_id"])
+    if filters["difficulty"]:
+        pool = pool.filter(BankQuestion.difficulty == filters["difficulty"])
+    if filters["kind"]:
+        pool = pool.filter(BankQuestion.kind == filters["kind"])
+    if filters["q"]:
+        pool = pool.filter(BankQuestion.prompt.ilike(f"%{filters['q']}%"))
+    picker_items = pool.order_by(BankQuestion.id.desc()).limit(30).all()
+    picker_total = BankQuestion.query.filter_by(
+        school_id=sid, source="school", review_state="approved").count()
+
+    subjects = (
+        Subject.query.filter_by(school_id=sid)
+        .order_by(Subject.name).all()
+    )
+    return render_template(
+        "lms/template_detail.html",
+        template=t, items=items,
+        attached_ids=attached_ids,
+        stats={
+            "total": len(items),
+            "points": total_points,
+            "difficulty": diff_totals,
+        },
+        picker={"rows": picker_items, "total": picker_total},
+        filters=filters, subjects=subjects,
+    )
+
+
+@bp.route("/assessment-templates/<int:tid>/items/attach",
+          methods=["POST"], endpoint="template_items_attach")
+@login_required
+def template_items_attach(tid):
+    """Attach a batch of bank-question ids to a template. Silently
+    skips rows already attached (the uq_asstmpl_q constraint would
+    otherwise 500 the batch on the first duplicate)."""
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+    picked = [int(x) for x in request.form.getlist("bank_ids") if x.isdigit()]
+    if not picked:
+        flash("لم يتم اختيار أي سؤال.", "warning")
+        return redirect(url_for("lms.template_detail", tid=t.id))
+    existing = {
+        it.bank_question_id for it in
+        AssessmentTemplateItem.query.filter_by(template_id=t.id).all()
+    }
+    next_order = 1 + (
+        db.session.query(db.func.max(AssessmentTemplateItem.order_index))
+        .filter_by(template_id=t.id).scalar() or 0
+    )
+    added = 0
+    for bid in picked:
+        if bid in existing:
+            continue
+        bq = BankQuestion.query.filter_by(id=bid, school_id=sid).first()
+        if not bq:
+            continue
+        db.session.add(AssessmentTemplateItem(
+            template_id=t.id, bank_question_id=bq.id,
+            order_index=next_order,
+        ))
+        next_order += 1
+        added += 1
+    db.session.commit()
+    flash(f"تم إضافة {added} سؤال إلى النموذج.", "success")
+    return redirect(url_for("lms.template_detail", tid=t.id))
+
+
+@bp.route("/assessment-templates/<int:tid>/items/<int:iid>/delete",
+          methods=["POST"], endpoint="template_item_delete")
+@login_required
+def template_item_delete(tid, iid):
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+    it = AssessmentTemplateItem.query.filter_by(
+        id=iid, template_id=t.id).first_or_404()
+    db.session.delete(it)
+    db.session.commit()
+    flash("تم حذف السؤال من النموذج.", "success")
+    return redirect(url_for("lms.template_detail", tid=t.id))
+
+
+@bp.route("/assessment-templates/<int:tid>/items/save",
+          methods=["POST"], endpoint="template_items_save")
+@login_required
+def template_items_save(tid):
+    """Bulk-save `points_override` and `order_index` for every item.
+    Fields are keyed by item id: `points_<iid>` and `order_<iid>`."""
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+    for it in AssessmentTemplateItem.query.filter_by(template_id=t.id).all():
+        raw_pts = request.form.get(f"points_{it.id}")
+        if raw_pts is not None and raw_pts.strip() != "":
+            try:
+                it.points_override = Decimal(raw_pts)
+            except Exception:
+                pass
+        raw_order = request.form.get(f"order_{it.id}", type=int)
+        if raw_order is not None:
+            it.order_index = raw_order
+    db.session.commit()
+    flash("تم حفظ التغييرات.", "success")
+    return redirect(url_for("lms.template_detail", tid=t.id))
+
+
 # ─── Blueprint Exam Generator (Stitch lms_4) ────────────────────────────
 @bp.route("/exams/blueprint/new", methods=["GET", "POST"],
           endpoint="blueprint_exam_new")

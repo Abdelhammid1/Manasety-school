@@ -584,6 +584,8 @@ class AssessmentTemplateItem(db.Model):
     order_index = db.Column(db.Integer, default=0, nullable=False)
     points_override = db.Column(db.Numeric(6, 2), nullable=True)
 
+    bank_question = db.relationship("BankQuestion")
+
     __table_args__ = (
         db.UniqueConstraint("template_id", "bank_question_id",
                             name="uq_asstmpl_q"),

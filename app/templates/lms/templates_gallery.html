@@ -269,6 +269,9 @@
             </td>
             <td class="py-4 px-4 text-center">
               <div class="flex items-center justify-center gap-1 text-outline">
+                <a href="{{ url_for('lms.template_detail', tid=t.id) }}" class="p-1.5 hover:text-primary transition-colors" title="عرض التفاصيل والأسئلة">
+                  <span class="material-symbols-outlined text-[18px]">visibility</span>
+                </a>
                 <a href="{{ url_for('lms.template_edit', tid=t.id) }}" class="p-1.5 hover:text-secondary transition-colors" title="تعديل">
                   <span class="material-symbols-outlined text-[18px]">edit</span>
                 </a>
