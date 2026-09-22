@@ -14,10 +14,11 @@ from werkzeug.utils import secure_filename
 from . import bp
 from ...extensions import bcrypt, csrf, db
 from ...models import (
-    AcademicYear, Assignment, AssessmentComponent, Attendance, DeviceToken,
-    Enrollment, GradeEntry, Invoice, Material, NotificationLog, Payment,
-    ScheduleSlot, School, Section, Student, Subject, Teacher, Term, User,
-    YearResult,
+    AcademicYear, Announcement, Assignment, AssessmentComponent, Attendance,
+    Conversation, ConversationParticipant, Course, CourseAssignment,
+    DeviceToken, Enrollment, GradeEntry, Invoice, Material, Message,
+    NotificationLog, Payment, Quiz, QuizAttempt, ScheduleSlot, School,
+    Section, Student, Subject, Submission, Teacher, Term, User, YearResult,
 )
 from ...models.results import RESULT_STATUSES
 from ...services.auth_jwt import issue_token, jwt_required
@@ -876,6 +877,509 @@ def _material_dict(m):
 
 
 # ============================================================
+# Sprint 12 — LMS teacher endpoints for the mobile app
+#
+# These back the four detail flows the Stitch designs asked for:
+# assignments, quizzes, announcements, parent messages. All are
+# scoped to the calling teacher (teacher.Assignment on the section
+# for LMS content, ConversationParticipant for messages) so nothing
+# leaks between staff.
+# ============================================================
+
+def _teacher_courses(t, year):
+    """Every LMS Course the teacher can act on = a Course whose
+    (year, grade, subject) matches a live teacher.Assignment row."""
+    from ...models import Course
+    if not year: return []
+    my_pairs = {
+        (a.section.grade_id, a.subject_id) for a in Assignment.query.filter_by(
+            teacher_id=t.id, year_id=year.id, is_active=True
+        ).all() if a.section and a.subject_id
+    }
+    if not my_pairs: return []
+    grade_ids = {g for g, _ in my_pairs}
+    subject_ids = {s for _, s in my_pairs}
+    courses = Course.query.filter(
+        Course.school_id == _sid(),
+        Course.academic_year_id == year.id,
+        Course.grade_id.in_(grade_ids),
+        Course.subject_id.in_(subject_ids),
+    ).all()
+    return [c for c in courses if (c.grade_id, c.subject_id) in my_pairs]
+
+
+# ---------- Assignments ----------
+
+def _assignment_dict(ca, *, with_counts=True):
+    d = {
+        "id": ca.id,
+        "title": ca.title,
+        "instructions": ca.instructions or "",
+        "max_score": float(ca.max_score or 0),
+        "due_at": ca.due_at.isoformat() if ca.due_at else None,
+        "is_published": bool(ca.is_published),
+        "allow_late": bool(ca.allow_late),
+        "created_at": ca.created_at.isoformat() if ca.created_at else None,
+        "course_title": ca.course.title if ca.course else None,
+        "subject": ca.course.subject.name if ca.course and getattr(ca.course, "subject", None) else None,
+        "grade":   ca.course.grade.name   if ca.course and ca.course.grade else None,
+    }
+    if with_counts:
+        d["submission_count"] = Submission.query.filter_by(assignment_id=ca.id).count()
+        d["ungraded_count"]   = Submission.query.filter_by(assignment_id=ca.id).filter(
+            Submission.score.is_(None)).count()
+    return d
+
+
+@bp.route("/teacher/assignments", methods=["GET", "POST"])
+@jwt_required
+def teacher_assignments():
+    from ...models import CourseAssignment
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    year = _active_year()
+    course_ids = [c.id for c in _teacher_courses(t, year)]
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        course_id = data.get("course_id")
+        title = (data.get("title") or "").strip()
+        if course_id not in course_ids or not title:
+            return _err("course_id (own course) and title are required")
+        try:
+            max_score = float(data.get("max_score") or 100)
+        except (TypeError, ValueError):
+            max_score = 100.0
+        due_at = _parse_dt(data.get("due_at"))
+        ca = CourseAssignment(
+            course_id=course_id, title=title,
+            instructions=(data.get("instructions") or "").strip(),
+            max_score=max_score, due_at=due_at,
+            is_published=bool(data.get("is_published", True)),
+            allow_late=bool(data.get("allow_late", True)),
+        )
+        db.session.add(ca)
+        db.session.commit()
+        return jsonify({"assignment": _assignment_dict(ca)}), 201
+
+    if not course_ids:
+        return jsonify({"assignments": []})
+    rows = CourseAssignment.query.filter(
+        CourseAssignment.course_id.in_(course_ids),
+    ).order_by(CourseAssignment.created_at.desc()).all()
+    return jsonify({"assignments": [_assignment_dict(r) for r in rows]})
+
+
+@bp.route("/teacher/assignments/<int:aid>", methods=["GET", "DELETE"])
+@jwt_required
+def teacher_assignment_detail(aid):
+    from ...models import CourseAssignment
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    ca = CourseAssignment.query.get(aid)
+    if not ca:
+        return _err("not found", 404)
+    my_courses = {c.id for c in _teacher_courses(t, _active_year())}
+    if ca.course_id not in my_courses:
+        return _err("forbidden", 403)
+    if request.method == "DELETE":
+        db.session.delete(ca)
+        db.session.commit()
+        return jsonify({"ok": True})
+    return jsonify({"assignment": _assignment_dict(ca)})
+
+
+@bp.route("/teacher/assignments/<int:aid>/submissions", methods=["GET"])
+@jwt_required
+def teacher_assignment_submissions(aid):
+    from ...models import CourseAssignment
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    ca = CourseAssignment.query.get(aid)
+    if not ca:
+        return _err("not found", 404)
+    my_courses = {c.id for c in _teacher_courses(t, _active_year())}
+    if ca.course_id not in my_courses:
+        return _err("forbidden", 403)
+    subs = Submission.query.filter_by(assignment_id=aid).all()
+    out = []
+    for s in subs:
+        stu = Student.query.get(s.student_id)
+        out.append({
+            "student_id": s.student_id,
+            "student_name": stu.full_name if stu else None,
+            "permanent_code": stu.permanent_code if stu else None,
+            "submitted_at": s.submitted_at.isoformat() if s.submitted_at else None,
+            "score": float(s.score) if s.score is not None else None,
+            "max_score": float(ca.max_score or 0),
+            "feedback": s.feedback or "",
+            "has_body": bool(s.body),
+            "has_file": bool(s.file_url),
+            "is_graded": s.score is not None,
+        })
+    return jsonify({"submissions": out})
+
+
+@bp.route("/teacher/assignments/<int:aid>/submissions/<int:sid>/grade",
+          methods=["POST"])
+@jwt_required
+def teacher_assignment_grade(aid, sid):
+    from ...models import CourseAssignment
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    ca = CourseAssignment.query.get(aid)
+    if not ca:
+        return _err("not found", 404)
+    my_courses = {c.id for c in _teacher_courses(t, _active_year())}
+    if ca.course_id not in my_courses:
+        return _err("forbidden", 403)
+    data = request.get_json(silent=True) or {}
+    try:
+        score = float(data.get("score"))
+    except (TypeError, ValueError):
+        return _err("score must be numeric")
+    if score < 0 or (ca.max_score and score > float(ca.max_score)):
+        return _err(f"score must be between 0 and {ca.max_score}")
+    sub = Submission.query.filter_by(assignment_id=aid, student_id=sid).first()
+    if not sub:
+        return _err("submission not found", 404)
+    sub.score = score
+    sub.feedback = data.get("feedback") or sub.feedback
+    sub.graded_by_id = _user().id
+    sub.graded_at = datetime.utcnow()
+    db.session.commit()
+    return jsonify({"ok": True, "score": float(sub.score)})
+
+
+# ---------- Quizzes ----------
+
+def _quiz_dict(q, *, with_counts=True):
+    d = {
+        "id": q.id, "title": q.title,
+        "description": getattr(q, "description", "") or "",
+        "is_published": bool(getattr(q, "is_published", False)),
+        "opens_at":  q.opens_at.isoformat()  if getattr(q, "opens_at", None) else None,
+        "closes_at": q.closes_at.isoformat() if getattr(q, "closes_at", None) else None,
+        "duration_minutes": getattr(q, "duration_minutes", None),
+        "max_attempts": getattr(q, "max_attempts", 1),
+        "course_title": q.course.title if q.course else None,
+        "subject": q.course.subject.name if q.course and getattr(q.course, "subject", None) else None,
+        "grade":   q.course.grade.name   if q.course and q.course.grade else None,
+    }
+    if with_counts:
+        d["question_count"] = len(q.questions) if hasattr(q, "questions") else 0
+        d["attempt_count"] = QuizAttempt.query.filter_by(quiz_id=q.id).count() \
+            if 'QuizAttempt' in globals() else 0
+    return d
+
+
+@bp.route("/teacher/quizzes", methods=["GET", "POST"])
+@jwt_required
+def teacher_quizzes():
+    from ...models import Quiz
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    year = _active_year()
+    course_ids = [c.id for c in _teacher_courses(t, year)]
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        course_id = data.get("course_id")
+        title = (data.get("title") or "").strip()
+        if course_id not in course_ids or not title:
+            return _err("course_id (own course) and title are required")
+        try:
+            duration = int(data.get("duration_minutes") or 30)
+        except (TypeError, ValueError):
+            duration = 30
+        opens = _parse_dt(data.get("opens_at"))
+        closes = _parse_dt(data.get("closes_at"))
+        q = Quiz(
+            course_id=course_id, title=title,
+            description=(data.get("description") or "").strip(),
+            is_published=bool(data.get("is_published", True)),
+            opens_at=opens, closes_at=closes,
+            duration_minutes=duration,
+        )
+        db.session.add(q)
+        db.session.commit()
+        return jsonify({"quiz": _quiz_dict(q)}), 201
+
+    if not course_ids:
+        return jsonify({"quizzes": []})
+    rows = Quiz.query.filter(Quiz.course_id.in_(course_ids)).order_by(
+        Quiz.created_at.desc() if hasattr(Quiz, "created_at") else Quiz.id.desc()
+    ).all()
+    return jsonify({"quizzes": [_quiz_dict(q) for q in rows]})
+
+
+@bp.route("/teacher/quizzes/<int:qid>/stats", methods=["GET"])
+@jwt_required
+def teacher_quiz_stats(qid):
+    from ...models import Quiz, QuizAttempt as _QA
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    q = Quiz.query.get(qid)
+    if not q:
+        return _err("not found", 404)
+    my_courses = {c.id for c in _teacher_courses(t, _active_year())}
+    if q.course_id not in my_courses:
+        return _err("forbidden", 403)
+    attempts = _QA.query.filter_by(quiz_id=qid).all()
+    if not attempts:
+        return jsonify({"quiz": _quiz_dict(q, with_counts=False),
+                        "attempts": 0, "average": 0, "highest": 0, "lowest": 0,
+                        "students": []})
+    scored = [a for a in attempts if getattr(a, "score", None) is not None]
+    scores = [float(a.score) for a in scored]
+    students = []
+    for a in attempts:
+        stu = Student.query.get(a.student_id) if a.student_id else None
+        students.append({
+            "student_id": a.student_id,
+            "student_name": stu.full_name if stu else None,
+            "started_at":   a.started_at.isoformat()   if getattr(a, "started_at", None) else None,
+            "submitted_at": a.submitted_at.isoformat() if getattr(a, "submitted_at", None) else None,
+            "score": float(a.score) if getattr(a, "score", None) is not None else None,
+        })
+    return jsonify({
+        "quiz": _quiz_dict(q, with_counts=False),
+        "attempts": len(attempts),
+        "average": sum(scores) / len(scores) if scores else 0,
+        "highest": max(scores) if scores else 0,
+        "lowest":  min(scores) if scores else 0,
+        "students": students,
+    })
+
+
+# ---------- Announcements ----------
+
+def _announcement_dict(a):
+    author = User.query.get(a.author_id) if a.author_id else None
+    section = None
+    if a.section_id:
+        sec = Section.query.get(a.section_id)
+        if sec and sec.grade:
+            section = f"{sec.grade.name}/{sec.name}"
+    return {
+        "id": a.id,
+        "title": a.title,
+        "body": a.body or "",
+        "is_pinned": bool(a.is_pinned),
+        "section_id": a.section_id,
+        "section_name": section,
+        "author_name": author.full_name if author else None,
+        "created_at": a.created_at.isoformat() if a.created_at else None,
+    }
+
+
+@bp.route("/teacher/announcements", methods=["GET", "POST"])
+@jwt_required
+def teacher_announcements():
+    from ...models import Announcement
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    year = _active_year()
+    my_section_ids = list({
+        a.section_id for a in Assignment.query.filter_by(
+            teacher_id=t.id, year_id=year.id if year else None, is_active=True,
+        ).all()
+    }) if year else []
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "").strip()
+        if not title:
+            return _err("title is required")
+        section_id = data.get("section_id")
+        if section_id is not None and section_id not in my_section_ids:
+            return _err("you are not assigned to this section", 403)
+        a = Announcement(
+            school_id=_sid(),
+            section_id=section_id,
+            author_id=_user().id,
+            title=title,
+            body=(data.get("body") or "").strip(),
+            is_pinned=bool(data.get("is_pinned", False)),
+        )
+        db.session.add(a)
+        db.session.commit()
+        return jsonify({"announcement": _announcement_dict(a)}), 201
+
+    q = Announcement.query.filter_by(school_id=_sid())
+    # A teacher only sees THEIR OWN announcements + school-wide ones.
+    from sqlalchemy import or_ as _or
+    q = q.filter(_or(
+        Announcement.author_id == _user().id,
+        Announcement.section_id.is_(None),
+        Announcement.section_id.in_(my_section_ids or [-1]),
+    ))
+    q = q.order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
+    return jsonify({"announcements": [_announcement_dict(a) for a in q.all()]})
+
+
+@bp.route("/teacher/announcements/<int:aid>", methods=["DELETE"])
+@jwt_required
+def teacher_announcement_delete(aid):
+    from ...models import Announcement
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    a = Announcement.query.filter_by(id=aid, school_id=_sid()).first()
+    if not a:
+        return _err("not found", 404)
+    # Only the author can delete.
+    if a.author_id != _user().id:
+        return _err("forbidden", 403)
+    db.session.delete(a)
+    db.session.commit()
+    return jsonify({"ok": True})
+
+
+# ---------- Messages ----------
+
+def _conversation_dict(c, uid):
+    from ...models import ConversationParticipant, Message as _Msg
+    last = _Msg.query.filter_by(conversation_id=c.id).order_by(
+        _Msg.created_at.desc()).first()
+    me = ConversationParticipant.query.filter_by(
+        conversation_id=c.id, user_id=uid).first()
+    unread = 0
+    if me:
+        q = _Msg.query.filter_by(conversation_id=c.id).filter(
+            _Msg.sender_user_id != uid)
+        if me.last_read_at is not None:
+            q = q.filter(_Msg.created_at > me.last_read_at)
+        unread = q.count()
+    others = [p for p in c.participants if p.user_id != uid]
+    other_user = User.query.get(others[0].user_id) if others else None
+    return {
+        "id": c.id,
+        "subject": c.subject or "",
+        "context_type": c.context_type,
+        "context_id": c.context_id,
+        "status": c.status,
+        "created_at": c.created_at.isoformat() if c.created_at else None,
+        "last_message_at": c.last_message_at.isoformat() if c.last_message_at else None,
+        "other_name": other_user.full_name if other_user else None,
+        "other_role": (
+            "ولي أمر" if others and other_user and other_user.role and
+            other_user.role.name == "parent" else
+            "معلم" if others and other_user and other_user.role and
+            other_user.role.name == "teacher" else
+            None
+        ),
+        "last_preview": (last.body[:120] if last else "") if last else "",
+        "unread_count": unread,
+    }
+
+
+@bp.route("/teacher/messages", methods=["GET", "POST"])
+@jwt_required
+def teacher_messages():
+    from ...models import ConversationParticipant, Conversation, Message as _Msg
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    uid = _user().id
+
+    if request.method == "POST":
+        # Start a new conversation with a specific user (usually a parent).
+        data = request.get_json(silent=True) or {}
+        recipient_user_id = data.get("recipient_user_id")
+        subject = (data.get("subject") or "").strip() or None
+        body = (data.get("body") or "").strip()
+        if not recipient_user_id or not body:
+            return _err("recipient_user_id and body are required")
+        c = Conversation(
+            school_id=_sid(), subject=subject,
+            context_type=data.get("context_type") or "general",
+            context_id=data.get("context_id"),
+            status="open", created_by_user_id=uid,
+            last_message_at=datetime.utcnow(),
+        )
+        db.session.add(c)
+        db.session.flush()
+        db.session.add(ConversationParticipant(
+            conversation_id=c.id, user_id=uid, role="initiator"))
+        db.session.add(ConversationParticipant(
+            conversation_id=c.id, user_id=recipient_user_id, role="recipient"))
+        db.session.add(_Msg(
+            conversation_id=c.id, sender_user_id=uid, body=body))
+        db.session.commit()
+        return jsonify({"conversation": _conversation_dict(c, uid)}), 201
+
+    parts = ConversationParticipant.query.filter_by(user_id=uid).all()
+    conv_ids = [p.conversation_id for p in parts]
+    convs = Conversation.query.filter(
+        Conversation.id.in_(conv_ids or [-1]),
+        Conversation.school_id == _sid(),
+    ).order_by(Conversation.last_message_at.desc().nullslast()).all() \
+      if conv_ids else []
+    return jsonify({
+        "conversations": [_conversation_dict(c, uid) for c in convs],
+    })
+
+
+@bp.route("/teacher/messages/<int:conv_id>", methods=["GET", "POST"])
+@jwt_required
+def teacher_message_thread(conv_id):
+    from ...models import ConversationParticipant, Conversation, Message as _Msg
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
+    uid = _user().id
+    me = ConversationParticipant.query.filter_by(
+        conversation_id=conv_id, user_id=uid).first()
+    if not me:
+        return _err("forbidden", 403)
+    conv = Conversation.query.get(conv_id)
+    if not conv or conv.school_id != _sid():
+        return _err("not found", 404)
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        body = (data.get("body") or "").strip()
+        if not body:
+            return _err("body is required")
+        m = _Msg(conversation_id=conv_id, sender_user_id=uid, body=body)
+        db.session.add(m)
+        conv.last_message_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({"message": {
+            "id": m.id, "body": m.body,
+            "sender_user_id": uid,
+            "sender_name": _user().full_name,
+            "is_mine": True,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        }}), 201
+
+    # GET: mark thread as read + return messages.
+    me.last_read_at = datetime.utcnow()
+    msgs = _Msg.query.filter_by(conversation_id=conv_id).order_by(
+        _Msg.created_at.asc()).all()
+    db.session.commit()
+    return jsonify({
+        "conversation": _conversation_dict(conv, uid),
+        "messages": [{
+            "id": m.id, "body": m.body,
+            "sender_user_id": m.sender_user_id,
+            "sender_name": User.query.get(m.sender_user_id).full_name
+                if m.sender_user_id else None,
+            "is_mine": m.sender_user_id == uid,
+            "created_at": m.created_at.isoformat() if m.created_at else None,
+        } for m in msgs],
+    })
+
+
+# ============================================================
 # Parent endpoints
 # ============================================================
 
@@ -1081,6 +1585,26 @@ def _parse_date(s):
     try:
         return datetime.strptime(s, "%Y-%m-%d").date()
     except (ValueError, TypeError):
+        return None
+
+
+def _parse_dt(s):
+    """Accept ISO 8601 timestamps (`2026-10-20T14:30:00`, `2026-10-20T14:30:00Z`,
+    `2026-10-20T14:30:00+03:00`) or a bare date. Trailing `Z` is treated
+    as UTC. Returns a naive `datetime` in the local tz for storage."""
+    if not s:
+        return None
+    if isinstance(s, datetime):
+        return s
+    try:
+        txt = s.strip()
+        if txt.endswith("Z"):
+            txt = txt[:-1] + "+00:00"
+        if "T" in txt or " " in txt:
+            dt = datetime.fromisoformat(txt.replace(" ", "T"))
+            return dt.replace(tzinfo=None) if dt.tzinfo else dt
+        return datetime.strptime(txt, "%Y-%m-%d")
+    except (ValueError, TypeError, AttributeError):
         return None
 
 
