@@ -1,0 +1,235 @@
+{# Blueprint Exam Generator — Stitch design "lms_4".
+   Server-rendered form that posts to lms.blueprint_exam_create. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}توليد اختبار Blueprint{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.quizzes_home') }}" class="hover:text-primary">الاختبارات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">توليد Blueprint</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-6xl mx-auto space-y-6 pb-28">
+
+  {# Hero card #}
+  <div class="relative overflow-hidden rounded-2xl p-8 bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary shadow-xl">
+    <div class="absolute -top-24 -left-20 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 right-1/4 w-96 h-96 rounded-full bg-secondary-container/20 blur-3xl pointer-events-none"></div>
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+          <span class="material-symbols-outlined text-[32px] text-white">schema</span>
+        </div>
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-3 flex-wrap">
+            <h1 class="font-headline-lg text-headline-lg font-bold text-white tracking-tight">توليد اختبار ذكي وفق معايير المخطط الأكاديمي (Blueprint)</h1>
+          </div>
+          <p class="font-body-md text-body-md text-on-primary/90 max-w-3xl leading-relaxed">
+            اضبط نوع الاختبار والدفعة والمناهج وعدد الأسئلة والإعدادات الزمنية من صفحة واحدة متكاملة، مع التوزيع الآلي لمستويات بلوم المعرفية.
+          </p>
+        </div>
+      </div>
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white font-label-sm text-label-xs shrink-0">
+        <span class="w-2 h-2 rounded-full bg-secondary-fixed"></span>
+        <span>الوضع الحالي: Blueprint</span>
+      </span>
+    </div>
+  </div>
+
+  <form method="post" action="{{ url_for('lms.blueprint_exam_create') }}" class="space-y-6">
+
+    {# Section 1: Basic data #}
+    <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-10 h-10 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-xl">assignment</span>
+          </div>
+          <div>
+            <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">البيانات الأساسية للاختبار</h2>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">التسميات والتصنيفات المعتمدة لدى الإدارة التعليمية</p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-label-xs font-label-xs bg-surface-container-low text-primary font-bold">القسم 01</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="space-y-1.5">
+          <label class="font-label-lg text-label-lg text-on-surface font-bold" for="title">
+            عنوان الاختبار <span class="text-error">*</span>
+          </label>
+          <input required name="title" id="title" type="text"
+                 placeholder="مثال: اختبار منتصف الفصل الدراسي الأول — الرياضيات"
+                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-white transition-all"/>
+        </div>
+        <div class="space-y-1.5">
+          <label class="font-label-lg text-label-lg text-on-surface font-bold" for="description">
+            رمز الاختبار الأكاديمي
+          </label>
+          <input name="description" id="description" type="text"
+                 placeholder="EXAM-2025-Q1-MATH"
+                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-white transition-all"/>
+        </div>
+      </div>
+    </section>
+
+    {# Section 2: Cohort #}
+    <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-10 h-10 rounded-xl bg-primary-fixed-dim/60 flex items-center justify-center text-primary">
+            <span class="material-symbols-outlined text-xl">groups</span>
+          </div>
+          <div>
+            <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">الدفعة والشعبة المستهدفة</h2>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">ربط الاختبار بالفصل الدراسي وحصر قوائم الطلاب المؤهلين</p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-label-xs font-label-xs bg-surface-container-low text-primary font-bold">القسم 02</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="space-y-1.5">
+          <label class="font-label-lg text-label-lg text-on-surface font-bold" for="section_id">الشعبة الدراسية <span class="text-error">*</span></label>
+          <div class="relative">
+            <select required name="section_id" id="section_id"
+                    class="w-full h-12 pr-11 pl-8 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white appearance-none cursor-pointer">
+              <option value="">اختر الشعبة…</option>
+              {% for s in sections %}
+              <option value="{{ s.id }}">{{ s.grade.name if s.grade else '' }} — {{ s.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-outline text-xl">school</span>
+            <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        <div class="space-y-1.5">
+          <label class="font-label-lg text-label-lg text-on-surface font-bold" for="duration_minutes">مدة الاختبار بالدقائق</label>
+          <div class="relative">
+            <input name="duration_minutes" id="duration_minutes" type="number" min="15" max="240" value="60"
+                   class="w-full h-12 pr-4 pl-12 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white transition-all"/>
+            <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline font-label-md text-label-md">دقيقة</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# Section 3: Subject matrix — the hero #}
+    <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">
+      <div class="flex flex-wrap items-center justify-between gap-space-sm">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-secondary text-white flex items-center justify-center font-bold shadow-sm">
+            <span class="material-symbols-outlined text-xl">schema</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">مصفوفة المناهج وتوزيع الأسئلة</h2>
+              <span class="px-2.5 py-0.5 rounded-full text-label-xs font-label-xs bg-secondary-fixed text-on-secondary-fixed font-bold">المخطط الموزون</span>
+            </div>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">
+              حدد عدد الأسئلة المطلوبة لكل مقرر، وسيتم استدعاؤها من بنك الأسئلة المعتمد آلياً.
+            </p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-label-xs font-label-xs bg-secondary-fixed/40 text-secondary font-bold">القسم 03</span>
+      </div>
+      <div class="flex flex-col gap-3 pt-space-xs">
+        {% set subject_icons = {'ر': 'functions', 'فيز': 'cyclone', 'كيم': 'science', 'حا': 'terminal', 'أح': 'biotech', 'إن': 'translate', 'عر': 'menu_book'} %}
+        {% for row in subject_rows %}
+        {% set ico = 'library_books' %}
+        {% for prefix, i in subject_icons.items() %}{% if row.subject_name.startswith(prefix) %}{% set ico = i %}{% endif %}{% endfor %}
+        <div class="p-space-md rounded-xl bg-surface-container-low hover:bg-white hover:shadow-md transition-all flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+          <div class="flex items-center gap-space-sm flex-1 min-w-0">
+            <div class="w-11 h-11 rounded-xl bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+              <span class="material-symbols-outlined text-2xl">{{ ico }}</span>
+            </div>
+            <div class="flex flex-col min-w-0">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="font-title-md text-title-md text-on-surface font-bold truncate">{{ row.subject_name }}</span>
+                <span class="px-2 py-0.5 rounded-full text-label-xs font-label-xs bg-emerald-50 text-emerald-700 font-bold">متاح: {{ row.available }} سؤال معتمد</span>
+              </div>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="text-label-xs font-label-xs px-2 py-0.5 rounded-md bg-white text-on-surface-variant">توزيع آلي حسب صعوبات بلوم</span>
+              </div>
+            </div>
+          </div>
+          <div class="flex items-center gap-space-lg flex-shrink-0 justify-between md:justify-end">
+            <div class="flex items-center gap-2 bg-white px-2 py-1 rounded-xl shadow-xs">
+              <input name="subject_count_{{ row.subject_id }}" type="number" min="0" max="{{ row.available }}" value="0"
+                     class="w-16 text-center font-title-md text-title-md text-on-surface font-bold bg-transparent focus:outline-none"/>
+              <span class="font-label-xs text-label-xs text-on-surface-variant pl-1">سؤال</span>
+            </div>
+            <div class="w-56">
+              <select name="subject_difficulty_{{ row.subject_id }}"
+                      class="w-full h-11 px-3 rounded-lg bg-surface-container-low text-on-surface font-label-md text-label-md">
+                <option value="">صعوبة مختلطة</option>
+                <option value="easy">سهل فقط</option>
+                <option value="medium">متوسط فقط</option>
+                <option value="hard">صعب فقط</option>
+                <option value="very_hard">صعب جداً فقط</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        {% else %}
+        <div class="text-center py-6 text-outline">
+          لا مواد بها أسئلة معتمدة بعد. أضف أسئلة إلى البنك أولاً.
+        </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {# Section 4: Ordering #}
+    <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-space-sm">
+          <div class="w-10 h-10 rounded-xl bg-error-container text-error flex items-center justify-center">
+            <span class="material-symbols-outlined text-xl">shield</span>
+          </div>
+          <div>
+            <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">النزاهة الأكاديمية ومكافحة التخمين</h2>
+            <p class="font-label-sm text-label-sm text-on-surface-variant">إعدادات مانعة الغش والترتيب العشوائي</p>
+          </div>
+        </div>
+        <span class="px-3 py-1 rounded-full text-label-xs font-label-xs bg-surface-container-low text-primary font-bold">القسم 04</span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
+          <div>
+            <div class="font-title-md text-title-md text-on-surface font-bold">ترتيب عشوائي للأسئلة</div>
+            <div class="font-label-sm text-label-sm text-outline mt-0.5">كل طالب يشوف الأسئلة بترتيب مختلف</div>
+          </div>
+          <input type="checkbox" name="shuffle_questions" value="1" checked
+                 class="w-5 h-5 rounded accent-primary"/>
+        </label>
+        <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
+          <div>
+            <div class="font-title-md text-title-md text-on-surface font-bold">ترتيب عشوائي للخيارات (أ/ب/ج/د)</div>
+            <div class="font-label-sm text-label-sm text-outline mt-0.5">أفضل من Qdrat — يمنع تخمين نمط الإجابات</div>
+          </div>
+          <input type="checkbox" name="shuffle_choices" value="1" checked
+                 class="w-5 h-5 rounded accent-primary"/>
+        </label>
+      </div>
+    </section>
+
+    {# Bottom bar #}
+    <div class="fixed bottom-0 left-0 right-72 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high shadow-[0_-4px_16px_rgba(0,0,0,0.03)] py-3 px-space-lg flex items-center justify-between">
+      <div class="flex items-center gap-2 font-label-md text-label-md text-outline">
+        <span class="material-symbols-outlined text-secondary">tips_and_updates</span>
+        <span>الأسئلة يتم اختيارها عشوائياً من الأسئلة المعتمدة فقط</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('lms.quizzes_home') }}"
+           class="inline-flex items-center gap-2 px-5 h-12 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+          <span>إلغاء</span>
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+          <span>توليد الاختبار الآن</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}

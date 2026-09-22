@@ -1149,6 +1149,169 @@ def template_edit(tid):
     return render_template("lms/template_new.html", template=t, subjects=subjects)
 
 
+# ─── Blueprint Exam Generator (Stitch lms_4) ────────────────────────────
+@bp.route("/exams/blueprint/new", methods=["GET", "POST"],
+          endpoint="blueprint_exam_new")
+@login_required
+def blueprint_exam_new():
+    """Render the exam-blueprint composer. POST handled by
+    lms.blueprint_exam_create — kept as a separate endpoint so the form
+    can be reused (edit, retry) without re-rendering on success."""
+    sid = current_user.school_id
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    # Available approved-question counts per subject.
+    avail = dict(
+        db.session.query(
+            BankQuestion.subject_id, db.func.count(BankQuestion.id)
+        ).filter(
+            BankQuestion.school_id == sid,
+            BankQuestion.review_state == "approved",
+            BankQuestion.source == "school",
+        ).group_by(BankQuestion.subject_id).all()
+    )
+    subject_rows = [
+        {"subject_id": s.id, "subject_name": s.name, "available": avail.get(s.id, 0)}
+        for s in subjects
+    ]
+    from ...models import Section
+    sections = (
+        Section.query.filter_by(school_id=sid)
+        .order_by(Section.grade_id, Section.name).all()
+    )
+    return render_template(
+        "lms/blueprint_exam.html",
+        subject_rows=subject_rows,
+        sections=sections,
+    )
+
+
+@bp.route("/exams/blueprint/create", methods=["POST"],
+          endpoint="blueprint_exam_create")
+@login_required
+def blueprint_exam_create():
+    """POST target for the Blueprint form. Builds a Quiz + Questions
+    (with copied choices, unlike the JWT API twin) by drawing N approved
+    bank questions per subject."""
+    import random as _random
+    from ...models import Section, AcademicYear
+    sid = current_user.school_id
+    form = request.form
+    title = (form.get("title") or "").strip()
+    section_id = form.get("section_id", type=int)
+    duration = form.get("duration_minutes", type=int) or 60
+    shuffle_q = bool(form.get("shuffle_questions"))
+    shuffle_c = bool(form.get("shuffle_choices"))
+    if not (title and section_id):
+        flash("العنوان والشعبة مطلوبان", "error")
+        return redirect(url_for("lms.blueprint_exam_new"))
+
+    section = Section.query.filter_by(id=section_id, school_id=sid).first()
+    if not section:
+        flash("الشعبة غير موجودة", "error")
+        return redirect(url_for("lms.blueprint_exam_new"))
+    year = AcademicYear.query.filter_by(
+        school_id=sid, status="active").first() or AcademicYear.query.filter_by(
+        school_id=sid).order_by(AcademicYear.id.desc()).first()
+
+    # Collect per-subject picks from the form.
+    sources = []
+    for key, val in form.items():
+        if not key.startswith("subject_count_"):
+            continue
+        try:
+            subj_id = int(key.rsplit("_", 1)[-1])
+            count = int(val or 0)
+        except (TypeError, ValueError):
+            continue
+        if count <= 0:
+            continue
+        diff = (form.get(f"subject_difficulty_{subj_id}") or "").strip() or None
+        sources.append({"subject_id": subj_id, "count": count, "difficulty": diff})
+    if not sources:
+        flash("حدد عدد الأسئلة لمادة واحدة على الأقل", "error")
+        return redirect(url_for("lms.blueprint_exam_new"))
+
+    # Resolve/create a Course for the first source subject on this
+    # grade+year — matches the API twin's convention.
+    first = sources[0]
+    course = Course.query.filter_by(
+        school_id=sid,
+        academic_year_id=year.id if year else None,
+        grade_id=section.grade_id,
+        subject_id=first["subject_id"],
+    ).first()
+    if not course:
+        course = Course(
+            school_id=sid,
+            academic_year_id=year.id if year else None,
+            grade_id=section.grade_id,
+            subject_id=first["subject_id"],
+            title=f"{title} (Blueprint)",
+            is_published=True,
+        )
+        db.session.add(course)
+        db.session.flush()
+
+    quiz = Quiz(
+        course_id=course.id,
+        title=title,
+        description=(form.get("description") or "").strip(),
+        duration_minutes=duration,
+        shuffle_questions=shuffle_q,
+        is_published=False,
+    )
+    db.session.add(quiz)
+    db.session.flush()
+
+    from ...models import Choice as _Choice
+    order = 0
+    total = 0
+    for src in sources:
+        pool = BankQuestion.query.filter(
+            BankQuestion.school_id == sid,
+            BankQuestion.source == "school",
+            BankQuestion.review_state == "approved",
+            BankQuestion.subject_id == src["subject_id"],
+        )
+        if src["difficulty"]:
+            pool = pool.filter(BankQuestion.difficulty == src["difficulty"])
+        pool_list = pool.all()
+        if not pool_list:
+            continue
+        picks = _random.sample(pool_list, k=min(src["count"], len(pool_list)))
+        for bq in picks:
+            order += 1
+            q = Question(
+                quiz_id=quiz.id, order_index=order,
+                kind=bq.kind, prompt=bq.prompt,
+                points=bq.points or 1,
+                correct_short=bq.correct_short or "",
+                source_bank_id=bq.id,
+            )
+            db.session.add(q)
+            db.session.flush()
+            bchoices = list(bq.choices) if hasattr(bq, "choices") else []
+            if not bchoices:
+                # Fall back to an explicit query — the relationship may
+                # not be declared on BankQuestion in every schema build.
+                from ...models import BankChoice
+                bchoices = BankChoice.query.filter_by(question_id=bq.id).order_by(
+                    BankChoice.order_index).all()
+            if shuffle_c:
+                _random.shuffle(bchoices)
+            for i, bc in enumerate(bchoices):
+                db.session.add(_Choice(
+                    question_id=q.id,
+                    order_index=i,
+                    label=bc.label,
+                    is_correct=bool(bc.is_correct),
+                ))
+            total += 1
+    db.session.commit()
+    flash(f"تم توليد الاختبار «{quiz.title}» بـ {total} سؤال", "success")
+    return redirect(url_for("lms.quizzes_home"))
+
+
 @bp.route("/bank", endpoint="bank_home")
 @login_required
 def bank_home():
