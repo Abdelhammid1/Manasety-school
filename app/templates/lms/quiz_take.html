@@ -1,23 +1,67 @@
-{# Quiz taking — ported from Stitch _8. Focus-mode (no sidebar) so the student
-   concentrates. Minimal top chrome with countdown timer + exit. All questions
-   render in a single page with a sticky navigation strip; on submit, the auto-
-   grader in blueprints/lms/views.py :: quiz_submit stamps the attempt. #}
+{# Quiz taking — fullscreen exam mode with one-question-at-a-time nav.
+   - Start gate: student must click بدء الاختبار (needed as a user gesture
+     for the Fullscreen API to fire).
+   - Enforced fullscreen: exiting fullscreen or switching tabs triggers a
+     warning and auto-submits the attempt.
+   - Side navigator: vertical list of question numbers on the leading edge;
+     click to jump. Answered cells fill in with the primary color.
+   - Prev / Next stepper; on the last question, Next becomes إنهاء الاختبار.
+#}
 {% extends "partials/stitch_base.html" %}
 {% set shell_hidden = True %}
 {% block title %}{{ quiz.title }} — أداء الاختبار{% endblock %}
 
 {% block focus_content %}
-<div class="min-h-screen bg-surface flex flex-col">
+<div class="min-h-screen bg-surface flex flex-col" id="examRoot">
 
-  {# Top bar #}
+  {# ── Start gate overlay ── #}
+  <div id="startGate" class="fixed inset-0 z-[100] bg-gradient-to-br from-primary via-primary-container to-secondary text-on-primary flex items-center justify-center px-6">
+    <div class="max-w-xl w-full text-center space-y-6">
+      <div class="mx-auto w-20 h-20 rounded-3xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shadow-inner">
+        <span class="material-symbols-outlined text-5xl" style="font-variation-settings: 'FILL' 1;">school</span>
+      </div>
+      <div class="space-y-2">
+        <h1 class="font-headline-lg text-headline-lg font-bold leading-tight">{{ quiz.title }}</h1>
+        <p class="font-body-md text-body-md text-on-primary/85">
+          {{ questions|length }} سؤال · {{ quiz.duration_minutes }} دقيقة
+          {% if quiz.course %} · {{ quiz.course.title }}{% endif %}
+        </p>
+      </div>
+      <div class="bg-on-primary/10 backdrop-blur-md rounded-2xl p-5 text-right space-y-2 font-body-sm text-body-sm">
+        <div class="flex items-start gap-2">
+          <span class="material-symbols-outlined text-secondary-fixed shrink-0 mt-0.5">warning</span>
+          <span>سيبدأ الاختبار في وضع ملء الشاشة. الخروج من ملء الشاشة أو تبديل التبويب سيؤدي إلى تسليم الإجابات تلقائياً.</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="material-symbols-outlined text-secondary-fixed shrink-0 mt-0.5">timer</span>
+          <span>يبدأ العدّاد فور الضغط على «بدء الاختبار». لا يمكن إيقافه أو استئنافه.</span>
+        </div>
+        <div class="flex items-start gap-2">
+          <span class="material-symbols-outlined text-secondary-fixed shrink-0 mt-0.5">check_circle</span>
+          <span>يتم حفظ إجاباتك تلقائياً وترسل عند إنهاء الاختبار.</span>
+        </div>
+      </div>
+      <button type="button" id="startBtn"
+              class="inline-flex items-center justify-center gap-2 h-14 px-8 rounded-full bg-secondary-fixed text-on-secondary-fixed font-title-md text-title-md font-bold shadow-lg hover:brightness-105 active:scale-95 transition-all">
+        <span class="material-symbols-outlined text-2xl">play_arrow</span>
+        <span>بدء الاختبار</span>
+      </button>
+      <button type="button" onclick="window.location.href='{{ url_for('lms.quizzes_home') }}'"
+              class="block mx-auto text-on-primary/70 hover:text-on-primary text-label-md font-label-md underline decoration-dotted">
+        العودة إلى قائمة الاختبارات
+      </button>
+    </div>
+  </div>
+
+  {# ── Top bar ── #}
   <header class="sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl border-b border-outline-variant">
-    <div class="max-w-5xl mx-auto px-space-md py-3 flex items-center justify-between gap-space-md">
+    <div class="max-w-6xl mx-auto px-space-md py-3 flex items-center justify-between gap-space-md">
       <div class="flex items-center gap-space-sm min-w-0">
         <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-8 w-8 object-contain bg-white rounded-md p-1 shrink-0">
         <div class="flex flex-col min-w-0">
           <span class="font-title-md text-title-md text-primary font-bold truncate">{{ quiz.title }}</span>
           <span class="font-label-xs text-label-xs text-on-surface-variant truncate">
-            {{ quiz.course.title if quiz.course else '' }} · {{ questions|length }} سؤال · {{ quiz.duration_minutes }} دقيقة
+            السؤال <span id="curNum">1</span> من {{ questions|length }}
           </span>
         </div>
       </div>
@@ -26,96 +70,117 @@
           <span class="material-symbols-outlined">timer</span>
           <span id="timer" class="font-headline-sm text-headline-sm font-extrabold tabular-nums">--:--</span>
         </div>
-        <button type="button" onclick="if(confirm('الخروج سيفقد الإجابات غير المحفوظة — متأكد؟')) window.location='{{ url_for('lms.quizzes_home') }}'"
-                class="h-11 px-4 rounded-xl bg-surface-container-low text-error font-label-lg text-label-lg font-bold hover:bg-error-container transition-colors flex items-center gap-2">
-          <span class="material-symbols-outlined text-lg">logout</span>
-          <span class="hidden sm:inline">خروج</span>
+        <button type="button" onclick="openFinishConfirm()"
+                class="h-11 px-4 rounded-xl bg-error text-on-error font-label-lg text-label-lg font-bold hover:brightness-95 transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">stop_circle</span>
+          <span>إنهاء الاختبار</span>
         </button>
-      </div>
-    </div>
-    {# Progress strip: one cell per question #}
-    <div class="max-w-5xl mx-auto px-space-md pb-2 overflow-x-auto no-scrollbar">
-      <div class="flex items-center gap-1 py-1" id="progressStrip">
-        {% for q in questions %}
-        <button type="button" onclick="scrollToQ({{ loop.index }})"
-                class="progress-cell w-8 h-8 rounded-lg flex items-center justify-center font-label-md text-label-md font-bold text-on-surface-variant bg-surface-container-low hover:bg-surface-container transition-colors"
-                data-qn="{{ loop.index }}">{{ loop.index }}</button>
-        {% endfor %}
       </div>
     </div>
   </header>
 
-  {# Form #}
-  <form method="post" action="{{ url_for('lms.quiz_submit', qid=quiz.id) }}" id="quizForm"
-        class="flex-1 max-w-3xl w-full mx-auto px-space-md py-space-lg flex flex-col gap-space-lg">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+  {# ── Body: side navigator + question stage ── #}
+  <div class="flex-1 max-w-6xl w-full mx-auto flex flex-col md:flex-row gap-space-md px-space-md py-space-md">
 
-    {% for q in questions %}
-    <section id="q{{ loop.index }}" class="question-card bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm scroll-mt-32" data-qn="{{ loop.index }}">
-      <div class="flex items-center justify-between mb-space-sm">
-        <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-semibold">
-          <span class="material-symbols-outlined text-sm">quiz</span>
-          السؤال {{ loop.index }} من {{ questions|length }}
-        </span>
-        <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">
-          {{ q.points }} نقطة
-        </span>
-      </div>
-
-      <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold leading-relaxed whitespace-pre-line">{{ q.prompt }}</h2>
-
-      <div class="mt-space-md flex flex-col gap-2">
-        {% if q.kind in ('mcq','tf') %}
-          {% for c in q.choices %}
-          <label class="choice-row flex items-center gap-3 p-3 rounded-xl border-2 border-transparent bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
-            <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}" onchange="markAnswered()"
-                   class="w-5 h-5 accent-primary">
-            <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
-          </label>
+    {# Side navigator #}
+    <aside class="md:w-56 shrink-0 order-2 md:order-1">
+      <div class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-md md:sticky md:top-24">
+        <div class="flex items-center justify-between mb-3">
+          <span class="font-label-lg text-label-lg font-bold text-on-surface">الأسئلة</span>
+          <span class="font-label-xs text-label-xs text-on-surface-variant">
+            <span id="answeredCount">0</span>/{{ questions|length }}
+          </span>
+        </div>
+        <div class="grid grid-cols-5 md:grid-cols-4 gap-1.5" id="qNav">
+          {% for q in questions %}
+          <button type="button" onclick="goTo({{ loop.index }})"
+                  class="q-cell w-full aspect-square rounded-lg flex items-center justify-center font-label-md text-label-md font-bold text-on-surface-variant bg-surface-container-low hover:bg-surface-container transition-colors"
+                  data-qn="{{ loop.index }}">{{ loop.index }}</button>
           {% endfor %}
-        {% elif q.kind == 'multi' %}
-          {% for c in q.choices %}
-          <label class="choice-row flex items-center gap-3 p-3 rounded-xl border-2 border-transparent bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
-            <input type="checkbox" name="q_{{ q.id }}[]" value="{{ c.id }}" onchange="markAnswered()"
-                   class="w-5 h-5 accent-primary">
-            <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
-          </label>
-          {% endfor %}
-          <p class="font-label-xs text-label-xs text-on-surface-variant">يمكن اختيار أكثر من إجابة.</p>
-        {% elif q.kind == 'short' %}
-          <input type="text" name="q_{{ q.id }}_text" oninput="markAnswered()"
-                 placeholder="أدخل إجابتك القصيرة..."
-                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
-        {% else %}{# essay #}
-          <textarea name="q_{{ q.id }}_text" rows="6" oninput="markAnswered()"
-                    placeholder="اكتب إجابتك المقالية هنا. تُصحّح يدوياً بواسطة المعلم."
-                    class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors leading-loose"></textarea>
-        {% endif %}
+        </div>
+        <div class="mt-4 pt-4 border-t border-surface-container-low space-y-1.5 font-label-xs text-label-xs">
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-primary"></span><span class="text-on-surface-variant">تمت الإجابة</span></div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-secondary-fixed"></span><span class="text-on-surface-variant">السؤال الحالي</span></div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-surface-container-low border border-outline-variant"></span><span class="text-on-surface-variant">لم تجب بعد</span></div>
+        </div>
       </div>
-    </section>
-    {% endfor %}
+    </aside>
 
-    {# Sticky submit bar #}
-    <div class="sticky bottom-4 bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_-4px_20px_rgba(12,36,97,0.10)] flex items-center justify-between gap-space-md z-30">
-      <div class="flex items-center gap-space-sm">
-        <span class="w-3 h-3 rounded-full bg-secondary animate-pulse"></span>
-        <span class="font-label-md text-label-md text-on-surface-variant">
-          <span id="answeredCount">0</span> من {{ questions|length }} سؤالاً تمت الإجابة عليه
-        </span>
+    {# Question stage #}
+    <form method="post" action="{{ url_for('lms.quiz_submit', qid=quiz.id) }}" id="quizForm"
+          class="flex-1 order-1 md:order-2 flex flex-col gap-space-md">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="attempt_id" value="{{ attempt.id }}">
+      <input type="hidden" name="auto_submitted" id="autoSubmitFlag" value="">
+
+      {% for q in questions %}
+      <section id="q{{ loop.index }}" data-qn="{{ loop.index }}"
+               class="question-card bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm {% if not loop.first %}hidden{% endif %}">
+        <div class="flex items-center justify-between mb-space-md">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-bold">
+            <span class="material-symbols-outlined text-sm">quiz</span>
+            السؤال {{ loop.index }} من {{ questions|length }}
+          </span>
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">
+            {{ q.points }} نقطة
+          </span>
+        </div>
+
+        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold leading-relaxed whitespace-pre-line">{{ q.prompt }}</h2>
+
+        <div class="mt-space-md flex flex-col gap-2">
+          {% if q.kind in ('mcq','tf') %}
+            {% for c in q.choices %}
+            <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+              <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}" onchange="markAnswered()"
+                     class="w-5 h-5 accent-primary">
+              <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
+            </label>
+            {% endfor %}
+          {% elif q.kind == 'multi' %}
+            {% for c in q.choices %}
+            <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
+              <input type="checkbox" name="q_{{ q.id }}[]" value="{{ c.id }}" onchange="markAnswered()"
+                     class="w-5 h-5 accent-primary">
+              <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
+            </label>
+            {% endfor %}
+            <p class="font-label-xs text-label-xs text-on-surface-variant">يمكن اختيار أكثر من إجابة.</p>
+          {% elif q.kind == 'short' %}
+            <input type="text" name="q_{{ q.id }}_text" oninput="markAnswered()"
+                   placeholder="أدخل إجابتك القصيرة..."
+                   class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+          {% else %}{# essay #}
+            <textarea name="q_{{ q.id }}_text" rows="6" oninput="markAnswered()"
+                      placeholder="اكتب إجابتك المقالية هنا. تُصحّح يدوياً بواسطة المعلم."
+                      class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors leading-loose"></textarea>
+          {% endif %}
+        </div>
+      </section>
+      {% endfor %}
+
+      {# Prev/Next stepper #}
+      <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex items-center justify-between gap-space-md">
+        <button type="button" id="prevBtn" onclick="goPrev()"
+                class="h-11 px-5 rounded-xl bg-surface-container-low text-on-surface font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed">
+          <span class="material-symbols-outlined text-lg">arrow_forward</span>
+          <span>السابق</span>
+        </button>
+        <div class="font-label-md text-label-md text-on-surface-variant">
+          <span id="curNumFooter">1</span> / {{ questions|length }}
+        </div>
+        <button type="button" id="nextBtn" onclick="goNext()"
+                class="h-11 px-5 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg font-bold hover:bg-primary-container transition-colors flex items-center gap-2">
+          <span id="nextLabel">التالي</span>
+          <span class="material-symbols-outlined text-lg" id="nextIcon">arrow_back</span>
+        </button>
       </div>
-      <button type="button" onclick="openConfirm()"
-              class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-        <span class="material-symbols-outlined text-xl">send</span>
-        <span>إنهاء وإرسال الاختبار</span>
-      </button>
-    </div>
-  </form>
+    </form>
+  </div>
 </div>
 
-{# Confirm modal #}
-<div id="confirmModal" class="modal-backdrop" hidden>
+{# ── Finish confirm modal ── #}
+<div id="finishModal" class="modal-backdrop" hidden>
   <div class="modal-card size-standard p-space-lg">
     <div class="flex items-start gap-space-md">
       <div class="w-12 h-12 rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-center justify-center shrink-0">
@@ -135,9 +200,8 @@
               class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">
         متابعة الاختبار
       </button>
-      <button type="button" onclick="document.getElementById('quizForm').submit()"
-              class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+      <button type="button" onclick="submitAttempt(false)"
+              class="h-11 px-6 rounded-xl bg-primary text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:brightness-105 transition-all">
         <span class="material-symbols-outlined text-xl">check_circle</span>
         <span>إرسال الآن</span>
       </button>
@@ -145,17 +209,95 @@
   </div>
 </div>
 
+{# ── Exit warning modal (fires when student leaves fullscreen or switches tab) ── #}
+<div id="exitWarn" class="modal-backdrop" hidden>
+  <div class="modal-card size-standard p-space-lg">
+    <div class="flex items-start gap-space-md">
+      <div class="w-12 h-12 rounded-xl bg-error-container text-error flex items-center justify-center shrink-0 shadow-sm">
+        <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">gpp_bad</span>
+      </div>
+      <div class="flex-1">
+        <h3 class="font-title-md text-title-md text-error font-bold">خرجت من وضع الاختبار</h3>
+        <p class="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
+          لا يمكنك العودة لهذا الاختبار مرة أخرى. سيتم تسليم إجاباتك الحالية تلقائياً خلال
+          <b><span id="exitCd">5</span></b> ثوانٍ.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   const HARD_STOP = new Date("{{ hard_stop_iso }}").getTime();
+  const TOTAL_MS  = HARD_STOP - {{ ((attempt.started_at.timestamp() * 1000) | int) if attempt.started_at else 0 }};
+  const TOTAL_Q   = {{ questions|length }};
+  const cards = Array.from(document.querySelectorAll('.question-card'));
+  const cells = Array.from(document.querySelectorAll('.q-cell'));
+  let cur = 1;
+  let started = false;
+  let submitting = false;
+
+  // ── Question navigation ─────────────────────────────────────────
+  function paintCurrent(){
+    cards.forEach((c,i) => c.classList.toggle('hidden', (i+1) !== cur));
+    cells.forEach((cell,i) => {
+      cell.classList.remove('bg-secondary-fixed','text-on-secondary-fixed','ring-2','ring-secondary');
+      if ((i+1) === cur){
+        cell.classList.add('bg-secondary-fixed','text-on-secondary-fixed','ring-2','ring-secondary');
+      }
+    });
+    document.getElementById('curNum').textContent = cur;
+    document.getElementById('curNumFooter').textContent = cur;
+    document.getElementById('prevBtn').disabled = (cur === 1);
+    const isLast = (cur === TOTAL_Q);
+    document.getElementById('nextLabel').textContent = isLast ? 'إنهاء الاختبار' : 'التالي';
+    document.getElementById('nextIcon').textContent  = isLast ? 'send' : 'arrow_back';
+    document.getElementById('nextBtn').classList.toggle('bg-error', isLast);
+    document.getElementById('nextBtn').classList.toggle('text-on-error', isLast);
+    document.getElementById('nextBtn').classList.toggle('bg-primary', !isLast);
+    document.getElementById('nextBtn').classList.toggle('text-on-primary', !isLast);
+  }
+  window.goTo = function(n){
+    if (!started) return;
+    cur = Math.max(1, Math.min(TOTAL_Q, n));
+    paintCurrent();
+    window.scrollTo({top:0, behavior:'smooth'});
+  };
+  window.goPrev = function(){ if (cur > 1) goTo(cur-1); };
+  window.goNext = function(){
+    if (cur < TOTAL_Q) { goTo(cur+1); }
+    else { openFinishConfirm(); }
+  };
+
+  // ── Answered tracker (repaints sidebar cells) ────────────────────
+  window.markAnswered = function(){
+    let n = 0;
+    cards.forEach((sec, idx) => {
+      const hasAns = Array.from(sec.querySelectorAll('input[type="radio"],input[type="checkbox"]')).some(i => i.checked)
+        || Array.from(sec.querySelectorAll('input[type="text"],textarea')).some(i => (i.value||'').trim());
+      const cell = cells[idx];
+      if (hasAns){
+        n++;
+        cell.classList.add('bg-primary','text-on-primary');
+        cell.classList.remove('bg-surface-container-low','text-on-surface-variant');
+      } else if ((idx+1) !== cur) {
+        cell.classList.remove('bg-primary','text-on-primary');
+        cell.classList.add('bg-surface-container-low','text-on-surface-variant');
+      }
+    });
+    document.getElementById('answeredCount').textContent = n;
+    document.getElementById('mAnswered').textContent = n;
+  };
+
+  // ── Timer ─────────────────────────────────────────────────────────
   const timer = document.getElementById('timer');
   const box = document.getElementById('timerBox');
-
   function tick(){
     const ms = HARD_STOP - Date.now();
     if (ms <= 0){
       timer.textContent = '00:00:00';
-      document.getElementById('quizForm').submit();
+      submitAttempt(true);
       return;
     }
     const s = Math.floor(ms/1000);
@@ -163,35 +305,75 @@
     const mm = String(Math.floor((s%3600)/60)).padStart(2,'0');
     const ss = String(s%60).padStart(2,'0');
     timer.textContent = `${hh}:${mm}:${ss}`;
-    // Warn colors: amber under 20% of duration remaining, red under 5%.
-    const totalMs = HARD_STOP - {{ ((attempt.started_at.timestamp() * 1000) | int) if attempt.started_at else 0 }};
-    if (ms/totalMs < 0.05) box.style.background = '#EF4444';
-    else if (ms/totalMs < 0.20) box.style.background = '#F59E0B';
+    if (TOTAL_MS > 0){
+      if (ms/TOTAL_MS < 0.05) box.style.background = '#EF4444';
+      else if (ms/TOTAL_MS < 0.20) box.style.background = '#F59E0B';
+    }
   }
   tick(); setInterval(tick, 1000);
 
-  window.scrollToQ = function(n){
-    const el = document.getElementById('q'+n);
-    if (el) el.scrollIntoView({behavior:'smooth', block:'start'});
+  // ── Fullscreen enforcement ────────────────────────────────────────
+  function requestFs(){
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+    if (req) { try { req.call(el); } catch(e){} }
+  }
+  function inFs(){
+    return !!(document.fullscreenElement || document.webkitFullscreenElement || document.msFullscreenElement);
+  }
+
+  function beginExam(){
+    started = true;
+    document.getElementById('startGate').style.display = 'none';
+    requestFs();
+    paintCurrent();
+    markAnswered();
+  }
+  document.getElementById('startBtn').addEventListener('click', beginExam);
+
+  // ── Exit warning + auto-submit ────────────────────────────────────
+  function triggerExitWarn(reason){
+    if (!started || submitting) return;
+    openModal('#exitWarn');
+    let s = 5;
+    document.getElementById('exitCd').textContent = s;
+    const it = setInterval(() => {
+      s -= 1;
+      document.getElementById('exitCd').textContent = s;
+      if (s <= 0){
+        clearInterval(it);
+        submitAttempt(true);
+      }
+    }, 1000);
+  }
+
+  document.addEventListener('fullscreenchange', () => {
+    if (started && !inFs() && !submitting) triggerExitWarn('fullscreen-exit');
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (started && document.hidden && !submitting) triggerExitWarn('tab-switch');
+  });
+
+  // ── Submit paths ──────────────────────────────────────────────────
+  window.submitAttempt = function(auto){
+    if (submitting) return;
+    submitting = true;
+    document.getElementById('autoSubmitFlag').value = auto ? '1' : '';
+    document.getElementById('quizForm').submit();
+  };
+  window.openFinishConfirm = function(){
+    if (!started) return;
+    markAnswered();
+    openModal('#finishModal');
   };
 
-  const cells = Array.from(document.querySelectorAll('.progress-cell'));
-  function recount(){
-    let n = 0;
-    document.querySelectorAll('.question-card').forEach((sec, idx) => {
-      const hasAns = Array.from(sec.querySelectorAll('input[type="radio"],input[type="checkbox"]')).some(i => i.checked)
-        || Array.from(sec.querySelectorAll('input[type="text"],textarea')).some(i => (i.value||'').trim());
-      const cell = cells[idx];
-      if (hasAns){ n++; cell.classList.add('bg-primary','text-on-primary'); cell.classList.remove('bg-surface-container-low','text-on-surface-variant'); }
-      else { cell.classList.remove('bg-primary','text-on-primary'); cell.classList.add('bg-surface-container-low','text-on-surface-variant'); }
-    });
-    document.getElementById('answeredCount').textContent = n;
-    document.getElementById('mAnswered').textContent = n;
-  }
-  window.markAnswered = recount;
-  recount();
-
-  window.openConfirm = function(){ recount(); openModal('#confirmModal'); };
+  // Belt-and-braces: on unload, ping submit as well if the attempt is live.
+  window.addEventListener('beforeunload', (e) => {
+    if (started && !submitting){
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
 })();
 </script>
 {% endblock %}
