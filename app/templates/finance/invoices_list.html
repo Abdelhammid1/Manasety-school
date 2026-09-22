@@ -42,7 +42,7 @@
         <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
       </div>
       <div class="font-headline-md text-headline-md text-primary font-bold mt-2 tabular-nums">
-        {% if val is number %}{{ val|round(2) }}{% else %}{{ val }}{% endif %}
+        {% if val is number and label != 'متأخرة' %}{{ val|round(2) }} <span class="text-body-md text-on-surface-variant font-normal">ر.س</span>{% elif val is number %}{{ val }}{% else %}{{ val }}{% endif %}
       </div>
     </div>
     {% endfor %}
@@ -77,9 +77,9 @@
               </div>
             </td>
             <td class="px-4 py-3 font-label-md text-label-md text-on-surface-variant tabular-nums">{{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '' }}</td>
-            <td class="px-4 py-3 text-left font-label-lg font-bold text-primary tabular-nums">{{ inv.total_amount|round(2) }}</td>
-            <td class="px-4 py-3 text-left font-label-lg font-bold text-[#10B981] tabular-nums">{{ inv.paid_amount|round(2) }}</td>
-            <td class="px-4 py-3 text-left font-label-lg font-bold text-error tabular-nums">{{ (inv.total_amount - inv.paid_amount)|round(2) }}</td>
+            <td class="px-4 py-3 text-left font-label-lg font-bold text-primary tabular-nums">{{ inv.total_amount|round(2) }} <span class="text-label-sm text-outline font-normal">ر.س</span></td>
+            <td class="px-4 py-3 text-left font-label-lg font-bold text-[#10B981] tabular-nums">{{ inv.paid_amount|round(2) }} <span class="text-label-sm text-outline font-normal">ر.س</span></td>
+            <td class="px-4 py-3 text-left font-label-lg font-bold text-error tabular-nums">{{ (inv.total_amount - inv.paid_amount)|round(2) }} <span class="text-label-sm text-outline font-normal">ر.س</span></td>
             <td class="px-4 py-3 text-center">
               {% if inv.status == 'paid' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">مدفوعة</span>
               {% elif inv.status == 'partial' %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">جزئية</span>

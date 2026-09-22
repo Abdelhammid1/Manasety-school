@@ -142,7 +142,7 @@ class _LogoTile extends StatelessWidget {
       boxShadow: ManasetyBrand.shadowDefault,
     ),
     child: const Padding(padding: EdgeInsets.all(16),
-      child: ManasetyWordmark()),
+      child: ManasetyWordmark(color: ManasetyBrand.navy)),
   );
 }
 

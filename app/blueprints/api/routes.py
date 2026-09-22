@@ -55,10 +55,10 @@ def login():
     username = (data.get("username") or "").strip()
     password = data.get("password") or ""
     if not username or not password:
-        return _err("missing credentials")
+        return _err("الرجاء إدخال اسم المستخدم وكلمة المرور.")
     user = User.query.filter_by(username=username).first()
     if not user or not user.is_active or not user.check_password(password):
-        return _err("invalid credentials", 401)
+        return _err("اسم المستخدم أو كلمة المرور غير صحيحة.", 401)
 
     user.last_login_at = datetime.utcnow()
     db.session.commit()
