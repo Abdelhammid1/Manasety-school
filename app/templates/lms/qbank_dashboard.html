@@ -410,6 +410,33 @@
               </td>
               <td class="py-4 px-4 text-center">
                 <div class="flex items-center justify-center gap-1 text-outline">
+                  {% if q.review_state != 'approved' %}
+                  <form method="post" action="{{ url_for('lms.bank_set_state', bid=q.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="state" value="approved">
+                    <button type="submit" class="p-1.5 hover:text-emerald-600 transition-colors" title="اعتماد السؤال">
+                      <span class="material-symbols-outlined text-[18px]">task_alt</span>
+                    </button>
+                  </form>
+                  {% endif %}
+                  {% if q.review_state != 'pending' %}
+                  <form method="post" action="{{ url_for('lms.bank_set_state', bid=q.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="state" value="pending">
+                    <button type="submit" class="p-1.5 hover:text-amber-600 transition-colors" title="إرسال للمراجعة">
+                      <span class="material-symbols-outlined text-[18px]">pending</span>
+                    </button>
+                  </form>
+                  {% endif %}
+                  {% if q.review_state != 'rejected' %}
+                  <form method="post" action="{{ url_for('lms.bank_set_state', bid=q.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="state" value="rejected">
+                    <button type="submit" class="p-1.5 hover:text-rose-600 transition-colors" title="رفض السؤال">
+                      <span class="material-symbols-outlined text-[18px]">block</span>
+                    </button>
+                  </form>
+                  {% endif %}
                   <a href="{{ url_for('lms.bank_edit', bid=q.id) }}" class="p-1.5 hover:text-secondary transition-colors" title="تعديل">
                     <span class="material-symbols-outlined text-[18px]">edit</span>
                   </a>

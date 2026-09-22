@@ -1471,6 +1471,38 @@ def bank_delete(bid):
     return redirect(url_for("lms.bank_home"))
 
 
+BANK_STATE_LABEL = {
+    "approved":  ("تم اعتماد السؤال.",   "success"),
+    "pending":   ("تم إرساله للمراجعة.", "info"),
+    "rejected":  ("تم رفض السؤال.",     "warning"),
+    "draft":     ("تم إرجاعه لمسودة.",  "info"),
+    "no_answer": ("تم وسمه (بدون إجابة).", "warning"),
+    "duplicate": ("تم وسمه (متشابه).",  "warning"),
+}
+
+
+@bp.route("/bank/<int:bid>/state", methods=["POST"], endpoint="bank_set_state")
+@login_required
+def bank_set_state(bid):
+    """Move a bank question through the Qdrat-parity review workflow.
+    The classic /bank UI just shows the current state; this endpoint is
+    what the Stitch qbank_dashboard uses to actually drive transitions
+    from the row's inline action buttons."""
+    item = BankQuestion.query.filter_by(
+        id=bid, school_id=current_user.school_id).first_or_404()
+    new_state = (request.form.get("state") or "").strip()
+    if new_state not in BANK_STATE_LABEL:
+        abort(400)
+    item.review_state = new_state
+    note = (request.form.get("note") or "").strip()
+    if note:
+        item.review_notes = note
+    db.session.commit()
+    msg, category = BANK_STATE_LABEL[new_state]
+    flash(msg, category)
+    return redirect(request.referrer or url_for("lms.qbank_dashboard"))
+
+
 # --- Picker: pull questions from the bank into a specific quiz -----------
 
 @bp.route("/quizzes/<int:qid>/pick", methods=["GET", "POST"], endpoint="quiz_pick_from_bank")
