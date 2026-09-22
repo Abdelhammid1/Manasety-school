@@ -409,7 +409,9 @@ def invoice_new():
         # any of the picked fee types are is_taxable, we accumulate tax
         # on their subtotals; the invoice's total_amount stays GROSS
         # (net + tax) so downstream paid/remaining math is unchanged.
-        from ...models import School
+        # (School is already imported at the module top — a nested
+        # `from ...models import School` here would rebind it as a
+        # local and break the GET-branch reference at line 505.)
         school = db.session.get(School, _sid())
         default_rate = Decimal(str(school.default_tax_rate or 0))
 
