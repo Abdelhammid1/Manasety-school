@@ -53,6 +53,13 @@
           <span class="material-symbols-outlined text-[20px] text-secondary-fixed">check_circle</span>
           <span>اعتماد الجاهز ({{ stats.pending }})</span>
         </a>
+        <form method="post" action="{{ url_for('lms.bank_ai_review') }}" class="inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="flex items-center gap-2 px-5 py-3 rounded-xl bg-gradient-to-l from-fuchsia-500 to-violet-600 text-white transition-all font-label-lg text-label-lg shadow-sm hover:shadow-md">
+            <span class="material-symbols-outlined text-[20px]">auto_awesome</span>
+            <span>مراجعة ذكية بالذكاء الاصطناعي</span>
+          </button>
+        </form>
         {% endif %}
         <a href="{{ url_for('lms.bank_smart_new') }}"
            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-container-lowest text-primary hover:bg-surface-container-low transition-all font-label-lg text-label-lg shadow-md hover:shadow-lg">
@@ -61,6 +68,29 @@
         </a>
       </div>
     </div>
+  </section>
+
+  {# Archive / Active toggle + housekeeping strip #}
+  <section class="flex items-center justify-between flex-wrap gap-space-sm bg-surface-container-lowest rounded-xl px-space-md py-2 shadow-sm">
+    <div class="inline-flex rounded-full bg-surface-container-low p-1">
+      <a href="{{ url_for('lms.qbank_dashboard') }}"
+         class="px-4 py-1.5 rounded-full font-label-md text-label-md font-bold transition-all
+                {% if not show_archive %}bg-primary text-on-primary shadow-sm{% else %}text-on-surface-variant{% endif %}">
+        النشطة ({{ (stats.total - stats.archived) if not show_archive else (stats.total) }})
+      </a>
+      <a href="?archive=1"
+         class="px-4 py-1.5 rounded-full font-label-md text-label-md font-bold transition-all
+                {% if show_archive %}bg-primary text-on-primary shadow-sm{% else %}text-on-surface-variant{% endif %}">
+        الأرشيف ({{ stats.archived }})
+      </a>
+    </div>
+    {% if stats.unclassified > 0 %}
+    <a href="?subject_id=" onclick="return false;"
+       class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 font-label-md text-label-md hover:bg-amber-100 transition-colors">
+      <span class="material-symbols-outlined text-[18px]">warning</span>
+      <span>{{ stats.unclassified }} سؤال غير مصنّف بعد — بحاجة إلى مادة أو محور</span>
+    </a>
+    {% endif %}
   </section>
 
   {# ── 2. Four KPI cards ────────────────────────────────────────── #}
@@ -383,14 +413,21 @@
             {% set st = state_meta.get(q.review_state, ('—', 'bg-surface-container text-outline', 'bg-outline')) %}
             {% set df = diff_meta.get(q.difficulty, ('—', 'bg-surface-container text-outline')) %}
             <tr class="hover:bg-surface-container-low/60 transition-colors">
-              <td class="py-4 px-4 font-semibold text-outline">#{{ q.id }}</td>
+              <td class="py-4 px-4 font-semibold text-outline">
+                {% if q.code %}
+                <div class="font-mono text-primary text-label-xs">{{ q.code }}</div>
+                {% endif %}
+                <div>#{{ q.id }}</div>
+              </td>
               <td class="py-4 px-4">
                 <div class="flex flex-col gap-1">
                   <span class="font-semibold text-on-surface line-clamp-1">{{ q.prompt|truncate(90) }}</span>
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 flex-wrap">
                     <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs text-label-xs">
                       {% if q.kind == 'mcq' %}اختيار من متعدد{% elif q.kind == 'multi' %}متعدد الإجابات{% elif q.kind == 'tf' %}صح/خطأ{% elif q.kind == 'short' %}إجابة قصيرة{% elif q.kind == 'essay' %}مقالي{% else %}{{ q.kind }}{% endif %}
                     </span>
+                    {% if q.uuid %}<span class="font-mono text-outline font-label-xs text-label-xs" title="{{ q.uuid }}">{{ q.uuid[:8] }}</span>{% endif %}
+                    {% if q.is_archived %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-label-xs text-label-xs font-bold"><span class="material-symbols-outlined text-[12px]">archive</span>مؤرشف</span>{% endif %}
                   </div>
                 </div>
               </td>
@@ -437,6 +474,12 @@
                     </button>
                   </form>
                   {% endif %}
+                  <form method="post" action="{{ url_for('lms.bank_archive', bid=q.id) }}" class="inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="p-1.5 {% if q.is_archived %}text-emerald-600{% else %}text-outline hover:text-amber-600{% endif %} transition-colors" title="{% if q.is_archived %}استعادة من الأرشيف{% else %}أرشفة{% endif %}">
+                      <span class="material-symbols-outlined text-[18px]">{% if q.is_archived %}unarchive{% else %}archive{% endif %}</span>
+                    </button>
+                  </form>
                   <a href="{{ url_for('lms.bank_edit', bid=q.id) }}" class="p-1.5 hover:text-secondary transition-colors" title="تعديل">
                     <span class="material-symbols-outlined text-[18px]">edit</span>
                   </a>

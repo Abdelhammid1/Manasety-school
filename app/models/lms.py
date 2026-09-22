@@ -13,6 +13,7 @@ Note: the existing `teacher.Assignment` model represents a *teaching assignment*
 `CourseAssignment` to avoid the name clash.
 """
 from datetime import datetime, timezone
+from sqlalchemy.sql import false as sa_false
 
 from ..extensions import db
 
@@ -424,6 +425,15 @@ class BankQuestion(db.Model):
                               nullable=True, index=True)
     nafis_level   = db.Column(db.String(4), nullable=True, index=True)
 
+    # Qdrat-parity pt2 — 2-level skill taxonomy (axis → indicator) plus
+    # printable public code + anti-piracy UUID + archive soft-hide.
+    axis_id       = db.Column(db.Integer, nullable=True, index=True)
+    indicator_id  = db.Column(db.Integer, nullable=True, index=True)
+    code          = db.Column(db.String(32), nullable=True, index=True)
+    uuid          = db.Column(db.String(36), nullable=True)
+    is_archived   = db.Column(db.Boolean, nullable=False,
+                              default=False, server_default=sa_false())
+
     created_at    = db.Column(db.DateTime(timezone=True), default=_utcnow)
     updated_at    = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
@@ -584,12 +594,59 @@ class AssessmentTemplateItem(db.Model):
     )
     order_index = db.Column(db.Integer, default=0, nullable=False)
     points_override = db.Column(db.Numeric(6, 2), nullable=True)
+    # Qdrat-parity #8 — soft-hide an item from a specific template without
+    # deleting the row. The template still exposes it in "archive" views for
+    # audit purposes.
+    is_hidden = db.Column(db.Boolean, nullable=False,
+                          default=False, server_default=sa_false())
 
     bank_question = db.relationship("BankQuestion")
 
     __table_args__ = (
         db.UniqueConstraint("template_id", "bank_question_id",
                             name="uq_asstmpl_q"),
+    )
+
+
+# ── Qdrat-parity 2-level taxonomy (Axis + Indicator) ─────────────────
+# Every school owns its own taxonomy tree, so a rename in school A can
+# never leak into school B's item bank. The bank stores axis_id +
+# indicator_id as plain FKs; the models mirror qdrat's المحور / المؤشر
+# fields on the smart-question form.
+
+class Axis(db.Model):
+    __tablename__ = "axes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    indicators = db.relationship("Indicator", backref="axis",
+                                 cascade="all, delete-orphan",
+                                 order_by="Indicator.order_index")
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "name", name="uq_axes_school_name"),
+    )
+
+
+class Indicator(db.Model):
+    __tablename__ = "indicators"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    axis_id = db.Column(db.Integer, db.ForeignKey("axes.id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    name = db.Column(db.String(160), nullable=False)
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("axis_id", "name", name="uq_indicators_axis_name"),
     )
 
 

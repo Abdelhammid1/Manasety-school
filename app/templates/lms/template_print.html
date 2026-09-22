@@ -1,0 +1,122 @@
+{# Print-friendly render of an AssessmentTemplate. Two modes:
+   - continuous → all questions flow on the same pages
+   - per-page  → each question forces `page-break-after: always`
+   Opens with window.print() so the browser dialog fires on load.
+   Prints on A4, Cairo/Amiri Arabic UI, header on every printed page
+   via CSS position:running (falls back on browsers without support). #}
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <title>{{ template.title }} — طباعة</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Amiri:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body { font-family: 'Cairo', 'Amiri', serif; margin: 0; padding: 24px; color: #191c1e; background: #fff; font-size: 14px; line-height: 1.7; }
+    .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #00236F; margin-bottom: 20px; }
+    .header h1 { font-size: 20px; margin: 0; color: #00236F; font-weight: 800; }
+    .header .meta { text-align: left; font-size: 12px; color: #444651; }
+    .header .code { font-family: monospace; background: #f2f4f7; border-radius: 6px; padding: 2px 8px; font-weight: bold; letter-spacing: 1px; }
+    .student-line { display: flex; gap: 24px; padding: 8px 0 20px; border-bottom: 1px dashed #c5c5d3; font-size: 13px; margin-bottom: 20px; }
+    .student-line .field { flex: 1; }
+    .student-line .field span { display: inline-block; min-width: 60px; color: #444651; font-weight: bold; }
+    .student-line .field .dots { display: inline-block; border-bottom: 1px dotted #757682; height: 16px; min-width: 180px; vertical-align: bottom; }
+    .q { padding: 14px 0; border-bottom: 1px dashed #e0e3e6; }
+    .q .row { display: flex; align-items: flex-start; gap: 12px; }
+    .q .num { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; background: #dce1ff; color: #00236F; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+    .q .prompt { flex: 1; font-weight: 600; }
+    .q .code { font-family: monospace; font-size: 11px; color: #757682; }
+    .q .choices { padding: 6px 44px 4px; }
+    .q .choice { padding: 4px 0; font-size: 13px; }
+    .q .choice .letter { display: inline-block; width: 20px; height: 20px; border-radius: 50%; border: 1px solid #757682; text-align: center; font-weight: bold; margin-left: 8px; }
+    .q .short-line { padding: 8px 44px; }
+    .q .short-line .rule { border-bottom: 1px solid #444651; height: 20px; margin-bottom: 6px; }
+    .footer { position: fixed; bottom: 10px; left: 24px; right: 24px; text-align: center; font-size: 10px; color: #757682; }
+    .footer .uuid { font-family: monospace; font-size: 9px; }
+    {% if mode == 'per-page' %}.q { page-break-after: always; border-bottom: none; }{% endif %}
+    @page { margin: 15mm 12mm 20mm 12mm; }
+    @media print {
+      body { padding: 0; }
+      .no-print { display: none !important; }
+      .header { break-inside: avoid; }
+      .q { break-inside: avoid; }
+    }
+    .toolbar { position: fixed; top: 12px; left: 12px; display: flex; gap: 8px; z-index: 10; }
+    .toolbar button, .toolbar a { padding: 8px 14px; border-radius: 8px; border: none; font-family: 'Cairo', serif; font-weight: 700; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+    .toolbar .primary { background: linear-gradient(135deg, #1E3A8A, #0099CC); color: white; }
+    .toolbar .secondary { background: #fff; color: #00236F; border: 1px solid #c5c5d3; }
+  </style>
+</head>
+<body>
+  <div class="toolbar no-print">
+    <button class="primary" onclick="window.print()">🖨️ طباعة</button>
+    <a class="secondary" href="{{ url_for('lms.template_detail', tid=template.id) }}">← رجوع</a>
+    <a class="secondary" href="?mode={{ 'continuous' if mode == 'per-page' else 'per-page' }}">
+      {% if mode == 'per-page' %}⇋ عرض متصل{% else %}⇋ صفحة لكل سؤال{% endif %}
+    </a>
+  </div>
+
+  <div class="header">
+    <div>
+      <h1>{{ template.title }}</h1>
+      <div class="meta">
+        {% if template.code %}<span class="code">#{{ template.code }}</span>{% endif %}
+        {% if template.subject %} · {{ template.subject.name }}{% endif %}
+        {% if template.grade %} · {{ template.grade.name }}{% endif %}
+        · {{ items|length }} سؤال
+      </div>
+    </div>
+    <div class="meta">
+      منصتي LMS<br>
+      {{ template.created_at.strftime('%Y-%m-%d') if template.created_at else '' }}
+    </div>
+  </div>
+
+  <div class="student-line">
+    <div class="field"><span>الاسم:</span><span class="dots"></span></div>
+    <div class="field"><span>الشعبة:</span><span class="dots"></span></div>
+    <div class="field"><span>التاريخ:</span><span class="dots"></span></div>
+    <div class="field"><span>الدرجة:</span>____ / {{ items|sum(attribute='points_override', start=0) or (items|length) }}</div>
+  </div>
+
+  {% for it in items %}
+  {% set bq = it.bank_question %}
+  <div class="q">
+    <div class="row">
+      <div class="num">{{ loop.index }}</div>
+      <div class="prompt">
+        {{ bq.prompt }}
+        <div class="code">
+          {% if bq.code %}{{ bq.code }}{% endif %}
+          {% if bq.uuid %} · <span style="font-size:9px">{{ bq.uuid[:8] }}</span>{% endif %}
+          · {{ (it.points_override if it.points_override is not none else bq.points) or 1 }} نقطة
+        </div>
+      </div>
+    </div>
+    {% if bq.kind in ('mcq', 'multi', 'tf') and bq.choices %}
+    <div class="choices">
+      {% for c in bq.choices %}
+      {% set letters = ['أ','ب','ج','د','هـ','و'] %}
+      <div class="choice">
+        <span class="letter">{{ letters[loop.index0] if loop.index0 < 6 else loop.index }}</span>
+        {{ c.label }}
+      </div>
+      {% endfor %}
+    </div>
+    {% elif bq.kind == 'short' %}
+    <div class="short-line"><div class="rule"></div></div>
+    {% else %}
+    <div class="short-line">
+      <div class="rule"></div><div class="rule"></div><div class="rule"></div>
+      <div class="rule"></div><div class="rule"></div>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+
+  <div class="footer">
+    منصتي LMS — {{ template.title }} · <span class="uuid">Doc ID: {{ template.code or template.id }}</span>
+  </div>
+</body>
+</html>

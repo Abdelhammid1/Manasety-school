@@ -92,6 +92,11 @@
           <span class="material-symbols-outlined text-xl">play_arrow</span>
           <span>استخدام النموذج</span>
         </a>
+        <a href="{{ url_for('lms.template_print', tid=template.id) }}" target="_blank"
+           class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-on-primary/15 hover:bg-on-primary/25 text-on-primary font-label-lg text-label-lg font-medium backdrop-blur-sm transition-all">
+          <span class="material-symbols-outlined text-xl">print</span>
+          <span>طباعة</span>
+        </a>
         <a href="{{ url_for('lms.template_edit', tid=template.id) }}"
            class="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-full bg-on-primary/15 hover:bg-on-primary/25 text-on-primary font-label-lg text-label-lg font-medium backdrop-blur-sm transition-all">
           <span class="material-symbols-outlined text-xl">edit</span>
@@ -184,11 +189,22 @@
           {{ items|length }} سؤال مرفق
         </span>
       </div>
-      <a href="#picker-panel"
-         class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-semibold shadow-sm hover:shadow-md transition-all">
-        <span class="material-symbols-outlined text-lg">add_circle</span>
-        <span>إضافة أسئلة من البنك</span>
-      </a>
+      <div class="flex items-center gap-space-sm">
+        <form method="post" action="{{ url_for('lms.template_ai_generate', tid=template.id) }}"
+              class="inline-flex items-center gap-2 bg-gradient-to-l from-fuchsia-600 to-violet-600 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" name="count" value="5"
+                  class="px-4 py-2 text-white font-label-lg text-label-lg font-semibold flex items-center gap-2">
+            <span class="material-symbols-outlined text-lg">auto_awesome</span>
+            <span>توليد ٥ أسئلة مشابهة بالذكاء الاصطناعي</span>
+          </button>
+        </form>
+        <a href="#picker-panel"
+           class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-semibold shadow-sm hover:shadow-md transition-all">
+          <span class="material-symbols-outlined text-lg">add_circle</span>
+          <span>إضافة أسئلة من البنك</span>
+        </a>
+      </div>
     </div>
 
     <form method="post" action="{{ url_for('lms.template_items_save', tid=template.id) }}"
@@ -224,7 +240,7 @@
             {% set bq = it.bank_question %}
             {% set kp = kind_pill.get(bq.kind, ('—', 'bg-surface-container-high text-on-surface-variant')) %}
             {% set dp = diff_pill.get(bq.difficulty, ('—', 'bg-surface-container text-outline', 'bg-outline')) %}
-            <tr class="hover:bg-surface-container-low/60 transition-colors group">
+            <tr class="hover:bg-surface-container-low/60 transition-colors group {% if it.is_hidden %}opacity-50{% endif %}">
               <td class="py-4 px-4 text-center">
                 <div class="flex items-center justify-center gap-1 font-mono font-bold text-on-surface-variant">
                   <span class="material-symbols-outlined text-outline opacity-60 text-lg">drag_indicator</span>
@@ -237,11 +253,19 @@
                   <span class="font-body-md text-body-md text-on-surface font-medium leading-relaxed line-clamp-2">
                     {{ bq.prompt }}
                   </span>
-                  <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-2 flex-wrap">
                     <span class="inline-flex items-center px-2 py-0.5 rounded-full {{ kp[1] }} font-label-xs text-label-xs">
                       {{ kp[0] }}
                     </span>
-                    <span class="font-label-xs text-label-xs text-outline">المعرف: Q-{{ bq.id }}</span>
+                    {% if bq.code %}
+                    <span class="font-mono font-bold px-2 py-0.5 rounded bg-primary-fixed text-primary font-label-xs text-label-xs">{{ bq.code }}</span>
+                    {% endif %}
+                    {% if bq.uuid %}<span class="font-mono text-outline font-label-xs text-label-xs" title="{{ bq.uuid }}">{{ bq.uuid[:8] }}</span>{% endif %}
+                    {% if it.is_hidden %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-label-xs text-label-xs font-bold">
+                      <span class="material-symbols-outlined text-[13px]">visibility_off</span>مخفي
+                    </span>
+                    {% endif %}
                   </div>
                 </div>
               </td>
@@ -265,12 +289,21 @@
                 </div>
               </td>
               <td class="py-4 px-4 text-center">
-                <button type="submit" name="remove" value="{{ it.id }}"
-                        formaction="{{ url_for('lms.template_item_delete', tid=template.id, iid=it.id) }}"
-                        formmethod="post"
-                        class="p-2 rounded-lg text-error hover:bg-error-container/40 transition-colors" title="حذف من النموذج">
-                  <span class="material-symbols-outlined text-xl">delete</span>
-                </button>
+                <div class="flex items-center justify-center gap-1">
+                  <button type="submit"
+                          formaction="{{ url_for('lms.template_item_toggle_hidden', tid=template.id, iid=it.id) }}"
+                          formmethod="post"
+                          class="p-2 rounded-lg {% if it.is_hidden %}text-emerald-600 hover:bg-emerald-100/40{% else %}text-amber-600 hover:bg-amber-100/40{% endif %} transition-colors"
+                          title="{% if it.is_hidden %}إظهار{% else %}إخفاء{% endif %}">
+                    <span class="material-symbols-outlined text-xl">{% if it.is_hidden %}visibility{% else %}visibility_off{% endif %}</span>
+                  </button>
+                  <button type="submit" name="remove" value="{{ it.id }}"
+                          formaction="{{ url_for('lms.template_item_delete', tid=template.id, iid=it.id) }}"
+                          formmethod="post"
+                          class="p-2 rounded-lg text-error hover:bg-error-container/40 transition-colors" title="حذف من النموذج">
+                    <span class="material-symbols-outlined text-xl">delete</span>
+                  </button>
+                </div>
               </td>
             </tr>
             {% else %}

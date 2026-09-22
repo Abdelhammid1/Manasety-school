@@ -30,7 +30,7 @@ def _past_due(due_at):
     return _tz_safe_now(due_at) > due_at
 
 from flask import (
-    abort, current_app, flash, redirect, render_template, request, url_for,
+    abort, current_app, flash, jsonify, redirect, render_template, request, url_for,
 )
 from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
@@ -942,8 +942,10 @@ def qbank_dashboard():
     subject_id = request.args.get("subject_id", type=int)
     state      = (request.args.get("review_state") or "").strip() or None
     difficulty = (request.args.get("difficulty") or "").strip() or None
+    show_archive = request.args.get("archive") == "1"
 
     q = BankQuestion.query.filter_by(school_id=sid, source=source)
+    q = q.filter(BankQuestion.is_archived == show_archive)
     if subject_id: q = q.filter(BankQuestion.subject_id == subject_id)
 
     total = q.count()
@@ -951,6 +953,18 @@ def qbank_dashboard():
         BankQuestion.review_state, db.func.count(BankQuestion.id),
     ).group_by(BankQuestion.review_state).all()
     states = {s: n for s, n in state_rows}
+    # Housekeeping counts (qdrat-parity #7): archived rows and rows
+    # missing a subject or axis tag — both are surfaced as CTAs on the
+    # dashboard so admins have a clear entry into cleanup.
+    archived_count = BankQuestion.query.filter_by(
+        school_id=sid, source=source, is_archived=True).count()
+    unclassified_count = BankQuestion.query.filter(
+        BankQuestion.school_id == sid,
+        BankQuestion.source == source,
+        BankQuestion.is_archived == False,
+        db.or_(BankQuestion.subject_id.is_(None),
+               BankQuestion.axis_id.is_(None)),
+    ).count()
     stats = {
         "total":     total,
         "approved":  states.get("approved", 0),
@@ -960,6 +974,8 @@ def qbank_dashboard():
         "duplicate": states.get("duplicate", 0),
         "rejected":  states.get("rejected", 0),
         "coverage_pct": (states.get("approved", 0) * 100 // total) if total else 0,
+        "archived":     archived_count,
+        "unclassified": unclassified_count,
     }
 
     diff_rows = q.with_entities(
@@ -1005,6 +1021,7 @@ def qbank_dashboard():
         avg_per_subject=avg_per_subject,
         items=items,
         subjects=subjects,
+        show_archive=show_archive,
         selected={
             "source": source,
             "subject_id": subject_id,
@@ -1716,7 +1733,22 @@ def _bank_save(item):
     item.term_id          = request.form.get("term_id",    type=int) or None
     item.unit_id          = request.form.get("unit_id",    type=int) or None
     item.lesson_id        = request.form.get("lesson_id",  type=int) or None
+    # Qdrat-parity pt2 — axis + indicator (2-level skill taxonomy),
+    # printable code + anti-piracy UUID (auto-fill on first save).
+    item.axis_id       = request.form.get("axis_id",      type=int) or None
+    item.indicator_id  = request.form.get("indicator_id", type=int) or None
+    posted_code = (request.form.get("code") or "").strip()
+    if posted_code:
+        item.code = posted_code
     db.session.flush()
+    if is_new:
+        import uuid as _uuid
+        if not item.uuid:
+            item.uuid = str(_uuid.uuid4())
+        if not item.code:
+            # School prefix + year fragment + row id → "S1-Y26-Q42"
+            from datetime import datetime as _dt
+            item.code = f"S{item.school_id}-Y{_dt.utcnow().year % 100:02d}-Q{item.id}"
 
     # Rewrite choices from the form. For mcq/multi/tf we accept parallel
     # choice_label[] and correct_choice[] arrays — index-aligned. For a
@@ -1768,6 +1800,213 @@ BANK_STATE_LABEL = {
     "no_answer": ("تم وسمه (بدون إجابة).", "warning"),
     "duplicate": ("تم وسمه (متشابه).",  "warning"),
 }
+
+
+@bp.route("/bank/<int:bid>/archive", methods=["POST"], endpoint="bank_archive")
+@login_required
+def bank_archive(bid):
+    """Qdrat-parity #5 — soft-hide a bank question (النشطة ↔ الأرشيف)."""
+    item = BankQuestion.query.filter_by(
+        id=bid, school_id=current_user.school_id).first_or_404()
+    item.is_archived = not item.is_archived
+    db.session.commit()
+    flash("تم أرشفة السؤال." if item.is_archived else "تم استعادة السؤال.", "success")
+    return redirect(request.referrer or url_for("lms.qbank_dashboard"))
+
+
+@bp.route("/assessment-templates/<int:tid>/items/<int:iid>/toggle-hidden",
+          methods=["POST"], endpoint="template_item_toggle_hidden")
+@login_required
+def template_item_toggle_hidden(tid, iid):
+    """Qdrat-parity #8 — soft-hide an item inside a specific template."""
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+    it = AssessmentTemplateItem.query.filter_by(
+        id=iid, template_id=t.id).first_or_404()
+    it.is_hidden = not it.is_hidden
+    db.session.commit()
+    flash("تم إخفاء السؤال من النموذج." if it.is_hidden else "تم إظهار السؤال.", "success")
+    return redirect(url_for("lms.template_detail", tid=t.id))
+
+
+@bp.route("/assessment-templates/<int:tid>/ai/generate",
+          methods=["POST"], endpoint="template_ai_generate")
+@login_required
+def template_ai_generate(tid):
+    """Qdrat-beat #1 — use DeepSeek to generate N more questions like
+    the ones already attached to this template, then land them straight
+    into the bank in `pending` review state and attach them here.
+    Requires DEEPSEEK_API_KEY in the environment; otherwise 400s with
+    a friendly flash."""
+    from ...services import deepseek
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+
+    if not deepseek.is_configured():
+        flash("لم يتم تهيئة مفتاح DeepSeek — اطلب من مدير النظام إضافة DEEPSEEK_API_KEY.",
+              "warning")
+        return redirect(url_for("lms.template_detail", tid=t.id))
+
+    count = max(1, min(10, request.form.get("count", type=int) or 5))
+    items = AssessmentTemplateItem.query.filter_by(template_id=t.id).all()
+    examples = []
+    for it in items[:6]:
+        bq = it.bank_question
+        if not bq:
+            continue
+        examples.append({
+            "prompt":     bq.prompt,
+            "kind":       bq.kind,
+            "difficulty": bq.difficulty,
+            "points":     float(bq.points or 1),
+            "choices": [{"label": c.label, "is_correct": c.is_correct}
+                        for c in (bq.choices or [])],
+        })
+    if not examples:
+        flash("أضف على الأقل سؤالاً واحداً للنموذج قبل التوليد.", "warning")
+        return redirect(url_for("lms.template_detail", tid=t.id))
+
+    try:
+        generated = deepseek.generate_similar_questions(
+            examples, count=count,
+            subject=t.subject.name if t.subject else None,
+        )
+    except deepseek.AIError as e:
+        current_app.logger.warning("DeepSeek error: %s", e)
+        flash(f"تعذّر التوليد الآن: {e}", "danger")
+        return redirect(url_for("lms.template_detail", tid=t.id))
+
+    # Land each generated row into the bank in `pending` state so the
+    # admin has to accept it — we're never inserting raw AI output as
+    # approved content into the exam pool.
+    import uuid as _uuid
+    from datetime import datetime as _dt
+    next_order = 1 + (
+        db.session.query(db.func.max(AssessmentTemplateItem.order_index))
+        .filter_by(template_id=t.id).scalar() or 0
+    )
+    added = 0
+    for gq in generated:
+        prompt = (gq.get("prompt") or "").strip()
+        if not prompt:
+            continue
+        bq = BankQuestion(
+            school_id=sid,
+            created_by_id=getattr(current_user, "id", None),
+            subject_id=t.subject_id,
+            grade_id=t.grade_id,
+            kind=gq.get("kind") or "mcq",
+            prompt=prompt,
+            points=Decimal(str(gq.get("points") or 1)),
+            difficulty=gq.get("difficulty") or "medium",
+            review_state="pending",
+            source="school",
+            uuid=str(_uuid.uuid4()),
+        )
+        db.session.add(bq)
+        db.session.flush()
+        bq.code = f"S{sid}-Y{_dt.utcnow().year % 100:02d}-AI{bq.id}"
+        for i, c in enumerate(gq.get("choices") or []):
+            db.session.add(BankChoice(
+                question_id=bq.id, order_index=i + 1,
+                label=(c.get("label") or "").strip(),
+                is_correct=bool(c.get("is_correct")),
+            ))
+        db.session.add(AssessmentTemplateItem(
+            template_id=t.id, bank_question_id=bq.id,
+            order_index=next_order,
+        ))
+        next_order += 1
+        added += 1
+    db.session.commit()
+    flash(f"تم توليد {added} سؤالاً بالذكاء الاصطناعي — بحاجة إلى مراجعتك في البنك.",
+          "success")
+    return redirect(url_for("lms.template_detail", tid=t.id))
+
+
+@bp.route("/bank/ai-review", methods=["POST"], endpoint="bank_ai_review")
+@login_required
+def bank_ai_review():
+    """Qdrat-beat #3 — batch AI review of the school's `pending` bank
+    rows. DeepSeek flags each as ok / duplicate / ambiguous / no_answer,
+    and we auto-move duplicates and no-answer rows into their matching
+    review_state so the admin only sees the actionable rest."""
+    from ...services import deepseek
+    sid = current_user.school_id
+    if not deepseek.is_configured():
+        flash("لم يتم تهيئة مفتاح DeepSeek.", "warning")
+        return redirect(url_for("lms.qbank_dashboard"))
+
+    pending = BankQuestion.query.filter_by(
+        school_id=sid, source="school", review_state="pending",
+    ).limit(30).all()
+    if not pending:
+        flash("لا أسئلة قيد المراجعة حالياً.", "info")
+        return redirect(url_for("lms.qbank_dashboard"))
+
+    payload = [{"id": q.id, "prompt": q.prompt} for q in pending]
+    try:
+        findings = deepseek.review_pending_questions(payload)
+    except deepseek.AIError as e:
+        flash(f"تعذّرت المراجعة الآن: {e}", "danger")
+        return redirect(url_for("lms.qbank_dashboard"))
+
+    by_id = {q.id: q for q in pending}
+    changed = 0
+    for f in findings:
+        q = by_id.get(int(f.get("id", 0)))
+        if not q:
+            continue
+        target = (f.get("suggested_state") or "").strip()
+        if target in {"duplicate", "no_answer", "approved", "rejected"}:
+            q.review_state = target
+            q.review_notes = (f.get("note") or "")[:500]
+            changed += 1
+    db.session.commit()
+    flash(f"راجع الذكاء الاصطناعي {len(findings)} سؤالاً — تم نقل {changed} إلى حالتها الصحيحة.",
+          "success")
+    return redirect(url_for("lms.qbank_dashboard"))
+
+
+@bp.route("/exams/blueprint/ai-suggest",
+          methods=["POST"], endpoint="blueprint_ai_suggest")
+@login_required
+def blueprint_ai_suggest():
+    """Qdrat-beat #2 — ask DeepSeek for an easy/medium/hard/very_hard
+    split for a given (subject, grade, total). Returns JSON so the
+    Blueprint form can populate its sliders client-side."""
+    from ...services import deepseek
+    if not deepseek.is_configured():
+        return jsonify({"error": "DEEPSEEK_API_KEY not configured"}), 400
+    body = request.get_json(silent=True) or request.form
+    subject = (body.get("subject") or "").strip() or "عام"
+    grade   = (body.get("grade") or "").strip() or "الابتدائي"
+    total   = int(body.get("total") or 20)
+    try:
+        mix = deepseek.suggest_blueprint_mix(subject, grade, total)
+        return jsonify(mix)
+    except deepseek.AIError as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@bp.route("/assessment-templates/<int:tid>/print", endpoint="template_print")
+@login_required
+def template_print(tid):
+    """Qdrat-parity #4 — print-friendly render of every attached question.
+    ?mode=continuous → questions flow; ?mode=per-page → page-break per Q."""
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+    items = [
+        it for it in AssessmentTemplateItem.query.filter_by(template_id=t.id)
+        .order_by(AssessmentTemplateItem.order_index).all()
+        if not it.is_hidden
+    ]
+    mode = "per-page" if (request.args.get("mode") == "per-page") else "continuous"
+    return render_template("lms/template_print.html",
+                           template=t, items=items, mode=mode)
 
 
 @bp.route("/bank/<int:bid>/state", methods=["POST"], endpoint="bank_set_state")
