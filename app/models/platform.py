@@ -600,3 +600,51 @@ class ImportBatch(db.Model):
     error_log = db.Column(db.JSON)
     status = db.Column(db.String(16), default="pending", nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+
+# ── نداء — parent pickup call ────────────────────────────────────────
+class PickupCall(db.Model):
+    """A live "pick me up" signal from a parent standing outside the
+    school. Broadcasts to the student + the responsible teacher via
+    the notifications pipeline; parent can close it when the student
+    is in the car."""
+    __tablename__ = "pickup_calls"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    parent_user_id  = db.Column(db.Integer, db.ForeignKey("users.id"),
+                                nullable=False, index=True)
+    student_id      = db.Column(db.Integer, db.ForeignKey("students.id"),
+                                nullable=False, index=True)
+    teacher_user_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                                nullable=True, index=True)
+    section_id      = db.Column(db.Integer, db.ForeignKey("sections.id"),
+                                nullable=True, index=True)
+    note = db.Column(db.String(255), nullable=True)
+    gate = db.Column(db.String(64), nullable=True)
+
+    called_at          = db.Column(db.DateTime(timezone=True),
+                                   default=_utcnow, nullable=False, index=True)
+    seen_by_student_at = db.Column(db.DateTime(timezone=True))
+    seen_by_teacher_at = db.Column(db.DateTime(timezone=True))
+    released_at        = db.Column(db.DateTime(timezone=True), index=True)
+    released_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+
+    student = db.relationship("Student", foreign_keys=[student_id])
+    section = db.relationship("Section", foreign_keys=[section_id])
+    parent  = db.relationship("User",   foreign_keys=[parent_user_id])
+    teacher = db.relationship("User",   foreign_keys=[teacher_user_id])
+
+    @property
+    def is_active(self):
+        return self.released_at is None
+
+    @property
+    def waited_minutes(self):
+        from datetime import datetime, timezone as _tz
+        end = self.released_at or datetime.now(_tz.utc)
+        started = self.called_at
+        if started and started.tzinfo is None:
+            started = started.replace(tzinfo=_tz.utc)
+        return int((end - started).total_seconds() // 60)

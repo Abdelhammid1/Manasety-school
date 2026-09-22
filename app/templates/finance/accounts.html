@@ -36,6 +36,11 @@
     </span>
     {% endif %}
     <span class="ms-auto font-label-md tabular-nums font-bold text-on-surface">{{ a.balance|round(2) }}</span>
+    <a href="{{ url_for('finance.account_statement', aid=a.id) }}"
+       class="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-secondary-fixed text-on-secondary-fixed hover:bg-secondary-fixed-dim font-label-xs font-bold transition-colors"
+       title="كشف حساب تفصيلي">
+      <span class="material-symbols-outlined text-[14px]">receipt_long</span>كشف
+    </a>
   </div>
   {% endif %}
 {% endmacro %}

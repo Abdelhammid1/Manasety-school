@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:manasety_ui/manasety_ui.dart';
 
 import '../../../core/router/routes.dart';
+import '../../pickup/pickup_banner.dart';
 import '../data/home_repository.dart';
 
 /// [TCH] Home — matches `design_refs/tch/home.png`.
@@ -19,13 +20,20 @@ class HomeScreen extends ConsumerWidget {
     final async = ref.watch(homeDataProvider);
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6FB),
-      body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(homeDataProvider.future),
-        child: async.when(
-          data: (d) => _Body(data: d),
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => _Err(err: e, onRetry: () => ref.invalidate(homeDataProvider)),
-        ),
+      body: Column(
+        children: [
+          const SafeArea(bottom: false, child: PickupBanner()),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async => ref.refresh(homeDataProvider.future),
+              child: async.when(
+                data: (d) => _Body(data: d),
+                loading: () => const Center(child: CircularProgressIndicator()),
+                error: (e, _) => _Err(err: e, onRetry: () => ref.invalidate(homeDataProvider)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

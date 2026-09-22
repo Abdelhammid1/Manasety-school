@@ -199,6 +199,7 @@
 
       {% elif _role == 'parent' %}
         {{ nav_item('dashboard.home', 'صفحة ولي الأمر', 'family_restroom') }}
+        {{ nav_item('portal.pickup_home', 'نداء لاستلام الطالب', 'campaign') }}
 
         {% call group('parent-updates', 'المتابعة والرسوم', 'campaign') %}
           {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}

@@ -412,6 +412,24 @@
               <span class="font-label-md">يستقبل الإشعارات</span>
             </label>
           </div>
+          {# New account creation inline #}
+          <div class="mt-space-md rounded-lg bg-secondary-fixed/40 p-space-sm">
+            <label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" id="grdCreateAccount" name="create_login_account" value="1" class="w-5 h-5 rounded accent-primary" onchange="document.getElementById('grdAcctFields').style.display=this.checked?'grid':'none'">
+              <span class="font-label-md font-bold text-on-surface">إنشاء حساب دخول لولي الأمر</span>
+            </label>
+            <div id="grdAcctFields" class="mt-space-sm grid grid-cols-1 md:grid-cols-2 gap-space-sm" style="display:none">
+              <div class="flex flex-col gap-1">
+                <label class="font-label-md text-on-surface font-bold">اسم المستخدم / البريد للدخول</label>
+                <input name="login_username" dir="ltr" placeholder="parent@example.com أو اسم مستخدم" class="h-10 px-3 rounded-lg bg-white">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="font-label-md text-on-surface font-bold">كلمة المرور (٨ أحرف على الأقل)</label>
+                <input name="login_password" type="password" class="h-10 px-3 rounded-lg bg-white">
+              </div>
+              <p class="md:col-span-2 font-label-xs text-outline">سيتم إنشاء حساب دخول جديد وربطه فوراً بولي الأمر — يمكن استخدامه للدخول إلى بوابة ولي الأمر وتطبيقه.</p>
+            </div>
+          </div>
         </div>
         <button type="button" data-modal-close class="text-outline hover:text-primary p-1">
           <span class="material-symbols-outlined">close</span>

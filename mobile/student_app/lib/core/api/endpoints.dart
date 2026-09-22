@@ -35,4 +35,8 @@ class Endpoints {
   // ── Announcements ─────────────────────────────────────────
   static const announcements = '/student/announcements';
   static String announcementDetail(int id) => '/student/announcements/$id';
+
+// ── نداء — parent pickup ─────────────────────────────────
+  static const pickupIncoming = '/pickup/incoming';
+  static String pickupAck(int id) => '/pickup/$id/ack';
 }

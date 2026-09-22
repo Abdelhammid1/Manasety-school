@@ -1,4 +1,4 @@
-from flask import abort, flash, redirect, render_template, request, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import bp
@@ -6,8 +6,9 @@ from ..utils import require_permission
 from ...extensions import db
 from ...models import (
     AcademicYear, Assignment, Material, ScheduleSlot, Day, Period,
-    Section, Subject, Teacher,
+    Section, Subject, Teacher, Student, PickupCall,
 )
+from ...services import pickup as pickup_svc
 
 
 def _sid():
@@ -124,3 +125,93 @@ def material_new():
         flash("تم رفع المحتوى ويظهر الآن للطلاب وأولياء أمورهم.", "success")
         return redirect(url_for("portal.materials"))
     return render_template("portal/material_form.html", pairs=pairs, teacher=teacher)
+
+
+# ── نداء — parent pickup call ───────────────────────────────────────
+def _parent_children():
+    """Every Student linked to the current user as a parent."""
+    return Student.query.filter_by(parent_user_id=current_user.id).all()
+
+
+@bp.route("/pickup")
+@login_required
+def pickup_home():
+    """Parent-facing pickup page — big نداء button + active-call list."""
+    kids = _parent_children()
+    active_calls = (
+        PickupCall.query
+        .filter_by(parent_user_id=current_user.id, released_at=None)
+        .all()
+    )
+    return render_template("portal/pickup.html",
+                           children=kids, active=active_calls)
+
+
+@bp.route("/pickup/call", methods=["POST"])
+@login_required
+def pickup_call():
+    student_id = request.form.get("student_id", type=int)
+    gate = (request.form.get("gate") or "").strip() or "البوابة الرئيسية"
+    note = (request.form.get("note") or "").strip()
+    student = Student.query.filter_by(
+        id=student_id, parent_user_id=current_user.id).first_or_404()
+    call = pickup_svc.create_call(current_user, student, gate=gate, note=note)
+    flash(f"تم إرسال النداء — بانتظار خروج {student.full_name}.", "success")
+    return redirect(url_for("portal.pickup_home"))
+
+
+@bp.route("/pickup/<int:cid>/release", methods=["POST"])
+@login_required
+def pickup_release(cid):
+    call = PickupCall.query.get_or_404(cid)
+    if call.parent_user_id != current_user.id:
+        # Teachers and admins can also close a call.
+        if not getattr(current_user, "is_superuser", False):
+            abort(403)
+    pickup_svc.release_call(call, current_user)
+    flash("تم إغلاق النداء.", "success")
+    return redirect(request.referrer or url_for("portal.pickup_home"))
+
+
+@bp.route("/pickup/active.json")
+@login_required
+def pickup_active_json():
+    """Lightweight polling endpoint used by student + teacher banners."""
+    uid = current_user.id
+    calls = (
+        PickupCall.query
+        .filter(PickupCall.released_at.is_(None))
+        .filter(db.or_(
+            PickupCall.teacher_user_id == uid,
+            PickupCall.student_id.in_(
+                db.session.query(Student.id).filter(Student.user_id == uid)
+            ),
+        ))
+        .order_by(PickupCall.called_at.desc()).all()
+    )
+    return jsonify({
+        "calls": [{
+            "id": c.id,
+            "student": c.student.full_name if c.student else "",
+            "parent": (c.parent.username if c.parent else "ولي الأمر"),
+            "gate": c.gate or "",
+            "note": c.note or "",
+            "waited_min": c.waited_minutes,
+            "role": "teacher" if c.teacher_user_id == uid else "student",
+        } for c in calls],
+    })
+
+
+@bp.route("/pickup/<int:cid>/ack", methods=["POST"])
+@login_required
+def pickup_ack(cid):
+    """Teacher or student marks the call as seen."""
+    call = PickupCall.query.get_or_404(cid)
+    uid = current_user.id
+    if call.teacher_user_id == uid:
+        pickup_svc.mark_seen_by_teacher(call)
+    elif call.student and call.student.user_id == uid:
+        pickup_svc.mark_seen_by_student(call)
+    else:
+        abort(403)
+    return jsonify({"ok": True})

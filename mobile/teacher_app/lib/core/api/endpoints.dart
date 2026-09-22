@@ -52,4 +52,8 @@ class Endpoints {
   // Schedule + terms
   static const schedule = '/teacher/schedule';
   static const terms = '/teacher/terms';
+
+// ── نداء — parent pickup notifications ────────────────────
+  static const pickupIncoming = '/pickup/incoming';
+  static String pickupAck(int id) => '/pickup/$id/ack';
 }

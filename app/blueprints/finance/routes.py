@@ -91,6 +91,76 @@ def accounts():
     )
 
 
+@bp.route("/accounts/<int:aid>/statement")
+@login_required
+@require_permission("finance", "view")
+def account_statement(aid):
+    """Ticket F — كشف حساب تفصيلي: every JournalLine on a postable
+    account, sorted by entry_date, with a running balance column
+    that walks the same DR/CR side rule Account.balance uses.
+
+    Header accounts (is_postable=False) have no direct lines — we
+    show a friendly info panel and link back to the tree instead."""
+    from ...models import JournalEntry
+    from ...models.finance import JournalLine
+    acct = Account.query.filter_by(id=aid, school_id=_sid()).first_or_404()
+
+    # Try to resolve a linked Student / Employee / Vendor for a nicer
+    # header block on the party sub-accounts.
+    party = None
+    party_kind = None
+    from ...models import Student, Vendor
+    from ...models.hr import Employee
+    st = Student.query.filter_by(ar_account_id=acct.id).first()
+    if st:
+        party, party_kind = st, "student"
+    else:
+        emp = Employee.query.filter_by(ap_account_id=acct.id).first()
+        if emp:
+            party, party_kind = emp, "employee"
+        else:
+            v = Vendor.query.filter_by(ap_account_id=acct.id).first()
+            if v:
+                party, party_kind = v, "vendor"
+
+    lines = []
+    if acct.is_postable:
+        lines = (
+            db.session.query(JournalLine, JournalEntry)
+            .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+            .filter(JournalLine.account_id == acct.id)
+            .order_by(JournalEntry.entry_date.asc(),
+                      JournalEntry.id.asc(),
+                      JournalLine.id.asc())
+            .all()
+        )
+    # Running balance walks DR/CR side per account type.
+    running = 0.0
+    is_debit_side = acct.type in ("asset", "expense")
+    rows = []
+    for ln, en in lines:
+        d = float(ln.debit or 0); c = float(ln.credit or 0)
+        delta = (d - c) if is_debit_side else (c - d)
+        running += delta
+        rows.append({
+            "entry_id": en.id, "date": en.entry_date,
+            "reference": en.reference,
+            "description": ln.description or en.description,
+            "debit": d, "credit": c, "running": running,
+        })
+    totals = {
+        "debit":  sum(r["debit"]  for r in rows),
+        "credit": sum(r["credit"] for r in rows),
+        "count":  len(rows),
+    }
+    return render_template(
+        "finance/account_statement.html",
+        account=acct, rows=rows, totals=totals,
+        party=party, party_kind=party_kind,
+        current_balance=acct.balance,
+    )
+
+
 def _suggest_next_child_code(school_id: int, parent: Account) -> str:
     """Ticket B — propose the next-free child code under `parent`.
 

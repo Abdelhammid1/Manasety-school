@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:manasety_ui/manasety_ui.dart';
 
 import '../../../core/router/routes.dart';
+import '../../pickup/pickup_banner.dart';
 import '../data/home_repository.dart';
 
 /// [STU] Home — data-driven. All content comes from `/student/home`.
@@ -16,14 +17,21 @@ class HomeScreen extends ConsumerWidget {
     final async = ref.watch(homeDataProvider);
     return Scaffold(
       backgroundColor: ManasetyBrand.surface,
-      body: RefreshIndicator(
-        onRefresh: () async => ref.refresh(homeDataProvider.future),
-        child: async.when(
-          data: (data) => _HomeBody(data: data),
-          loading: () => const _HomeSkeleton(),
-          error: (e, _) => _HomeError(error: e,
-            onRetry: () => ref.invalidate(homeDataProvider)),
-        ),
+      body: Column(
+        children: [
+          const SafeArea(bottom: false, child: PickupBanner()),
+          Expanded(
+            child: RefreshIndicator(
+              onRefresh: () async => ref.refresh(homeDataProvider.future),
+              child: async.when(
+                data: (data) => _HomeBody(data: data),
+                loading: () => const _HomeSkeleton(),
+                error: (e, _) => _HomeError(error: e,
+                  onRetry: () => ref.invalidate(homeDataProvider)),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

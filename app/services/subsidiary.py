@@ -88,6 +88,14 @@ def create_party_subaccount(
         is_postable=True, is_system=True,
     )
     db.session.add(child); db.session.flush()
+    # Ticket "Header Accounts is_postable=False" — the moment a parent
+    # code (1210 / 2110 / 2210 …) gets its first child, any direct-post
+    # against that parent becomes wrong: aggregate roll-up now happens
+    # via Account.balance's `not self.is_postable and self.children`
+    # branch. Idempotent — we only flip when the flag is still True.
+    if parent.is_postable:
+        parent.is_postable = False
+        db.session.flush()
     return child
 
 

@@ -1930,6 +1930,92 @@ def parent_notifications():
     ]})
 
 
+# ── نداء — pickup call API (parent triggers, student + teacher poll) ──
+@bp.route("/parent/pickup/call", methods=["POST"])
+@jwt_required
+def parent_pickup_call():
+    from ...services import pickup as pickup_svc
+    body = request.get_json(silent=True) or {}
+    student = Student.query.filter_by(
+        id=int(body.get("student_id") or 0),
+        parent_user_id=_user().id).first()
+    if not student:
+        return _err("student not linked to this parent", 404)
+    call = pickup_svc.create_call(_user(), student,
+                                  gate=body.get("gate"), note=body.get("note"))
+    return jsonify({"call_id": call.id, "student_id": student.id,
+                    "gate": call.gate, "called_at": call.called_at.isoformat()}), 201
+
+
+@bp.route("/parent/pickup/active", methods=["GET"])
+@jwt_required
+def parent_pickup_active():
+    from ...models import PickupCall
+    calls = PickupCall.query.filter_by(
+        parent_user_id=_user().id, released_at=None).all()
+    return jsonify({"calls": [{
+        "id": c.id, "student_id": c.student_id,
+        "student_name": c.student.full_name if c.student else "",
+        "gate": c.gate, "waited_min": c.waited_minutes,
+        "seen_by_teacher": bool(c.seen_by_teacher_at),
+        "seen_by_student": bool(c.seen_by_student_at),
+    } for c in calls]})
+
+
+@bp.route("/parent/pickup/<int:cid>/release", methods=["POST"])
+@jwt_required
+def parent_pickup_release(cid):
+    from ...models import PickupCall
+    from ...services import pickup as pickup_svc
+    call = PickupCall.query.filter_by(id=cid, parent_user_id=_user().id).first()
+    if not call:
+        return _err("not found", 404)
+    pickup_svc.release_call(call, _user())
+    return jsonify({"ok": True})
+
+
+@bp.route("/pickup/incoming", methods=["GET"])
+@jwt_required
+def pickup_incoming():
+    """Student + teacher apps poll this — returns any active call
+    involving the caller."""
+    from ...models import PickupCall
+    uid = _user().id
+    q = PickupCall.query.filter(PickupCall.released_at.is_(None))
+    q = q.filter(db.or_(
+        PickupCall.teacher_user_id == uid,
+        PickupCall.student_id.in_(
+            db.session.query(Student.id).filter(Student.user_id == uid)
+        ),
+    ))
+    calls = q.order_by(PickupCall.called_at.desc()).all()
+    return jsonify({"calls": [{
+        "id": c.id, "student_name": c.student.full_name if c.student else "",
+        "parent_name": (c.parent.username if c.parent else "ولي الأمر"),
+        "gate": c.gate, "note": c.note,
+        "waited_min": c.waited_minutes,
+        "role": "teacher" if c.teacher_user_id == uid else "student",
+    } for c in calls]})
+
+
+@bp.route("/pickup/<int:cid>/ack", methods=["POST"])
+@jwt_required
+def pickup_ack_api(cid):
+    from ...models import PickupCall
+    from ...services import pickup as pickup_svc
+    call = PickupCall.query.get(cid)
+    if not call:
+        return _err("not found", 404)
+    uid = _user().id
+    if call.teacher_user_id == uid:
+        pickup_svc.mark_seen_by_teacher(call)
+    elif call.student and call.student.user_id == uid:
+        pickup_svc.mark_seen_by_student(call)
+    else:
+        return _err("not the target of this call", 403)
+    return jsonify({"ok": True})
+
+
 @bp.route("/parent/child/<int:student_id>/schedule", methods=["GET"])
 @jwt_required
 def parent_child_schedule(student_id):

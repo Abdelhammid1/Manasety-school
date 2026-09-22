@@ -410,6 +410,42 @@ def guardian_add(student_id):
         can_view_financial_data=bool(request.form.get("can_view_financial_data")),
         can_receive_notifications=bool(request.form.get("can_receive_notifications", "1")),
     ))
+
+    # Ticket "ربط حساب ولي الأمر" — inline account creation. The
+    # guardian modal now carries a "إنشاء حساب دخول" checkbox +
+    # username/password fields. If ticked, we spin a fresh User with
+    # role='parent', link it to the Guardian, and stamp
+    # Student.parent_user_id so the parent portal + parent app can
+    # sign in immediately without a separate admin trip.
+    if request.form.get("create_login_account"):
+        from ...models import User
+        from werkzeug.security import generate_password_hash
+        raw_username = (request.form.get("login_username") or "").strip()
+        raw_password = (request.form.get("login_password") or "").strip()
+        if len(raw_password) < 8:
+            flash("كلمة المرور مطلوبة (٨ أحرف على الأقل) لإنشاء حساب الدخول.", "warning")
+        else:
+            username = raw_username or (guardian.phone or "") \
+                       or f"parent_{guardian.id}"
+            if User.query.filter_by(username=username).first():
+                flash(f"اسم المستخدم «{username}» مستخدم بالفعل — يرجى اختيار اسم آخر.",
+                      "warning")
+            else:
+                new_user = User(
+                    username=username,
+                    full_name=guardian.full_name,
+                    email=guardian.email or None,
+                    school_id=sid, role="parent", is_active=True,
+                )
+                new_user.password_hash = generate_password_hash(raw_password)
+                db.session.add(new_user); db.session.flush()
+                if hasattr(guardian, "user_id"):
+                    guardian.user_id = new_user.id
+                if student.parent_user_id is None:
+                    student.parent_user_id = new_user.id
+                flash(f"تم إنشاء حساب دخول لولي الأمر — اسم المستخدم: {username}",
+                      "success")
+
     db.session.commit()
     flash(f"تم ربط ولي الأمر {guardian.full_name} بالطالب.", "success")
     return redirect(url_for("students.student_detail", student_id=student.id))

@@ -135,8 +135,23 @@
   {% if not download %}
   <script>
     // Auto-open the print dialog once the page is fully rendered.
-    // Users can cancel to browse the layout.
-    setTimeout(function() { try { window.print(); } catch (e) {} }, 300);
+    // We wait for `window.load` (not DOMContentLoaded) so the browser
+    // has flushed layout — some engines otherwise fire the dialog
+    // before styles are fully applied and print a blank page.
+    // The button stays clickable if the dialog is dismissed.
+    (function () {
+      function tryPrint() {
+        try {
+          window.focus();          // needed when opened via target="_blank"
+          window.print();
+        } catch (e) {}
+      }
+      if (document.readyState === 'complete') {
+        setTimeout(tryPrint, 300);
+      } else {
+        window.addEventListener('load', function () { setTimeout(tryPrint, 300); });
+      }
+    })();
   </script>
   {% endif %}
 </body>

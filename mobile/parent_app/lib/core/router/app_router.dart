@@ -6,6 +6,7 @@ import '../../features/auth/application/auth_controller.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/children/presentation/child_detail_screen.dart';
 import '../../features/children/presentation/children_screen.dart';
+import '../../features/pickup/presentation/pickup_screen.dart';
 import '../../features/profile/presentation/profile_screen.dart';
 import '../../features/profile/presentation/edit_profile_screen.dart';
 import '../../features/splash/presentation/welcome_splash_screen.dart';
@@ -37,6 +38,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: Routes.home, builder: (_, __) => const ChildrenScreen()),
       GoRoute(path: Routes.profile, builder: (_, __) => const ProfileScreen()),
       GoRoute(path: Routes.profileEdit, builder: (_, __) => const EditProfileScreen()),
+      GoRoute(path: Routes.pickup, builder: (_, __) => const PickupScreen()),
       GoRoute(
         path: '/children/:id',
         builder: (_, state) {

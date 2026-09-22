@@ -36,4 +36,11 @@ class Endpoints {
 
   // الإشعارات
   static String notificationRead(int id) => '/notifications/$id/read';
+
+  // نداء — استلام الطالب
+  static const parentPickupCall = '/parent/pickup/call';
+  static const parentPickupActive = '/parent/pickup/active';
+  static String parentPickupRelease(int id) => '/parent/pickup/$id/release';
+  static const pickupIncoming = '/pickup/incoming';
+  static String pickupAck(int id) => '/pickup/$id/ack';
 }

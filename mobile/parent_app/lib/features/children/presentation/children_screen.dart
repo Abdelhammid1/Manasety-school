@@ -45,6 +45,14 @@ class ChildrenScreen extends ConsumerWidget {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/pickup'),
+        backgroundColor: const Color(0xFF10B981),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.campaign),
+        label: const Text('نداء لاستلام الطالب',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+      ),
       body: AppRefreshIndicator(
         onRefresh: () async {
           ref.invalidate(childrenProvider);

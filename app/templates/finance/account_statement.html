@@ -1,0 +1,146 @@
+{# Account statement — كشف حساب تفصيلي. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}كشف حساب — {{ account.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.accounts') }}" class="hover:text-primary">دليل الحسابات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold truncate max-w-md">{{ account.name }}</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+
+  {# Hero #}
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-6 md:p-8 text-on-primary shadow-lg">
+    <div class="pointer-events-none absolute -left-16 -top-16 w-72 h-72 rounded-full bg-secondary-container/20 blur-3xl"></div>
+    <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl">receipt_long</span>
+        </div>
+        <div>
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-on-primary/20 font-label-xs font-mono">{{ account.code }}</span>
+          <h1 class="font-headline-lg text-headline-lg font-bold mt-2">{{ account.name }}</h1>
+          <div class="flex flex-wrap items-center gap-2 mt-2 font-label-md">
+            <span class="px-2 py-0.5 rounded bg-on-primary/15">
+              {% if account.type == 'asset' %}أصل (مدين){% elif account.type == 'liability' %}خصم (دائن){% elif account.type == 'equity' %}حقوق ملكية{% elif account.type == 'revenue' %}إيراد{% elif account.type == 'expense' %}مصروف{% else %}{{ account.type }}{% endif %}
+            </span>
+            {% if party_kind == 'student' %}
+            <span class="px-2 py-0.5 rounded bg-on-primary/15">طالب: <b>{{ party.full_name }}</b>{% if party.permanent_code %} · <span dir="ltr">{{ party.permanent_code }}</span>{% endif %}</span>
+            {% elif party_kind == 'employee' %}
+            <span class="px-2 py-0.5 rounded bg-on-primary/15">موظف: <b>{{ party.full_name }}</b></span>
+            {% elif party_kind == 'vendor' %}
+            <span class="px-2 py-0.5 rounded bg-on-primary/15">مورد: <b>{{ party.name }}</b></span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      <div class="text-left shrink-0">
+        <div class="font-label-md text-on-primary/85">الرصيد الحالي</div>
+        <div class="font-headline-lg font-extrabold {% if current_balance < 0 %}text-rose-100{% else %}text-on-primary{% endif %}">
+          {{ '{:,.2f}'.format(current_balance) }}
+        </div>
+        <div class="font-label-xs text-on-primary/70">{{ totals.count }} حركة</div>
+      </div>
+    </div>
+  </section>
+
+  {# Non-postable header info block #}
+  {% if not account.is_postable %}
+  <div class="bg-amber-50 border border-amber-200 rounded-2xl p-space-md flex items-start gap-3">
+    <span class="material-symbols-outlined text-amber-700">info</span>
+    <div>
+      <div class="font-title-md text-amber-900 font-bold">هذا حساب أب (تجميعي)</div>
+      <p class="text-amber-800 mt-1">
+        لا تُسجَّل قيود مباشرة على هذا الحساب — رصيده يُحسب من مجموع أرصدة أولاده.
+        اختر أحد الحسابات الفرعية أدناه لعرض كشف حساب تفصيلي.
+      </p>
+      {% if account.children %}
+      <div class="mt-3 flex flex-wrap gap-2">
+        {% for c in account.children %}
+        <a href="{{ url_for('finance.account_statement', aid=c.id) }}"
+           class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white border border-amber-300 text-amber-900 hover:bg-amber-100">
+          <span class="font-mono">{{ c.code }}</span>
+          <span class="font-bold">{{ c.name }}</span>
+          <span class="mr-auto font-mono text-outline">{{ '{:,.2f}'.format(c.balance) }}</span>
+        </a>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# Totals card #}
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="font-label-md text-on-surface-variant">إجمالي المدين</div>
+      <div class="font-headline-md font-extrabold text-primary mt-1">{{ '{:,.2f}'.format(totals.debit) }}</div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="font-label-md text-on-surface-variant">إجمالي الدائن</div>
+      <div class="font-headline-md font-extrabold text-secondary mt-1">{{ '{:,.2f}'.format(totals.credit) }}</div>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <div class="font-label-md text-on-surface-variant">الرصيد الختامي</div>
+      <div class="font-headline-md font-extrabold {% if current_balance < 0 %}text-rose-600{% else %}text-emerald-700{% endif %} mt-1">{{ '{:,.2f}'.format(current_balance) }}</div>
+    </div>
+  </div>
+
+  {# Ledger table #}
+  {% if account.is_postable %}
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="p-space-md border-b border-surface-container-low flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">list_alt</span>
+        <span class="font-title-md font-bold">حركات الحساب</span>
+        <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">{{ totals.count }} حركة</span>
+      </div>
+      <button onclick="window.print()" class="inline-flex items-center gap-2 px-3 h-9 rounded-lg bg-surface-container-low text-on-surface hover:bg-surface-container font-label-md">
+        <span class="material-symbols-outlined text-lg">print</span><span>طباعة</span>
+      </button>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-right">
+        <thead>
+          <tr class="bg-surface-container-low text-on-surface-variant font-label-sm">
+            <th class="py-3.5 px-4 font-semibold">#</th>
+            <th class="py-3.5 px-4 font-semibold">التاريخ</th>
+            <th class="py-3.5 px-4 font-semibold">المرجع</th>
+            <th class="py-3.5 px-4 font-semibold">الوصف</th>
+            <th class="py-3.5 px-4 font-semibold text-left">مدين</th>
+            <th class="py-3.5 px-4 font-semibold text-left">دائن</th>
+            <th class="py-3.5 px-4 font-semibold text-left">الرصيد</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-surface-container-high/40 font-body-sm">
+          {% for r in rows %}
+          <tr class="hover:bg-surface-container-low/60">
+            <td class="py-3 px-4 text-outline font-mono">{{ loop.index }}</td>
+            <td class="py-3 px-4 font-mono">{{ r.date.strftime('%Y-%m-%d') if r.date else '' }}</td>
+            <td class="py-3 px-4 font-mono text-outline">{{ r.reference or '—' }}</td>
+            <td class="py-3 px-4 text-on-surface">{{ r.description }}</td>
+            <td class="py-3 px-4 text-left font-mono {% if r.debit  %}text-primary font-bold{% else %}text-outline{% endif %}">{{ '{:,.2f}'.format(r.debit) if r.debit else '—' }}</td>
+            <td class="py-3 px-4 text-left font-mono {% if r.credit %}text-secondary font-bold{% else %}text-outline{% endif %}">{{ '{:,.2f}'.format(r.credit) if r.credit else '—' }}</td>
+            <td class="py-3 px-4 text-left font-mono font-bold {% if r.running < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ '{:,.2f}'.format(r.running) }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="7" class="py-12 text-center text-outline">لا حركات مسجلة على هذا الحساب بعد.</td></tr>
+          {% endfor %}
+        </tbody>
+        {% if rows %}
+        <tfoot class="bg-surface-container-low font-title-md font-bold">
+          <tr>
+            <td colspan="4" class="py-3.5 px-4">الإجمالي</td>
+            <td class="py-3.5 px-4 text-left font-mono text-primary">{{ '{:,.2f}'.format(totals.debit) }}</td>
+            <td class="py-3.5 px-4 text-left font-mono text-secondary">{{ '{:,.2f}'.format(totals.credit) }}</td>
+            <td class="py-3.5 px-4 text-left font-mono {% if current_balance < 0 %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ '{:,.2f}'.format(current_balance) }}</td>
+          </tr>
+        </tfoot>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

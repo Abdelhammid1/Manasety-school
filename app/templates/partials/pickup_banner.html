@@ -1,0 +1,63 @@
+{# نداء banner — visible to a teacher or student when any active
+   PickupCall targets them. Polls /portal/pickup/active.json every 15s
+   so a parent's tap shows up on the target device within seconds.
+   Included from teacher home + student home + dashboard.
+#}
+<div id="pickupBanner" class="hidden fixed top-24 left-1/2 -translate-x-1/2 z-50 w-full max-w-2xl px-4"></div>
+<template id="pickupCardTpl">
+  <div class="mb-2 p-space-md rounded-2xl bg-gradient-to-l from-emerald-600 via-teal-600 to-emerald-500 text-white shadow-2xl flex items-center gap-3">
+    <span class="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0">
+      <span class="material-symbols-outlined text-2xl" style="font-variation-settings:'FILL' 1;">campaign</span>
+    </span>
+    <div class="flex-1 min-w-0">
+      <div class="font-title-md font-extrabold" data-slot="title"></div>
+      <div class="font-label-md text-white/90" data-slot="subtitle"></div>
+    </div>
+    <button type="button" class="h-11 px-4 rounded-xl bg-white/20 hover:bg-white/30 font-label-lg font-bold" data-ack>
+      تم
+    </button>
+  </div>
+</template>
+<script>
+(function(){
+  const banner = document.getElementById('pickupBanner');
+  const tpl    = document.getElementById('pickupCardTpl');
+  if (!banner || !tpl) return;
+  const csrf   = '{{ csrf_token() }}';
+  const seen   = new Set();
+
+  async function tick(){
+    try {
+      const r = await fetch('/portal/pickup/active.json', {credentials:'same-origin'});
+      if (!r.ok) return;
+      const data = await r.json();
+      banner.innerHTML = '';
+      if (!data.calls || data.calls.length === 0) { banner.classList.add('hidden'); return; }
+      banner.classList.remove('hidden');
+      for (const c of data.calls) {
+        const node = tpl.content.cloneNode(true);
+        const title = c.role === 'teacher' ? 'نداء ولي أمر' : 'ولي أمرك في انتظارك';
+        const subtitle = c.role === 'teacher'
+          ? `${c.parent} في انتظار ${c.student} — ${c.gate || 'خارج المدرسة'} · بدأ منذ ${c.waited_min} دقيقة`
+          : `${c.parent} ينتظرك عند ${c.gate || 'البوابة'} · منذ ${c.waited_min} دقيقة`;
+        node.querySelector('[data-slot=title]').textContent    = title;
+        node.querySelector('[data-slot=subtitle]').textContent = subtitle;
+        const btn = node.querySelector('[data-ack]');
+        btn.addEventListener('click', async () => {
+          try {
+            await fetch(`/portal/pickup/${c.id}/ack`, {
+              method:'POST', headers:{'X-CSRFToken':csrf}, credentials:'same-origin',
+            });
+          } catch(e){}
+          seen.add(c.id);
+          tick();
+        });
+        if (seen.has(c.id)) node.firstElementChild?.classList.add('opacity-60');
+        banner.appendChild(node);
+      }
+    } catch(e) {}
+  }
+  tick();
+  setInterval(tick, 15000);
+})();
+</script>
