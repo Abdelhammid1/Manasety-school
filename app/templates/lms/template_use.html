@@ -61,14 +61,16 @@
         class="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm space-y-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+    {% set is_asg = template.kind == 'assignment' %}
+    {% set target = 'الواجب' if is_asg else 'الاختبار' %}
     <div class="flex items-center gap-space-sm pb-space-sm border-b border-surface-container-low">
       <div class="w-10 h-10 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
-        <span class="material-symbols-outlined text-xl">quiz</span>
+        <span class="material-symbols-outlined text-xl">{{ 'assignment' if is_asg else 'quiz' }}</span>
       </div>
       <div>
-        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">بيانات الاختبار الجديد</h2>
+        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">بيانات {{ target }} الجديد</h2>
         <p class="font-label-sm text-label-sm text-on-surface-variant">
-          سيتم إنشاء اختبار مسودة يحوي {{ items|length }} سؤالاً منسوخة من هذا النموذج.
+          سيتم إنشاء {{ target }} مسودة يحوي {{ items|length }} سؤالاً منسوخة من هذا النموذج.
         </p>
       </div>
     </div>
@@ -76,7 +78,7 @@
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="md:col-span-2 space-y-1.5">
         <label class="font-label-lg text-label-lg text-on-surface font-bold" for="title">
-          عنوان الاختبار <span class="text-error">*</span>
+          عنوان {{ target }} <span class="text-error">*</span>
         </label>
         <input required name="title" id="title" type="text"
                value="{{ template.title }} — نسخة"
@@ -100,6 +102,13 @@
         </div>
       </div>
 
+      {% if is_asg %}
+      <div class="space-y-1.5">
+        <label class="font-label-lg text-label-lg text-on-surface font-bold" for="due_at">تاريخ التسليم</label>
+        <input name="due_at" id="due_at" type="datetime-local"
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white"/>
+      </div>
+      {% else %}
       <div class="space-y-1.5">
         <label class="font-label-lg text-label-lg text-on-surface font-bold" for="duration_minutes">مدة الاختبار</label>
         <div class="relative">
@@ -120,9 +129,19 @@
         <input name="closes_at" id="closes_at" type="datetime-local"
                class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white"/>
       </div>
+      {% endif %}
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-sm">
+      {% if is_asg %}
+      <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
+        <div>
+          <div class="font-title-md text-title-md text-on-surface font-bold">قبول التسليم المتأخر</div>
+          <div class="font-label-sm text-label-sm text-outline mt-0.5">يسمح للطالب بالتسليم بعد الموعد</div>
+        </div>
+        <input type="checkbox" name="allow_late" value="1" checked class="w-5 h-5 rounded accent-primary"/>
+      </label>
+      {% else %}
       <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
         <div>
           <div class="font-title-md text-title-md text-on-surface font-bold">ترتيب عشوائي للأسئلة</div>
@@ -130,6 +149,7 @@
         </div>
         <input type="checkbox" name="shuffle_questions" value="1" checked class="w-5 h-5 rounded accent-primary"/>
       </label>
+      {% endif %}
       <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
         <div>
           <div class="font-title-md text-title-md text-on-surface font-bold">نشر مباشر</div>
@@ -152,7 +172,7 @@
         <button type="submit"
                 class="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg shadow-md hover:shadow-lg active:scale-95 transition-all">
           <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
-          <span>توليد الاختبار الآن</span>
+          <span>توليد {{ target }} الآن</span>
         </button>
       </div>
     </div>

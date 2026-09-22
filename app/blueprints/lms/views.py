@@ -1349,6 +1349,50 @@ def template_use(tid):
             db.session.add(course)
             db.session.flush()
 
+        # Branch on template kind: 'exam' → Quiz + Question + Choice
+        # (auto-graded, timed), 'assignment' → CourseAssignment +
+        # AssignmentQuestion + AssignmentChoice (due-date, allow_late).
+        if t.kind == "assignment":
+            total_points = sum(
+                float((it.points_override if it.points_override is not None
+                       else (it.bank_question.points if it.bank_question else 1)) or 1)
+                for it in items
+            )
+            asg = CourseAssignment(
+                course_id=course.id,
+                title=title,
+                instructions=t.description or "",
+                max_score=Decimal(str(total_points)) if total_points else Decimal("100"),
+                due_at=_parse_dt(request.form.get("due_at")),
+                allow_late=bool(request.form.get("allow_late")),
+                is_published=bool(request.form.get("publish")),
+            )
+            db.session.add(asg)
+            db.session.flush()
+            for idx, it in enumerate(items, start=1):
+                bq = it.bank_question
+                if not bq:
+                    continue
+                aq = AssignmentQuestion(
+                    assignment_id=asg.id,
+                    order_index=idx,
+                    kind=bq.kind,
+                    prompt=bq.prompt,
+                    points=(it.points_override if it.points_override is not None else bq.points) or 1,
+                    correct_short=bq.correct_short or "",
+                    source_bank_id=bq.id,
+                )
+                db.session.add(aq)
+                db.session.flush()
+                for i, bc in enumerate(bq.choices or []):
+                    db.session.add(AssignmentChoice(
+                        question_id=aq.id, order_index=i,
+                        label=bc.label, is_correct=bool(bc.is_correct),
+                    ))
+            db.session.commit()
+            flash(f"تم توليد الواجب «{asg.title}» من النموذج.", "success")
+            return redirect(url_for("lms.assignments_home"))
+
         quiz = Quiz(
             course_id=course.id,
             title=title,
