@@ -1,0 +1,286 @@
+{# Templates Gallery — Stitch design "lms_3".
+   Server-rendered from `AssessmentTemplate` grouped by subject. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}النماذج الاحترافية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">النماذج الاحترافية</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full space-y-space-lg">
+
+  {# ── Header ─────────────────────────────────────────────────── #}
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+    <div class="flex flex-col space-y-space-xs">
+      <nav aria-label="مسار التنقل" class="flex items-center gap-space-xs text-outline font-label-md text-label-md">
+        <a class="hover:text-primary transition-colors flex items-center gap-1" href="{{ url_for('dashboard.home') }}">
+          <span class="material-symbols-outlined text-[16px]">home</span>
+          الرئيسية
+        </a>
+        <span class="text-outline-variant font-bold">/</span>
+        <span class="text-on-surface font-bold">النماذج الاحترافية</span>
+      </nav>
+      <div class="flex items-center gap-space-sm">
+        <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">النماذج الاحترافية</h1>
+        <span class="px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs shadow-sm">مكتبة الاعتماد الأكاديمي</span>
+      </div>
+      <p class="font-body-md text-body-md text-on-surface-variant max-w-2xl">
+        إدارة النماذج الاحترافية وتفاصيلها وصلاحيات الظهور والتكرار وفق معايير الجودة والتقييم الوطنية K-12.
+      </p>
+    </div>
+    <div class="flex items-center gap-space-sm shrink-0">
+      <a href="{{ url_for('lms.template_new') }}"
+         class="h-12 px-space-lg rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all flex items-center gap-space-xs">
+        <span class="material-symbols-outlined text-[22px]">add</span>
+        <span>إنشاء نموذج جديد</span>
+      </a>
+    </div>
+  </div>
+
+  {# ── KPI cards ─────────────────────────────────────────────── #}
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col justify-between relative overflow-hidden hover:shadow-md transition-all">
+      <div class="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-primary-fixed/20 pointer-events-none"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-lg text-label-lg text-on-surface-variant">إجمالي النماذج</span>
+        <div class="w-11 h-11 rounded-xl bg-primary-fixed text-primary flex items-center justify-center shadow-inner">
+          <span class="material-symbols-outlined text-[24px]">library_books</span>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-baseline justify-between">
+        <span class="font-display-hero text-display-hero text-primary font-extrabold tracking-tight">{{ stats.total }}</span>
+      </div>
+      <div class="mt-space-xs flex items-center gap-1.5 text-outline font-label-xs text-label-xs">
+        <span class="w-2 h-2 rounded-full bg-secondary"></span>
+        <span>نماذج منشورة ومتاحة للمدارس</span>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col justify-between relative overflow-hidden hover:shadow-md transition-all">
+      <div class="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-secondary-fixed/20 pointer-events-none"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-lg text-label-lg text-on-surface-variant">نماذج اليوم</span>
+        <div class="w-11 h-11 rounded-xl bg-secondary-fixed text-secondary flex items-center justify-center shadow-inner">
+          <span class="material-symbols-outlined text-[24px]">today</span>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-baseline justify-between">
+        <span class="font-display-hero text-display-hero text-secondary font-extrabold tracking-tight">{{ stats.today }}</span>
+      </div>
+      <div class="mt-space-xs flex items-center gap-1.5 text-outline font-label-xs text-label-xs">
+        <span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+        <span>محدثة خلال آخر 24 ساعة</span>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col justify-between relative overflow-hidden hover:shadow-md transition-all">
+      <div class="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-tertiary-fixed/25 pointer-events-none"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-lg text-label-lg text-on-surface-variant">إضافات هذا الشهر</span>
+        <div class="w-11 h-11 rounded-xl bg-tertiary-fixed text-tertiary flex items-center justify-center shadow-inner">
+          <span class="material-symbols-outlined text-[24px]">calendar_month</span>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-baseline justify-between">
+        <span class="font-display-hero text-display-hero text-tertiary font-extrabold tracking-tight">{{ stats.month }}</span>
+      </div>
+      <div class="mt-space-xs flex items-center gap-1.5 text-outline font-label-xs text-label-xs">
+        <span class="w-2 h-2 rounded-full bg-tertiary"></span>
+        <span>نماذج اختبارية معتمدة حديثاً</span>
+      </div>
+    </div>
+
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col justify-between relative overflow-hidden hover:shadow-md transition-all">
+      <div class="absolute -top-6 -left-6 w-24 h-24 rounded-full bg-surface-container-high/60 pointer-events-none"></div>
+      <div class="flex items-center justify-between">
+        <span class="font-label-lg text-label-lg text-on-surface-variant">المُنشئون النشطون</span>
+        <div class="w-11 h-11 rounded-xl bg-surface-container-high text-on-surface flex items-center justify-center shadow-inner">
+          <span class="material-symbols-outlined text-[24px]">supervisor_account</span>
+        </div>
+      </div>
+      <div class="mt-space-md flex items-baseline justify-between">
+        <div class="flex items-baseline gap-1">
+          <span class="font-display-hero text-display-hero text-on-surface font-extrabold tracking-tight">{{ stats.authors }}</span>
+          <span class="font-title-md text-title-md text-on-surface-variant">معلم/موجه</span>
+        </div>
+      </div>
+      <div class="mt-space-xs flex items-center gap-1.5 text-outline font-label-xs text-label-xs">
+        <span class="w-2 h-2 rounded-full bg-primary"></span>
+        <span>خلال العام الدراسي الحالي</span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Filter / segmented switch / search ─────────────────────── #}
+  <form method="get" class="bg-surface-container-lowest rounded-2xl p-space-sm shadow-sm flex flex-col lg:flex-row items-center justify-between gap-space-sm">
+    <div class="bg-surface-container-low p-1 rounded-xl flex items-center gap-1 w-full lg:w-auto">
+      <button type="submit" name="state" value="published"
+              class="px-space-md py-2 rounded-lg {% if selected.state != 'archived' %}bg-surface-container-lowest text-primary shadow-sm{% else %}text-outline hover:text-on-surface{% endif %} font-label-lg text-label-lg flex items-center gap-space-xs transition-all">
+        <span class="w-2 h-2 rounded-full bg-secondary"></span>
+        <span>النماذج النشطة</span>
+        <span class="px-1.5 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs font-bold">{{ stats.published }}</span>
+      </button>
+      <button type="submit" name="state" value="archived"
+              class="px-space-md py-2 rounded-lg {% if selected.state == 'archived' %}bg-surface-container-lowest text-primary shadow-sm{% else %}text-outline hover:text-on-surface{% endif %} font-label-lg text-label-lg flex items-center gap-space-xs transition-all">
+        <span>الأرشيف</span>
+        <span class="px-1.5 py-0.5 rounded-full bg-surface-container-highest text-outline font-label-xs text-label-xs">{{ stats.archived }}</span>
+      </button>
+    </div>
+    <div class="relative w-full lg:max-w-md">
+      <span class="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-outline text-[20px]">search</span>
+      <input name="q" value="{{ selected.q }}" type="text"
+             placeholder="ابحث في عناوين النماذج أو الأكواد…"
+             class="w-full h-11 pr-11 pl-4 bg-surface-container-low rounded-xl font-body-sm text-body-sm text-on-surface placeholder:text-outline focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-secondary/30 transition-all"/>
+    </div>
+    <div class="flex items-center gap-space-xs w-full lg:w-auto justify-end">
+      <select name="subject_id"
+              class="h-11 px-space-md rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md">
+        <option value="">كل المواد</option>
+        {% for s in subjects %}
+        <option value="{{ s.id }}" {% if selected.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+        {% endfor %}
+      </select>
+      <select name="kind"
+              class="h-11 px-space-md rounded-xl bg-surface-container-low hover:bg-surface-container text-on-surface font-label-md text-label-md">
+        <option value="">كل الأنواع</option>
+        <option value="assignment" {% if selected.kind == 'assignment' %}selected{% endif %}>واجبات</option>
+        <option value="exam"       {% if selected.kind == 'exam' %}selected{% endif %}>اختبارات</option>
+      </select>
+      <button type="submit" class="h-11 px-space-md rounded-xl bg-primary-container text-on-primary font-label-md text-label-md hover:bg-primary transition-colors flex items-center gap-1">
+        <span class="material-symbols-outlined text-[18px]">filter_list</span>
+      </button>
+    </div>
+  </form>
+
+  {# ── Section header ─────────────────────────────────────────── #}
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-space-sm pt-space-xs">
+    <div class="flex flex-wrap items-center gap-space-sm">
+      <div class="flex items-center gap-2">
+        <div class="w-8 h-8 rounded-lg bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[20px]">auto_stories</span>
+        </div>
+        <h2 class="font-headline-md text-headline-md text-primary font-bold">النماذج حسب المناهج الدراسية</h2>
+      </div>
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="px-3 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-xs text-label-xs flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">verified</span>
+          {{ by_subject|length }} مادة معتمدة
+        </span>
+        <span class="px-3 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">edit_calendar</span>
+          {{ stats.assignments }} واجبات
+        </span>
+        <span class="px-3 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs flex items-center gap-1">
+          <span class="material-symbols-outlined text-[14px]">assignment_turned_in</span>
+          {{ stats.exams }} اختبارات
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {# ── Subject cards grid ─────────────────────────────────────── #}
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-lg">
+    {% for row in by_subject %}
+    {% set icon_lookup = {
+        'ر': 'calculate', 'فيز': 'bolt', 'كيم': 'science', 'أح': 'biotech',
+        'إن': 'translate', 'عر': 'menu_book', 'حا': 'memory', 'اج': 'public',
+    } %}
+    {% set _icon = 'library_books' %}
+    {% for prefix, ico in icon_lookup.items() %}
+      {% if row.subject_name.startswith(prefix) %}{% set _icon = ico %}{% endif %}
+    {% endfor %}
+    <a href="{{ url_for('lms.templates_gallery') }}?subject_id={{ row.subject_id or '' }}"
+       class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between relative group overflow-hidden">
+      <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-l from-primary to-secondary"></div>
+      <div>
+        <div class="flex items-start justify-between gap-space-sm mb-space-md">
+          <div class="flex items-center gap-space-sm">
+            <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+              <span class="material-symbols-outlined text-[26px]">{{ _icon }}</span>
+            </div>
+            <div>
+              <h3 class="font-headline-sm text-headline-sm text-primary font-bold tracking-tight">{{ row.subject_name }}</h3>
+              <p class="font-label-md text-label-md text-outline">مادة دراسية</p>
+            </div>
+          </div>
+          <span class="px-2.5 py-1 rounded-full bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-xs text-label-xs font-bold shrink-0 shadow-xs">
+            {{ row.total }} نموذج
+          </span>
+        </div>
+      </div>
+      <div class="mt-space-md pt-space-sm flex items-center justify-between">
+        <div class="flex flex-wrap items-center gap-1.5">
+          <span class="px-2.5 py-1 rounded-lg bg-primary-fixed text-primary font-label-xs text-label-xs font-semibold flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">assignment_turned_in</span>
+            {{ row.exam_count }} اختبار
+          </span>
+          <span class="px-2.5 py-1 rounded-lg bg-secondary-fixed text-on-secondary-container font-label-xs text-label-xs font-semibold flex items-center gap-1">
+            <span class="material-symbols-outlined text-[14px]">edit_calendar</span>
+            {{ row.assignment_count }} واجب
+          </span>
+        </div>
+        <span class="material-symbols-outlined text-outline group-hover:text-primary transition-colors">arrow_back</span>
+      </div>
+    </a>
+    {% else %}
+    <div class="col-span-full bg-surface-container-lowest rounded-2xl p-space-xl text-center">
+      <span class="material-symbols-outlined text-[48px] text-outline">library_books</span>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-2">لا نماذج بعد — اضغط «إنشاء نموذج جديد» لبدء المكتبة.</p>
+    </div>
+    {% endfor %}
+  </div>
+
+  {# ── Individual templates list (below the subject grid) ──────── #}
+  {% if templates %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <div class="flex items-center justify-between pb-space-sm">
+      <h3 class="font-headline-sm text-headline-sm text-on-surface font-bold">قائمة النماذج التفصيلية</h3>
+      <span class="px-2.5 py-0.5 rounded-full bg-surface-container font-label-xs text-label-xs text-secondary font-semibold">{{ templates|length }} نموذج</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-right border-collapse">
+        <thead>
+          <tr class="bg-surface-container-low font-label-md text-label-md text-outline">
+            <th class="py-3.5 px-4 rounded-r-xl font-semibold">الكود</th>
+            <th class="py-3.5 px-4 font-semibold min-w-[240px]">العنوان</th>
+            <th class="py-3.5 px-3 font-semibold">المادة</th>
+            <th class="py-3.5 px-3 font-semibold">النوع</th>
+            <th class="py-3.5 px-3 font-semibold">عدد الأسئلة</th>
+            <th class="py-3.5 px-3 font-semibold">التاريخ</th>
+            <th class="py-3.5 px-4 rounded-l-xl text-center font-semibold">الإجراءات</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-surface-container-high/40 font-body-sm text-body-sm">
+          {% for t in templates %}
+          <tr class="hover:bg-surface-container-low/60 transition-colors">
+            <td class="py-4 px-4 font-mono text-secondary font-semibold">{{ t.code or '—' }}</td>
+            <td class="py-4 px-4 font-semibold text-on-surface">{{ t.title }}</td>
+            <td class="py-4 px-3 text-on-surface-variant">{{ t.subject.name if t.subject else '—' }}</td>
+            <td class="py-4 px-3">
+              {% if t.kind == 'exam' %}
+                <span class="px-2.5 py-1 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs text-label-xs font-semibold">اختبار</span>
+              {% else %}
+                <span class="px-2.5 py-1 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs text-label-xs font-semibold">واجب</span>
+              {% endif %}
+            </td>
+            <td class="py-4 px-3 text-on-surface-variant">{{ t.items|length }} سؤال</td>
+            <td class="py-4 px-3 text-outline font-label-xs text-label-xs">
+              {{ t.created_at.strftime('%Y-%m-%d') if t.created_at else '' }}
+            </td>
+            <td class="py-4 px-4 text-center">
+              <div class="flex items-center justify-center gap-1 text-outline">
+                <a href="{{ url_for('lms.template_edit', tid=t.id) }}" class="p-1.5 hover:text-secondary transition-colors" title="تعديل">
+                  <span class="material-symbols-outlined text-[18px]">edit</span>
+                </a>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

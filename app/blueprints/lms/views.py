@@ -43,6 +43,7 @@ from ...models import (
     BankQuestion, BankChoice,
     AssignmentQuestion, AssignmentChoice, AssignmentAnswer,
     AssignmentTemplate, AssignmentTemplateQuestion, AssignmentTemplateChoice,
+    AssessmentTemplate, AssessmentTemplateItem,
     Subject, Grade, AcademicYear, Term, Unit, Lesson,
 )
 
@@ -1011,6 +1012,141 @@ def qbank_dashboard():
             "difficulty": difficulty or "",
         },
     )
+
+
+@bp.route("/assessment-templates", endpoint="templates_gallery")
+@login_required
+def templates_gallery():
+    """AssessmentTemplate gallery — grouped by subject (Stitch lms_3)."""
+    sid = current_user.school_id
+    subject_id = request.args.get("subject_id", type=int)
+    kind       = (request.args.get("kind") or "").strip() or None
+    state      = (request.args.get("state") or "published").strip()
+    query_str  = (request.args.get("q") or "").strip()
+
+    q = AssessmentTemplate.query.filter_by(school_id=sid)
+    if subject_id: q = q.filter(AssessmentTemplate.subject_id == subject_id)
+    if kind:       q = q.filter(AssessmentTemplate.kind == kind)
+    if state:      q = q.filter(AssessmentTemplate.state == state)
+    if query_str:
+        q = q.filter(AssessmentTemplate.title.ilike(f"%{query_str}%") |
+                     AssessmentTemplate.code.ilike(f"%{query_str}%"))
+    templates = q.order_by(AssessmentTemplate.updated_at.desc()).all()
+
+    # By-subject roll-up.
+    by_subject_map = {}
+    for r in templates:
+        key = r.subject_id or 0
+        row = by_subject_map.setdefault(key, {
+            "subject_id": r.subject_id,
+            "subject_name": (Subject.query.get(r.subject_id).name
+                             if r.subject_id else "بدون تصنيف"),
+            "total": 0, "assignment_count": 0, "exam_count": 0,
+        })
+        row["total"] += 1
+        if r.kind == "assignment": row["assignment_count"] += 1
+        if r.kind == "exam":       row["exam_count"]       += 1
+    by_subject = sorted(by_subject_map.values(), key=lambda r: -r["total"])
+
+    # Global KPIs (not filtered).
+    all_q = AssessmentTemplate.query.filter_by(school_id=sid)
+    all_total = all_q.count()
+    published = all_q.filter_by(state="published").count()
+    archived  = all_q.filter_by(state="archived").count()
+    assignments = all_q.filter_by(kind="assignment").count()
+    exams = all_q.filter_by(kind="exam").count()
+    from datetime import datetime as _dt, timedelta as _td
+    today = _dt.utcnow().date()
+    month_start = today.replace(day=1)
+    today_count = all_q.filter(db.func.date(AssessmentTemplate.created_at) == today).count()
+    month_count = all_q.filter(AssessmentTemplate.created_at >= month_start).count()
+    authors = db.session.query(AssessmentTemplate.created_by_id).filter_by(
+        school_id=sid).distinct().count()
+
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    return render_template(
+        "lms/templates_gallery.html",
+        by_subject=by_subject,
+        templates=templates,
+        subjects=subjects,
+        stats={
+            "total": all_total,
+            "published": published,
+            "archived": archived,
+            "assignments": assignments,
+            "exams": exams,
+            "today": today_count,
+            "month": month_count,
+            "authors": authors,
+        },
+        selected={
+            "subject_id": subject_id,
+            "kind": kind or "",
+            "state": state,
+            "q": query_str,
+        },
+    )
+
+
+@bp.route("/assessment-templates/new", methods=["GET", "POST"], endpoint="template_new")
+@login_required
+def template_new():
+    """Create a template (Stitch lms_5 shell — form implemented next)."""
+    if request.method == "POST":
+        data = request.form
+        title = (data.get("title") or "").strip()
+        if not title:
+            return redirect(url_for("lms.template_new"))
+        import_code = (data.get("import_from_code") or "").strip()
+        source_tmpl = None
+        if import_code:
+            source_tmpl = AssessmentTemplate.query.filter_by(
+                school_id=current_user.school_id, code=import_code).first()
+        t = AssessmentTemplate(
+            school_id=current_user.school_id,
+            created_by_id=current_user.id,
+            title=title,
+            code=(data.get("code") or "").strip() or None,
+            description=(data.get("description") or "").strip(),
+            subject_id=data.get("subject_id") or None,
+            grade_id=data.get("grade_id") or None,
+            kind=data.get("kind") or "assignment",
+            state="published",
+        )
+        db.session.add(t)
+        db.session.flush()
+        if source_tmpl:
+            for it in source_tmpl.items:
+                db.session.add(AssessmentTemplateItem(
+                    template_id=t.id,
+                    bank_question_id=it.bank_question_id,
+                    order_index=it.order_index,
+                    points_override=it.points_override,
+                ))
+        db.session.commit()
+        return redirect(url_for("lms.templates_gallery"))
+    subjects = Subject.query.filter_by(school_id=current_user.school_id).order_by(Subject.name).all()
+    return render_template("lms/template_new.html", subjects=subjects)
+
+
+@bp.route("/assessment-templates/<int:tid>/edit", methods=["GET", "POST"], endpoint="template_edit")
+@login_required
+def template_edit(tid):
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=current_user.school_id).first_or_404()
+    if request.method == "POST":
+        data = request.form
+        t.title       = (data.get("title") or t.title).strip()
+        t.code        = (data.get("code") or "").strip() or None
+        t.description = (data.get("description") or "").strip()
+        t.subject_id  = data.get("subject_id") or None
+        t.grade_id    = data.get("grade_id") or None
+        t.kind        = data.get("kind") or t.kind
+        t.state       = data.get("state") or t.state
+        db.session.commit()
+        return redirect(url_for("lms.templates_gallery"))
+    subjects = Subject.query.filter_by(school_id=current_user.school_id).order_by(Subject.name).all()
+    return render_template("lms/template_new.html", template=t, subjects=subjects)
 
 
 @bp.route("/bank", endpoint="bank_home")

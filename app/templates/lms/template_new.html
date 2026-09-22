@@ -1,0 +1,222 @@
+{# Create/Edit Template — Stitch design "lms_5". #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if template %}تعديل نموذج{% else %}إنشاء نموذج جديد{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.templates_gallery') }}" class="hover:text-primary">النماذج الاحترافية</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">
+    {% if template %}تعديل نموذج{% else %}إنشاء نموذج جديد{% endif %}
+  </span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-5xl mx-auto space-y-6 pb-28">
+
+  {# ── Top bar with breadcrumbs + back ────────────────────────── #}
+  <div class="flex items-center justify-between gap-4">
+    <nav aria-label="مسار التنقل" class="flex items-center gap-2 font-label-md text-label-md text-outline">
+      <a class="hover:text-primary transition-colors flex items-center gap-1.5" href="{{ url_for('dashboard.home') }}">
+        <span class="material-symbols-outlined text-[18px]">home</span>
+        <span>الرئيسية</span>
+      </a>
+      <span class="material-symbols-outlined text-[16px] text-outline-variant">chevron_left</span>
+      <a class="hover:text-primary transition-colors" href="{{ url_for('lms.templates_gallery') }}">النماذج الاحترافية</a>
+      <span class="material-symbols-outlined text-[16px] text-outline-variant">chevron_left</span>
+      <span class="font-label-lg text-label-lg text-primary font-semibold">
+        {% if template %}تعديل نموذج{% else %}إنشاء نموذج جديد{% endif %}
+      </span>
+    </nav>
+    <a href="{{ url_for('lms.templates_gallery') }}"
+       class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-container-lowest text-on-surface hover:bg-surface-container-high transition-all shadow-sm">
+      <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+      <span class="font-label-md text-label-md">العودة للنماذج</span>
+    </a>
+  </div>
+
+  {# ── Hero card ──────────────────────────────────────────────── #}
+  <div class="relative overflow-hidden rounded-2xl p-8 bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary shadow-xl">
+    <div class="absolute -top-24 -left-20 w-80 h-80 rounded-full bg-white/10 blur-3xl pointer-events-none"></div>
+    <div class="absolute -bottom-24 right-1/4 w-96 h-96 rounded-full bg-secondary-container/20 blur-3xl pointer-events-none"></div>
+    <svg class="absolute left-6 top-1/2 -translate-y-1/2 w-72 h-72 text-white/5 pointer-events-none hidden md:block" fill="none" viewBox="0 0 200 200">
+      <circle cx="100" cy="100" r="90" stroke="currentColor" stroke-dasharray="8 8" stroke-width="2"/>
+      <circle cx="100" cy="100" r="65" stroke="currentColor" stroke-width="2"/>
+      <path d="M40 100 Q100 40 160 100 Q100 160 40 100Z" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    </svg>
+    <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+          <span class="material-symbols-outlined text-[32px] text-white" style="font-variation-settings: 'FILL' 1;">bookmark_add</span>
+        </div>
+        <div class="space-y-1.5">
+          <div class="flex items-center gap-3 flex-wrap">
+            <h1 class="font-headline-lg text-headline-lg font-bold text-white tracking-tight">
+              {% if template %}تعديل النموذج{% else %}إنشاء نموذج جديد{% endif %}
+            </h1>
+            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 backdrop-blur-sm text-white font-label-sm text-label-xs">
+              <span class="w-2 h-2 rounded-full bg-secondary-fixed"></span>
+              {% if template %}{{ template.state }}{% else %}مسودة غير منشورة{% endif %}
+            </span>
+          </div>
+          <p class="font-body-md text-body-md text-on-primary/90 max-w-2xl leading-relaxed">
+            أنشئ نموذجاً احترافياً جديداً لاستخدامه لاحقاً في توليد اختبارات مؤتمتة أو ربط الأسئلة من بنك الأسئلة المعتمد حسب معايير K-12.
+          </p>
+        </div>
+      </div>
+      <div class="shrink-0 bg-white/10 backdrop-blur-md rounded-xl p-3.5 flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px] text-white">verified</span>
+        </div>
+        <div>
+          <div class="font-label-xs text-label-xs text-on-primary/70">المعيار الأكاديمي</div>
+          <div class="font-label-lg text-label-lg font-bold text-white">نموذج K-12 معتمد</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Form ──────────────────────────────────────────────────── #}
+  <form method="post" class="bg-surface-container-lowest rounded-2xl p-8 shadow-sm space-y-8">
+    <div class="flex items-center justify-between pb-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-surface-container-low text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">assignment</span>
+        </div>
+        <div>
+          <h2 class="font-title-md text-title-md text-on-surface font-bold">بيانات النموذج الأساسية</h2>
+          <p class="font-label-md text-label-md text-outline">أدخل المعرفات التفصيلية الخاصة بهيكلية الاختبار وأهدافه</p>
+        </div>
+      </div>
+      <span class="px-3 py-1 rounded-full bg-error-container text-error font-label-xs text-label-xs font-semibold">
+        حقول إلزامية (*)
+      </span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {# Title #}
+      <div class="space-y-2">
+        <label class="flex items-center justify-between font-label-lg text-label-lg text-on-surface" for="title">
+          <span>عنوان النموذج <span class="text-error">*</span></span>
+          <span class="font-label-xs text-label-xs text-outline">اسم واضح ومعبر</span>
+        </label>
+        <div class="relative">
+          <input required name="title" id="title" type="text"
+                 value="{{ template.title if template else '' }}"
+                 placeholder="مثال: نموذج رياضيات متقدمة - M75"
+                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all"/>
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">title</span>
+        </div>
+      </div>
+
+      {# Subject #}
+      <div class="space-y-2">
+        <label class="flex items-center justify-between font-label-lg text-label-lg text-on-surface" for="subject_id">
+          <span>المادة الدراسية <span class="font-label-xs text-outline font-normal">(اختياري)</span></span>
+          <span class="font-label-xs text-label-xs text-secondary font-medium">ربط مباشر</span>
+        </label>
+        <div class="relative">
+          <select name="subject_id" id="subject_id"
+                  class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all appearance-none cursor-pointer">
+            <option value="">اختر المادة الدراسية…</option>
+            {% for s in subjects %}
+            <option value="{{ s.id }}" {% if template and template.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+            {% endfor %}
+          </select>
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none">expand_more</span>
+        </div>
+      </div>
+
+      {# Kind #}
+      <div class="space-y-2">
+        <label class="flex items-center justify-between font-label-lg text-label-lg text-on-surface" for="kind">
+          <span>نوع النموذج <span class="text-error">*</span></span>
+          <span class="font-label-xs text-label-xs text-outline">طبيعة التقييم</span>
+        </label>
+        <div class="relative">
+          <select required name="kind" id="kind"
+                  class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all appearance-none cursor-pointer">
+            <option value="assignment" {% if template and template.kind == 'assignment' %}selected{% endif %}>واجب دراسي</option>
+            <option value="exam"       {% if template and template.kind == 'exam' %}selected{% endif %}>اختبار قياسي وفصلي</option>
+          </select>
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px] pointer-events-none">expand_more</span>
+        </div>
+      </div>
+
+      {# Code (ImportFromCode field) #}
+      <div class="space-y-2">
+        <label class="flex items-center justify-between font-label-lg text-label-lg text-on-surface" for="code">
+          <span>كود النموذج <span class="font-label-xs text-outline font-normal">(اختياري)</span></span>
+          <span class="font-label-xs text-label-xs text-outline">أو استيراد من كود آخر</span>
+        </label>
+        <div class="relative">
+          <input name="code" id="code" type="text"
+                 value="{{ template.code if template else '' }}"
+                 placeholder="M75"
+                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all"/>
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">content_paste</span>
+        </div>
+      </div>
+
+      {% if not template %}
+      {# ImportFromCode — only on create #}
+      <div class="space-y-2 md:col-span-2">
+        <label class="flex items-center justify-between font-label-lg text-label-lg text-on-surface" for="import_from_code">
+          <span>استيراد أسئلة من كود نموذج موجود <span class="font-label-xs text-outline font-normal">(اختياري)</span></span>
+          <span class="font-label-xs text-label-xs text-secondary font-medium">نسخ عناصر جاهزة</span>
+        </label>
+        <div class="relative">
+          <input name="import_from_code" id="import_from_code" type="text"
+                 placeholder="مثال: M75 — سيتم نسخ كل أسئلة النموذج المصدر"
+                 class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all"/>
+          <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline text-[20px]">library_add</span>
+        </div>
+        <p class="font-label-xs text-label-xs text-outline">لو تركته فارغاً سيتم إنشاء النموذج فارغاً ويمكنك إضافة الأسئلة يدوياً لاحقاً.</p>
+      </div>
+      {% endif %}
+
+      {# Description #}
+      <div class="space-y-2 md:col-span-2">
+        <label class="flex items-center justify-between font-label-lg text-label-lg text-on-surface" for="description">
+          <span>الوصف والتفاصيل الأكاديمية</span>
+          <span class="font-label-xs text-label-xs text-outline">حتى 500 حرف</span>
+        </label>
+        <textarea name="description" id="description" rows="4" maxlength="500"
+                  placeholder="نموذج مخصص لاختبار نهاية الفصل الدراسي يشمل وحدات المتجهات، المصفوفات، والهندسة الفراغية، بمستويات صعوبة متدرجة (تذكر، فهم، تطبيق، تحليل، تحليل عليا)."
+                  class="w-full px-4 py-3 rounded-xl bg-surface-container-low text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:bg-surface-container-lowest transition-all resize-none">{{ template.description if template else '' }}</textarea>
+      </div>
+    </div>
+
+    {# Reminder banner #}
+    <div class="bg-secondary-fixed/40 rounded-xl p-4 flex items-start gap-3">
+      <div class="w-10 h-10 rounded-lg bg-white flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-secondary">lightbulb</span>
+      </div>
+      <div>
+        <h3 class="font-label-lg text-label-lg font-bold text-on-surface">نصيحة لتنظيم بنك النماذج</h3>
+        <p class="font-body-sm text-body-sm text-on-surface-variant mt-1 leading-relaxed">
+          استخدم كوداً واضحاً وقابلاً للتمييز للنموذج (مثل: M75 أو BIO-Q1) حتى يسهل ربطه لاحقاً بصفحات الاختبارات المباشرة والمعاينة الطباعية وجداول الرصد التلقائي.
+        </p>
+      </div>
+    </div>
+
+    {# Bottom bar #}
+    <div class="fixed bottom-0 left-0 right-72 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high shadow-[0_-4px_16px_rgba(0,0,0,0.03)] py-3 px-space-lg flex items-center justify-between">
+      <div class="flex items-center gap-2 font-label-md text-label-md text-outline">
+        <span class="w-2 h-2 rounded-full bg-secondary"></span>
+        <span>{% if template %}آخر تحديث: {{ template.updated_at.strftime('%Y-%m-%d %H:%M') if template.updated_at else '—' }}{% else %}تم الحفظ التلقائي للمسودة{% endif %}</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('lms.templates_gallery') }}"
+           class="inline-flex items-center gap-2 px-5 h-12 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+          <span>إلغاء</span>
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg shadow-md hover:shadow-lg hover:brightness-105 active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[22px]">bookmark_added</span>
+          <span>{% if template %}حفظ التغييرات{% else %}حفظ النموذج والمتابعة{% endif %}</span>
+        </button>
+      </div>
+    </div>
+  </form>
+</div>
+{% endblock %}
