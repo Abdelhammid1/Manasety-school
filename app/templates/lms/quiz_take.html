@@ -209,21 +209,31 @@
   </div>
 </div>
 
-{# ── Exit warning modal (fires when student leaves fullscreen or switches tab) ── #}
-<div id="exitWarn" class="modal-backdrop" hidden>
-  <div class="modal-card size-standard p-space-lg">
-    <div class="flex items-start gap-space-md">
-      <div class="w-12 h-12 rounded-xl bg-error-container text-error flex items-center justify-center shrink-0 shadow-sm">
-        <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">gpp_bad</span>
-      </div>
-      <div class="flex-1">
-        <h3 class="font-title-md text-title-md text-error font-bold">خرجت من وضع الاختبار</h3>
-        <p class="mt-1 font-body-md text-body-md text-on-surface-variant leading-relaxed">
-          لا يمكنك العودة لهذا الاختبار مرة أخرى. سيتم تسليم إجاباتك الحالية تلقائياً خلال
-          <b><span id="exitCd">5</span></b> ثوانٍ.
-        </p>
-      </div>
+{# ── Exit warning: hardened terminal overlay (not a regular modal) ──
+   Deliberately does NOT use `.modal-backdrop` — that class is dismissable
+   by a global click-or-Escape handler in stitch_base, and the whole point
+   here is that the student cannot recover from an exit attempt.
+   The overlay is opaque, swallows every event, and always sits above the
+   exam via a z-index one tick over the sticky top bar. #}
+<div id="exitWarn" hidden
+     class="fixed inset-0 z-[110] bg-error/95 backdrop-blur-md flex items-center justify-center p-6"
+     onclick="event.stopPropagation()" oncontextmenu="return false">
+  <div class="max-w-lg w-full bg-surface-container-lowest rounded-3xl p-8 shadow-2xl text-center space-y-4">
+    <div class="mx-auto w-16 h-16 rounded-2xl bg-error-container text-error flex items-center justify-center">
+      <span class="material-symbols-outlined text-4xl" style="font-variation-settings: 'FILL' 1;">gpp_bad</span>
     </div>
+    <h3 class="font-headline-sm text-headline-sm text-error font-bold">خرجت من وضع الاختبار</h3>
+    <p class="font-body-md text-body-md text-on-surface-variant leading-relaxed">
+      لا يمكنك العودة لهذا الاختبار مرة أخرى.<br>
+      سيتم تسليم إجاباتك الحالية تلقائياً خلال
+      <b><span id="exitCd" class="text-error text-headline-md">5</span></b> ثوانٍ.
+    </p>
+    <div class="w-full h-1.5 rounded-full bg-error-container overflow-hidden">
+      <div id="exitBar" class="h-full bg-error transition-all duration-1000" style="width:100%"></div>
+    </div>
+    <p class="font-label-sm text-label-sm text-outline">
+      المحاولة تُحسب كاملة — لا يمكن استئنافها.
+    </p>
   </div>
 </div>
 
@@ -332,20 +342,39 @@
   document.getElementById('startBtn').addEventListener('click', beginExam);
 
   // ── Exit warning + auto-submit ────────────────────────────────────
+  // The overlay is a plain <div>, NOT a `.modal-backdrop`, so the global
+  // "Escape closes any modal" and "click backdrop closes modal" handlers
+  // in stitch_base don't touch it. Once triggered, only the countdown-driven
+  // submit can end it — clicks on the exam behind can't reach through, and
+  // the exam form is frozen for good measure.
+  let exitTimer = null;
   function triggerExitWarn(reason){
     if (!started || submitting) return;
-    openModal('#exitWarn');
+    if (exitTimer !== null) return;  // already counting down — don't restart
+    const overlay = document.getElementById('exitWarn');
+    overlay.hidden = false;
+    // Freeze the exam form so a click that slips through can't change answers.
+    document.getElementById('quizForm').style.pointerEvents = 'none';
     let s = 5;
     document.getElementById('exitCd').textContent = s;
-    const it = setInterval(() => {
+    document.getElementById('exitBar').style.width = '100%';
+    exitTimer = setInterval(() => {
       s -= 1;
-      document.getElementById('exitCd').textContent = s;
+      document.getElementById('exitCd').textContent = Math.max(0, s);
+      document.getElementById('exitBar').style.width = (s * 20) + '%';
       if (s <= 0){
-        clearInterval(it);
+        clearInterval(exitTimer);
         submitAttempt(true);
       }
     }, 1000);
   }
+  // Swallow Escape while the warning is up so it can't close via any handler.
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !document.getElementById('exitWarn').hidden){
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }
+  }, true);
 
   document.addEventListener('fullscreenchange', () => {
     if (started && !inFs() && !submitting) triggerExitWarn('fullscreen-exit');

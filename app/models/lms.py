@@ -341,6 +341,7 @@ class QuizAttempt(db.Model):
     score = db.Column(db.Numeric(6, 2))
     auto_graded = db.Column(db.Boolean, default=False)
 
+    quiz = db.relationship("Quiz")
     answers = db.relationship("Answer", backref="attempt", cascade="all, delete-orphan")
 
 
