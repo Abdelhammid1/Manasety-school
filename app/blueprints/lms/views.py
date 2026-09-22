@@ -1737,6 +1737,7 @@ def _bank_save(item):
     # printable code + anti-piracy UUID (auto-fill on first save).
     item.axis_id       = request.form.get("axis_id",      type=int) or None
     item.indicator_id  = request.form.get("indicator_id", type=int) or None
+    item.passage_id    = request.form.get("passage_id",   type=int) or None
     posted_code = (request.form.get("code") or "").strip()
     if posted_code:
         item.code = posted_code
@@ -1968,6 +1969,300 @@ def bank_ai_review():
     flash(f"راجع الذكاء الاصطناعي {len(findings)} سؤالاً — تم نقل {changed} إلى حالتها الصحيحة.",
           "success")
     return redirect(url_for("lms.qbank_dashboard"))
+
+
+@bp.route("/quizzes/<int:qid>/analysis", endpoint="quiz_analysis")
+@login_required
+def quiz_analysis(qid):
+    """Teacher-facing post-exam analysis. Aggregates per-question correct
+    percentages across every submitted attempt, then (if DeepSeek is
+    configured) asks the LLM for weak topics + remediation. Renders the
+    Stitch lms_11 card."""
+    from ...services import deepseek
+    from ...models import Answer as _Ans
+    quiz = Quiz.query.get_or_404(qid)
+    if quiz.course.school_id != current_user.school_id:
+        abort(403)
+
+    attempts = QuizAttempt.query.filter(
+        QuizAttempt.quiz_id == quiz.id,
+        QuizAttempt.submitted_at.isnot(None),
+    ).all()
+    student_count = len({a.student_id for a in attempts})
+
+    # Per-question correct%: count correct answers / attempts that touched it.
+    q_stats = []
+    for q in quiz.questions:
+        answered = _Ans.query.join(QuizAttempt).filter(
+            QuizAttempt.quiz_id == quiz.id,
+            QuizAttempt.submitted_at.isnot(None),
+            _Ans.question_id == q.id,
+        ).all()
+        n = len(answered)
+        correct = sum(1 for a in answered if a.is_correct)
+        pct = int(round(correct / n * 100)) if n else 0
+        q_stats.append({
+            "prompt": q.prompt[:120],
+            "correct_pct": pct,
+            "topic": (q.prompt.split("؟")[0][:40] if q.prompt else ""),
+            "attempts": n,
+        })
+    # Compute score bands.
+    scores = [float(a.score or 0) for a in attempts if a.score is not None]
+    total_max = sum(float(q.points or 0) for q in quiz.questions) or 1
+    pct_scores = [s / total_max * 100 for s in scores]
+    kpi = {
+        "avg":  int(round(sum(pct_scores)/len(pct_scores))) if pct_scores else 0,
+        "max":  int(round(max(pct_scores))) if pct_scores else 0,
+        "min":  int(round(min(pct_scores))) if pct_scores else 0,
+        "students_at_risk": sum(1 for p in pct_scores if p < 50),
+    }
+    weak_qs = sorted([qs for qs in q_stats if qs["attempts"] > 0],
+                     key=lambda x: x["correct_pct"])[:4]
+
+    ai = None
+    ai_error = None
+    if deepseek.is_configured() and q_stats:
+        try:
+            ai = deepseek.summarize_exam_results(quiz.title, q_stats)
+        except deepseek.AIError as e:
+            ai_error = str(e)
+
+    return render_template("lms/quiz_analysis.html",
+                           quiz=quiz, kpi=kpi, weak_qs=weak_qs,
+                           student_count=student_count, ai=ai, ai_error=ai_error)
+
+
+@bp.route("/passages", endpoint="passages_home")
+@login_required
+def passages_home():
+    """Reading-passage library — Stitch lms_7 shell/list."""
+    from ...models import Passage
+    sid = current_user.school_id
+    items = (
+        Passage.query.filter_by(school_id=sid)
+        .order_by(Passage.updated_at.desc()).limit(200).all()
+    )
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    return render_template("lms/passages_home.html",
+                           items=items, subjects=subjects)
+
+
+@bp.route("/passages/new", methods=["GET", "POST"], endpoint="passage_new")
+@login_required
+def passage_new():
+    return _passage_form(None)
+
+
+@bp.route("/passages/<int:pid>", methods=["GET", "POST"], endpoint="passage_edit")
+@login_required
+def passage_edit(pid):
+    from ...models import Passage
+    p = Passage.query.filter_by(
+        id=pid, school_id=current_user.school_id).first_or_404()
+    return _passage_form(p)
+
+
+def _passage_form(p):
+    from ...models import Passage
+    sid = current_user.school_id
+    if request.method == "POST":
+        title = (request.form.get("title") or "").strip()
+        body  = (request.form.get("body") or "").strip()
+        if not title:
+            flash("عنوان القطعة مطلوب.", "danger")
+            return redirect(request.url)
+        if p is None:
+            p = Passage(school_id=sid, created_by_id=getattr(current_user, "id", None))
+            db.session.add(p)
+        p.title = title
+        p.body = body
+        p.source = (request.form.get("source") or "").strip()
+        p.language = (request.form.get("language") or "ar").strip()
+        p.subject_id = request.form.get("subject_id", type=int) or None
+        p.grade_id   = request.form.get("grade_id",   type=int) or None
+        p.state      = (request.form.get("state") or "published").strip()
+        # Rough word count (whitespace-split) — the UI shows it live too.
+        p.word_count = len([w for w in (body or "").split() if w])
+        db.session.commit()
+        flash("تم حفظ القطعة.", "success")
+        return redirect(url_for("lms.passage_edit", pid=p.id))
+
+    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
+    grades   = Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
+    linked = []
+    if p:
+        linked = BankQuestion.query.filter_by(passage_id=p.id).all()
+    return render_template("lms/passage_edit.html",
+                           passage=p, subjects=subjects,
+                           grades=grades, linked=linked)
+
+
+@bp.route("/passages/<int:pid>/delete", methods=["POST"], endpoint="passage_delete")
+@login_required
+def passage_delete(pid):
+    from ...models import Passage
+    p = Passage.query.filter_by(
+        id=pid, school_id=current_user.school_id).first_or_404()
+    db.session.delete(p); db.session.commit()
+    flash("تم حذف القطعة.", "success")
+    return redirect(url_for("lms.passages_home"))
+
+
+@bp.route("/bank/<int:bid>/rewrite", endpoint="bank_rewrite_panel")
+@login_required
+def bank_rewrite_panel(bid):
+    """Renders the Stitch lms_8 AI rewriter drawer as a full page."""
+    sid = current_user.school_id
+    q = BankQuestion.query.filter_by(id=bid, school_id=sid).first_or_404()
+    return render_template("lms/bank_rewrite.html", question=q)
+
+
+@bp.route("/bank/<int:bid>/ai-rewrite",
+          methods=["POST"], endpoint="bank_ai_rewrite")
+@login_required
+def bank_ai_rewrite(bid):
+    """Return the AI-rewritten version of a bank question as JSON — the
+    drawer decides whether to save-as-copy or replace-in-place."""
+    from ...services import deepseek
+    sid = current_user.school_id
+    q = BankQuestion.query.filter_by(id=bid, school_id=sid).first_or_404()
+    if not deepseek.is_configured():
+        return jsonify({"error": "لم يتم تهيئة مفتاح DeepSeek."}), 400
+    body = request.get_json(silent=True) or request.form
+    directive = (body.get("directive") or "").strip() or "أعد صياغة السؤال بشكل أوضح."
+    src = {
+        "prompt": q.prompt, "kind": q.kind,
+        "difficulty": q.difficulty,
+        "points": float(q.points or 1),
+        "correct_short": q.correct_short or "",
+        "choices": [{"label": c.label, "is_correct": c.is_correct}
+                    for c in (q.choices or [])],
+    }
+    try:
+        rewritten = deepseek.rewrite_question(src, directive)
+        return jsonify({"original": src, "rewritten": rewritten})
+    except deepseek.AIError as e:
+        return jsonify({"error": str(e)}), 502
+
+
+@bp.route("/bank/<int:bid>/ai-rewrite/save",
+          methods=["POST"], endpoint="bank_ai_rewrite_save")
+@login_required
+def bank_ai_rewrite_save(bid):
+    """Persist an AI-rewritten question. mode=copy → new BankQuestion in
+    `pending`; mode=replace → mutate the original + bump version."""
+    sid = current_user.school_id
+    q = BankQuestion.query.filter_by(id=bid, school_id=sid).first_or_404()
+    mode = (request.form.get("mode") or "copy").strip()
+    prompt = (request.form.get("prompt") or "").strip()
+    if not prompt:
+        flash("لا يوجد نص لحفظه.", "danger")
+        return redirect(url_for("lms.bank_edit", bid=q.id))
+    kind = request.form.get("kind") or q.kind
+    labels = request.form.getlist("choice_label")
+    correct_flags = set(request.form.getlist("choice_correct"))
+
+    def _rewrite_choices(target):
+        for c in list(target.choices):
+            db.session.delete(c)
+        db.session.flush()
+        for i, label in enumerate(labels):
+            if not (label or "").strip():
+                continue
+            db.session.add(BankChoice(
+                question_id=target.id, order_index=i + 1,
+                label=label.strip(),
+                is_correct=(str(i) in correct_flags),
+            ))
+
+    if mode == "replace":
+        q.prompt = prompt
+        q.kind = kind
+        db.session.flush()
+        _rewrite_choices(q)
+        db.session.commit()
+        flash("تم استبدال السؤال بالنسخة المعدّلة.", "success")
+        return redirect(url_for("lms.bank_edit", bid=q.id))
+
+    import uuid as _uuid
+    from datetime import datetime as _dt
+    new_q = BankQuestion(
+        school_id=sid,
+        created_by_id=getattr(current_user, "id", None),
+        subject_id=q.subject_id, grade_id=q.grade_id,
+        kind=kind, prompt=prompt,
+        points=q.points, correct_short=q.correct_short or "",
+        difficulty=q.difficulty, review_state="pending",
+        source="school", uuid=str(_uuid.uuid4()),
+    )
+    db.session.add(new_q); db.session.flush()
+    new_q.code = f"S{sid}-Y{_dt.utcnow().year % 100:02d}-AI{new_q.id}"
+    _rewrite_choices(new_q)
+    db.session.commit()
+    flash("تم حفظ نسخة جديدة بحالة قيد المراجعة.", "success")
+    return redirect(url_for("lms.bank_edit", bid=new_q.id))
+
+
+@bp.route("/submissions/<int:sid>/grade", endpoint="submission_grade_panel")
+@login_required
+def submission_grade_panel(sid):
+    """Renders the Stitch lms_10 AI grading sidebar as a full page."""
+    from ...models import Submission
+    school_sid = current_user.school_id
+    sub = Submission.query.get_or_404(sid)
+    if sub.assignment.course.school_id != school_sid:
+        abort(403)
+    return render_template("lms/submission_grade.html", submission=sub)
+
+
+@bp.route("/submissions/<int:sid>/grade/save",
+          methods=["POST"], endpoint="submission_grade_save")
+@login_required
+def submission_grade_save(sid):
+    from ...models import Submission
+    school_sid = current_user.school_id
+    sub = Submission.query.get_or_404(sid)
+    if sub.assignment.course.school_id != school_sid:
+        abort(403)
+    try:
+        sub.score = Decimal(request.form.get("score") or "0")
+    except Exception:
+        sub.score = None
+    sub.feedback = (request.form.get("feedback") or "").strip()
+    sub.graded_by_id = getattr(current_user, "id", None)
+    sub.graded_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash("تم اعتماد التصحيح وإرساله للطالب.", "success")
+    return redirect(url_for("lms.assignments_home"))
+
+
+@bp.route("/submissions/<int:sid>/ai-grade",
+          methods=["POST"], endpoint="submission_ai_grade")
+@login_required
+def submission_ai_grade(sid):
+    """AI-grade a free-form Submission (essay/short). Returns suggested
+    {score, feedback, key_points} as JSON. Actual save is a follow-up
+    POST to `submission_ai_grade_save`."""
+    from ...services import deepseek
+    from ...models import Submission
+    school_sid = current_user.school_id
+    sub = Submission.query.get_or_404(sid)
+    if sub.assignment.course.school_id != school_sid:
+        abort(403)
+    if not deepseek.is_configured():
+        return jsonify({"error": "لم يتم تهيئة مفتاح DeepSeek."}), 400
+    prompt = sub.assignment.title
+    rubric = sub.assignment.instructions or ""
+    student_answer = (sub.body or "").strip() or "—"
+    max_points = float(sub.assignment.max_score or 100)
+    try:
+        data = deepseek.grade_free_form_answer(
+            prompt, student_answer, max_points, rubric,
+        )
+        return jsonify(data)
+    except deepseek.AIError as e:
+        return jsonify({"error": str(e)}), 502
 
 
 @bp.route("/exams/blueprint/ai-suggest",

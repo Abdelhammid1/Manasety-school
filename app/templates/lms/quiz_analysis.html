@@ -1,0 +1,201 @@
+{# Post-exam AI insights — Stitch design "lms_11". Teacher-facing
+   analysis card that aggregates every student's answers, then hands the
+   per-question correct-percentages to DeepSeek for weak-topic detection
+   and remediation suggestions. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تحليل النتائج — {{ quiz.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.quizzes_home') }}" class="hover:text-primary">الاختبارات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold truncate max-w-md">تحليل: {{ quiz.title }}</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+
+  {# Header echo #}
+  <div class="flex items-center justify-between flex-wrap gap-space-sm">
+    <div class="font-label-md text-label-md text-on-surface-variant">
+      نتائج الاختبارات والتقييمات  ·  <span class="text-primary font-bold">{{ quiz.title }}</span>
+    </div>
+    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 font-label-md text-label-md font-bold">
+      <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+      اكتمل تسليم {{ student_count }} / {{ student_count }} طالباً
+    </span>
+  </div>
+
+  {# The AI card — full width, gradient border top #}
+  <section class="relative overflow-hidden rounded-3xl bg-surface-container-lowest shadow-lg">
+    <div class="h-1.5 bg-gradient-to-l from-fuchsia-500 via-violet-500 to-fuchsia-500"></div>
+    <div class="p-space-lg space-y-space-lg">
+
+      {# Card header #}
+      <div class="flex items-start justify-between gap-space-md flex-wrap">
+        <div class="flex items-center gap-space-sm">
+          <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-600 text-white flex items-center justify-center shadow-lg shrink-0">
+            <span class="material-symbols-outlined text-3xl">insights</span>
+            <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-fuchsia-400 ring-4 ring-fuchsia-100"></span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2 flex-wrap">
+              <h1 class="font-headline-md text-headline-md text-on-surface font-bold">تحليل النتائج بالذكاء الاصطناعي</h1>
+              <span class="px-2.5 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-800 font-label-xs text-label-xs font-bold">محرك منصتي الذكي</span>
+            </div>
+            <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+              بناءً على إجابات {{ student_count }} طالباً · {{ quiz.title }}{% if quiz.course %} · {{ quiz.course.title }}{% endif %}
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-fuchsia-50 text-fuchsia-700 font-label-md text-label-md font-bold">
+            <span class="w-2 h-2 rounded-full bg-fuchsia-500 animate-pulse"></span>
+            تم التحليل الآن · قابل للإعادة
+          </span>
+          <form method="get" class="inline">
+            <input type="hidden" name="_" value="{{ range(1000)|random }}">
+            <button type="submit" class="w-11 h-11 rounded-full bg-surface-container-low text-primary hover:bg-surface-container transition-colors flex items-center justify-center" title="إعادة التحليل">
+              <span class="material-symbols-outlined text-xl">refresh</span>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {% if ai_error %}
+      <div class="p-space-md rounded-xl bg-rose-50 text-rose-800 border border-rose-200">
+        <div class="flex items-start gap-2"><span class="material-symbols-outlined">error</span>
+          <div><b>تعذّر التحليل الآن:</b> <span dir="ltr">{{ ai_error }}</span></div>
+        </div>
+      </div>
+      {% elif not ai %}
+      <div class="p-space-md rounded-xl bg-amber-50 text-amber-800 border border-amber-200 flex items-start gap-2">
+        <span class="material-symbols-outlined">warning</span>
+        <div><b>لم يتم تهيئة مفتاح DeepSeek.</b> ستظهر الأرقام الأساسية فقط دون توصيات ذكية.</div>
+      </div>
+      {% endif %}
+
+      {# Three columns #}
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-space-md">
+
+        {# A. Weak topics #}
+        <div class="lg:col-span-4 space-y-space-sm">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-amber-600">warning</span>
+              <span class="font-title-md text-title-md text-on-surface font-bold">الموضوعات الضعيفة</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 font-label-xs text-label-xs font-bold">تحتاج تدخّلاً علاجياً</span>
+          </div>
+          <div class="space-y-2">
+            {% for wq in weak_qs %}
+            <div class="p-space-md rounded-xl bg-amber-50/60 border border-amber-200 flex items-center justify-between gap-2 hover:bg-amber-50 transition-colors">
+              <div class="min-w-0">
+                <div class="font-title-md text-title-md text-on-surface font-bold truncate">{{ wq.topic or wq.prompt|truncate(40) }}</div>
+                <div class="font-label-sm text-label-sm text-on-surface-variant mt-0.5">معدّل {{ wq.attempts }} محاولة لكل سؤال</div>
+              </div>
+              <div class="flex items-center gap-2 shrink-0">
+                <span class="px-2.5 py-1 rounded-full bg-amber-500 text-white font-label-sm text-label-sm font-bold">{{ wq.correct_pct }}%</span>
+                <span class="material-symbols-outlined text-amber-700 text-lg">chevron_left</span>
+              </div>
+            </div>
+            {% else %}
+            <div class="p-space-md rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-center">
+              <span class="material-symbols-outlined text-2xl">celebration</span>
+              <div class="font-title-md text-title-md font-bold mt-1">لا موضوعات ضعيفة!</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+
+        {# B. Recommendations #}
+        <div class="lg:col-span-5 space-y-space-sm">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="material-symbols-outlined text-emerald-600">emoji_objects</span>
+              <span class="font-title-md text-title-md text-on-surface font-bold">التوصيات العلاجية البيداغوجية</span>
+            </div>
+            <span class="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-xs text-label-xs font-bold">خطة تدريسية مقترحة</span>
+          </div>
+          <div class="p-space-lg rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+            {% set recs = (ai.recommendations if ai else '').split('\n') if ai else [] %}
+            {% set recs = recs|select|list %}
+            {% if recs %}
+              {% for r in recs[:5] %}
+              <div class="flex items-start gap-3">
+                <div class="w-7 h-7 rounded-full bg-emerald-600 text-white font-label-md text-label-md font-bold flex items-center justify-center shrink-0">{{ loop.index }}</div>
+                <div class="flex-1 font-body-md text-body-md text-on-surface leading-relaxed">{{ r }}</div>
+              </div>
+              {% endfor %}
+            {% else %}
+              <div class="text-on-surface-variant">لا توصيات نصية متاحة حالياً.</div>
+            {% endif %}
+          </div>
+          <div class="text-center pt-1">
+            <span class="inline-flex items-center gap-1.5 text-label-sm font-label-sm text-emerald-800">
+              <span class="material-symbols-outlined text-base">check_circle</span>
+              تمت ملاءمة التوصيات مع معايير المناهج الوطنية
+            </span>
+          </div>
+        </div>
+
+        {# C. Key numbers #}
+        <div class="lg:col-span-3 space-y-space-sm">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">query_stats</span>
+            <span class="font-title-md text-title-md text-on-surface font-bold">الأرقام الرئيسية</span>
+          </div>
+          <div class="p-space-md rounded-xl bg-secondary-fixed/50 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md text-label-md text-on-secondary-fixed font-bold">المتوسط العام</span>
+              <span class="material-symbols-outlined text-secondary">bar_chart</span>
+            </div>
+            <div class="font-headline-lg text-headline-lg font-extrabold text-on-secondary-fixed">{{ kpi.avg }}%</div>
+            <div class="font-label-xs text-label-xs text-on-secondary-fixed">
+              {% if kpi.avg >= 75 %}مستوى ممتاز{% elif kpi.avg >= 60 %}مستوى جيد{% elif kpi.avg >= 45 %}مستوى مقبول{% else %}يحتاج تدخّلاً{% endif %}
+            </div>
+          </div>
+          <div class="p-space-md rounded-xl bg-emerald-50 border border-emerald-200 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md text-label-md text-emerald-900 font-bold">أعلى نتيجة</span>
+              <span class="material-symbols-outlined text-emerald-700">emoji_events</span>
+            </div>
+            <div class="font-headline-lg text-headline-lg font-extrabold text-emerald-700">{{ kpi.max }}%</div>
+            <div class="font-label-xs text-label-xs text-emerald-800">تفوق كامل</div>
+          </div>
+          <div class="p-space-md rounded-xl bg-rose-50 border border-rose-200 space-y-1">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md text-label-md text-rose-900 font-bold">أدنى نتيجة</span>
+              <span class="material-symbols-outlined text-rose-700">trending_down</span>
+            </div>
+            <div class="font-headline-lg text-headline-lg font-extrabold text-rose-700">{{ kpi.min }}%</div>
+            <div class="font-label-xs text-label-xs text-rose-800">
+              {% if kpi.students_at_risk %}{{ kpi.students_at_risk }} طالب بحاجة لدعم فردي{% else %}لا طلاب في خطر{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {# Footer bar #}
+      <div class="pt-space-md border-t border-surface-container-low flex flex-wrap items-center justify-between gap-space-sm">
+        <div class="font-label-xs text-label-xs text-outline flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm text-secondary">verified</span>
+          <span>معالج بالذكاء الاصطناعي DeepSeek — قابل للمراجعة والتعديل يدوياً</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <a href="{{ url_for('lms.template_print', tid=0) if false else '#' }}" class="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-md text-label-md">
+            <span class="material-symbols-outlined text-lg">picture_as_pdf</span>
+            <span>تصدير التقرير PDF</span>
+          </a>
+          <a href="#" class="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-fuchsia-50 text-fuchsia-800 hover:bg-fuchsia-100 transition-colors font-label-md text-label-md">
+            <span class="material-symbols-outlined text-lg">auto_awesome</span>
+            <span>أنشئ اختباراً علاجياً</span>
+          </a>
+          <a href="#" class="inline-flex items-center gap-2 px-5 h-10 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-md text-label-md font-bold shadow-md hover:brightness-110 transition-all">
+            <span class="material-symbols-outlined text-lg">send</span>
+            <span>أرسل الملاحظات لأولياء الأمور</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+{% endblock %}

@@ -178,6 +178,142 @@
       </div>
     </section>
 
+    {# AI blueprint suggestion — Stitch lms_9 #}
+    <section id="ai-suggest" class="relative overflow-hidden rounded-2xl p-space-lg
+             bg-gradient-to-l from-fuchsia-500/10 via-violet-500/10 to-fuchsia-500/5
+             ring-1 ring-violet-500/30 space-y-space-md">
+      <div class="pointer-events-none absolute -left-16 -top-16 w-72 h-72 rounded-full bg-violet-500/10 blur-3xl"></div>
+      <div class="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-space-md">
+        <div class="flex items-center gap-space-sm min-w-0">
+          <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-600 text-white flex items-center justify-center shadow-lg shrink-0">
+            <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2 flex-wrap">
+              <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">اقتراح توزيع الأسئلة بالذكاء الاصطناعي</h2>
+              <span class="px-2.5 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-800 font-label-xs text-label-xs font-bold">Bloom Adaptive</span>
+            </div>
+            <p class="font-label-md text-label-md text-on-surface-variant mt-1">
+              نموذج ذكي يقترح توزيع صعوبات بلوم بناءً على المادة والصف ونتائج التحصيل السابقة.
+            </p>
+          </div>
+        </div>
+        <button type="button" onclick="requestAiSuggestion()"
+                class="inline-flex items-center gap-2 px-5 h-12 rounded-full bg-gradient-to-l from-fuchsia-600 to-violet-600 text-white font-label-lg text-label-lg font-bold shadow-lg hover:brightness-110 active:scale-95 transition-all shrink-0">
+          <span class="material-symbols-outlined text-xl">stars</span>
+          <span>اقترح توزيعاً</span>
+        </button>
+      </div>
+
+      <div id="ai-suggest-panel" class="hidden relative z-10 space-y-space-md">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-space-sm" id="ai-mix-cells">
+          {% for level, ar, tone in [
+            ('easy',      'سهل',      'bg-emerald-50 text-emerald-800 border-emerald-200'),
+            ('medium',    'متوسط',    'bg-sky-50 text-sky-800 border-sky-200'),
+            ('hard',      'صعب',      'bg-amber-50 text-amber-800 border-amber-200'),
+            ('very_hard', 'صعب جداً',  'bg-rose-50 text-rose-800 border-rose-200'),
+          ] %}
+          <div class="p-space-md rounded-xl border {{ tone }} flex flex-col gap-1">
+            <div class="flex items-center justify-between">
+              <span class="font-label-md text-label-md font-bold">{{ ar }}</span>
+              <span class="material-symbols-outlined text-[18px] opacity-70">
+                {% if level == 'easy' %}sentiment_satisfied
+                {% elif level == 'medium' %}bar_chart
+                {% elif level == 'hard' %}help
+                {% else %}local_fire_department{% endif %}
+              </span>
+            </div>
+            <div class="flex items-baseline gap-1">
+              <span data-mix="{{ level }}" class="font-headline-md text-headline-md font-extrabold">0</span>
+              <span class="font-label-sm text-label-sm">أسئلة</span>
+            </div>
+            <span data-pct="{{ level }}" class="font-label-xs text-label-xs opacity-70">0%</span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="p-space-md rounded-xl bg-white/80 backdrop-blur-md border border-violet-200 flex items-start gap-space-sm">
+          <div class="w-10 h-10 rounded-xl bg-violet-100 text-violet-700 flex items-center justify-center shrink-0">
+            <span class="material-symbols-outlined text-xl">psychology</span>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-label-md text-label-md text-violet-800 font-bold mb-1">المبرر البيداغوجي للمقترح:</div>
+            <p id="ai-rationale" class="font-body-md text-body-md text-on-surface leading-relaxed">
+              اضغط «اقترح توزيعاً» ليقوم الذكاء الاصطناعي بتحليل السياق وتقديم توزيع مناسب.
+            </p>
+          </div>
+        </div>
+
+        <div class="flex items-center gap-space-sm">
+          <button type="button" onclick="applyAiSuggestion()"
+                  class="inline-flex items-center gap-2 px-6 h-11 rounded-xl bg-gradient-to-l from-primary to-primary-container text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:shadow-lg transition-all">
+            <span class="material-symbols-outlined text-lg">check_circle</span>
+            <span>طبّق التوزيع الآن</span>
+          </button>
+          <button type="button" onclick="requestAiSuggestion()"
+                  class="inline-flex items-center gap-2 px-4 h-11 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-lg text-label-lg">
+            <span class="material-symbols-outlined text-lg">refresh</span>
+            <span>اقتراح آخر</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="relative z-10 font-label-xs text-label-xs text-outline flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-sm">info</span>
+        <span>المقترح بالذكاء الاصطناعي — قابل للتعديل يدوياً بعد التطبيق.</span>
+      </div>
+    </section>
+
+    <script>
+    (function(){
+      const csrf = '{{ csrf_token() }}';
+      window.requestAiSuggestion = async function(){
+        const btn = document.querySelector('#ai-suggest button');
+        btn.disabled = true;
+        const totalInputs = Array.from(document.querySelectorAll('input[name^="subject_count_"]'));
+        const currentTotal = totalInputs.reduce((s,i) => s + (parseInt(i.value) || 0), 0) || 20;
+        const subjectPicks = totalInputs.filter(i => (parseInt(i.value) || 0) > 0);
+        const subj = subjectPicks.length ? (subjectPicks[0].closest('.p-space-md').querySelector('.font-title-md')?.textContent.trim() || 'عام') : 'عام';
+        const sectionSel = document.querySelector('select[name="section_id"]');
+        const grade = sectionSel && sectionSel.selectedIndex >= 0
+                     ? (sectionSel.options[sectionSel.selectedIndex].text.split('—')[0] || 'الابتدائي').trim()
+                     : 'الابتدائي';
+        try {
+          const r = await fetch('/lms/exams/blueprint/ai-suggest', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRFToken': csrf},
+            body: JSON.stringify({subject: subj, grade, total: currentTotal})
+          });
+          const data = await r.json();
+          if (data.error) { alert(data.error); return; }
+          document.getElementById('ai-suggest-panel').classList.remove('hidden');
+          const total = ['easy','medium','hard','very_hard'].reduce((s,k) => s + (data[k] || 0), 0) || 1;
+          for (const level of ['easy','medium','hard','very_hard']) {
+            const n = data[level] || 0;
+            document.querySelector(`[data-mix="${level}"]`).textContent = n;
+            document.querySelector(`[data-pct="${level}"]`).textContent = Math.round(n/total*100) + '%';
+          }
+          document.getElementById('ai-rationale').textContent = data.rationale || '—';
+          window._aiMix = data;
+        } catch(e) { alert('تعذّر الاتصال بالذكاء الاصطناعي: ' + e); }
+        finally { btn.disabled = false; }
+      };
+      window.applyAiSuggestion = function(){
+        if (!window._aiMix) { alert('لا يوجد مقترح لتطبيقه بعد.'); return; }
+        // Set the difficulty select to "mixed" on the first subject with a
+        // non-zero available count, and distribute the mix into that subject.
+        // (Multi-subject distribution is a follow-up.)
+        const inputs = Array.from(document.querySelectorAll('input[name^="subject_count_"]'));
+        const total = ['easy','medium','hard','very_hard'].reduce((s,k) => s + (window._aiMix[k] || 0), 0);
+        if (inputs.length) {
+          const target = inputs.find(i => parseInt(i.getAttribute('max') || '0') >= total) || inputs[0];
+          target.value = Math.min(total, parseInt(target.getAttribute('max') || total));
+        }
+        alert('تم تطبيق التوزيع على أول مادة متاحة.');
+      };
+    })();
+    </script>
+
     {# Section 4: Ordering #}
     <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">
       <div class="flex items-center justify-between">

@@ -15,9 +15,18 @@
 {% block page_content %}
 {% set post_url = url_for('lms.bank_edit', bid=item.id) if item else url_for('lms.bank_new') %}
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-headline-lg text-primary">
-    {% if item %}تعديل سؤال في البنك{% else %}إضافة سؤال جديد للبنك{% endif %}
-  </h1>
+  <div class="flex items-center justify-between gap-space-sm flex-wrap">
+    <h1 class="font-headline-lg text-headline-lg text-primary">
+      {% if item %}تعديل سؤال في البنك{% else %}إضافة سؤال جديد للبنك{% endif %}
+    </h1>
+    {% if item %}
+    <a href="{{ url_for('lms.bank_rewrite_panel', bid=item.id) }}"
+       class="inline-flex items-center gap-2 px-4 h-11 rounded-xl bg-gradient-to-l from-fuchsia-600 to-violet-600 text-white font-label-lg text-label-lg font-bold shadow-md hover:brightness-110 transition-all">
+      <span class="material-symbols-outlined text-lg">auto_awesome</span>
+      <span>إعادة الصياغة بالذكاء الاصطناعي</span>
+    </a>
+    {% endif %}
+  </div>
 
   <form method="post" action="{{ post_url }}" id="bankForm"
         class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">

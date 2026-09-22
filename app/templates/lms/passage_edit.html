@@ -1,0 +1,190 @@
+{# Passage editor — Stitch lms_7. Text on top, linked-questions grid below. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{% if passage %}{{ passage.title }}{% else %}قطعة جديدة{% endif %}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.qbank_dashboard') }}" class="hover:text-primary">بنك الأسئلة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.passages_home') }}" class="hover:text-primary">القطع اللفظية</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{% if passage %}{{ passage.title|truncate(40) }}{% else %}قطعة جديدة{% endif %}</span>
+{% endblock %}
+{% block page_content %}
+<form method="post" class="w-full max-w-[1200px] mx-auto space-y-6 pb-32">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+  {# Hero card #}
+  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-6 md:p-8 text-on-primary shadow-lg">
+    <div class="pointer-events-none absolute -left-16 -top-16 w-72 h-72 rounded-full bg-secondary-container/20 blur-3xl"></div>
+    <div class="relative z-10 flex items-start gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl" style="font-variation-settings:'FILL' 1;">menu_book</span>
+      </div>
+      <div class="flex-1">
+        <span class="font-label-md text-on-primary/80">{% if passage %}تعديل قطعة{% else %}قطعة جديدة{% endif %} · مسودة معتمدة</span>
+        <h1 class="font-headline-lg text-headline-lg font-bold mt-1">محرر القطعة اللفظية</h1>
+        <p class="font-body-md text-on-primary/85 mt-1">اكتب النص مرة واحدة، واربط به عدة أسئلة في بنك المدرسة المركزي مع ضبط مؤشرات التحصيل ومستويات الصعوبة بدقة.</p>
+        <div class="flex flex-wrap items-center gap-2 mt-3">
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-on-primary/20 font-label-xs" id="wordCountChip">
+            <span class="material-symbols-outlined text-sm">notes</span><span><span id="wordCount">{{ passage.word_count if passage else 0 }}</span> كلمة</span>
+          </span>
+          {% if passage and passage.subject %}
+          <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-on-primary/20 font-label-xs">
+            <span class="material-symbols-outlined text-sm">functions</span>{{ passage.subject.name }}
+          </span>
+          {% endif %}
+        </div>
+      </div>
+      <div class="flex flex-col gap-2 shrink-0">
+        <button type="submit"
+                class="inline-flex items-center gap-2 h-11 px-4 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-lg font-bold shadow hover:brightness-105 transition-all">
+          <span class="material-symbols-outlined">save</span><span>حفظ سريع</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  {# Metadata form #}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-lg space-y-space-md">
+    <div class="flex items-center gap-2 pb-space-sm border-b border-surface-container-low">
+      <span class="material-symbols-outlined text-primary">tune</span>
+      <h2 class="font-headline-sm font-bold text-on-surface">بيانات وتصنيف القطعة</h2>
+      <span class="mr-auto font-label-xs text-outline">الحقول الإلزامية مميزة بعلامة (*)</span>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-space-md">
+      <div class="md:col-span-2 space-y-1.5">
+        <label class="font-label-md font-bold text-on-surface" for="title">عنوان القطعة <span class="text-error">*</span></label>
+        <input required type="text" name="title" id="title" value="{{ passage.title if passage else '' }}"
+               placeholder="مثال: رحلة إلى المريخ: استكشاف الكوكب الأحمر"
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/30">
+      </div>
+      <div class="space-y-1.5">
+        <label class="font-label-md font-bold text-on-surface" for="subject_id">المادة الدراسية <span class="text-error">*</span></label>
+        <select name="subject_id" id="subject_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">اختر…</option>
+          {% for s in subjects %}
+          <option value="{{ s.id }}" {% if passage and passage.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="space-y-1.5">
+        <label class="font-label-md font-bold text-on-surface" for="grade_id">الصف والمرحلة <span class="text-error">*</span></label>
+        <select name="grade_id" id="grade_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">اختر…</option>
+          {% for g in grades %}
+          <option value="{{ g.id }}" {% if passage and passage.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="md:col-span-2 space-y-1.5">
+        <label class="font-label-md font-bold text-on-surface" for="source">المصدر والتوثيق</label>
+        <input type="text" name="source" id="source" value="{{ passage.source if passage else '' }}"
+               placeholder="مثال: كتاب الفيزياء التطبيقية - الهيئة الوطنية للتعليم"
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/30">
+      </div>
+      <div class="md:col-span-2 space-y-1.5">
+        <label class="font-label-md font-bold text-on-surface" for="language">لغة النص الأساسية</label>
+        <div class="inline-flex rounded-xl bg-surface-container-low p-1">
+          <label class="cursor-pointer">
+            <input type="radio" name="language" value="ar" class="peer sr-only" {% if not passage or passage.language == 'ar' %}checked{% endif %}>
+            <span class="inline-block px-4 py-2 rounded-lg peer-checked:bg-primary peer-checked:text-on-primary font-label-md font-bold">العربية</span>
+          </label>
+          <label class="cursor-pointer">
+            <input type="radio" name="language" value="en" class="peer sr-only" {% if passage and passage.language == 'en' %}checked{% endif %}>
+            <span class="inline-block px-4 py-2 rounded-lg peer-checked:bg-primary peer-checked:text-on-primary font-label-md font-bold">English</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  {# Rich-text-ish body #}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-lg space-y-space-sm">
+    <div class="flex items-center gap-2 pb-space-sm border-b border-surface-container-low">
+      <span class="material-symbols-outlined text-primary">edit_note</span>
+      <h2 class="font-headline-sm font-bold text-on-surface">نص القطعة</h2>
+      <span class="mr-auto font-label-xs text-outline">حجم الخط: <b>16px</b> · متوسط</span>
+    </div>
+    {# Faux toolbar #}
+    <div class="rounded-xl bg-surface-container-low p-2 flex items-center gap-1 flex-wrap">
+      <span class="w-8 h-8 rounded flex items-center justify-center font-bold text-on-surface">B</span>
+      <span class="w-8 h-8 rounded flex items-center justify-center italic text-on-surface">I</span>
+      <span class="w-8 h-8 rounded flex items-center justify-center underline text-on-surface">U</span>
+      <div class="w-px h-5 bg-surface-container-high mx-1"></div>
+      {% for ico in ['format_list_bulleted','format_list_numbered_rtl','format_indent_decrease','format_indent_increase','format_align_right','format_align_center','link','functions'] %}
+      <span class="w-8 h-8 rounded flex items-center justify-center text-on-surface"><span class="material-symbols-outlined text-lg">{{ ico }}</span></span>
+      {% endfor %}
+    </div>
+    <textarea name="body" id="body" rows="14" oninput="recount()"
+              placeholder="اكتب نص القطعة هنا…"
+              class="w-full p-space-md rounded-xl bg-surface-container-low font-body-md text-body-md leading-loose focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/30 resize-y">{{ passage.body if passage else '' }}</textarea>
+    <div class="flex items-center gap-3 font-label-sm text-on-surface-variant">
+      <span>تم الحفظ تلقائياً · منذ ٣٠ ثانية</span>
+      <span>·</span>
+      <span>إجمالي الأسئلة: <b>{{ linked|length if linked else 0 }}</b></span>
+    </div>
+  </section>
+
+  {# Linked questions grid #}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-lg space-y-space-md">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div class="flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">quiz</span>
+        <h2 class="font-headline-sm font-bold text-on-surface">الأسئلة المرتبطة بالقطعة</h2>
+        <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">{{ linked|length if linked else 0 }} أسئلة مرتبطة</span>
+      </div>
+      <a href="{% if passage %}{{ url_for('lms.bank_smart_new') }}?passage_id={{ passage.id }}{% else %}#{% endif %}"
+         class="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg font-bold shadow-sm hover:shadow transition-all {% if not passage %}opacity-50 pointer-events-none{% endif %}">
+        <span class="material-symbols-outlined">add_circle</span><span>إضافة سؤال جديد للقطعة</span>
+      </a>
+    </div>
+    {% if linked %}
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+      {% for q in linked %}
+      <div class="p-space-md rounded-xl bg-surface-container-low border border-surface-container-high space-y-space-sm">
+        <div class="flex items-center justify-between">
+          <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">
+            {% if q.kind == 'mcq' %}اختيار من متعدد (MCQ){% elif q.kind == 'tf' %}صواب / خطأ{% elif q.kind == 'short' %}إجابة قصيرة{% elif q.kind == 'essay' %}سؤال مقالي{% else %}{{ q.kind }}{% endif %}
+          </span>
+          <span class="font-mono px-2 py-0.5 rounded bg-white font-label-xs">{{ '{:g}'.format(q.points or 1) }} درجة</span>
+        </div>
+        <p class="font-body-md leading-relaxed text-on-surface font-medium line-clamp-3">{{ q.prompt }}</p>
+        <div class="flex items-center gap-2">
+          {% if q.subject %}<span class="px-2 py-0.5 rounded bg-white font-label-xs text-outline">{{ q.subject.name }}</span>{% endif %}
+          <span class="px-2 py-0.5 rounded bg-white font-label-xs font-bold
+                {% if q.difficulty == 'easy' %}text-emerald-700{% elif q.difficulty == 'medium' %}text-sky-700{% elif q.difficulty == 'hard' %}text-amber-700{% else %}text-rose-700{% endif %}">
+            {% if q.difficulty == 'easy' %}سهل{% elif q.difficulty == 'medium' %}متوسط{% elif q.difficulty == 'hard' %}صعب{% else %}صعب جداً{% endif %}
+          </span>
+          <a href="{{ url_for('lms.bank_edit', bid=q.id) }}" class="mr-auto text-primary font-label-sm hover:underline">تعديل</a>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-8 text-outline">لا أسئلة مرتبطة بعد. احفظ القطعة أولاً ثم اربطها بأسئلة من البنك.</div>
+    {% endif %}
+  </section>
+
+  {# Sticky footer #}
+  <div class="fixed bottom-0 left-0 right-72 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high py-3 px-space-lg flex items-center justify-between">
+    <div class="font-label-md text-outline">
+      إجمالي الأسئلة: <b>{{ linked|length if linked else 0 }} أسئلة</b> ({{ linked|sum(attribute='points', start=0) if linked else 0 }} درجة)
+    </div>
+    <div class="flex items-center gap-2">
+      <a href="{{ url_for('lms.passages_home') }}" class="h-11 px-4 rounded-xl bg-surface-container-low text-on-surface font-label-md">إلغاء التعديلات</a>
+      <button type="submit" class="h-11 px-6 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg font-bold shadow-md flex items-center gap-2">
+        <span class="material-symbols-outlined">save</span><span>حفظ التغييرات ونشر القطعة</span>
+      </button>
+    </div>
+  </div>
+</form>
+
+<script>
+window.recount = function(){
+  const t = document.getElementById('body').value || '';
+  const n = (t.trim().match(/\S+/g) || []).length;
+  document.getElementById('wordCount').textContent = n;
+};
+</script>
+{% endblock %}

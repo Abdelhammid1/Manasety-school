@@ -1,0 +1,234 @@
+{# AI Question Rewriter — Stitch design "lms_8".
+   Renders as a full page (RTL, dimmed backdrop) with the drawer on the
+   leading edge. All AI calls go through /lms/bank/<bid>/ai-rewrite; save
+   commits through /lms/bank/<bid>/ai-rewrite/save. #}
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}إعادة الصياغة الذكية — سؤال #{{ question.id }}{% endblock %}
+{% block focus_content %}
+<div class="min-h-screen bg-black/40 backdrop-blur-sm p-4 md:p-8 flex justify-start">
+  <aside class="w-full max-w-[640px] bg-surface rounded-3xl shadow-2xl overflow-y-auto max-h-[95vh] my-auto">
+
+    {# Header #}
+    <div class="sticky top-0 z-10 bg-surface/95 backdrop-blur-xl border-b border-surface-container-low px-space-lg py-space-md flex items-center justify-between">
+      <div class="flex items-center gap-space-sm">
+        <div class="w-11 h-11 rounded-2xl bg-gradient-to-br from-fuchsia-600 to-violet-600 text-white flex items-center justify-center shadow-md">
+          <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="font-headline-sm text-headline-sm text-on-surface font-bold">إعادة صياغة بالذكاء الاصطناعي</h1>
+            <span class="px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 font-label-xs text-label-xs font-bold">AI Assistant</span>
+          </div>
+          <p class="font-label-sm text-label-sm text-on-surface-variant">تطوير وصياغة الأسئلة آلياً مع مطابقة المعايير الأكاديمية</p>
+        </div>
+      </div>
+      <a href="{{ url_for('lms.bank_edit', bid=question.id) }}"
+         class="w-9 h-9 rounded-full bg-surface-container-low text-on-surface-variant hover:bg-surface-container flex items-center justify-center transition-colors">
+        <span class="material-symbols-outlined">close</span>
+      </a>
+    </div>
+
+    <div class="p-space-lg space-y-space-md">
+
+      {# Original question card #}
+      <div class="p-space-md rounded-2xl bg-surface-container-low border border-surface-container-high space-y-space-sm">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
+            <span class="font-label-md text-label-md text-on-surface font-bold">السؤال الأصلي</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs text-label-xs font-bold uppercase">{{ question.kind }}</span>
+            {% if question.code %}<span class="font-mono px-2 py-0.5 rounded bg-white text-primary font-label-xs text-label-xs">{{ question.code }}</span>{% endif %}
+          </div>
+        </div>
+        <p class="font-body-lg text-body-lg text-on-surface font-semibold leading-relaxed">{{ question.prompt }}</p>
+        {% if question.kind in ('mcq','multi','tf') %}
+        <div class="space-y-1.5 pt-1">
+          {% for c in question.choices %}
+          {% set letters = ['أ','ب','ج','د','هـ','و'] %}
+          <div class="p-2.5 rounded-lg {% if c.is_correct %}bg-emerald-50 border border-emerald-300{% else %}bg-white border border-surface-container-high{% endif %} flex items-center gap-2">
+            <span class="w-6 h-6 rounded-full {% if c.is_correct %}bg-emerald-500 text-white{% else %}bg-surface-container text-outline{% endif %} flex items-center justify-center font-label-md text-label-md font-bold shrink-0">{{ letters[loop.index0] if loop.index0 < 6 else loop.index }}</span>
+            <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
+            {% if c.is_correct %}<span class="text-emerald-700 font-label-xs text-label-xs font-bold">الإجابة الصحيحة</span>{% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="flex items-center gap-3 pt-1 font-label-xs text-label-xs text-on-surface-variant">
+          <span>الصعوبة: <b>{% if question.difficulty == 'easy' %}سهل{% elif question.difficulty == 'medium' %}متوسط{% elif question.difficulty == 'hard' %}صعب{% else %}صعب جداً{% endif %}</b></span>
+          <span>·</span>
+          <span>الدرجات: <b>{{ '{:g}'.format(question.points or 1) }} نقاط</b></span>
+        </div>
+      </div>
+
+      {# Directive picker #}
+      <div>
+        <div class="flex items-center justify-between mb-space-sm">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-fuchsia-600">tune</span>
+            <span class="font-title-md text-title-md text-on-surface font-bold">ماذا تريد أن يغيّر الذكاء الاصطناعي؟</span>
+          </div>
+          <span class="font-label-xs text-label-xs text-on-surface-variant">اختر توجيهاً سريعاً</span>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-space-sm" id="directives">
+          {% for key, ar, en, ico, tone in [
+            ('harder',        'اجعله أصعب',         'HARDER',         'local_fire_department', 'bg-amber-50 hover:bg-amber-100 text-amber-800 border-amber-200'),
+            ('simpler',       'بسّطه للصف الأصغر',   'SIMPLER',        'cloud',                 'bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-emerald-200'),
+            ('add_distractor','أضف مشتّتاً إضافياً',   'ADD DISTRACTOR', 'add_circle',            'bg-sky-50 hover:bg-sky-100 text-sky-800 border-sky-200'),
+            ('reframe',       'غيّر السياق',          'REFRAME',        'swap_horiz',            'bg-violet-50 hover:bg-violet-100 text-violet-800 border-violet-200'),
+            ('to_short',      'حوّله إلى سؤال قصير',   'TO SHORT',       'edit_note',             'bg-tertiary-fixed hover:bg-tertiary-fixed-dim text-on-tertiary-fixed border-tertiary/20'),
+            ('translate',     'ترجم للإنجليزية',      'TRANSLATE',      'translate',             'bg-secondary-fixed hover:bg-secondary-fixed-dim text-on-secondary-fixed border-secondary/20'),
+          ] %}
+          <button type="button" data-directive="{{ ar }}"
+                  class="dir-card p-space-md rounded-xl border-2 {{ tone }} text-right transition-all cursor-pointer flex flex-col gap-2">
+            <div class="flex items-center justify-between">
+              <span class="font-label-xs text-label-xs font-bold tracking-wider">{{ en }}</span>
+              <span class="material-symbols-outlined text-xl">{{ ico }}</span>
+            </div>
+            <span class="font-title-md text-title-md font-bold text-on-surface">{{ ar }}</span>
+          </button>
+          {% endfor %}
+        </div>
+      </div>
+
+      {# Free-text directive #}
+      <div>
+        <div class="flex items-center justify-between mb-2">
+          <label class="font-label-lg text-label-lg text-on-surface font-bold" for="freeDirective">أو اكتب توجيهاً مخصصاً للذكاء الاصطناعي:</label>
+          <span class="px-2 py-0.5 rounded-full bg-fuchsia-100 text-fuchsia-700 font-label-xs text-label-xs font-bold">مخصص</span>
+        </div>
+        <textarea id="freeDirective" rows="3"
+                  placeholder="مثال: اجعل الخيارات أكثر إغراءً وحوّل السياق إلى الرياضة."
+                  class="w-full p-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40 resize-none"></textarea>
+      </div>
+
+      {# Generate button #}
+      <button type="button" id="genBtn" onclick="runRewrite()"
+              class="w-full h-14 rounded-2xl bg-gradient-to-l from-fuchsia-600 to-violet-600 text-white font-title-md text-title-md font-bold shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2">
+        <span class="material-symbols-outlined text-2xl">auto_awesome</span>
+        <span>توليد الصياغة الجديدة</span>
+        <span class="px-2 py-0.5 rounded-md bg-white/25 font-label-xs text-label-xs font-mono">Ctrl + ↵</span>
+      </button>
+
+      {# Result card (hidden until first generation) #}
+      <div id="resultCard" class="hidden p-space-md rounded-2xl bg-fuchsia-50/60 border-2 border-fuchsia-300 space-y-space-sm">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-fuchsia-600" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
+          <span class="font-title-md text-title-md text-fuchsia-900 font-bold">الصياغة المقترحة</span>
+          <span class="mr-auto font-label-xs text-label-xs text-fuchsia-700">قابلة للتعديل قبل الحفظ</span>
+        </div>
+        <textarea id="resPrompt" rows="4"
+                  class="w-full p-space-sm rounded-xl bg-white text-on-surface font-body-lg text-body-lg font-semibold leading-relaxed focus:outline-none focus:ring-2 focus:ring-fuchsia-500/40"></textarea>
+        <div id="resChoices" class="space-y-1.5"></div>
+        <input type="hidden" id="resKind" value="{{ question.kind }}">
+      </div>
+
+      {# Action bar #}
+      <div class="pt-space-sm border-t border-surface-container-low flex flex-wrap items-center gap-space-sm">
+        <form method="post" id="saveForm" action="{{ url_for('lms.bank_ai_rewrite_save', bid=question.id) }}" class="flex-1 flex items-center gap-space-sm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input type="hidden" name="mode" id="saveMode" value="copy">
+          <input type="hidden" name="prompt" id="savePrompt" value="">
+          <input type="hidden" name="kind"   id="saveKind" value="{{ question.kind }}">
+          <div id="saveChoicesData"></div>
+          <a href="{{ url_for('lms.bank_edit', bid=question.id) }}"
+             class="inline-flex items-center gap-2 px-4 h-11 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-colors font-label-md text-label-md">
+            <span class="material-symbols-outlined text-lg">close</span>
+            <span>تجاهل</span>
+          </a>
+          <button type="submit" onclick="document.getElementById('saveMode').value='copy'"
+                  class="inline-flex items-center gap-2 px-5 h-11 rounded-xl bg-white border border-fuchsia-300 text-fuchsia-800 hover:bg-fuchsia-50 transition-colors font-label-lg text-label-lg font-bold">
+            <span class="material-symbols-outlined text-lg">content_copy</span>
+            <span>احفظ كنسخة جديدة</span>
+          </button>
+          <button type="submit" onclick="document.getElementById('saveMode').value='replace'"
+                  class="inline-flex items-center gap-2 px-5 h-11 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-bold shadow-md hover:brightness-110 transition-all">
+            <span class="material-symbols-outlined text-lg">swap_horiz</span>
+            <span>استبدل الأصلي</span>
+          </button>
+        </form>
+      </div>
+      <p class="font-label-xs text-label-xs text-outline flex items-center gap-1.5">
+        <span class="material-symbols-outlined text-sm">info</span>
+        استبدال الأصلي سيلغي القفل ويُبنى إصدار جديد مع الحفاظ على الروابط.
+      </p>
+    </div>
+
+  </aside>
+</div>
+
+<script>
+(function(){
+  const csrf = '{{ csrf_token() }}';
+  const kind = '{{ question.kind }}';
+  let selectedDirective = 'أعد صياغة السؤال بشكل أوضح.';
+
+  document.querySelectorAll('.dir-card').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.dir-card').forEach(b => b.classList.remove('ring-2','ring-fuchsia-500'));
+      btn.classList.add('ring-2','ring-fuchsia-500');
+      selectedDirective = btn.dataset.directive;
+      document.getElementById('freeDirective').placeholder = 'التوجيه المختار: ' + selectedDirective;
+    });
+  });
+
+  function renderChoices(choices){
+    const box = document.getElementById('resChoices');
+    box.innerHTML = '';
+    const letters = ['أ','ب','ج','د','هـ','و'];
+    (choices || []).forEach((c, i) => {
+      const wrap = document.createElement('div');
+      wrap.className = 'p-2 rounded-lg bg-white border ' + (c.is_correct ? 'border-emerald-400' : 'border-surface-container-high') + ' flex items-center gap-2';
+      wrap.innerHTML = `
+        <span class="w-6 h-6 rounded-full ${c.is_correct ? 'bg-emerald-500 text-white' : 'bg-surface-container text-outline'} flex items-center justify-center font-bold shrink-0">${letters[i] || (i+1)}</span>
+        <input type="text" value="${(c.label || '').replace(/"/g,'&quot;')}" data-idx="${i}"
+               class="ch-input flex-1 px-2 h-9 rounded-md bg-transparent focus:outline-none focus:bg-white text-on-surface font-body-md">
+        <label class="inline-flex items-center gap-1 text-label-xs font-label-xs">
+          <input type="radio" name="ch-correct" value="${i}" ${c.is_correct ? 'checked' : ''} class="accent-emerald-500">
+          <span>صحيح</span>
+        </label>`;
+      box.appendChild(wrap);
+    });
+  }
+
+  window.runRewrite = async function(){
+    const btn = document.getElementById('genBtn');
+    const custom = document.getElementById('freeDirective').value.trim();
+    const directive = custom || selectedDirective;
+    btn.disabled = true; btn.classList.add('opacity-70');
+    btn.querySelector('span:nth-child(2)').textContent = 'يفكّر الذكاء الاصطناعي…';
+    try {
+      const r = await fetch('{{ url_for("lms.bank_ai_rewrite", bid=question.id) }}', {
+        method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
+        body: JSON.stringify({directive})
+      });
+      const data = await r.json();
+      if (data.error) { alert(data.error); return; }
+      const rw = data.rewritten || {};
+      document.getElementById('resultCard').classList.remove('hidden');
+      document.getElementById('resPrompt').value = rw.prompt || '';
+      renderChoices(rw.choices || []);
+      document.getElementById('resKind').value = rw.kind || kind;
+    } catch (e) { alert('تعذّر الاتصال: ' + e); }
+    finally {
+      btn.disabled = false; btn.classList.remove('opacity-70');
+      btn.querySelector('span:nth-child(2)').textContent = 'توليد الصياغة الجديدة';
+    }
+  };
+
+  document.getElementById('saveForm').addEventListener('submit', (e) => {
+    document.getElementById('savePrompt').value = document.getElementById('resPrompt').value;
+    document.getElementById('saveKind').value = document.getElementById('resKind').value;
+    const dataBox = document.getElementById('saveChoicesData');
+    dataBox.innerHTML = '';
+    const correctIdx = document.querySelector('input[name=ch-correct]:checked')?.value;
+    document.querySelectorAll('.ch-input').forEach((el, i) => {
+      const lbl = document.createElement('input'); lbl.type = 'hidden'; lbl.name = 'choice_label'; lbl.value = el.value; dataBox.appendChild(lbl);
+      if (String(i) === correctIdx) { const c = document.createElement('input'); c.type='hidden'; c.name='choice_correct'; c.value = String(i); dataBox.appendChild(c); }
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -433,6 +433,11 @@ class BankQuestion(db.Model):
     uuid          = db.Column(db.String(36), nullable=True)
     is_archived   = db.Column(db.Boolean, nullable=False,
                               default=False, server_default=sa_false())
+    # Qdrat-parity #6 — a bank question can attach to a reading passage
+    # (قطعة لفظية). Multiple questions typically hang off the same passage.
+    passage_id    = db.Column(db.Integer, nullable=True, index=True)
+    passage       = db.relationship("Passage", foreign_keys=[passage_id],
+                                    primaryjoin="BankQuestion.passage_id == Passage.id")
 
     created_at    = db.Column(db.DateTime(timezone=True), default=_utcnow)
     updated_at    = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
@@ -606,6 +611,45 @@ class AssessmentTemplateItem(db.Model):
         db.UniqueConstraint("template_id", "bank_question_id",
                             name="uq_asstmpl_q"),
     )
+
+
+# ── Reading passages (قطع لفظية) ─────────────────────────────────────
+# One shared block of prose that N BankQuestion rows can attach to.
+# The passage stays independent — questions carry `passage_id` and can
+# be re-parented; deleting the passage nulls the FK on each question.
+
+class Passage(db.Model):
+    __tablename__ = "passages"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                              nullable=True, index=True)
+
+    title = db.Column(db.String(200), nullable=False)
+    body  = db.Column(db.Text, nullable=False, default="")
+    source = db.Column(db.String(200), nullable=True)
+    language = db.Column(db.String(8), nullable=False,
+                         default="ar", server_default="ar")
+
+    subject_id = db.Column(db.Integer, db.ForeignKey("subjects.id"),
+                           nullable=True, index=True)
+    grade_id   = db.Column(db.Integer, db.ForeignKey("grades.id"),
+                           nullable=True, index=True)
+
+    word_count = db.Column(db.Integer, nullable=False, default=0)
+    image_url  = db.Column(db.String(500), nullable=True)
+    audio_url  = db.Column(db.String(500), nullable=True)
+    state      = db.Column(db.String(16), nullable=False,
+                           default="draft", server_default="draft")
+
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+    updated_at = db.Column(db.DateTime(timezone=True),
+                           default=_utcnow, onupdate=_utcnow)
+
+    subject = db.relationship("Subject")
+    grade   = db.relationship("Grade")
 
 
 # ── Qdrat-parity 2-level taxonomy (Axis + Indicator) ─────────────────

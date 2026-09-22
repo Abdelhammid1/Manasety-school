@@ -1,0 +1,80 @@
+{# Reading passages list — qdrat-parity #6 (القطع اللفظية). #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}القطع اللفظية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.qbank_dashboard') }}" class="hover:text-primary">بنك الأسئلة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">القطع اللفظية</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+
+  {# Hero #}
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-6 md:p-8 text-on-primary shadow-lg">
+    <div class="pointer-events-none absolute -left-16 -top-16 w-72 h-72 rounded-full bg-secondary-container/20 blur-3xl"></div>
+    <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl">menu_book</span>
+        </div>
+        <div>
+          <h1 class="font-headline-lg text-headline-lg font-bold">القطع اللفظية</h1>
+          <p class="font-body-md text-body-md text-on-primary/85 mt-1">اكتب النص مرة واحدة، واربط به عدة أسئلة من بنك المدرسة</p>
+          <div class="flex flex-wrap items-center gap-2 mt-3">
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-on-primary/20 backdrop-blur-md font-label-md text-label-md">
+              <span class="material-symbols-outlined text-sm">library_books</span>{{ items|length }} قطعة
+            </span>
+          </div>
+        </div>
+      </div>
+      <a href="{{ url_for('lms.passage_new') }}"
+         class="inline-flex items-center gap-2 h-11 px-5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-lg text-label-lg font-bold shadow hover:brightness-105 transition-all">
+        <span class="material-symbols-outlined">add</span>
+        <span>قطعة جديدة</span>
+      </a>
+    </div>
+  </section>
+
+  {# List #}
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <table class="w-full text-right">
+      <thead>
+        <tr class="bg-surface-container-low text-on-surface-variant font-label-sm text-label-sm">
+          <th class="py-3.5 px-4 font-semibold">العنوان</th>
+          <th class="py-3.5 px-4 font-semibold">المادة</th>
+          <th class="py-3.5 px-4 font-semibold">اللغة</th>
+          <th class="py-3.5 px-4 font-semibold">عدد الكلمات</th>
+          <th class="py-3.5 px-4 font-semibold">الأسئلة المرتبطة</th>
+          <th class="py-3.5 px-4 font-semibold">آخر تحديث</th>
+          <th class="py-3.5 px-4 font-semibold text-center">الإجراءات</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-surface-container-high/40 font-body-sm text-body-sm">
+        {% for p in items %}
+        <tr class="hover:bg-surface-container-low/60 transition-colors">
+          <td class="py-4 px-4">
+            <div class="font-semibold text-on-surface">{{ p.title }}</div>
+            {% if p.source %}<div class="font-label-xs text-label-xs text-outline">{{ p.source }}</div>{% endif %}
+          </td>
+          <td class="py-4 px-4 text-on-surface-variant">{{ p.subject.name if p.subject else '—' }}</td>
+          <td class="py-4 px-4"><span class="px-2 py-0.5 rounded-full bg-secondary-fixed text-on-secondary-fixed font-label-xs">{{ 'العربية' if p.language == 'ar' else 'English' }}</span></td>
+          <td class="py-4 px-4 font-mono">{{ p.word_count }}</td>
+          <td class="py-4 px-4"><span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">{{ p.questions_count if p.questions_count is defined else '—' }}</span></td>
+          <td class="py-4 px-4 text-outline font-label-xs">{{ p.updated_at.strftime('%Y-%m-%d') if p.updated_at else '' }}</td>
+          <td class="py-4 px-4 text-center">
+            <a href="{{ url_for('lms.passage_edit', pid=p.id) }}" class="p-1.5 hover:text-primary" title="تعديل"><span class="material-symbols-outlined text-[18px]">edit</span></a>
+            <form method="post" action="{{ url_for('lms.passage_delete', pid=p.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="p-1.5 hover:text-error" title="حذف" onclick="return confirm('حذف القطعة نهائياً؟')"><span class="material-symbols-outlined text-[18px]">delete</span></button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="py-12 text-center text-outline">لا قطع بعد. ابدأ بإضافة قطعة جديدة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
