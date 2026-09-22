@@ -37,6 +37,7 @@
   </div>
 
   <form method="post" action="{{ url_for('lms.blueprint_exam_create') }}" class="space-y-6">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
     {# Section 1: Basic data #}
     <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">
