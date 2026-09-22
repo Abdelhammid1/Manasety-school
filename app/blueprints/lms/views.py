@@ -1298,6 +1298,102 @@ def template_items_save(tid):
     return redirect(url_for("lms.template_detail", tid=t.id))
 
 
+@bp.route("/assessment-templates/<int:tid>/use", methods=["GET", "POST"],
+          endpoint="template_use")
+@login_required
+def template_use(tid):
+    """Spawn a real Quiz from an AssessmentTemplate. Copies every
+    attached BankQuestion into fresh Question + Choice rows so the
+    resulting quiz is independent of later template edits."""
+    from ...models import Section, AcademicYear, Choice as _Choice
+    sid = current_user.school_id
+    t = AssessmentTemplate.query.filter_by(
+        id=tid, school_id=sid).first_or_404()
+    items = (
+        AssessmentTemplateItem.query
+        .filter_by(template_id=t.id)
+        .order_by(AssessmentTemplateItem.order_index).all()
+    )
+
+    if request.method == "POST":
+        if not items:
+            flash("النموذج فارغ — أضف أسئلة أولاً.", "warning")
+            return redirect(url_for("lms.template_detail", tid=t.id))
+        title = (request.form.get("title") or "").strip() or t.title
+        section_id = request.form.get("section_id", type=int)
+        section = Section.query.filter_by(id=section_id, school_id=sid).first()
+        if not section:
+            flash("الشعبة غير موجودة.", "danger")
+            return redirect(url_for("lms.template_use", tid=t.id))
+
+        year = AcademicYear.query.filter_by(
+            school_id=sid, status="active").first() or AcademicYear.query.filter_by(
+            school_id=sid).order_by(AcademicYear.id.desc()).first()
+        subject_id = t.subject_id or (items[0].bank_question.subject_id if items[0].bank_question else None)
+
+        course = Course.query.filter_by(
+            school_id=sid,
+            academic_year_id=year.id if year else None,
+            grade_id=section.grade_id,
+            subject_id=subject_id,
+        ).first()
+        if not course:
+            course = Course(
+                school_id=sid,
+                academic_year_id=year.id if year else None,
+                grade_id=section.grade_id,
+                subject_id=subject_id,
+                title=f"{title} (من نموذج)",
+                is_published=True,
+            )
+            db.session.add(course)
+            db.session.flush()
+
+        quiz = Quiz(
+            course_id=course.id,
+            title=title,
+            description=t.description or "",
+            duration_minutes=request.form.get("duration_minutes", type=int) or 60,
+            opens_at=_parse_dt(request.form.get("opens_at")),
+            closes_at=_parse_dt(request.form.get("closes_at")),
+            shuffle_questions=bool(request.form.get("shuffle_questions")),
+            is_published=bool(request.form.get("publish")),
+        )
+        db.session.add(quiz)
+        db.session.flush()
+
+        for idx, it in enumerate(items, start=1):
+            bq = it.bank_question
+            if not bq:
+                continue
+            q = Question(
+                quiz_id=quiz.id,
+                order_index=idx,
+                kind=bq.kind,
+                prompt=bq.prompt,
+                points=(it.points_override if it.points_override is not None else bq.points) or 1,
+                correct_short=bq.correct_short or "",
+                source_bank_id=bq.id,
+            )
+            db.session.add(q)
+            db.session.flush()
+            for i, bc in enumerate(bq.choices or []):
+                db.session.add(_Choice(
+                    question_id=q.id, order_index=i,
+                    label=bc.label, is_correct=bool(bc.is_correct),
+                ))
+        db.session.commit()
+        flash(f"تم توليد الاختبار «{quiz.title}» من النموذج.", "success")
+        return redirect(url_for("lms.quizzes_home"))
+
+    sections = (
+        Section.query.filter_by(school_id=sid)
+        .order_by(Section.grade_id, Section.name).all()
+    )
+    return render_template("lms/template_use.html",
+                           template=t, items=items, sections=sections)
+
+
 # ─── Blueprint Exam Generator (Stitch lms_4) ────────────────────────────
 @bp.route("/exams/blueprint/new", methods=["GET", "POST"],
           endpoint="blueprint_exam_new")

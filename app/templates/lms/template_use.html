@@ -1,0 +1,162 @@
+{# "Use Template" — spawn a Quiz from an AssessmentTemplate.
+   POSTs to lms.template_use. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}استخدام النموذج — {{ template.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.templates_gallery') }}" class="hover:text-primary">النماذج</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.template_detail', tid=template.id) }}" class="hover:text-primary truncate max-w-md">{{ template.title }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">استخدام النموذج</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-3xl mx-auto space-y-6 pb-28">
+
+  {# Hero — mini summary of the source template #}
+  <div class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-6 md:p-8 text-on-primary shadow-lg">
+    <div class="pointer-events-none absolute -left-16 -top-16 w-72 h-72 rounded-full bg-secondary-container/20 blur-3xl"></div>
+    <div class="relative z-10 flex items-start gap-5">
+      <div class="w-14 h-14 rounded-2xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shrink-0 shadow-inner">
+        <span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+      </div>
+      <div class="flex flex-col gap-2 min-w-0">
+        <span class="font-label-md text-label-md text-on-primary/80">استنساخ من النموذج</span>
+        <h1 class="font-headline-md text-headline-md font-bold leading-tight">{{ template.title }}</h1>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="px-2.5 py-0.5 rounded-full bg-on-primary/20 backdrop-blur-sm font-label-xs text-label-xs">
+            {{ items|length }} سؤال في النموذج
+          </span>
+          <span class="px-2.5 py-0.5 rounded-full bg-on-primary/20 backdrop-blur-sm font-label-xs text-label-xs">
+            {% if template.kind == 'exam' %}اختبار{% else %}واجب{% endif %}
+          </span>
+          {% if template.subject %}
+          <span class="px-2.5 py-0.5 rounded-full bg-on-primary/20 backdrop-blur-sm font-label-xs text-label-xs">{{ template.subject.name }}</span>
+          {% endif %}
+          {% if template.code %}
+          <span class="px-2.5 py-0.5 rounded-full bg-on-primary/25 font-mono font-bold font-label-xs text-label-xs">#{{ template.code }}</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if not items %}
+  <div class="bg-surface-container-lowest rounded-2xl p-8 shadow-sm text-center">
+    <div class="w-14 h-14 rounded-2xl bg-error-container text-error flex items-center justify-center mx-auto mb-3">
+      <span class="material-symbols-outlined text-3xl">block</span>
+    </div>
+    <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">النموذج فارغ</h2>
+    <p class="font-body-md text-body-md text-on-surface-variant mt-2">
+      أضف أسئلة إلى النموذج أولاً قبل استخدامه.
+    </p>
+    <a href="{{ url_for('lms.template_detail', tid=template.id) }}"
+       class="inline-flex items-center gap-2 mt-4 px-5 h-11 rounded-xl bg-primary text-on-primary font-label-lg text-label-lg">
+      <span class="material-symbols-outlined text-lg">arrow_forward</span>
+      <span>العودة لإضافة الأسئلة</span>
+    </a>
+  </div>
+  {% else %}
+  <form method="post" action="{{ url_for('lms.template_use', tid=template.id) }}"
+        class="bg-surface-container-lowest rounded-2xl p-6 md:p-8 shadow-sm space-y-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="flex items-center gap-space-sm pb-space-sm border-b border-surface-container-low">
+      <div class="w-10 h-10 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+        <span class="material-symbols-outlined text-xl">quiz</span>
+      </div>
+      <div>
+        <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold">بيانات الاختبار الجديد</h2>
+        <p class="font-label-sm text-label-sm text-on-surface-variant">
+          سيتم إنشاء اختبار مسودة يحوي {{ items|length }} سؤالاً منسوخة من هذا النموذج.
+        </p>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="md:col-span-2 space-y-1.5">
+        <label class="font-label-lg text-label-lg text-on-surface font-bold" for="title">
+          عنوان الاختبار <span class="text-error">*</span>
+        </label>
+        <input required name="title" id="title" type="text"
+               value="{{ template.title }} — نسخة"
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white transition-all"/>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="font-label-lg text-label-lg text-on-surface font-bold" for="section_id">
+          الشعبة المستهدفة <span class="text-error">*</span>
+        </label>
+        <div class="relative">
+          <select required name="section_id" id="section_id"
+                  class="w-full h-12 pr-11 pl-8 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white appearance-none cursor-pointer">
+            <option value="">اختر الشعبة…</option>
+            {% for s in sections %}
+            <option value="{{ s.id }}">{{ s.grade.name if s.grade else '' }} — {{ s.name }}</option>
+            {% endfor %}
+          </select>
+          <span class="material-symbols-outlined absolute right-3.5 top-1/2 -translate-y-1/2 text-outline text-xl">school</span>
+          <span class="material-symbols-outlined absolute left-3.5 top-1/2 -translate-y-1/2 text-outline pointer-events-none">expand_more</span>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="font-label-lg text-label-lg text-on-surface font-bold" for="duration_minutes">مدة الاختبار</label>
+        <div class="relative">
+          <input name="duration_minutes" id="duration_minutes" type="number" min="5" max="240" value="60"
+                 class="w-full h-12 pr-4 pl-16 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white"/>
+          <span class="absolute left-3.5 top-1/2 -translate-y-1/2 text-outline font-label-md text-label-md">دقيقة</span>
+        </div>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="font-label-lg text-label-lg text-on-surface font-bold" for="opens_at">يفتح في</label>
+        <input name="opens_at" id="opens_at" type="datetime-local"
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white"/>
+      </div>
+
+      <div class="space-y-1.5">
+        <label class="font-label-lg text-label-lg text-on-surface font-bold" for="closes_at">يغلق في</label>
+        <input name="closes_at" id="closes_at" type="datetime-local"
+               class="w-full h-12 px-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md focus:outline-none focus:bg-white"/>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md pt-space-sm">
+      <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
+        <div>
+          <div class="font-title-md text-title-md text-on-surface font-bold">ترتيب عشوائي للأسئلة</div>
+          <div class="font-label-sm text-label-sm text-outline mt-0.5">لكل طالب ترتيب مختلف</div>
+        </div>
+        <input type="checkbox" name="shuffle_questions" value="1" checked class="w-5 h-5 rounded accent-primary"/>
+      </label>
+      <label class="flex items-center justify-between p-space-md rounded-xl bg-surface-container-low cursor-pointer hover:bg-white transition-colors">
+        <div>
+          <div class="font-title-md text-title-md text-on-surface font-bold">نشر مباشر</div>
+          <div class="font-label-sm text-label-sm text-outline mt-0.5">إذا لم يفعّل، سيبقى مسودة</div>
+        </div>
+        <input type="checkbox" name="publish" value="1" class="w-5 h-5 rounded accent-primary"/>
+      </label>
+    </div>
+
+    <div class="fixed bottom-0 left-0 right-72 z-30 bg-surface-container-lowest/95 backdrop-blur-md border-t border-surface-container-high shadow-[0_-4px_16px_rgba(0,0,0,0.03)] py-3 px-space-lg flex items-center justify-between">
+      <div class="flex items-center gap-2 font-label-md text-label-md text-outline">
+        <span class="material-symbols-outlined text-secondary">content_copy</span>
+        <span>الأسئلة والاختيارات تُنسخ من البنك — تعديل السؤال هنا لن يؤثر على البنك</span>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="{{ url_for('lms.template_detail', tid=template.id) }}"
+           class="inline-flex items-center gap-2 px-5 h-12 rounded-xl bg-surface-container-low text-on-surface hover:bg-surface-container transition-all font-label-lg text-label-lg">
+          <span class="material-symbols-outlined text-[20px]">close</span><span>إلغاء</span>
+        </a>
+        <button type="submit"
+                class="inline-flex items-center gap-2 px-6 h-12 rounded-xl bg-gradient-to-l from-primary via-primary-container to-secondary text-on-primary font-label-lg text-label-lg shadow-md hover:shadow-lg active:scale-95 transition-all">
+          <span class="material-symbols-outlined text-[22px]">auto_awesome</span>
+          <span>توليد الاختبار الآن</span>
+        </button>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
