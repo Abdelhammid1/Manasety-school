@@ -14,9 +14,10 @@ from werkzeug.utils import secure_filename
 from . import bp
 from ...extensions import bcrypt, csrf, db
 from ...models import (
-    AcademicYear, Announcement, Assignment, AssessmentComponent, Attendance,
+    AcademicYear, Announcement, Assignment, AssessmentComponent,
+    AssessmentTemplate, AssessmentTemplateItem, Attendance, BankQuestion,
     Conversation, ConversationParticipant, Course, CourseAssignment,
-    DeviceToken, Enrollment, GradeEntry, Invoice, Material, Message,
+    DeviceToken, Enrollment, GradeEntry, Grade, Invoice, Material, Message,
     NotificationLog, Payment, Quiz, QuizAttempt, ScheduleSlot, School,
     Section, Student, Subject, Submission, Teacher, Term, User, YearResult,
 )
@@ -1377,6 +1378,408 @@ def teacher_message_thread(conv_id):
             "created_at": m.created_at.isoformat() if m.created_at else None,
         } for m in msgs],
     })
+
+
+# ============================================================
+# Sprint 13 — Question Bank analytics + Templates + Blueprint exam gen
+#
+# Qdrat-parity endpoints that back the new admin dashboards:
+#   - /admin/question_bank/dashboard   — 6 KPI cards + 3 charts
+#   - /admin/question_bank/questions   — filterable question list
+#   - /teacher/templates               — CRUD for reusable NModel templates
+#   - /teacher/exams/blueprint         — pick N questions per subject
+# All are school-scoped via `_sid()`.
+# ============================================================
+
+def _bank_scope(source=None, subject_id=None, grade_id=None):
+    """Base BankQuestion query respecting school + optional filters."""
+    q = BankQuestion.query.filter_by(school_id=_sid())
+    if source:     q = q.filter(BankQuestion.source == source)
+    if subject_id: q = q.filter(BankQuestion.subject_id == subject_id)
+    if grade_id:   q = q.filter(BankQuestion.grade_id == grade_id)
+    return q
+
+
+@bp.route("/admin/question_bank/dashboard", methods=["GET"])
+@jwt_required
+def qbank_dashboard():
+    """The analytics roll-up shown on the Question Bank landing page.
+
+    Returns the exact numbers used by the KPI strip, the state donut,
+    the subject-coverage bar chart and the difficulty bar chart —
+    everything precomputed so the client is one request in and out.
+    """
+    source = request.args.get("source", "school")
+    base = _bank_scope(source=source)
+    total = base.count()
+
+    state_rows = base.with_entities(
+        BankQuestion.review_state, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.review_state).all()
+    states = {s: n for s, n in state_rows}
+
+    diff_rows = base.with_entities(
+        BankQuestion.difficulty, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.difficulty).all()
+    difficulty = {d: n for d, n in diff_rows}
+
+    subj_rows = base.with_entities(
+        BankQuestion.subject_id, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.subject_id).all()
+    by_subject = []
+    for sid, n in subj_rows:
+        s = Subject.query.get(sid) if sid else None
+        by_subject.append({
+            "subject_id": sid,
+            "subject_name": s.name if s else "بدون تصنيف",
+            "count": n,
+        })
+    by_subject.sort(key=lambda r: -r["count"])
+
+    # Templates by kind
+    tmpl_rows = AssessmentTemplate.query.filter_by(school_id=_sid())
+    tmpl_total = tmpl_rows.count()
+    tmpl_assign = tmpl_rows.filter_by(kind="assignment").count()
+    tmpl_exam   = tmpl_rows.filter_by(kind="exam").count()
+
+    approved = states.get("approved", 0)
+    coverage_pct = int(100 * approved / total) if total else 0
+
+    return jsonify({
+        "totals": {
+            "total": total,
+            "approved":  states.get("approved", 0),
+            "pending":   states.get("pending", 0),
+            "no_answer": states.get("no_answer", 0),
+            "duplicate": states.get("duplicate", 0),
+            "rejected":  states.get("rejected", 0),
+            "draft":     states.get("draft", 0),
+            "coverage_pct": coverage_pct,
+        },
+        "difficulty": {
+            "easy":      difficulty.get("easy", 0),
+            "medium":    difficulty.get("medium", 0),
+            "hard":      difficulty.get("hard", 0),
+            "very_hard": difficulty.get("very_hard", 0),
+        },
+        "by_subject": by_subject[:20],
+        "templates": {
+            "total": tmpl_total,
+            "assignment": tmpl_assign,
+            "exam": tmpl_exam,
+        },
+    })
+
+
+def _question_dict(q):
+    subj = Subject.query.get(q.subject_id) if q.subject_id else None
+    return {
+        "id": q.id,
+        "prompt": q.prompt,
+        "kind": q.kind,
+        "difficulty": q.difficulty,
+        "review_state": q.review_state,
+        "points": float(q.points or 0),
+        "source": q.source,
+        "subject_id": q.subject_id,
+        "subject_name": subj.name if subj else None,
+        "tags": q.tags or "",
+        "created_at": q.created_at.isoformat() if q.created_at else None,
+    }
+
+
+@bp.route("/admin/question_bank/questions", methods=["GET"])
+@jwt_required
+def qbank_questions():
+    """Paginated + filtered question list for the explorer table."""
+    source     = request.args.get("source", "school")
+    subject_id = request.args.get("subject_id", type=int)
+    state      = request.args.get("review_state")
+    difficulty = request.args.get("difficulty")
+    query_str  = (request.args.get("q") or "").strip()
+    page       = max(1, request.args.get("page", 1, type=int))
+    per_page   = min(200, request.args.get("per_page", 50, type=int))
+
+    q = _bank_scope(source=source, subject_id=subject_id)
+    if state:      q = q.filter(BankQuestion.review_state == state)
+    if difficulty: q = q.filter(BankQuestion.difficulty == difficulty)
+    if query_str:  q = q.filter(BankQuestion.prompt.ilike(f"%{query_str}%"))
+
+    total = q.count()
+    rows = (q.order_by(BankQuestion.created_at.desc())
+             .offset((page - 1) * per_page).limit(per_page).all())
+    return jsonify({
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "questions": [_question_dict(r) for r in rows],
+    })
+
+
+@bp.route("/admin/question_bank/questions/<int:qid>/state", methods=["POST"])
+@jwt_required
+def qbank_set_state(qid):
+    """Move a question through the review workflow."""
+    q = BankQuestion.query.filter_by(id=qid, school_id=_sid()).first()
+    if not q: return _err("not found", 404)
+    data = request.get_json(silent=True) or {}
+    new_state = data.get("review_state")
+    if new_state not in ("approved", "pending", "no_answer",
+                         "duplicate", "rejected", "draft"):
+        return _err("invalid review_state")
+    q.review_state = new_state
+    if "review_notes" in data:
+        q.review_notes = data.get("review_notes") or ""
+    db.session.commit()
+    return jsonify({"ok": True, "review_state": q.review_state})
+
+
+# ---------- Templates (Qdrat "نموذج احترافي") ----------
+
+def _template_dict(t, *, with_items=False):
+    subj = Subject.query.get(t.subject_id) if t.subject_id else None
+    grade = Grade.query.get(t.grade_id) if t.grade_id else None
+    d = {
+        "id": t.id,
+        "title": t.title,
+        "code": t.code,
+        "description": t.description or "",
+        "kind": t.kind,
+        "state": t.state,
+        "difficulty_mix": t.difficulty_mix,
+        "subject_id": t.subject_id,
+        "subject_name": subj.name if subj else None,
+        "grade_id": t.grade_id,
+        "grade_name": grade.name if grade else None,
+        "question_count": AssessmentTemplateItem.query.filter_by(template_id=t.id).count(),
+        "created_at": t.created_at.isoformat() if t.created_at else None,
+    }
+    if with_items:
+        d["items"] = []
+        for it in t.items:
+            bq = BankQuestion.query.get(it.bank_question_id)
+            d["items"].append({
+                "id": it.id,
+                "bank_question_id": it.bank_question_id,
+                "order_index": it.order_index,
+                "points": float(it.points_override) if it.points_override else
+                          (float(bq.points) if bq else 0),
+                "prompt": bq.prompt if bq else "",
+                "difficulty": bq.difficulty if bq else None,
+                "subject_id": bq.subject_id if bq else None,
+            })
+    return d
+
+
+@bp.route("/teacher/templates", methods=["GET", "POST"])
+@jwt_required
+def teacher_templates():
+    t = _teacher_for(_user())
+    if not t: return _err("not a teacher", 403)
+
+    if request.method == "POST":
+        data = request.get_json(silent=True) or {}
+        title = (data.get("title") or "").strip()
+        if not title: return _err("title is required")
+        # ImportFromCode — clone another template's item list.
+        import_code = (data.get("import_from_code") or "").strip()
+        source_tmpl = None
+        if import_code:
+            source_tmpl = AssessmentTemplate.query.filter_by(
+                school_id=_sid(), code=import_code).first()
+        tmpl = AssessmentTemplate(
+            school_id=_sid(),
+            created_by_id=_user().id,
+            title=title,
+            code=(data.get("code") or "").strip() or None,
+            description=(data.get("description") or "").strip(),
+            subject_id=data.get("subject_id"),
+            grade_id=data.get("grade_id"),
+            kind=data.get("kind") or "assignment",
+            difficulty_mix=data.get("difficulty_mix"),
+            state=data.get("state") or "published",
+        )
+        db.session.add(tmpl)
+        db.session.flush()
+        if source_tmpl:
+            for it in source_tmpl.items:
+                db.session.add(AssessmentTemplateItem(
+                    template_id=tmpl.id,
+                    bank_question_id=it.bank_question_id,
+                    order_index=it.order_index,
+                    points_override=it.points_override,
+                ))
+        db.session.commit()
+        return jsonify({"template": _template_dict(tmpl, with_items=True)}), 201
+
+    kind    = request.args.get("kind")
+    subject = request.args.get("subject_id", type=int)
+    query_str = (request.args.get("q") or "").strip()
+    q = AssessmentTemplate.query.filter_by(school_id=_sid())
+    if kind:    q = q.filter(AssessmentTemplate.kind == kind)
+    if subject: q = q.filter(AssessmentTemplate.subject_id == subject)
+    if query_str:
+        q = q.filter(AssessmentTemplate.title.ilike(f"%{query_str}%") |
+                     AssessmentTemplate.code.ilike(f"%{query_str}%"))
+    rows = q.order_by(AssessmentTemplate.updated_at.desc()).all()
+    # Also return a "by subject" roll-up for the gallery landing page.
+    by_subject = {}
+    for r in rows:
+        key = r.subject_id or 0
+        by_subject.setdefault(key, {
+            "subject_id": r.subject_id,
+            "subject_name": (Subject.query.get(r.subject_id).name
+                             if r.subject_id else "بدون تصنيف"),
+            "assignment_count": 0, "exam_count": 0, "total": 0,
+        })
+        bs = by_subject[key]
+        bs["total"] += 1
+        if r.kind == "assignment": bs["assignment_count"] += 1
+        if r.kind == "exam":       bs["exam_count"]       += 1
+    return jsonify({
+        "templates": [_template_dict(r) for r in rows],
+        "by_subject": list(by_subject.values()),
+    })
+
+
+@bp.route("/teacher/templates/<int:tid>", methods=["GET", "DELETE"])
+@jwt_required
+def teacher_template_detail(tid):
+    t = _teacher_for(_user())
+    if not t: return _err("not a teacher", 403)
+    tmpl = AssessmentTemplate.query.filter_by(id=tid, school_id=_sid()).first()
+    if not tmpl: return _err("not found", 404)
+    if request.method == "DELETE":
+        db.session.delete(tmpl)
+        db.session.commit()
+        return jsonify({"ok": True})
+    return jsonify({"template": _template_dict(tmpl, with_items=True)})
+
+
+@bp.route("/teacher/templates/<int:tid>/questions", methods=["POST"])
+@jwt_required
+def teacher_template_add_questions(tid):
+    """Attach bank questions to a template (idempotent by (tmpl, bq_id))."""
+    t = _teacher_for(_user())
+    if not t: return _err("not a teacher", 403)
+    tmpl = AssessmentTemplate.query.filter_by(id=tid, school_id=_sid()).first()
+    if not tmpl: return _err("not found", 404)
+    data = request.get_json(silent=True) or {}
+    ids = data.get("bank_question_ids") or []
+    if not ids: return _err("bank_question_ids required")
+    next_order = (db.session.query(db.func.coalesce(
+        db.func.max(AssessmentTemplateItem.order_index), 0)
+    ).filter_by(template_id=tid).scalar() or 0)
+    added = 0
+    for bq_id in ids:
+        bq = BankQuestion.query.filter_by(id=bq_id, school_id=_sid()).first()
+        if not bq: continue
+        exists = AssessmentTemplateItem.query.filter_by(
+            template_id=tid, bank_question_id=bq_id).first()
+        if exists: continue
+        next_order += 1
+        db.session.add(AssessmentTemplateItem(
+            template_id=tid, bank_question_id=bq_id,
+            order_index=next_order,
+        ))
+        added += 1
+    db.session.commit()
+    return jsonify({"added": added, "template": _template_dict(tmpl)})
+
+
+# ---------- Blueprint-based exam generator ----------
+
+@bp.route("/teacher/exams/blueprint", methods=["POST"])
+@jwt_required
+def teacher_exam_blueprint():
+    """Auto-generate an exam by drawing N questions per subject.
+
+    Body:
+      {
+        "title": "الاختبار الشهري", "duration_minutes": 60,
+        "section_id": 12,
+        "shuffle_questions": true,
+        "sources": [{"subject_id": 5, "count": 10, "difficulty": "medium"},
+                    {"subject_id": 7, "count": 5}]
+      }
+    Returns an unpublished Quiz + attached Question ids, ready for the
+    teacher to review and publish.
+    """
+    from ...models import Quiz, Question, Choice
+    t = _teacher_for(_user())
+    if not t: return _err("not a teacher", 403)
+    data = request.get_json(silent=True) or {}
+    title = (data.get("title") or "").strip()
+    section_id = data.get("section_id")
+    sources = data.get("sources") or []
+    if not (title and section_id and sources):
+        return _err("title, section_id, sources are required")
+    year = _active_year()
+    section = Section.query.filter_by(id=section_id, school_id=_sid()).first()
+    if not section: return _err("section not found", 404)
+    # Resolve or create the Course for (year, grade, subject) of the first source.
+    first = sources[0]
+    course = Course.query.filter_by(
+        school_id=_sid(),
+        academic_year_id=year.id if year else None,
+        grade_id=section.grade_id,
+        subject_id=first.get("subject_id"),
+    ).first()
+    if not course:
+        course = Course(
+            school_id=_sid(),
+            academic_year_id=year.id,
+            grade_id=section.grade_id,
+            subject_id=first.get("subject_id"),
+            title=f"{title} (تلقائي)",
+            is_published=True,
+        )
+        db.session.add(course)
+        db.session.flush()
+
+    quiz = Quiz(
+        course_id=course.id, title=title,
+        description=data.get("description") or "",
+        duration_minutes=data.get("duration_minutes") or 30,
+        shuffle_questions=bool(data.get("shuffle_questions", True)),
+        is_published=False,
+    )
+    db.session.add(quiz)
+    db.session.flush()
+
+    import random as _random
+    order = 0
+    picked_total = 0
+    for src in sources:
+        subject_id = src.get("subject_id")
+        count = int(src.get("count") or 0)
+        diff  = src.get("difficulty")
+        if not (subject_id and count > 0): continue
+        pool = _bank_scope(source="school", subject_id=subject_id).filter(
+            BankQuestion.review_state == "approved")
+        if diff:
+            pool = pool.filter(BankQuestion.difficulty == diff)
+        pool = pool.all()
+        if not pool: continue
+        picks = _random.sample(pool, k=min(count, len(pool)))
+        for bq in picks:
+            order += 1
+            db.session.add(Question(
+                quiz_id=quiz.id,
+                order_index=order,
+                kind=bq.kind,
+                prompt=bq.prompt,
+                points=bq.points or 1,
+                correct_short=bq.correct_short or "",
+                source_bank_id=bq.id,
+            ))
+            picked_total += 1
+    db.session.commit()
+    return jsonify({
+        "quiz_id": quiz.id, "title": quiz.title,
+        "picked_total": picked_total,
+        "sources": sources,
+    }), 201
 
 
 # ============================================================

@@ -395,8 +395,19 @@ class BankQuestion(db.Model):
     prompt        = db.Column(db.Text, nullable=False)
     points        = db.Column(db.Numeric(6, 2), default=1)
     correct_short = db.Column(db.String(200), default="")
-    difficulty    = db.Column(db.String(10),  default="medium")   # easy | medium | hard
+    difficulty    = db.Column(db.String(10),  default="medium")   # easy | medium | hard | very_hard
     tags          = db.Column(db.String(500), default="")         # comma-separated
+
+    # Qdrat-parity review workflow. A brand-new question lands in
+    # `draft`; once the author fills every field it goes to `pending`
+    # for the admin to promote to `approved`. `no_answer` flags rows
+    # that carry a prompt but no correct choice (Qdrat calls these
+    # "بدون إجابات"). `duplicate` is set by the semantic-similarity
+    # detector, and `rejected` by an admin sending a question back.
+    review_state  = db.Column(db.String(16), nullable=False,
+                              default="approved", server_default="approved",
+                              index=True)
+    review_notes  = db.Column(db.Text, default="")
 
     # NAFIS separation — a question belongs to either the school's own
     # curriculum bank ('school', the default) or the ETEC نافس bank
@@ -514,6 +525,69 @@ class AssignmentTemplateChoice(db.Model):
     order_index = db.Column(db.Integer, default=0, nullable=False)
     label = db.Column(db.String(500), nullable=False)
     is_correct = db.Column(db.Boolean, default=False, nullable=False)
+
+
+# ---------- Assessment templates (Qdrat parity) -----------------------
+#
+# Different from `AssignmentTemplate` above: the assessment template is
+# a lightweight *pointer* container — the questions live in the shared
+# `BankQuestion` table, and the template just holds an ordered list of
+# ids plus per-item point overrides. That's what Qdrat calls a "نموذج
+# احترافي" and it's what powers the blueprint exam generator: pick
+# templates that match a subject, and every enrolled student gets a
+# randomised exam drawn from those exact templates.
+
+class AssessmentTemplate(db.Model):
+    __tablename__ = "lms_assessment_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    created_by_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
+
+    title       = db.Column(db.String(200), nullable=False)
+    code        = db.Column(db.String(40),  index=True)     # "M75" — for ImportFromCode flow
+    description = db.Column(db.Text, default="")
+
+    subject_id  = db.Column(db.Integer, db.ForeignKey("subjects.id"), nullable=True, index=True)
+    grade_id    = db.Column(db.Integer, db.ForeignKey("grades.id"),   nullable=True, index=True)
+
+    # 'assignment' | 'exam' — one template can seed either flow.
+    kind        = db.Column(db.String(16), default="assignment", nullable=False)
+    # Optional shorthand for a difficulty blueprint like "easy:5,medium:10,hard:5".
+    difficulty_mix = db.Column(db.String(64), nullable=True)
+    # 'draft' | 'published' | 'archived'
+    state       = db.Column(db.String(16), default="published", nullable=False)
+
+    created_at  = db.Column(db.DateTime(timezone=True), default=_utcnow)
+    updated_at  = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    items = db.relationship(
+        "AssessmentTemplateItem", backref="template",
+        cascade="all, delete-orphan",
+        order_by="AssessmentTemplateItem.order_index",
+    )
+
+
+class AssessmentTemplateItem(db.Model):
+    __tablename__ = "lms_assessment_template_questions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    template_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assessment_templates.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    bank_question_id = db.Column(
+        db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    points_override = db.Column(db.Numeric(6, 2), nullable=True)
+
+    __table_args__ = (
+        db.UniqueConstraint("template_id", "bank_question_id",
+                            name="uq_asstmpl_q"),
+    )
 
 
 # ---------- Announcements ----------

@@ -20,6 +20,7 @@ from .lms import (
     Quiz, Question, Choice, QuizAttempt, Answer,
     BankQuestion, BankChoice,
     AssignmentTemplate, AssignmentTemplateQuestion, AssignmentTemplateChoice,
+    AssessmentTemplate, AssessmentTemplateItem,
     Announcement,
 )
 # Sprint 16 — school-platform expansion (guardians, calendar, audit,
@@ -73,6 +74,7 @@ __all__ = [
     "Quiz", "Question", "Choice", "QuizAttempt", "Answer",
     "BankQuestion", "BankChoice",
     "AssignmentTemplate", "AssignmentTemplateQuestion", "AssignmentTemplateChoice",
+    "AssessmentTemplate", "AssessmentTemplateItem",
     "Announcement",
     # Sprint 16 (platform expansion)
     "Guardian", "StudentGuardian",
