@@ -781,3 +781,120 @@ def _parent_dashboard():
         announcements=announcements,
         today=date.today(),
     )
+
+
+# ────────────────────────────────────────────────────────────────────
+# Global search — powers the topbar search box + sidebar quick-search.
+# ────────────────────────────────────────────────────────────────────
+from flask import jsonify, redirect, url_for
+from ...models import Student, Teacher, Invoice, Course
+from ...models.hr import Employee
+
+
+@bp.route("/search")
+@login_required
+def global_search():
+    """Full-page results — landing when the user submits with Enter."""
+    q = (request.args.get("q") or "").strip()
+    if not q:
+        return render_template("dashboard/search.html", q="", groups={})
+    groups = _search_hits(q, current_user.school_id, limit_each=30)
+    return render_template("dashboard/search.html", q=q, groups=groups)
+
+
+@bp.route("/search.json")
+@login_required
+def global_search_json():
+    """Suggestion endpoint hit by both search boxes on every keystroke.
+    Returns up to 5 hits per group so a dropdown stays readable."""
+    q = (request.args.get("q") or "").strip()
+    if len(q) < 2:
+        return jsonify({"groups": {}})
+    return jsonify({"groups": _search_hits(q, current_user.school_id, limit_each=5)})
+
+
+def _search_hits(q, sid, *, limit_each):
+    """Runs cheap ILIKE searches across the four most-searched entities
+    and returns them as {group: [{title, subtitle, href}]} — the client
+    renders it into the dropdown or the results page as-is."""
+    like = f"%{q}%"
+    out = {}
+
+    stu = (
+        Student.query.filter(Student.school_id == sid)
+        .filter(db.or_(
+            Student.full_name.ilike(like),
+            Student.permanent_code.ilike(like),
+        ))
+        .limit(limit_each).all()
+    )
+    if stu:
+        out["الطلاب"] = [{
+            "title": s.full_name,
+            "subtitle": s.permanent_code or "",
+            "href": url_for("students.student_detail", student_id=s.id),
+            "icon": "school",
+        } for s in stu]
+
+    tch = (
+        Teacher.query.filter(Teacher.school_id == sid)
+        .filter(Teacher.full_name.ilike(like))
+        .limit(limit_each).all()
+    )
+    if tch:
+        out["المعلمون"] = [{
+            "title": t.full_name,
+            "subtitle": getattr(t, "national_id", "") or "",
+            "href": url_for("teachers.teacher_detail", teacher_id=t.id)
+                    if _has_endpoint("teachers.teacher_detail") else url_for("teachers.list_teachers"),
+            "icon": "badge",
+        } for t in tch]
+
+    inv = (
+        Invoice.query.filter(Invoice.school_id == sid)
+        .filter(db.or_(
+            Invoice.number.ilike(like),
+            Invoice.notes.ilike(like),
+        ))
+        .limit(limit_each).all()
+    )
+    if inv:
+        out["الفواتير"] = [{
+            "title": f"فاتورة #{i.number}",
+            "subtitle": (i.enrollment.student.full_name if i.enrollment and i.enrollment.student else ""),
+            "href": url_for("finance.invoice_detail", invoice_id=i.id),
+            "icon": "receipt_long",
+        } for i in inv]
+
+    crs = (
+        Course.query.filter(Course.school_id == sid)
+        .filter(Course.title.ilike(like))
+        .limit(limit_each).all()
+    )
+    if crs:
+        out["المقررات"] = [{
+            "title": c.title,
+            "subtitle": (c.subject.name if getattr(c, "subject", None) else ""),
+            "href": url_for("courses.list_courses"),
+            "icon": "auto_stories",
+        } for c in crs]
+
+    emp = (
+        Employee.query.filter(Employee.school_id == sid)
+        .filter(Employee.full_name.ilike(like))
+        .limit(limit_each).all()
+    )
+    if emp:
+        out["الموظفون"] = [{
+            "title": e.full_name,
+            "subtitle": getattr(e, "job_title", "") or "",
+            "href": url_for("hr.employees_list") if _has_endpoint("hr.employees_list") else "#",
+            "icon": "work",
+        } for e in emp]
+
+    return out
+
+
+def _has_endpoint(name):
+    from flask import current_app
+    return name in current_app.view_functions

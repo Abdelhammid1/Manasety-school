@@ -64,14 +64,18 @@
       </button>
     </div>
 
-    {# Quick search — expanded state only #}
-    <div class="px-space-md my-space-sm search-box">
+    {# Quick search — hits /search.json for suggestions, Enter goes to /search #}
+    <form method="get" action="{{ url_for('dashboard.global_search') }}"
+          class="px-space-md my-space-sm search-box relative" data-global-search>
       <div class="relative flex items-center bg-navy-active rounded-lg px-space-sm py-1">
         <span class="material-symbols-outlined text-sidebar-icon text-lg ml-space-xs">search</span>
-        <input type="text" placeholder="بحث سريع في النظام..."
+        <input type="text" name="q" autocomplete="off"
+               placeholder="بحث سريع في النظام..."
                class="w-full bg-transparent border-none outline-none font-body-md text-body-md text-on-primary placeholder:text-sidebar-icon/60">
       </div>
-    </div>
+      <div class="hidden absolute top-11 right-0 left-0 max-h-[60vh] overflow-y-auto bg-surface-container-lowest rounded-2xl shadow-2xl z-50 p-2"
+           data-suggestions></div>
+    </form>
 
     {# Role-aware nav — Admin sidebar organized into 10 groups per ticket #10 #}
     <nav class="flex flex-col gap-0.5 px-space-xs mt-space-xs" aria-label="التنقل الرئيسي">

@@ -89,9 +89,43 @@ def forgot():
         session["otp_channel"] = channel
         session["otp_expires_at"] = (datetime.utcnow() + timedelta(minutes=5)).isoformat()
         session["otp_user_id"] = user.id if user else 0
-        # DEV: surface the code so QA can complete the flow without an SMTP.
-        if current_app.debug or current_app.config.get("WHATSAPP_PROVIDER") == "stub":
-            flash(f"[وضع التطوير] رمز التحقق: {code}", "info")
+
+        # Ticket "SMTP per school + email channel" — try to actually send
+        # the OTP via the school's SMTP when the channel is email + we
+        # resolved a user + the school has SMTP configured. Fall back to
+        # the dev-mode flash only when the environment is truly local
+        # (FLASK_DEBUG=1), NEVER on production even if WHATSAPP_PROVIDER
+        # is set to stub by accident.
+        sent = False
+        if channel == "email" and user is not None and user.school_id:
+            try:
+                from ...models import School
+                from ...services import mailer as _mailer
+                school = db.session.get(School, user.school_id)
+                if _mailer.is_configured(school) and target:
+                    _mailer.send(
+                        school, target,
+                        subject="رمز التحقق — منصتي",
+                        body=(
+                            f"مرحباً {user.username or user.full_name},\n\n"
+                            f"رمز التحقق الخاص بك: {code}\n"
+                            "الرمز صالح لخمس دقائق فقط.\n\n"
+                            "لو مش أنت اللي طلبت الرمز، تجاهل هذه الرسالة."
+                        ),
+                    )
+                    sent = True
+                    flash("تم إرسال رمز التحقق إلى بريدك.", "success")
+            except Exception as e:  # noqa: BLE001
+                current_app.logger.warning("OTP email send failed: %s", e)
+        if not sent:
+            # Local-dev fallback ONLY. Anti-enumeration is preserved:
+            # unauthenticated users on production see nothing about the
+            # code — the flash never fires unless FLASK_DEBUG=1.
+            if current_app.debug:
+                flash(f"[وضع التطوير] رمز التحقق: {code}", "info")
+            else:
+                flash("إذا كان الحساب موجوداً، تم إرسال الرمز — تحقق من بريدك.",
+                      "info")
         return redirect(url_for("auth.otp"))
     return render_template("auth/forgot.html", channel="email")
 

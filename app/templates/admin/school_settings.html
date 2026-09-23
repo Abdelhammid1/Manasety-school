@@ -22,6 +22,7 @@
         ('t4','الإعدادات الأكاديمية','school'),
         ('t5','القوالب والمطبوعات','print'),
         ('t6','الإشعارات','notifications'),
+        ('t7','بريد المدرسة SMTP','mail'),
       ] %}
       <button type="button" role="tab" data-tab="{{ id }}"
               onclick="showTab('{{ id }}')"
@@ -188,6 +189,59 @@
           <input name="reminder_days_before" dir="ltr" value="{{ school.reminder_days_before }}" placeholder="7,3"
                  class="h-11 px-3 rounded-lg bg-surface-container-low font-mono">
           <span class="font-label-xs text-outline">مثال: <span dir="ltr">7,3</span> = تذكيرات قبل الاستحقاق بأسبوع وبثلاثة أيام.</span></div>
+      </div>
+    </div>
+
+    {# Tab 7 — SMTP (per-school outbound email) #}
+    <div id="t7" class="tab p-space-lg" style="display:none">
+      <div class="mb-space-md rounded-xl bg-secondary-fixed/50 p-space-md text-on-secondary-fixed">
+        <div class="flex items-center gap-2 font-title-md font-bold">
+          <span class="material-symbols-outlined">info</span>إعدادات بريد المدرسة الصادر
+        </div>
+        <p class="mt-1">
+          كل مدرسة تربط خادم SMTP الخاص بها (Gmail / Outlook / خادم مؤسسي).
+          كلمة المرور تُخزَّن مشفّرة ولا تظهر في السجلات. الحقول اختيارية —
+          لو ما مليّتيهاش، الإشعارات تنسجل في السجل بس ولا تتبعت.
+        </p>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">Host (خادم SMTP)</label>
+          <input name="smtp_host" dir="ltr" value="{{ school.smtp_host or '' }}"
+                 placeholder="smtp.gmail.com" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">Port</label>
+          <input name="smtp_port" type="number" dir="ltr" value="{{ school.smtp_port or 587 }}"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">Username</label>
+          <input name="smtp_username" dir="ltr" value="{{ school.smtp_username or '' }}"
+                 placeholder="user@example.com" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">Password</label>
+          <input name="smtp_password" type="password" dir="ltr"
+                 value="{{ '••••••••' if school.smtp_password_encrypted else '' }}"
+                 placeholder="كلمة المرور أو App Password"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low font-mono">
+          <span class="font-label-xs text-outline">اترك الحقل كما هو للاحتفاظ بالقيمة المحفوظة، أو أدخل قيمة جديدة للتحديث.</span></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">From Name</label>
+          <input name="smtp_from_name" value="{{ school.smtp_from_name or school.name or '' }}"
+                 class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
+        <div class="flex flex-col gap-1"><label class="font-label-md font-bold">From Email</label>
+          <input name="smtp_from_email" type="email" dir="ltr" value="{{ school.smtp_from_email or '' }}"
+                 placeholder="noreply@school.edu" class="h-11 px-3 rounded-lg bg-surface-container-low font-mono"></div>
+        <div class="flex flex-col gap-1 md:col-span-2">
+          <label class="flex items-center gap-2 cursor-pointer p-2 rounded-lg bg-surface-container-low">
+            <input type="checkbox" name="smtp_use_tls" value="1"
+                   {% if school.smtp_use_tls %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+            <span class="font-label-md font-bold">استخدام TLS (يُنصح به دائماً)</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="mt-space-md flex items-center gap-2 flex-wrap">
+        <button type="submit" formaction="{{ url_for('admin.smtp_test') }}" formmethod="post"
+                class="h-11 px-5 rounded-xl bg-secondary-fixed text-on-secondary-fixed font-label-lg font-bold hover:brightness-105 transition-all flex items-center gap-2">
+          <span class="material-symbols-outlined">rule</span>اختبار الاتصال
+        </button>
+        <span class="font-label-xs text-outline">يفتح جلسة SMTP + login فقط، بدون إرسال بريد فعلي.</span>
       </div>
     </div>
 

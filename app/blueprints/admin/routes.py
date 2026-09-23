@@ -121,6 +121,23 @@ def school_settings():
             s.reminder_days_before = get("reminder_days_before") or "7,3"
             channels = request.form.getlist("notify_channels")
             s.notify_channels = ",".join(channels) if channels else "in_app,email"
+            # Tab 7 — SMTP (per-school outbound email).
+            from ...services import mailer as _mailer
+            s.smtp_host = get("smtp_host") or None
+            try:
+                s.smtp_port = int(request.form.get("smtp_port") or 587)
+            except (TypeError, ValueError):
+                s.smtp_port = 587
+            s.smtp_username = get("smtp_username") or None
+            # Only re-encrypt the password if the admin typed a fresh
+            # value — the input renders as "••••••" when a password is
+            # already stored, and blanking-out means "keep as-is".
+            raw_pw = (request.form.get("smtp_password") or "").strip()
+            if raw_pw and raw_pw != "••••••••":
+                s.smtp_password_encrypted = _mailer.encrypt(raw_pw)
+            s.smtp_use_tls = bool(request.form.get("smtp_use_tls"))
+            s.smtp_from_name = get("smtp_from_name") or None
+            s.smtp_from_email = get("smtp_from_email") or None
             db.session.commit()
         except Exception:
             db.session.rollback()
@@ -346,3 +363,17 @@ def _parse_permissions(form) -> dict:
         if granted:
             perms[module] = granted
     return perms
+
+
+# ── SMTP test connection endpoint ──────────────────────────────────
+@bp.route("/settings/smtp/test", methods=["POST"], endpoint="smtp_test")
+@login_required
+def smtp_test_connection():
+    """Fires an SMTP connect + login round-trip against the currently
+    saved settings and reports success/failure without sending mail."""
+    from ...services import mailer as _mailer
+    from ...models import School
+    school = db.session.get(School, current_user.school_id)
+    ok, msg = _mailer.test_connection(school)
+    flash(msg, "success" if ok else "danger")
+    return redirect(url_for("admin.school_settings") + "#smtp")

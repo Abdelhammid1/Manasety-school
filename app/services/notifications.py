@@ -124,9 +124,33 @@ def send_notification(
     db.session.add(log)
     db.session.flush()
 
+    # Ticket "SMTP per school + email channel" — when the payload is
+    # targeting email and the school has SMTP configured, actually send
+    # it via smtplib. Anything else falls back on the stub.
+    sent_email = False
+    if target_email:
+        try:
+            from ..models import School
+            from . import mailer as _mailer
+            school = db.session.get(School, school_id)
+            if _mailer.is_configured(school):
+                subject = payload.get("subject") or payload.get("title") \
+                          or "إشعار من المدرسة"
+                body = payload.get("body") or payload.get("message") \
+                       or json.dumps(payload, ensure_ascii=False)
+                _mailer.send(school, target_email, subject, body,
+                             html=bool(payload.get("html")))
+                log.status = "sent"
+                sent_email = True
+        except Exception as e:  # noqa: BLE001
+            log.status = "failed"
+            log.error = str(e)[:255]
+
     provider = current_app.config.get("WHATSAPP_PROVIDER", "stub")
     try:
-        if provider == "stub":
+        if sent_email:
+            pass  # already delivered above
+        elif provider == "stub":
             _send_stub(log)
         else:
             log.error = f"unknown provider: {provider}"

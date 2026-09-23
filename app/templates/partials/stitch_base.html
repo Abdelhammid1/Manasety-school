@@ -251,6 +251,70 @@
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') document.querySelectorAll('.modal-backdrop:not([hidden])').forEach(m => window.closeModal(m));
     });
+
+    // ── Global search — dropdown + Ctrl/Cmd-K + debounced suggestions
+    (function(){
+      const forms = document.querySelectorAll('[data-global-search]');
+      if (!forms.length) return;
+      let debounce = null;
+
+      async function fetchSuggestions(q, panel) {
+        try {
+          const r = await fetch('/search.json?q=' + encodeURIComponent(q), {credentials:'same-origin'});
+          const data = await r.json();
+          const groups = data.groups || {};
+          if (Object.keys(groups).length === 0) {
+            panel.innerHTML = '<div class="p-3 text-outline text-center font-label-md">لا نتائج</div>';
+          } else {
+            const chunks = [];
+            for (const [label, rows] of Object.entries(groups)) {
+              chunks.push(`<div class="px-2 pt-2 pb-1 text-outline font-label-xs font-bold">${label}</div>`);
+              for (const r of rows) {
+                chunks.push(
+                  `<a href="${r.href}" class="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-surface-container-low">
+                     <span class="material-symbols-outlined text-primary">${r.icon || 'search'}</span>
+                     <span class="flex-1 min-w-0">
+                       <span class="block font-label-lg text-on-surface font-bold truncate">${escapeHtml(r.title)}</span>
+                       ${r.subtitle ? `<span class="block font-label-xs text-outline truncate">${escapeHtml(r.subtitle)}</span>` : ''}
+                     </span>
+                   </a>`
+                );
+              }
+            }
+            panel.innerHTML = chunks.join('');
+          }
+          panel.classList.remove('hidden');
+        } catch (e) {}
+      }
+      function escapeHtml(s){ return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]); }
+
+      forms.forEach(form => {
+        const input = form.querySelector('input[name=q]');
+        const panel = form.querySelector('[data-suggestions]');
+        input.addEventListener('input', () => {
+          const q = input.value.trim();
+          clearTimeout(debounce);
+          if (q.length < 2) { panel.classList.add('hidden'); return; }
+          debounce = setTimeout(() => fetchSuggestions(q, panel), 220);
+        });
+        input.addEventListener('focus', () => {
+          const q = input.value.trim();
+          if (q.length >= 2) fetchSuggestions(q, panel);
+        });
+        document.addEventListener('click', (e) => {
+          if (!form.contains(e.target)) panel.classList.add('hidden');
+        });
+      });
+
+      // Ctrl/Cmd+K focuses the first search input.
+      window.addEventListener('keydown', (e) => {
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+          e.preventDefault();
+          const first = document.querySelector('[data-global-search] input[name=q]');
+          if (first) first.focus();
+        }
+      });
+    })();
   </script>
   {% block extra_scripts %}{% endblock %}
 </body>

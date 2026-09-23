@@ -103,14 +103,6 @@
           {{ field('parent_name', 'اسم الأب / ولي الأمر', F.parent_name if F else '') }}
           {{ field('parent_phone', 'جوال الأب', F.parent_phone if F else '', kind='tel', ph='+9665...') }}
           {{ field('parent_email', 'البريد الإلكتروني', F.parent_email if F else '', kind='email') }}
-          {% call field('parent_user_id', 'حساب ولي الأمر (اختياري)', kind='select', help='اربط الطالب بحساب مستخدم من نوع ولي أمر لتفعيل بوابة ولي الأمر.') %}
-            <select name="parent_user_id" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
-              <option value="">— بدون ربط —</option>
-              {% for u in parent_users %}
-              <option value="{{ u.id }}" {% if F and F.parent_user_id == u.id %}selected{% endif %}>{{ u.full_name }} ({{ u.username }})</option>
-              {% endfor %}
-            </select>
-          {% endcall %}
           {{ field('mother_name', 'اسم الأم', F.mother_name if F else '') }}
           {{ field('mother_phone', 'جوال الأم', F.mother_phone if F else '', kind='tel') }}
         </div>

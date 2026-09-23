@@ -611,11 +611,18 @@ def invoice_print(invoice_id):
 
     ?download=1 pipes through WeasyPrint to return a PDF.
     Default: renders HTML with @media print styles + auto window.print().
+
+    Ticket "invoice branding" — the printed sheet now pulls its brand
+    strings (legal name, logo, header/footer text, currency symbol)
+    from the School row instead of hard-coded literals.
     """
+    from ...models import School
     inv = _get(Invoice, invoice_id)
+    school = db.session.get(School, inv.school_id)
     download = request.args.get("download") == "1"
     if download:
-        html = render_template("finance/invoice_print.html", inv=inv, download=True)
+        html = render_template("finance/invoice_print.html",
+                               inv=inv, school=school, download=True)
         try:
             from weasyprint import HTML
             pdf_bytes = HTML(string=html, base_url=request.host_url).write_pdf()
@@ -630,7 +637,8 @@ def invoice_print(invoice_id):
                 "Content-Disposition": f'attachment; filename="invoice_{inv.number}.pdf"',
             },
         )
-    return render_template("finance/invoice_print.html", inv=inv, download=False)
+    return render_template("finance/invoice_print.html",
+                           inv=inv, school=school, download=False)
 
 
 # ---------- Bulk payment (Ticket "Additional 5") ---------------------

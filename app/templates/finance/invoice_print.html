@@ -59,15 +59,26 @@
 
   <div class="invoice">
     <div class="brand">
-      <div>
-        <div class="brand-name">مؤسسة الشيخ صالح الشريف للتعليم القرآني</div>
-        <div class="brand-sub">منظومة إدارة المؤسسة — منصتي</div>
+      <div style="display:flex;align-items:center;gap:14px">
+        {% if school and school.show_logo_on_prints and school.logo_url %}
+        <img src="{{ school.logo_url }}" alt="شعار المدرسة"
+             style="max-width:80px;max-height:80px;object-fit:contain;border-radius:6px">
+        {% endif %}
+        <div>
+          <div class="brand-name">
+            {{ (school.legal_name_ar or school.name) if school else 'المدرسة' }}
+          </div>
+          <div class="brand-sub">منظومة إدارة المؤسسة — منصتي</div>
+        </div>
       </div>
       <div>
         <div class="doc-title">فاتورة</div>
         <div class="doc-number">{{ inv.number }}</div>
       </div>
     </div>
+    {% if school and school.invoice_header_text %}
+    <div style="padding:10px 14px;background:#F7F8FA;border-radius:6px;margin-bottom:20px;color:#374151;font-size:13px;line-height:1.7;white-space:pre-wrap">{{ school.invoice_header_text }}</div>
+    {% endif %}
 
     <div class="meta">
       <div class="meta-box">
@@ -108,23 +119,27 @@
       </tbody>
     </table>
 
+    {% set curr = (school.currency_symbol if school and school.currency_symbol else 'ج.م') %}
     <div class="totals">
       <div class="totals-row">
         <div>الإجمالي</div>
-        <div class="value">{{ "%.2f"|format(inv.total_amount) }} ج.س</div>
+        <div class="value">{{ "%.2f"|format(inv.total_amount) }} {{ curr }}</div>
       </div>
       <div class="totals-row">
         <div>المدفوع</div>
-        <div class="value" style="color:#16A34A">{{ "%.2f"|format(inv.paid_amount) }} ج.س</div>
+        <div class="value" style="color:#16A34A">{{ "%.2f"|format(inv.paid_amount) }} {{ curr }}</div>
       </div>
       <div class="totals-row grand">
         <div>المتبقّي</div>
-        <div class="value">{{ "%.2f"|format(inv.remaining) }} ج.س</div>
+        <div class="value">{{ "%.2f"|format(inv.remaining) }} {{ curr }}</div>
       </div>
     </div>
 
+    {% if school and school.invoice_footer_text %}
+    <div style="margin-top:24px;padding:10px 14px;background:#F7F8FA;border-radius:6px;color:#374151;font-size:12px;line-height:1.7;white-space:pre-wrap">{{ school.invoice_footer_text }}</div>
+    {% endif %}
     <div class="footer">
-      شكراً لتعاونكم — مؤسسة الشيخ صالح الشريف للتعليم القرآني
+      شكراً لتعاونكم — {{ (school.legal_name_ar or school.name) if school else 'المدرسة' }}
     </div>
   </div>
 

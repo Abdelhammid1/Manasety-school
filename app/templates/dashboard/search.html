@@ -1,0 +1,52 @@
+{# Global search — full-page results. Landing when the user hits Enter. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}بحث: {{ q }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">نتائج البحث</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-4xl mx-auto space-y-6 pb-16">
+  <form method="get" action="{{ url_for('dashboard.global_search') }}"
+        class="flex items-center gap-2 bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    <span class="material-symbols-outlined text-primary text-2xl">search</span>
+    <input type="text" name="q" value="{{ q }}" autofocus
+           placeholder="اكتب اسم طالب، رقم فاتورة، اسم معلم أو مقرر…"
+           class="flex-1 h-11 px-3 rounded-lg bg-surface-container-low text-on-surface font-body-md focus:outline-none focus:ring-2 focus:ring-primary/40">
+    <button type="submit" class="h-11 px-5 rounded-xl bg-primary text-on-primary font-label-lg font-bold">بحث</button>
+  </form>
+
+  {% if q and not groups %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg text-center">
+    <div class="w-14 h-14 rounded-2xl bg-surface-container-low text-outline flex items-center justify-center mx-auto mb-3">
+      <span class="material-symbols-outlined text-3xl">search_off</span>
+    </div>
+    <h2 class="font-headline-sm font-bold text-on-surface">لا نتائج لـ «{{ q }}»</h2>
+    <p class="text-on-surface-variant mt-1">جرّب كلمة أقصر أو تأكّد من الإملاء.</p>
+  </div>
+  {% endif %}
+
+  {% for label, rows in groups.items() %}
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-md">
+    <div class="flex items-center gap-2 pb-space-sm border-b border-surface-container-low">
+      <span class="font-title-md font-bold text-on-surface">{{ label }}</span>
+      <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">{{ rows|length }}</span>
+    </div>
+    <div class="divide-y divide-surface-container-low">
+      {% for r in rows %}
+      <a href="{{ r.href }}" class="flex items-center gap-3 py-3 hover:bg-surface-container-low/60 rounded-lg px-2 transition-colors">
+        <div class="w-10 h-10 rounded-xl bg-primary-fixed text-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-xl">{{ r.icon }}</span>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-title-md font-bold text-on-surface truncate">{{ r.title }}</div>
+          {% if r.subtitle %}<div class="font-label-sm text-on-surface-variant truncate" dir="auto">{{ r.subtitle }}</div>{% endif %}
+        </div>
+        <span class="material-symbols-outlined text-outline">chevron_left</span>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

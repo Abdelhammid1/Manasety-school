@@ -27,15 +27,20 @@
     </div>
     {% endif %}
 
-    {# Global search — Cmd/Ctrl-K opens the palette (page-level JS may enhance) #}
-    <button type="button" onclick="document.getElementById('global-search-input').focus()"
-            class="hidden lg:flex items-center gap-space-sm bg-surface-container-low hover:bg-surface-container px-3 h-9 rounded-full text-on-surface-variant transition-colors">
-      <span class="material-symbols-outlined text-sm">search</span>
-      <input id="global-search-input" type="search"
-             placeholder="بحث عن طالب، معلم، فاتورة..."
-             class="bg-transparent border-none outline-none w-56 font-body-md text-body-md text-on-surface placeholder:text-outline">
-      <span class="font-label-sm text-label-sm text-outline">Ctrl+K</span>
-    </button>
+    {# Global search — hits /search.json on every keystroke and shows a
+       dropdown. Enter submits to the full-page results at /search. #}
+    <form method="get" action="{{ url_for('dashboard.global_search') }}"
+          class="hidden lg:block relative" data-global-search>
+      <div class="flex items-center gap-space-sm bg-surface-container-low hover:bg-surface-container px-3 h-9 rounded-full text-on-surface-variant transition-colors">
+        <span class="material-symbols-outlined text-sm">search</span>
+        <input id="global-search-input" type="search" name="q" autocomplete="off"
+               placeholder="بحث عن طالب، معلم، فاتورة..."
+               class="bg-transparent border-none outline-none w-56 font-body-md text-body-md text-on-surface placeholder:text-outline">
+        <span class="font-label-sm text-label-sm text-outline">Ctrl+K</span>
+      </div>
+      <div class="hidden absolute top-11 right-0 w-96 max-h-[70vh] overflow-y-auto bg-surface-container-lowest rounded-2xl shadow-2xl z-50 p-2"
+           data-suggestions></div>
+    </form>
 
     {# Notifications #}
     <button type="button" title="الإشعارات"

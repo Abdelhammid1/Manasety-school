@@ -102,7 +102,15 @@ def year_close(year_id):
     """
     from ...models import PassRule
     from ...services.ledger import close_fiscal_year, LedgerError
-    year = _get(AcademicYear, year_id)
+    # Ticket "معاينة الاقفال مش بتفتح" — the raw abort(404) that _get
+    # falls back to was rendering the generic 404 page even when the
+    # cause was simply "year id belongs to another school". Give a
+    # friendlier flash + redirect so admins that mis-typed the URL
+    # land on the years list instead of hitting a dead end.
+    year = AcademicYear.query.filter_by(id=year_id, school_id=_sid()).first()
+    if year is None:
+        flash("السنة الدراسية غير موجودة أو غير مسموح لك بالوصول لها.", "warning")
+        return redirect(url_for("academic.years_list"))
 
     # GET (or an explicit dry_run POST) → preview screen.
     is_preview = request.method == "GET" or request.form.get("dry_run") == "1"

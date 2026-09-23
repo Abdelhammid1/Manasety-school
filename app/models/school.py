@@ -53,6 +53,19 @@ class School(db.Model):
                                      nullable=False, server_default="7,3")
     notify_channels = db.Column(db.String(64), default="in_app,email",
                                 nullable=False, server_default="in_app,email")
+
+    # Ticket "SMTP per school + email channel" — per-school outbound
+    # mail. Password is stored Fernet-encrypted at rest; the raw value
+    # never touches the database.
+    smtp_host = db.Column(db.String(255))
+    smtp_port = db.Column(db.Integer, default=587)
+    smtp_username = db.Column(db.String(255))
+    smtp_password_encrypted = db.Column(db.Text)
+    smtp_use_tls = db.Column(db.Boolean, default=True, nullable=False,
+                             server_default="1")
+    smtp_from_name = db.Column(db.String(255))
+    smtp_from_email = db.Column(db.String(255))
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):
