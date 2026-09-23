@@ -95,17 +95,13 @@
       <thead>
         <tr>
           <th>البند</th>
-          <th style="width:120px">الكمية</th>
-          <th style="width:140px">سعر الوحدة</th>
           <th style="width:140px">المجموع</th>
         </tr>
       </thead>
       <tbody>
         {% for line in inv.lines %}
         <tr>
-          <td>{{ line.fee_type.name }}{% if line.notes %} — <span style="color:#6B7280;font-size:12px">{{ line.notes }}</span>{% endif %}</td>
-          <td class="amount">{{ line.quantity }}</td>
-          <td class="amount">{{ "%.2f"|format(line.unit_price) }}</td>
+          <td>{{ line.fee_type.name }}{% if line.description %} — <span style="color:#6B7280;font-size:12px">{{ line.description }}</span>{% endif %}</td>
           <td class="amount">{{ "%.2f"|format(line.amount) }}</td>
         </tr>
         {% endfor %}
