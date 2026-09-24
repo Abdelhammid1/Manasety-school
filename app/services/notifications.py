@@ -126,14 +126,20 @@ def send_notification(
 
     # Ticket "SMTP per school + email channel" — when the payload is
     # targeting email and the school has SMTP configured, actually send
-    # it via smtplib. Anything else falls back on the stub.
-    sent_email = False
+    # it via smtplib. An email failure MUST NOT fall through to the
+    # WHATSAPP stub — the stub would blindly overwrite `status='failed'`
+    # with `status='sent'` on the same row (audit bug caught in prod:
+    # every misconfigured SMTP was logging "sent" alongside its real
+    # DNS/auth error). Rule: an email-targeted row gets exactly ONE
+    # terminal state (sent | failed).
+    handled_as_email = False
     if target_email:
-        try:
-            from ..models import School
-            from . import mailer as _mailer
-            school = db.session.get(School, school_id)
-            if _mailer.is_configured(school):
+        from ..models import School
+        from . import mailer as _mailer
+        school = db.session.get(School, school_id)
+        if _mailer.is_configured(school):
+            handled_as_email = True
+            try:
                 subject = payload.get("subject") or payload.get("title") \
                           or "إشعار من المدرسة"
                 body = payload.get("body") or payload.get("message") \
@@ -141,27 +147,31 @@ def send_notification(
                 _mailer.send(school, target_email, subject, body,
                              html=bool(payload.get("html")))
                 log.status = "sent"
-                sent_email = True
+            except Exception as e:  # noqa: BLE001
+                log.status = "failed"
+                log.error = str(e)[:255]
+            log.attempts += 1
+            log.last_attempt_at = datetime.utcnow()
+
+    if not handled_as_email:
+        # SMTP is not configured for this school (or no target_email at
+        # all) → the existing WHATSAPP-provider path handles the log,
+        # which for the default `stub` provider marks it as sent so
+        # dev/QA sees a green row without an SMS gateway wired up.
+        provider = current_app.config.get("WHATSAPP_PROVIDER", "stub")
+        try:
+            if provider == "stub":
+                _send_stub(log)
+            else:
+                log.error = f"unknown provider: {provider}"
+                log.status = "failed"
+            log.attempts += 1
+            log.last_attempt_at = datetime.utcnow()
         except Exception as e:  # noqa: BLE001
             log.status = "failed"
             log.error = str(e)[:255]
-
-    provider = current_app.config.get("WHATSAPP_PROVIDER", "stub")
-    try:
-        if sent_email:
-            pass  # already delivered above
-        elif provider == "stub":
-            _send_stub(log)
-        else:
-            log.error = f"unknown provider: {provider}"
-            log.status = "failed"
-        log.attempts += 1
-        log.last_attempt_at = datetime.utcnow()
-    except Exception as e:  # noqa: BLE001
-        log.status = "failed"
-        log.error = str(e)[:255]
-        log.attempts += 1
-        log.last_attempt_at = datetime.utcnow()
+            log.attempts += 1
+            log.last_attempt_at = datetime.utcnow()
 
     # Sprint 10 — additive push (does nothing if FCM isn't configured yet)
     try:
