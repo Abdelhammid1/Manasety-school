@@ -72,18 +72,53 @@ def day_delete(day_id):
 @login_required
 @require_permission("schedule", "edit")
 def period_new():
+    # Ticket A6 — validation: start_time < end_time AND no overlap with
+    # any other Period on the same school. Time-only comparison keeps
+    # the code trivial; a school's Periods are all per-day anyway.
+    try:
+        start = time.fromisoformat(request.form["start_time"])
+        end   = time.fromisoformat(request.form["end_time"])
+    except (KeyError, ValueError):
+        flash("صيغة الوقت غير صالحة.", "danger")
+        return redirect(url_for("schedule.settings"))
+    if end <= start:
+        flash("وقت النهاية يجب أن يكون بعد وقت البداية.", "danger")
+        return redirect(url_for("schedule.settings"))
+    conflict = _find_period_overlap(school_id=_sid(), start=start, end=end)
+    if conflict is not None:
+        flash(
+            f"يوجد تداخل مع الحصة «{conflict.name}» "
+            f"({conflict.start_time}–{conflict.end_time}).",
+            "danger",
+        )
+        return redirect(url_for("schedule.settings"))
     period = Period(
         school_id=_sid(),
         name=request.form["name"].strip(),
         order_index=int(request.form["order_index"]),
-        start_time=time.fromisoformat(request.form["start_time"]),
-        end_time=time.fromisoformat(request.form["end_time"]),
+        start_time=start, end_time=end,
         is_break=bool(request.form.get("is_break")),
     )
     db.session.add(period)
     db.session.commit()
     flash(f"تمت إضافة {period.name}.", "success")
     return redirect(url_for("schedule.settings"))
+
+
+def _find_period_overlap(*, school_id, start, end, exclude_period_id=None):
+    """Ticket A6 — return the first Period that shares any minute with
+    the [start, end) window, or None. Two windows overlap when
+    `start < other.end AND end > other.start` — the standard interval
+    intersection rule; equal-touching edges are allowed (10:00 end
+    meets 10:00 start = no overlap)."""
+    q = Period.query.filter(
+        Period.school_id == school_id,
+        Period.start_time < end,
+        Period.end_time > start,
+    )
+    if exclude_period_id is not None:
+        q = q.filter(Period.id != exclude_period_id)
+    return q.first()
 
 
 @bp.route("/periods/<int:period_id>/delete", methods=["POST"])

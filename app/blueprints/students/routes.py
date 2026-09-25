@@ -148,6 +148,30 @@ def _get(model, oid):
     return obj
 
 
+def _cancel_future_installments(enrollment):
+    """Ticket S2 auto-effect — mark every future-dated unpaid
+    Installment on this enrollment as `voided`. Past-due installments
+    stay open so the school can still collect them. Returns the count
+    of rows updated."""
+    from ...models import Installment, Invoice
+    from datetime import date as _d
+    today = _d.today()
+    q = (
+        Installment.query
+        .join(Invoice, Invoice.id == Installment.invoice_id)
+        .filter(
+            Invoice.enrollment_id == enrollment.id,
+            Installment.due_date > today,
+            Installment.status.in_(("pending", "overdue")),
+        )
+    )
+    voided = 0
+    for inst in q.all():
+        inst.status = "voided"
+        voided += 1
+    return voided
+
+
 def _get_scoped_by_student(model, oid, student_fk="student_id"):
     """Ticket T1 — IDOR helper for tables that don't carry `school_id`
     directly. Joins through `Student` and returns the row only when
@@ -865,10 +889,15 @@ def status_change(enrollment_id):
 
     if request.method == "POST":
         new_status = request.form["status"]
-        if new_status not in {"active", "withdrawn", "transferred"}:
+        # Ticket S2 — status transitions accepted from the admin UI.
+        # `graduated` lives here too so the same debt-warning +
+        # installment-cancel flow covers a graduating student who
+        # still owes something.
+        if new_status not in {"active", "withdrawn",
+                              "transferred", "graduated"}:
             abort(400)
         # Two-step confirm when there's debt.
-        if new_status in {"withdrawn", "transferred"} and outstanding > 0 \
+        if new_status in {"withdrawn", "transferred", "graduated"} and outstanding > 0 \
            and not request.form.get("confirm_debt"):
             flash(
                 f"⚠ يوجد على الطالب مديونية بقيمة {outstanding:.2f} — "
@@ -884,12 +913,26 @@ def status_change(enrollment_id):
         # If the admin overrode a debt warning, stamp the amount on the
         # enrollment.status_reason so a later dispute has a clear paper
         # trail without a schema change.
-        if new_status in {"withdrawn", "transferred"} and outstanding > 0:
+        if new_status in {"withdrawn", "transferred", "graduated"} and outstanding > 0:
             debt_note = f"مديونية وقت السحب: {outstanding:.2f}"
             reason = f"{reason} — {debt_note}" if reason else debt_note
         enrollment.status_reason = reason
+
+        # Ticket S2 — auto-effects on transition out of `active`.
+        # Recurring invoice generation already filters `status='active'`
+        # so no future rows will be created — nothing to cancel there.
+        # We just void any FUTURE-DATED unpaid installments (past-due
+        # ones stay so the school can still collect them).
+        auto_msg = None
+        if new_status in {"withdrawn", "transferred", "graduated"}:
+            voided = _cancel_future_installments(enrollment)
+            if voided:
+                auto_msg = f"تم إيقاف {voided} قسط مستقبلي غير محصّل."
+
         db.session.commit()
         flash("تم تحديث حالة قيد الطالب.", "success")
+        if auto_msg:
+            flash(auto_msg, "info")
         return redirect(url_for("students.student_detail", student_id=enrollment.student_id))
     return render_template("students/status.html", enrollment=enrollment,
                            open_invoices=open_invoices,

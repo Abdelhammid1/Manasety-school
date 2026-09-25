@@ -6,7 +6,11 @@ from ..extensions import db
 subject_grades = db.Table(
     "subject_grades",
     db.Column("subject_id", db.Integer, db.ForeignKey("subjects.id"), primary_key=True),
-    db.Column("grade_id", db.Integer, db.ForeignKey("grades.id"), primary_key=True),
+    db.Column("grade_id",   db.Integer, db.ForeignKey("grades.id"),   primary_key=True),
+    # Ticket A2 — weight (credit-hours proxy) for GPA weighting per grade.
+    # Default 1.0 so a fresh row acts like the old un-weighted average.
+    db.Column("weight", db.Numeric(5, 2),
+              nullable=False, server_default="1.00"),
 )
 
 

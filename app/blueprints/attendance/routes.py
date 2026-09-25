@@ -329,6 +329,15 @@ def mark(section_id):
                     student=student, section=section,
                     on_date=on_date, record=record,
                 )
+                # Ticket T3 — evaluate escalation rules right after
+                # the new absence lands, so admins see triggers with
+                # zero cron lag. Wrapped: rules must never block the
+                # attendance write.
+                try:
+                    from ...services.attendance_rules import evaluate_after_absence
+                    evaluate_after_absence(student=student, absence_date=on_date)
+                except Exception:
+                    current_app.logger.exception("attendance rule eval failed")
 
         # Ticket #8 — per-period cells. Form fields look like
         # perstatus_<enrollment_id>_<period_id>=<status>.

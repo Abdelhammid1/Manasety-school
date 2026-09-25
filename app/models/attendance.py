@@ -35,6 +35,94 @@ class Attendance(db.Model):
     )
 
 
+# ─── Ticket T3 — Attendance rules engine ───────────────────────────
+class AttendanceRule(db.Model):
+    """Configurable escalation rule. Evaluated after every absence
+    write; matching students get one AttendanceRuleTriggered row per
+    match so the same threshold doesn't re-fire on refresh.
+
+    kind:
+      - `consecutive` — X absences in a row
+      - `cumulative`  — X absences in the window
+    window:
+      - `term`   — from the enrollment's term start
+      - `year`   — from the enrollment's academic year start
+      - `days:N` — the last N calendar days
+    action:
+      - `warning`      — internal flag
+      - `notify_guardian` — enqueue an SMS/notification
+      - `escalate_admin`  — flag for admin review
+    """
+    __tablename__ = "attendance_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    name = db.Column(db.String(120), nullable=False)
+    kind = db.Column(db.String(20), nullable=False)       # consecutive|cumulative
+    threshold = db.Column(db.Integer, nullable=False)
+    window = db.Column(db.String(20), nullable=False,
+                       default="term", server_default="term")
+    action = db.Column(db.String(24), nullable=False,
+                       default="warning", server_default="warning")
+    is_active = db.Column(db.Boolean, default=True, nullable=False,
+                          server_default="true")
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+
+class AttendanceRuleTriggered(db.Model):
+    """One row per (rule, student, week) so re-runs stay idempotent."""
+    __tablename__ = "attendance_rule_triggers"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    rule_id = db.Column(db.Integer, db.ForeignKey("attendance_rules.id",
+                                                   ondelete="CASCADE"),
+                        nullable=False, index=True)
+    student_id = db.Column(db.Integer,
+                           db.ForeignKey("students.id",
+                                          ondelete="CASCADE"),
+                           nullable=False, index=True)
+    triggered_on = db.Column(db.Date, nullable=False,
+                             default=lambda: datetime.utcnow().date())
+    count_at_trigger = db.Column(db.Integer, nullable=False)
+    resolved = db.Column(db.Boolean, default=False, nullable=False,
+                         server_default="false")
+
+    rule    = db.relationship("AttendanceRule")
+    student = db.relationship("Student")
+
+
+# ─── Ticket T4 — Student risk score ────────────────────────────────
+class StudentRiskScore(db.Model):
+    """Per-student risk score (0..100). Higher = higher risk.
+
+    Signal sources (v1):
+      - attendance_rate over 30d      (weight 40)
+      - chronic absent days last 30d  (weight 25)
+      - unresolved rule triggers      (weight 20)
+      - behavior points (last term)   (weight 15)
+    """
+    __tablename__ = "student_risk_scores"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    student_id = db.Column(db.Integer,
+                           db.ForeignKey("students.id",
+                                          ondelete="CASCADE"),
+                           nullable=False, unique=True, index=True)
+    score = db.Column(db.Integer, nullable=False, default=0)
+    tier  = db.Column(db.String(16), nullable=False,
+                      default="low")   # low | medium | high | critical
+    inputs = db.Column(db.JSON, nullable=True)
+    computed_at = db.Column(db.DateTime, default=datetime.utcnow,
+                            nullable=False)
+
+    student = db.relationship("Student")
+
+
 class NotificationLog(db.Model):
     __tablename__ = "notification_logs"
 

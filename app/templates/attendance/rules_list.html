@@ -1,0 +1,131 @@
+{# Ticket T3 — AttendanceRule CRUD + triggers listing. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}قواعد التصعيد للحضور{% endblock %}
+{% block page_content %}
+{% set kind_lbl   = {'consecutive': 'متتالي', 'cumulative': 'تراكمي'} %}
+{% set window_lbl = {'term': 'الترم', 'year': 'السنة', 'days:30': 'آخر ٣٠ يوم', 'days:60': 'آخر ٦٠ يوم'} %}
+{% set action_lbl = {'warning': 'تحذير داخلي', 'notify_guardian': 'إشعار ولي أمر', 'escalate_admin': 'إحالة للإدارة'} %}
+<div class="w-full max-w-[1100px] mx-auto space-y-space-md">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">قواعد التصعيد لحالات الغياب</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      حدد قواعد قابلة للتخصيص — مثال: 3 غيابات متتالية → إنذار، 5 → إشعار ولي أمر، 10 → إحالة للإدارة.
+    </p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <form method="post" class="grid grid-cols-1 md:grid-cols-6 gap-space-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="action" value="add">
+      <input name="name" required placeholder="اسم القاعدة"
+             class="h-11 px-3 rounded-lg bg-surface-container-low md:col-span-2">
+      <select name="kind" class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="consecutive">متتالي</option>
+        <option value="cumulative">تراكمي</option>
+      </select>
+      <input name="threshold" type="number" min="1" required placeholder="العتبة"
+             class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <select name="window" class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="term">الترم</option>
+        <option value="year">السنة</option>
+        <option value="days:30">آخر ٣٠ يوم</option>
+        <option value="days:60">آخر ٦٠ يوم</option>
+      </select>
+      <select name="rule_action" class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="warning">تحذير داخلي</option>
+        <option value="notify_guardian">إشعار ولي أمر</option>
+        <option value="escalate_admin">إحالة للإدارة</option>
+      </select>
+      <button type="submit"
+              class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold md:col-span-6 md:justify-self-end md:w-fit">
+        إضافة
+      </button>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">القواعد المعرّفة</h2>
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الاسم</th>
+          <th class="p-2">النوع</th>
+          <th class="p-2">العتبة</th>
+          <th class="p-2">النافذة</th>
+          <th class="p-2">الإجراء</th>
+          <th class="p-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 font-bold">{{ r.name }}</td>
+          <td class="p-2">{{ kind_lbl.get(r.kind, r.kind) }}</td>
+          <td class="p-2 tabular-nums">{{ r.threshold }}</td>
+          <td class="p-2">{{ window_lbl.get(r.window, r.window) }}</td>
+          <td class="p-2">{{ action_lbl.get(r.action, r.action) }}</td>
+          <td class="p-2 text-left">
+            <form method="post" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="action" value="delete">
+              <input type="hidden" name="id" value="{{ r.id }}">
+              <button type="submit" class="text-error font-label-md hover:underline">حذف</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا قواعد معرّفة بعد.</p>
+    {% endif %}
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">آخر التنبيهات</h2>
+    {% if triggers %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">التاريخ</th>
+          <th class="p-2">الطالب</th>
+          <th class="p-2">القاعدة</th>
+          <th class="p-2 text-center">العدد وقت الإطلاق</th>
+          <th class="p-2 text-center">الحالة</th>
+          <th class="p-2"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in triggers %}
+        <tr class="border-t border-surface-container-low {% if not t.resolved %}bg-rose-50/40{% endif %}">
+          <td class="p-2 tabular-nums">{{ t.triggered_on }}</td>
+          <td class="p-2 font-bold">{{ t.student.full_name if t.student else '—' }}</td>
+          <td class="p-2">{{ t.rule.name if t.rule else '—' }}</td>
+          <td class="p-2 text-center tabular-nums">{{ t.count_at_trigger }}</td>
+          <td class="p-2 text-center">
+            {% if t.resolved %}
+            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-xs font-bold">تم</span>
+            {% else %}
+            <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-label-xs font-bold">قيد المتابعة</span>
+            {% endif %}
+          </td>
+          <td class="p-2 text-left">
+            {% if not t.resolved %}
+            <form method="post" action="{{ url_for('attendance.rule_trigger_resolve', trigger_id=t.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="text-primary font-label-md hover:underline">إنهاء</button>
+            </form>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا تنبيهات مسجّلة.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -26,6 +26,9 @@ from ...services.ledger import (
 from ...services.attendance_pdf_report import (
     send_reports_for_active_students,
 )
+# Ticket T3 / T4 — rules engine + risk score recomputation.
+from ...services.attendance_rules import run_for_school as run_rules
+from ...services.risk_score import run_for_school as run_risk
 
 
 def _authorised() -> bool:
@@ -65,6 +68,23 @@ def tick():
         # Ticket "تذكير قبل الاستحقاق" — email each parent T-N days
         # before an installment's due date, one shot per installment.
         installment_reminders[s.id] = send_installment_reminders(s.id)
+    # Ticket T3 — sweep every school for cumulative-threshold rule
+    # matches. The per-write hook (in attendance.mark) already fires
+    # `consecutive` rules; this cron sweep catches cumulative rules
+    # + any back-dated absences that landed since the last sweep.
+    rules_by_school = {}
+    risk_by_school  = {}
+    for s in School.query.all():
+        try:
+            rules_by_school[s.id] = run_rules(s.id, today=today)
+        except Exception:
+            current_app.logger.exception("attendance rule cron failed for school %s", s.id)
+            rules_by_school[s.id] = -1
+        try:
+            risk_by_school[s.id] = run_risk(s.id, today=today)
+        except Exception:
+            current_app.logger.exception("risk score cron failed for school %s", s.id)
+            risk_by_school[s.id] = -1
     # Ticket T5 — fan out the monthly attendance report once a month
     # (fires on the 1st of the month). Doesn't need a per-school
     # loop because send_reports_for_active_students walks every
@@ -83,4 +103,6 @@ def tick():
         reminders=reminders_by_school,
         installment_reminders=installment_reminders,
         attendance_reports_sent=attendance_reports_sent,
+        attendance_rules_triggered=rules_by_school,
+        risk_scores_updated=risk_by_school,
     )

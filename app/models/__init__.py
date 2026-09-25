@@ -6,8 +6,15 @@ from .student import (
     StudentNote, StudentTag, PreviousSchool,
     student_tag_links,
 )
-from .teacher import Teacher, Subject, Assignment, Day, Period, ScheduleSlot
-from .attendance import Attendance, DeviceToken, NotificationLog
+from .teacher import (
+    Teacher, Subject, Assignment, Day, Period, ScheduleSlot,
+    subject_grades,
+)
+from .attendance import (
+    Attendance, DeviceToken, NotificationLog,
+    AttendanceRule, AttendanceRuleTriggered,
+    StudentRiskScore,
+)
 from .results import PassRule, AssessmentComponent, GradeEntry, YearResult
 from .finance import (
     Account, JournalEntry, JournalLine, FeeType, Invoice, InvoiceLine,
@@ -75,7 +82,10 @@ __all__ = [
     "Student", "Enrollment", "TransferLog",
     "StudentNote", "StudentTag", "PreviousSchool", "student_tag_links",
     "Teacher", "Subject", "Assignment", "Day", "Period", "ScheduleSlot",
+    "subject_grades",
     "Attendance", "DeviceToken", "NotificationLog",
+    "AttendanceRule", "AttendanceRuleTriggered",
+    "StudentRiskScore",
     "PassRule", "AssessmentComponent", "GradeEntry", "YearResult",
     "Account", "JournalEntry", "JournalLine", "FeeType",
     "Invoice", "InvoiceLine", "Installment", "Payment",

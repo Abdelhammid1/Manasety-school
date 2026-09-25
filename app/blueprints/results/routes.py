@@ -48,6 +48,27 @@ def _is_admin():
     return role_name == "admin"
 
 
+def _subject_weight_map(*, school_id, grade_id, subject_ids):
+    """Ticket A2 — return {subject_id: weight (Decimal)} for the given
+    grade, defaulting to 1.0 when no explicit row exists.
+
+    Reads directly off the `subject_grades` assoc so the caller
+    doesn't need to eager-load Grade.subjects with its extra column."""
+    from ...models import subject_grades
+    if not subject_ids:
+        return {}
+    rows = db.session.execute(
+        subject_grades.select().where(
+            (subject_grades.c.grade_id == grade_id) &
+            (subject_grades.c.subject_id.in_(subject_ids))
+        )
+    ).fetchall()
+    out = {r.subject_id: Decimal(str(r.weight or 1)) for r in rows}
+    for sid in subject_ids:
+        out.setdefault(sid, Decimal("1"))
+    return out
+
+
 def _rule_for(year_id):
     rule = PassRule.query.filter_by(school_id=_sid(), year_id=year_id).first()
     if not rule:
@@ -557,9 +578,24 @@ def _compute_year(enrollment, terms, subjects, rule: PassRule):
             incomplete = True
         subj_scores.append((subject, year_subject_score))
 
+    # Ticket A2 — weighted GPA. Read the (subject_id, grade_id) weight
+    # from subject_grades; default 1.0 when no explicit row exists.
+    # An unweighted schedule (all rows at 1.0) reduces to the plain
+    # arithmetic mean, so this stays backwards-compatible.
+    weights = _subject_weight_map(
+        school_id=enrollment.school_id,
+        grade_id=enrollment.grade_id,
+        subject_ids=[s.id for s, _ in subj_scores],
+    )
+    weighted_sum = Decimal(0)
+    weight_tot   = Decimal(0)
+    for s, sc in subj_scores:
+        w = weights.get(s.id, Decimal("1"))
+        weighted_sum += Decimal(str(sc)) * w
+        weight_tot   += w
     average = (
-        sum((s for _, s in subj_scores), Decimal(0)) / Decimal(len(subj_scores))
-        if subj_scores else Decimal(0)
+        weighted_sum / weight_tot
+        if weight_tot else Decimal(0)
     )
     # Sprint 10 hotfix — defensive floor of 1 for either threshold.
     # A stored 0 was making every student pass under per_subject / overall_only
