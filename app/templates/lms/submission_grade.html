@@ -101,9 +101,45 @@
       </button>
 
       {# Save form #}
+      {% set rubric = asg.rubric %}
       <form method="post" action="{{ url_for('lms.submission_grade_save', sid=submission.id) }}"
             class="space-y-space-sm pt-space-sm border-t border-surface-container-low">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if rubric and rubric.criteria %}
+        {# Rubric-driven manual grade — one input per criterion.
+           submission_grade_save rolls these up to sub.score. #}
+        <div class="space-y-space-sm">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">rule</span>
+            <span class="font-title-md font-bold">{{ rubric.title }}</span>
+            <span class="mr-auto px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-xs font-bold">{{ rubric.criteria|length }} معيار</span>
+          </div>
+          {% for c in rubric.criteria %}
+          <div class="p-space-sm rounded-xl bg-surface-container-low border border-surface-container-high space-y-1.5">
+            <div class="flex items-center gap-2">
+              <span class="font-label-md font-bold">{{ c.title }}</span>
+              <span class="mr-auto font-label-xs text-on-surface-variant">
+                وزن {{ (c.weight or 0)|int }} · حد أقصى {{ (c.max_score or 100)|int }}
+              </span>
+            </div>
+            {% if c.description %}<p class="font-label-sm text-on-surface-variant">{{ c.description }}</p>{% endif %}
+            <div class="flex items-center gap-2">
+              <input type="number" step="0.5" min="0" max="{{ (c.max_score or 100)|int }}"
+                     name="criterion_{{ c.id }}" data-max="{{ (c.max_score or 100)|int }}"
+                     data-weight="{{ (c.weight or 0)|int }}"
+                     class="crit-score w-24 h-10 px-2 rounded-lg bg-white border border-outline text-center font-bold focus:outline-none focus:ring-2 focus:ring-primary/40">
+              <input type="text" name="criterion_note_{{ c.id }}" placeholder="ملاحظة (اختيارية)"
+                     class="flex-1 h-10 px-3 rounded-lg bg-white border border-outline font-body-sm focus:outline-none focus:ring-2 focus:ring-primary/40">
+            </div>
+          </div>
+          {% endfor %}
+          <div class="p-space-sm rounded-xl bg-primary-container/40 border border-primary/30 flex items-center gap-2">
+            <span class="material-symbols-outlined text-primary">calculate</span>
+            <span class="font-label-md font-bold">الدرجة المُحسوبة:</span>
+            <span id="rubricRollup" class="mr-auto font-headline-sm font-extrabold text-primary">— / {{ asg.max_score|int }}</span>
+          </div>
+        </div>
+        {% else %}
         <div class="flex items-center gap-space-sm">
           <div class="flex-1 space-y-1.5">
             <label class="font-label-md font-bold" for="scoreInput">الدرجة النهائية</label>
@@ -116,6 +152,7 @@
             </div>
           </div>
         </div>
+        {% endif %}
         <div class="space-y-1.5">
           <label class="font-label-md font-bold" for="feedback">تعديل التغذية الراجعة قبل الإرسال</label>
           <textarea name="feedback" id="feedback" rows="4"
@@ -142,6 +179,7 @@
 
   window.bumpScore = function(delta){
     const el = document.getElementById('scoreInput');
+    if (!el) return;
     const v = Math.max(0, Math.min(MAX, (parseFloat(el.value) || 0) + delta));
     el.value = v;
   };
@@ -164,7 +202,8 @@
       document.getElementById('scorePct').textContent = pct + '%';
       const arc = document.getElementById('scoreArc');
       arc.style.strokeDashoffset = 283 - (283 * pct / 100);
-      document.getElementById('scoreInput').value = score;
+      const scoreInp = document.getElementById('scoreInput');
+      if (scoreInp) scoreInp.value = score;
       const kp = document.getElementById('kpBox');
       kp.innerHTML = '';
       (data.key_points || []).forEach((p, i) => {
@@ -174,12 +213,43 @@
         kp.appendChild(div);
       });
       document.getElementById('feedback').value = data.feedback || '';
+      // Seed the rubric criterion inputs from AI output when available.
+      (data.criterion_scores || []).forEach(cs => {
+        const el = document.querySelector('input[name="criterion_' + cs.id + '"]');
+        if (el) el.value = cs.score;
+        const note = document.querySelector('input[name="criterion_note_' + cs.id + '"]');
+        if (note && cs.note) note.value = cs.note;
+      });
+      recomputeRubricRollup();
     } catch(e) { alert('تعذّر الاتصال: ' + e); }
     finally {
       btn.disabled = false; btn.classList.remove('opacity-70');
       btn.querySelector('span:nth-child(2)').textContent = 'تحليل بالذكاء الاصطناعي';
     }
   };
+
+  function recomputeRubricRollup(){
+    const el = document.getElementById('rubricRollup');
+    if (!el) return;
+    let weightedSum = 0, weightTotal = 0;
+    let rawSum = 0, rawMax = 0;
+    document.querySelectorAll('.crit-score').forEach(inp => {
+      const v = parseFloat(inp.value);
+      if (isNaN(v)) return;
+      const mx = parseFloat(inp.dataset.max) || 100;
+      const w  = parseFloat(inp.dataset.weight) || 0;
+      rawSum += v; rawMax += mx;
+      if (w > 0) { weightedSum += (v / mx) * w; weightTotal += w; }
+    });
+    let pct;
+    if (weightTotal > 0)      pct = weightedSum / weightTotal;
+    else if (rawMax > 0)      pct = rawSum / rawMax;
+    else                       pct = 0;
+    el.textContent = (pct * MAX).toFixed(1) + ' / ' + MAX;
+  }
+  document.querySelectorAll('.crit-score').forEach(inp => {
+    inp.addEventListener('input', recomputeRubricRollup);
+  });
 })();
 </script>
 {% endblock %}

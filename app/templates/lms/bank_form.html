@@ -100,6 +100,28 @@
       </div>
     </div>
 
+    <!-- Axis + Indicator (qdrat-parity 2-level skill taxonomy) -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">المحور</label>
+        <select name="axis_id" id="axisSel" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— بدون —</option>
+          {% for a in axes %}
+          <option value="{{ a.id }}" {% if item and item.axis_id == a.id %}selected{% endif %}>{{ a.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1.5">
+        <label class="font-label-md text-on-surface font-bold">المؤشر</label>
+        <select name="indicator_id" id="indicatorSel" class="h-12 px-4 rounded-xl bg-surface-container-low">
+          <option value="">— اختر المحور أولاً —</option>
+          {% for i in indicators %}
+          <option value="{{ i.id }}" data-axis="{{ i.axis_id }}" {% if item and item.indicator_id == i.id %}selected{% endif %}>{{ i.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+
     <!-- Scope row 2: unit + lesson, cascading from subject -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
@@ -242,6 +264,22 @@
   }
   rebuildUnits();
   rebuildLessons();
+
+  // Axis → Indicator cascade — hide indicators that don't belong to the
+  // currently-picked axis, reset the pick if it becomes stale.
+  const axisSel = document.getElementById('axisSel');
+  const indSel  = document.getElementById('indicatorSel');
+  if (axisSel && indSel) {
+    const all = Array.from(indSel.querySelectorAll('option[data-axis]'));
+    function syncInd(){
+      const cur = axisSel.value;
+      all.forEach(o => { o.hidden = cur && o.dataset.axis !== cur; });
+      const picked = indSel.selectedOptions[0];
+      if (picked && picked.hidden) indSel.value = '';
+    }
+    axisSel.addEventListener('change', syncInd);
+    syncInd();
+  }
 
   function toggleKind() {
     const k = kindSel.value;

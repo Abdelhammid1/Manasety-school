@@ -157,6 +157,7 @@ class CourseAssignment(SoftDeleteMixin, db.Model):
         db.Integer, db.ForeignKey("rubrics.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    rubric = db.relationship("Rubric", foreign_keys=[rubric_id])
 
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
 
@@ -283,6 +284,16 @@ class Quiz(SoftDeleteMixin, db.Model):
     closes_at = db.Column(db.DateTime(timezone=True))
     max_attempts = db.Column(db.Integer, default=1)
     shuffle_questions = db.Column(db.Boolean, default=True)
+    # Ticket P0-7 — separate toggle for choice-order shuffle. Independent
+    # from `shuffle_questions` because a teacher may want fixed question
+    # order (so review is easier) but per-student choice permutation.
+    shuffle_choices = db.Column(db.Boolean, default=False, nullable=False,
+                                server_default=sa_false())
+    # Ticket P1-10 — enable partial credit on `multi` questions. When
+    # off (default) the classic all-or-nothing rule applies; when on,
+    # each `multi` awards a proportional slice of the question's points.
+    allow_partial_credit = db.Column(db.Boolean, default=False,
+                                     nullable=False, server_default=sa_false())
     is_published = db.Column(db.Boolean, default=False, nullable=False)
 
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
@@ -346,6 +357,11 @@ class QuizAttempt(db.Model):
     submitted_at = db.Column(db.DateTime(timezone=True))
     score = db.Column(db.Numeric(6, 2))
     auto_graded = db.Column(db.Boolean, default=False)
+    # Ticket P0-7 — deterministic shuffle seed. Set once when the attempt
+    # is created; used by both the take page and quiz_submit so the
+    # answer key stays in sync between what the student saw and what the
+    # server scored.
+    shuffle_seed = db.Column(db.Integer, nullable=True)
 
     quiz = db.relationship("Quiz")
     answers = db.relationship("Answer", backref="attempt", cascade="all, delete-orphan")
@@ -432,8 +448,12 @@ class BankQuestion(SoftDeleteMixin, db.Model):
 
     # Qdrat-parity pt2 — 2-level skill taxonomy (axis → indicator) plus
     # printable public code + anti-piracy UUID + archive soft-hide.
-    axis_id       = db.Column(db.Integer, nullable=True, index=True)
-    indicator_id  = db.Column(db.Integer, nullable=True, index=True)
+    axis_id       = db.Column(db.Integer,
+                              db.ForeignKey("axes.id", ondelete="SET NULL"),
+                              nullable=True, index=True)
+    indicator_id  = db.Column(db.Integer,
+                              db.ForeignKey("indicators.id", ondelete="SET NULL"),
+                              nullable=True, index=True)
     code          = db.Column(db.String(32), nullable=True, index=True)
     uuid          = db.Column(db.String(36), nullable=True)
     is_archived   = db.Column(db.Boolean, nullable=False,
@@ -452,13 +472,53 @@ class BankQuestion(SoftDeleteMixin, db.Model):
         cascade="all, delete-orphan",
         order_by="BankChoice.order_index",
     )
-    unit    = db.relationship("Unit",   foreign_keys=[unit_id])
-    lesson  = db.relationship("Lesson", foreign_keys=[lesson_id])
-    outcome = db.relationship("LearningOutcome", foreign_keys=[outcome_id])
+    unit      = db.relationship("Unit",   foreign_keys=[unit_id])
+    lesson    = db.relationship("Lesson", foreign_keys=[lesson_id])
+    outcome   = db.relationship("LearningOutcome", foreign_keys=[outcome_id])
+    axis      = db.relationship("Axis",      foreign_keys=[axis_id])
+    indicator = db.relationship("Indicator", foreign_keys=[indicator_id])
+    tag_rows  = db.relationship("BankTag", secondary="lms_bank_question_tags",
+                                lazy="selectin")
 
     @property
     def tag_list(self):
         return [t.strip() for t in (self.tags or "").split(",") if t.strip()]
+
+
+# ── Ticket P1-8 — unified tag taxonomy ──────────────────────────────
+# Legacy: `BankQuestion.tags` was a comma-separated string, which meant
+# "جبر", "Algebra" and "معادلات جبرية" all lived as distinct free-text
+# blobs and couldn't be searched or reported on cleanly. New model:
+# every tag is a row on `BankTag`, and BankQuestion ⇄ BankTag is a
+# many-to-many via `lms_bank_question_tags`. The legacy string column
+# stays as a mirror for one release so existing pages/exports keep
+# working; both sides are written on save.
+
+lms_bank_question_tags = db.Table(
+    "lms_bank_question_tags",
+    db.Column("question_id",
+              db.Integer,
+              db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("tag_id",
+              db.Integer,
+              db.ForeignKey("lms_bank_tags.id", ondelete="CASCADE"),
+              primary_key=True),
+)
+
+
+class BankTag(db.Model):
+    __tablename__ = "lms_bank_tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    name = db.Column(db.String(80), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "name", name="uq_bank_tags_school_name"),
+    )
 
 
 class BankChoice(db.Model):

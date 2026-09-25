@@ -174,6 +174,53 @@
         </div>
       </div>
 
+      {# Item analysis — choice distribution + bad-key alert (P1-13) #}
+      {% if q_stats %}
+      <div class="pt-space-md border-t border-surface-container-low space-y-space-md">
+        {% if bad_key_qs %}
+        <div class="p-space-md rounded-xl bg-rose-50 border border-rose-300 space-y-1">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-rose-700">error</span>
+            <span class="font-title-md font-bold text-rose-900">تنبيه: مفتاح الإجابة قد يكون خاطئاً في {{ bad_key_qs|length }} سؤال</span>
+          </div>
+          <p class="font-body-sm text-rose-800">الأغلبية اختارت إجابة غير المُعتَمَدة كصحيحة — يُنصح بمراجعة السؤال والمفتاح.</p>
+        </div>
+        {% endif %}
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary">insights</span>
+          <span class="font-title-md font-bold">تحليل الاختيارات لكل سؤال</span>
+        </div>
+        <div class="space-y-2">
+          {% for qs in q_stats %}
+            {% if qs.choice_dist %}
+            <div class="p-space-sm rounded-xl bg-surface-container-lowest border border-surface-container-high space-y-1.5 {% if qs.bad_key_alert %}ring-2 ring-rose-400{% endif %}">
+              <div class="flex items-center gap-2">
+                <span class="font-label-md font-bold flex-1 truncate">{{ qs.prompt }}</span>
+                {% if qs.bad_key_alert %}<span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-label-xs font-bold">مفتاح مشكوك فيه</span>{% endif %}
+                <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-on-primary-fixed font-label-xs font-bold">{{ qs.correct_pct }}% صحيح</span>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                {% for cd in qs.choice_dist %}
+                <div class="flex items-center gap-2 p-1.5 rounded-lg bg-surface-container-low {% if cd.is_correct %}ring-1 ring-emerald-400{% endif %}">
+                  <div class="flex-1 min-w-0">
+                    <div class="font-body-sm truncate">{{ cd.label }}</div>
+                    <div class="h-1.5 bg-surface-container-high rounded-full overflow-hidden mt-0.5">
+                      <div class="h-full {% if cd.is_correct %}bg-emerald-500{% else %}bg-outline{% endif %}" style="width: {{ cd.pct }}%"></div>
+                    </div>
+                  </div>
+                  <span class="font-label-xs font-bold tabular-nums shrink-0">{{ cd.pct }}%</span>
+                  {% if cd.is_correct %}<span class="material-symbols-outlined text-emerald-600 text-base shrink-0">check_circle</span>{% endif %}
+                </div>
+                {% endfor %}
+              </div>
+              {% if qs.topic %}<div class="font-label-xs text-outline">الوحدة/الدرس: {{ qs.topic }}</div>{% endif %}
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       {# Footer bar #}
       <div class="pt-space-md border-t border-surface-container-low flex flex-wrap items-center justify-between gap-space-sm">
         <div class="font-label-xs text-label-xs text-outline flex items-center gap-2">

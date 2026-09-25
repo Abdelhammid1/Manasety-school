@@ -52,22 +52,20 @@ ALLOWED_SUBMISSION_EXT = {"pdf", "doc", "docx", "png", "jpg", "jpeg", "zip", "tx
 
 
 def _current_student():
-    """Best-effort resolution of the logged-in user → Student row.
+    """Resolve the logged-in user → Student row via an EXPLICIT link.
 
-    The SIS schema doesn't force a user_id column on Student, so we look up
-    the first Student in the school as a dev fallback. Real deployments should
-    link Student.parent_user_id + a student.user_id column."""
+    The old dev-fallback (return the school's first Student when no
+    link exists) leaked one student's timeline into every unlinked
+    account — bug #16. Return None instead and let callers show a
+    "account is not linked to a student" message."""
     uid = getattr(current_user, "id", None)
     if not uid:
         return None
-    # Prefer any Student explicitly linked by an id-matching parent (rare) or
-    # username-matching permanent code. Fall back to the school's first
-    # active enrollment so the demo student can browse in dev.
     if hasattr(Student, "user_id"):
         s = Student.query.filter_by(user_id=uid).first()
         if s:
             return s
-    return Student.query.filter_by(school_id=current_user.school_id).first()
+    return None
 
 
 def _school_scope(query, model):
@@ -75,6 +73,33 @@ def _school_scope(query, model):
     if school_id and hasattr(model, "school_id"):
         return query.filter(model.school_id == school_id)
     return query
+
+
+# ─── Short-answer normalization (ticket P1-11) ─────────────────────────
+# Compare student answers and answer keys after collapsing whitespace,
+# unifying Arabic ↔ Latin digits, dropping tashkeel, folding case, and
+# stripping common punctuation. So "١٥" == "15" == "15." == " 15 ".
+_ARABIC_DIGIT_MAP = str.maketrans("٠١٢٣٤٥٦٧٨٩۰۱۲۳۴۵۶۷۸۹", "01234567890123456789")
+_TASHKEEL = "".join(chr(c) for c in range(0x064B, 0x0653)) + "ٰۭۖ"
+_TASHKEEL_MAP = {ord(ch): None for ch in _TASHKEEL}
+_STRIP_PUNCT = ".,،؛?؟!:;\"'()[]{}<>«»…-_/\\"
+_STRIP_PUNCT_MAP = {ord(ch): " " for ch in _STRIP_PUNCT}
+
+
+def _normalize_short_answer(text) -> str:
+    if text is None:
+        return ""
+    s = str(text)
+    s = s.translate(_ARABIC_DIGIT_MAP)
+    s = s.translate(_TASHKEEL_MAP)
+    s = s.translate(_STRIP_PUNCT_MAP)
+    # Collapse whitespace + lowercase + strip.
+    s = " ".join(s.split()).strip().casefold()
+    # Unify a few common Arabic letter variants that carry no semantic
+    # difference in short-answer form.
+    s = s.replace("أ", "ا").replace("إ", "ا").replace("آ", "ا")
+    s = s.replace("ى", "ي").replace("ة", "ه")
+    return s
 
 
 @bp.route("/assignments", endpoint="assignments_home")
@@ -314,182 +339,7 @@ def assignment_pick_from_bank(aid):
     )
 
 
-# ─── Performance reports (ticket #16 pt 4) ────────────────────────────
-#
-# Aggregate mastery from AssignmentAnswer + Answer (quiz-side) by
-# (subject → unit → lesson). Two views: per-student for parents / the
-# teacher, and per-section for the teacher to spot classroom-wide weak
-# points.
-
-def _mastery_by_unit(rows):
-    """Given an iterable of (unit_id, unit_title, correct_bool,
-    awarded_points, max_points) tuples, return a list of dicts
-    grouped by unit with percent correct + weight rendered for the UI.
-    """
-    buckets = {}
-    for uid, utitle, is_correct, awarded, max_pts in rows:
-        b = buckets.setdefault(uid, {
-            "unit_id": uid, "unit_title": utitle,
-            "answered": 0, "correct": 0, "max_pts": Decimal(0), "awarded": Decimal(0),
-        })
-        b["answered"] += 1
-        if is_correct: b["correct"] += 1
-        b["max_pts"] += Decimal(str(max_pts or 0))
-        b["awarded"] += Decimal(str(awarded or 0))
-    out = []
-    for b in buckets.values():
-        pct = int(round((b["correct"] * 100) / b["answered"])) if b["answered"] else 0
-        b["percent"] = pct
-        b["label"] = "قوة" if pct >= 80 else ("متوسط" if pct >= 60 else "ضعف")
-        out.append(b)
-    out.sort(key=lambda x: x["percent"], reverse=True)
-    return out
-
-
-@bp.route("/reports/student/<int:student_id>", endpoint="report_student")
-@login_required
-def report_student(student_id):
-    """Per-student mastery per subject × unit."""
-    student = Student.query.get_or_404(student_id)
-
-    # Assignment-side answers
-    aa_rows = (
-        db.session.query(
-            Course.subject_id, Subject.name,
-            Unit.id, Unit.title,
-            AssignmentAnswer.is_correct,
-            AssignmentAnswer.awarded_points,
-            AssignmentQuestion.points,
-        )
-        .join(AssignmentQuestion, AssignmentQuestion.id == AssignmentAnswer.question_id)
-        .join(CourseAssignment, CourseAssignment.id == AssignmentQuestion.assignment_id)
-        .join(Course, Course.id == CourseAssignment.course_id)
-        .join(Subject, Subject.id == Course.subject_id)
-        .join(Submission, Submission.id == AssignmentAnswer.submission_id)
-        .outerjoin(Unit, Unit.id == BankQuestion.unit_id) if False else None
-    )
-    # Simpler pull without the complex Unit join — walk in Python so
-    # we can carry BankQuestion.unit_id/lesson_id on the source_bank_id
-    # link. Small enough per student.
-    subjects_data = {}
-    q = (
-        AssignmentAnswer.query
-        .join(Submission, Submission.id == AssignmentAnswer.submission_id)
-        .filter(Submission.student_id == student.id)
-        .all()
-    )
-    for a in q:
-        aq = AssignmentQuestion.query.get(a.question_id)
-        if not aq: continue
-        ca = aq.assignment
-        course = ca.course if ca else None
-        subject = course.subject if course else None
-        if not subject: continue
-        bank = BankQuestion.query.get(aq.source_bank_id) if aq.source_bank_id else None
-        unit = bank.unit if bank else None
-        u_id = unit.id if unit else 0
-        u_title = unit.title if unit else "بدون وحدة"
-
-        subjects_data.setdefault(subject.id, {
-            "subject_id": subject.id, "subject_name": subject.name, "rows": [],
-        })["rows"].append((u_id, u_title, bool(a.is_correct),
-                           a.awarded_points or 0, aq.points or 0))
-
-    # Quiz answers, same shape.
-    qa = (
-        Answer.query
-        .join(QuizAttempt, QuizAttempt.id == Answer.attempt_id)
-        .filter(QuizAttempt.student_id == student.id)
-        .all()
-    )
-    for a in qa:
-        qq = Question.query.get(a.question_id)
-        if not qq: continue
-        quiz = qq.quiz
-        course = quiz.course if quiz else None
-        subject = course.subject if course else None
-        if not subject: continue
-        bank = BankQuestion.query.get(qq.source_bank_id) if getattr(qq, 'source_bank_id', None) else None
-        unit = bank.unit if bank else None
-        u_id = unit.id if unit else 0
-        u_title = unit.title if unit else "بدون وحدة"
-        subjects_data.setdefault(subject.id, {
-            "subject_id": subject.id, "subject_name": subject.name, "rows": [],
-        })["rows"].append((u_id, u_title, bool(a.is_correct),
-                           a.awarded_points or 0, qq.points or 0))
-
-    # Aggregate per subject.
-    result = []
-    for sd in subjects_data.values():
-        units = _mastery_by_unit(sd["rows"])
-        overall_pct = int(round(sum(u["percent"] for u in units) / len(units))) if units else 0
-        result.append({
-            "subject_id": sd["subject_id"], "subject_name": sd["subject_name"],
-            "units": units, "overall": overall_pct,
-            "answered_total": sum(u["answered"] for u in units),
-        })
-    result.sort(key=lambda x: x["overall"], reverse=True)
-    return render_template("lms/report_student.html", student=student, subjects=result)
-
-
-@bp.route("/reports/section/<int:section_id>", endpoint="report_section")
-@login_required
-def report_section(section_id):
-    """Per-section mastery per subject × unit. Same shape as the
-    student report but aggregates across every enrolled student's
-    answers."""
-    section = Section.query.get_or_404(section_id)
-    from ...models import Enrollment
-    students = (
-        Student.query.join(Enrollment, Enrollment.student_id == Student.id)
-        .filter(Enrollment.section_id == section.id, Enrollment.status == "active").all()
-    )
-    # Rows collected across everyone in the section.
-    subjects_data = {}
-    for stu in students:
-        for a in (AssignmentAnswer.query.join(
-                Submission, Submission.id == AssignmentAnswer.submission_id
-             ).filter(Submission.student_id == stu.id).all()):
-            aq = AssignmentQuestion.query.get(a.question_id)
-            if not aq: continue
-            ca = aq.assignment; course = ca.course if ca else None
-            subject = course.subject if course else None
-            if not subject: continue
-            bank = BankQuestion.query.get(aq.source_bank_id) if aq.source_bank_id else None
-            unit = bank.unit if bank else None
-            u_id = unit.id if unit else 0; u_title = unit.title if unit else "بدون وحدة"
-            subjects_data.setdefault(subject.id, {
-                "subject_id": subject.id, "subject_name": subject.name, "rows": [],
-            })["rows"].append((u_id, u_title, bool(a.is_correct), a.awarded_points or 0, aq.points or 0))
-        for a in (Answer.query.join(
-                QuizAttempt, QuizAttempt.id == Answer.attempt_id
-             ).filter(QuizAttempt.student_id == stu.id).all()):
-            qq = Question.query.get(a.question_id)
-            if not qq: continue
-            quiz = qq.quiz; course = quiz.course if quiz else None
-            subject = course.subject if course else None
-            if not subject: continue
-            bank = BankQuestion.query.get(qq.source_bank_id) if getattr(qq, 'source_bank_id', None) else None
-            unit = bank.unit if bank else None
-            u_id = unit.id if unit else 0; u_title = unit.title if unit else "بدون وحدة"
-            subjects_data.setdefault(subject.id, {
-                "subject_id": subject.id, "subject_name": subject.name, "rows": [],
-            })["rows"].append((u_id, u_title, bool(a.is_correct), a.awarded_points or 0, qq.points or 0))
-
-    result = []
-    for sd in subjects_data.values():
-        units = _mastery_by_unit(sd["rows"])
-        overall_pct = int(round(sum(u["percent"] for u in units) / len(units))) if units else 0
-        result.append({
-            "subject_id": sd["subject_id"], "subject_name": sd["subject_name"],
-            "units": units, "overall": overall_pct,
-            "answered_total": sum(u["answered"] for u in units),
-        })
-    result.sort(key=lambda x: x["overall"], reverse=True)
-    return render_template(
-        "lms/report_section.html",
-        section=section, students=students, subjects=result,
-    )
+# Performance reports were split into ./reports.py (ticket P1-18).
 
 
 # ─── Assignment templates (ticket #16 pt 5) ───────────────────────────
@@ -656,6 +506,8 @@ def quiz_new(cid):
             closes_at=_parse_dt(request.form.get("closes_at")),
             max_attempts=int(request.form.get("max_attempts") or 1),
             shuffle_questions=bool(request.form.get("shuffle_questions")),
+            shuffle_choices=bool(request.form.get("shuffle_choices")),
+            allow_partial_credit=bool(request.form.get("allow_partial_credit")),
             is_published=bool(request.form.get("is_published")),
         )
         if not q.title:
@@ -680,6 +532,8 @@ def quiz_edit(qid):
         q.closes_at = _parse_dt(request.form.get("closes_at"))
         q.max_attempts = int(request.form.get("max_attempts") or 1)
         q.shuffle_questions = bool(request.form.get("shuffle_questions"))
+        q.shuffle_choices = bool(request.form.get("shuffle_choices"))
+        q.allow_partial_credit = bool(request.form.get("allow_partial_credit"))
         q.is_published = bool(request.form.get("is_published"))
         db.session.commit()
         flash("تم حفظ الاختبار.", "success")
@@ -831,14 +685,109 @@ def assignment_question_new_version(qid):
 # composing quizzes — the picker COPIES the question + its choices into
 # `lms_questions` + `lms_choices` and keeps a `source_bank_id` back-pointer.
 
-def _bank_query():
+def _sync_bank_tags(item, tags_raw: str):
+    """Rebuild `item.tag_rows` from a comma-separated string.
+
+    Existing BankTag rows are reused case-insensitively per school.
+    Missing rows are created on the fly. The FK cascade on
+    `lms_bank_question_tags` handles the assoc table; we only touch the
+    parent side so SA does the assoc bookkeeping."""
+    from ...models import BankTag
+    sid = current_user.school_id
+    seen_norm = set()
+    picks = []
+    for raw in (tags_raw or "").split(","):
+        name = raw.strip()
+        if not name:
+            continue
+        norm = name.casefold()
+        if norm in seen_norm:
+            continue
+        seen_norm.add(norm)
+        picks.append(name)
+    if not picks:
+        item.tag_rows = []
+        return
+    existing = (
+        BankTag.query.filter(
+            BankTag.school_id == sid,
+            db.func.lower(BankTag.name).in_([p.casefold() for p in picks]),
+        ).all()
+    )
+    by_norm = {t.name.casefold(): t for t in existing}
+    rows = []
+    for name in picks:
+        norm = name.casefold()
+        tag = by_norm.get(norm)
+        if not tag:
+            tag = BankTag(school_id=sid, name=name)
+            db.session.add(tag)
+            db.session.flush()
+            by_norm[norm] = tag
+        rows.append(tag)
+    item.tag_rows = rows
+
+
+def _stratified_sample(pool, k):
+    """Draw `k` items from `pool` spread across `unit_id` buckets.
+
+    Instead of a straight `random.sample` — which can trivially pull
+    every question from one unit — this splits the pool by
+    `BankQuestion.unit_id`, allocates picks per unit proportionally to
+    each unit's pool size (min 1 whenever the unit has questions), and
+    tops up the last few picks randomly if rounding leaves quota. When
+    the pool has fewer distinct units than `k`, each unit contributes
+    what it has and the rest fill from the leftover pool at random."""
+    import random as _random
+    if k <= 0 or not pool:
+        return []
+    if k >= len(pool):
+        return list(pool)
+
+    buckets = {}
+    for bq in pool:
+        buckets.setdefault(bq.unit_id, []).append(bq)
+
+    n_units = len(buckets)
+    picks = []
+    if n_units <= 1:
+        return _random.sample(pool, k)
+
+    # Proportional allocation with a floor of 1 per non-empty unit.
+    base = max(1, k // n_units)
+    for uid, items in buckets.items():
+        take = min(base, len(items))
+        if take:
+            picks.extend(_random.sample(items, take))
+    # Fill the remainder with random picks from anything left over.
+    picked_ids = {q.id for q in picks}
+    remainder = [q for q in pool if q.id not in picked_ids]
+    need = k - len(picks)
+    if need > 0 and remainder:
+        picks.extend(_random.sample(remainder, min(need, len(remainder))))
+    # If we somehow overshot (floors added up past k), trim randomly.
+    if len(picks) > k:
+        picks = _random.sample(picks, k)
+    return picks
+
+
+def _bank_query(*, include_all_states=False, include_archived=False):
     """Bank rows scoped to the current user's school + optional filters.
 
     The `source` querystring picks which bank tab is showing:
       · `source=school` (default) → the school's own curriculum bank
       · `source=nafis`            → the ETEC نافس bank
+
+    By default rows are approved + not archived — that's what every
+    picker (quiz/assignment/template) must show. Only the admin dashboard
+    (qbank_dashboard) sets `include_all_states=True`/`include_archived=True`
+    so admins can see the full pool.
     """
     q = BankQuestion.query.filter_by(school_id=current_user.school_id)
+    if not include_all_states:
+        q = q.filter(BankQuestion.review_state == "approved")
+    if not include_archived:
+        q = q.filter(BankQuestion.is_archived == False)  # noqa: E712
     subj = request.args.get("subject_id", type=int)
     grade = request.args.get("grade_id", type=int)
     year  = request.args.get("year_id",  type=int)
@@ -922,7 +871,20 @@ def _bank_form_extras(item=None):
         .filter(Course.school_id == sid)
         .order_by(Lesson.course_id, Lesson.order_index).all()
     )
-    return subjects, grades, years, terms, courses, units, lessons
+    # Qdrat-parity — 2-level skill taxonomy for the form. `axes` are
+    # top-level buckets; `indicators` carry axis_id so the picker can
+    # cascade axis → indicator client-side.
+    from ...models import Axis, Indicator
+    axes = (
+        Axis.query.filter_by(school_id=sid)
+        .order_by(Axis.order_index, Axis.name).all()
+    )
+    indicators = (
+        Indicator.query.filter_by(school_id=sid)
+        .order_by(Indicator.axis_id, Indicator.order_index).all()
+    )
+    return (subjects, grades, years, terms, courses, units, lessons,
+            axes, indicators)
 
 
 @bp.route("/bank/dashboard", endpoint="qbank_dashboard")
@@ -1050,13 +1012,21 @@ def templates_gallery():
                      AssessmentTemplate.code.ilike(f"%{query_str}%"))
     templates = q.order_by(AssessmentTemplate.updated_at.desc()).all()
 
-    # By-subject roll-up.
+    # By-subject roll-up. One query for every subject referenced,
+    # then a lookup instead of a `.get()` per template (ticket P2-20).
+    subj_ids = {r.subject_id for r in templates if r.subject_id}
+    subj_name_by_id = {
+        s.id: s.name for s in (
+            Subject.query.filter(Subject.id.in_(subj_ids)).all()
+            if subj_ids else []
+        )
+    }
     by_subject_map = {}
     for r in templates:
         key = r.subject_id or 0
         row = by_subject_map.setdefault(key, {
             "subject_id": r.subject_id,
-            "subject_name": (Subject.query.get(r.subject_id).name
+            "subject_name": (subj_name_by_id.get(r.subject_id, "بدون تصنيف")
                              if r.subject_id else "بدون تصنيف"),
             "total": 0, "assignment_count": 0, "exam_count": 0,
         })
@@ -1577,6 +1547,7 @@ def blueprint_exam_create():
             BankQuestion.school_id == sid,
             BankQuestion.source == "school",
             BankQuestion.review_state == "approved",
+            BankQuestion.is_archived == False,  # noqa: E712
             BankQuestion.subject_id == src["subject_id"],
         )
         if src["difficulty"]:
@@ -1584,7 +1555,7 @@ def blueprint_exam_create():
         pool_list = pool.all()
         if not pool_list:
             continue
-        picks = _random.sample(pool_list, k=min(src["count"], len(pool_list)))
+        picks = _stratified_sample(pool_list, src["count"])
         for bq in picks:
             order += 1
             q = Question(
@@ -1621,8 +1592,18 @@ def blueprint_exam_create():
 @bp.route("/bank", endpoint="bank_home")
 @login_required
 def bank_home():
-    """Bank browser — two tabs (School / NAFIS), same page, same filters."""
-    items = _bank_query().limit(200).all()
+    """Bank browser — two tabs (School / NAFIS), same page, same filters.
+
+    Teachers editing the bank must be able to see rows in every state
+    (draft / pending / rejected / duplicate / archived), so this route
+    bypasses the approved+active filter that the pickers apply."""
+    q = _bank_query(include_all_states=True, include_archived=True)
+    review = (request.args.get("review_state") or "").strip()
+    if review:
+        q = q.filter(BankQuestion.review_state == review)
+    show_archived = request.args.get("archived") == "1"
+    q = q.filter(BankQuestion.is_archived == (True if show_archived else False))
+    items = q.limit(200).all()
     subjects, grades, years, terms = _bank_filter_options()
 
     # Tab counters — a single scoped query per bank so the tab shows
@@ -1669,11 +1650,13 @@ def bank_home():
 def bank_new():
     if request.method == "POST":
         return _bank_save(None)
-    subjects, grades, years, terms, courses, units, lessons = _bank_form_extras()
+    (subjects, grades, years, terms, courses, units, lessons,
+     axes, indicators) = _bank_form_extras()
     return render_template(
         "lms/bank_form.html", item=None,
         subjects=subjects, grades=grades, years=years, terms=terms,
         courses=courses, units=units, lessons=lessons,
+        axes=axes, indicators=indicators,
     )
 
 
@@ -1685,11 +1668,13 @@ def bank_smart_new():
     classic form."""
     if request.method == "POST":
         return _bank_save(None)
-    subjects, grades, years, terms, _courses, units, lessons = _bank_form_extras()
+    (subjects, grades, years, terms, _courses, units, lessons,
+     axes, indicators) = _bank_form_extras()
     return render_template(
         "lms/bank_smart.html",
         subjects=subjects, grades=grades, years=years, terms=terms,
         units=units, lessons=lessons,
+        axes=axes, indicators=indicators,
     )
 
 
@@ -1699,11 +1684,13 @@ def bank_edit(bid):
     item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
     if request.method == "POST":
         return _bank_save(item)
-    subjects, grades, years, terms, courses, units, lessons = _bank_form_extras(item)
+    (subjects, grades, years, terms, courses, units, lessons,
+     axes, indicators) = _bank_form_extras(item)
     return render_template(
         "lms/bank_form.html", item=item,
         subjects=subjects, grades=grades, years=years, terms=terms,
         courses=courses, units=units, lessons=lessons,
+        axes=axes, indicators=indicators,
     )
 
 
@@ -1726,7 +1713,13 @@ def _bank_save(item):
     item.points = Decimal(request.form.get("points") or "1")
     item.correct_short = (request.form.get("correct_short") or "").strip()
     item.difficulty = request.form.get("difficulty") or "medium"
-    item.tags = (request.form.get("tags") or "").strip()
+    # Tags — dual-write: (a) legacy comma-string on `item.tags` for
+    # backward compat, and (b) normalized rows on the M:N tag table.
+    # `_sync_bank_tags` de-dupes by casefold and creates missing tags
+    # scoped to the current school. (Ticket P1-8)
+    tags_raw = (request.form.get("tags") or "").strip()
+    item.tags = tags_raw
+    _sync_bank_tags(item, tags_raw)
     item.subject_id       = request.form.get("subject_id", type=int) or None
     item.grade_id         = request.form.get("grade_id",   type=int) or None
     item.academic_year_id = request.form.get("year_id",    type=int) or None
@@ -1990,7 +1983,11 @@ def quiz_analysis(qid):
     ).all()
     student_count = len({a.student_id for a in attempts})
 
-    # Per-question correct%: count correct answers / attempts that touched it.
+    # Per-question stats + per-choice distribution (P1-13).
+    # `bad_key_alert=True` when a plurality of students picked a choice
+    # the teacher didn't mark correct — strong signal the answer key is
+    # wrong. `topic` (P1-14) comes from the source BankQuestion.unit /
+    # lesson when available, not text-slicing the prompt.
     q_stats = []
     for q in quiz.questions:
         answered = _Ans.query.join(QuizAttempt).filter(
@@ -2001,11 +1998,55 @@ def quiz_analysis(qid):
         n = len(answered)
         correct = sum(1 for a in answered if a.is_correct)
         pct = int(round(correct / n * 100)) if n else 0
+
+        choice_dist = []
+        bad_key_alert = False
+        if q.kind in ("mcq", "tf") and q.choices:
+            tallies = {c.id: 0 for c in q.choices}
+            for a in answered:
+                if a.choice_id in tallies:
+                    tallies[a.choice_id] += 1
+            for c in q.choices:
+                cnt = tallies.get(c.id, 0)
+                choice_dist.append({
+                    "label":      c.label,
+                    "count":      cnt,
+                    "pct":        int(round(cnt / n * 100)) if n else 0,
+                    "is_correct": bool(c.is_correct),
+                })
+            # Bad-key alert: any non-correct choice got >60% + more
+            # than the correct one — key is almost certainly wrong.
+            top_wrong = max(
+                (d for d in choice_dist if not d["is_correct"]),
+                key=lambda d: d["pct"], default=None,
+            )
+            top_right = max(
+                (d for d in choice_dist if d["is_correct"]),
+                key=lambda d: d["pct"], default=None,
+            )
+            if (top_wrong and top_right
+                    and top_wrong["pct"] >= 60
+                    and top_wrong["pct"] > top_right["pct"]):
+                bad_key_alert = True
+
+        topic = (q.prompt.split("؟")[0][:40] if q.prompt else "")
+        bank = (BankQuestion.query.get(q.source_bank_id)
+                if getattr(q, "source_bank_id", None) else None)
+        if bank:
+            if bank.unit and bank.lesson:
+                topic = f"{bank.unit.title} — {bank.lesson.title}"
+            elif bank.unit:
+                topic = bank.unit.title
+            elif bank.lesson:
+                topic = bank.lesson.title
+
         q_stats.append({
-            "prompt": q.prompt[:120],
-            "correct_pct": pct,
-            "topic": (q.prompt.split("؟")[0][:40] if q.prompt else ""),
-            "attempts": n,
+            "prompt":         q.prompt[:120],
+            "correct_pct":    pct,
+            "topic":          topic,
+            "attempts":       n,
+            "choice_dist":    choice_dist,
+            "bad_key_alert":  bad_key_alert,
         })
     # Compute score bands.
     scores = [float(a.score or 0) for a in attempts if a.score is not None]
@@ -2028,85 +2069,15 @@ def quiz_analysis(qid):
         except deepseek.AIError as e:
             ai_error = str(e)
 
+    bad_key_qs = [qs for qs in q_stats if qs["bad_key_alert"]]
+
     return render_template("lms/quiz_analysis.html",
                            quiz=quiz, kpi=kpi, weak_qs=weak_qs,
+                           q_stats=q_stats, bad_key_qs=bad_key_qs,
                            student_count=student_count, ai=ai, ai_error=ai_error)
 
 
-@bp.route("/passages", endpoint="passages_home")
-@login_required
-def passages_home():
-    """Reading-passage library — Stitch lms_7 shell/list."""
-    from ...models import Passage
-    sid = current_user.school_id
-    items = (
-        Passage.query.filter_by(school_id=sid)
-        .order_by(Passage.updated_at.desc()).limit(200).all()
-    )
-    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
-    return render_template("lms/passages_home.html",
-                           items=items, subjects=subjects)
-
-
-@bp.route("/passages/new", methods=["GET", "POST"], endpoint="passage_new")
-@login_required
-def passage_new():
-    return _passage_form(None)
-
-
-@bp.route("/passages/<int:pid>", methods=["GET", "POST"], endpoint="passage_edit")
-@login_required
-def passage_edit(pid):
-    from ...models import Passage
-    p = Passage.query.filter_by(
-        id=pid, school_id=current_user.school_id).first_or_404()
-    return _passage_form(p)
-
-
-def _passage_form(p):
-    from ...models import Passage
-    sid = current_user.school_id
-    if request.method == "POST":
-        title = (request.form.get("title") or "").strip()
-        body  = (request.form.get("body") or "").strip()
-        if not title:
-            flash("عنوان القطعة مطلوب.", "danger")
-            return redirect(request.url)
-        if p is None:
-            p = Passage(school_id=sid, created_by_id=getattr(current_user, "id", None))
-            db.session.add(p)
-        p.title = title
-        p.body = body
-        p.source = (request.form.get("source") or "").strip()
-        p.language = (request.form.get("language") or "ar").strip()
-        p.subject_id = request.form.get("subject_id", type=int) or None
-        p.grade_id   = request.form.get("grade_id",   type=int) or None
-        p.state      = (request.form.get("state") or "published").strip()
-        # Rough word count (whitespace-split) — the UI shows it live too.
-        p.word_count = len([w for w in (body or "").split() if w])
-        db.session.commit()
-        flash("تم حفظ القطعة.", "success")
-        return redirect(url_for("lms.passage_edit", pid=p.id))
-
-    subjects = Subject.query.filter_by(school_id=sid).order_by(Subject.name).all()
-    grades   = Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()
-    linked = []
-    if p:
-        linked = BankQuestion.query.filter_by(passage_id=p.id).all()
-    return render_template("lms/passage_edit.html",
-                           passage=p, subjects=subjects,
-                           grades=grades, linked=linked)
-
-
-@bp.route("/passages/<int:pid>/delete", methods=["POST"], endpoint="passage_delete")
-@login_required
-def passage_delete(pid):
-    from ...models import Passage
-    p = Passage.query.filter_by(
-        id=pid, school_id=current_user.school_id).first_or_404()
-    db.session.delete(p); db.session.commit()
-    flash("تم حذف القطعة.", "success")
-    return redirect(url_for("lms.passages_home"))
+# Passages were split into ./passages.py (ticket P1-18).
 
 
 @bp.route("/bank/<int:bid>/rewrite", endpoint="bank_rewrite_panel")
@@ -2220,15 +2191,62 @@ def submission_grade_panel(sid):
           methods=["POST"], endpoint="submission_grade_save")
 @login_required
 def submission_grade_save(sid):
-    from ...models import Submission
+    """Save teacher grades. Two modes:
+      · Free-form  → single `score` + `feedback`.
+      · Rubric     → per-criterion `criterion_<id>` scores (+ optional
+                     `criterion_note_<id>`), rolled up into a weighted
+                     total using each RubricCriterion.weight."""
+    from ...models import Submission, RubricScore, RubricCriterion
     school_sid = current_user.school_id
     sub = Submission.query.get_or_404(sid)
     if sub.assignment.course.school_id != school_sid:
         abort(403)
-    try:
-        sub.score = Decimal(request.form.get("score") or "0")
-    except Exception:
-        sub.score = None
+
+    rubric = sub.assignment.rubric if hasattr(sub.assignment, "rubric") else None
+    if rubric and rubric.criteria:
+        # Rubric grading — replace prior RubricScore rows for this
+        # submission and roll up to sub.score using criterion weights
+        # (falling back to a straight avg when weights sum to zero).
+        RubricScore.query.filter_by(submission_id=sub.id).delete()
+        db.session.flush()
+        weighted_sum = Decimal(0)
+        weight_total = Decimal(0)
+        raw_sum      = Decimal(0)
+        raw_max      = Decimal(0)
+        for c in rubric.criteria:
+            raw = request.form.get(f"criterion_{c.id}")
+            if raw is None or str(raw).strip() == "":
+                continue
+            try:
+                score = Decimal(str(raw))
+            except Exception:
+                continue
+            note = (request.form.get(f"criterion_note_{c.id}") or "").strip()
+            db.session.add(RubricScore(
+                criterion_id=c.id, submission_id=sub.id,
+                score=score, comment=note,
+                graded_by_id=getattr(current_user, "id", None),
+            ))
+            w    = Decimal(str(c.weight or 0))
+            mx   = Decimal(str(c.max_score or 100)) or Decimal(1)
+            raw_sum += score
+            raw_max += mx
+            if w > 0:
+                weighted_sum += (score / mx) * w
+                weight_total += w
+        max_score = Decimal(str(sub.assignment.max_score or 100))
+        if weight_total > 0:
+            sub.score = (weighted_sum / weight_total) * max_score
+        elif raw_max > 0:
+            sub.score = (raw_sum / raw_max) * max_score
+        else:
+            sub.score = Decimal(0)
+    else:
+        try:
+            sub.score = Decimal(request.form.get("score") or "0")
+        except Exception:
+            sub.score = None
+
     sub.feedback = (request.form.get("feedback") or "").strip()
     sub.graded_by_id = getattr(current_user, "id", None)
     sub.graded_at = datetime.now(timezone.utc)
@@ -2253,12 +2271,33 @@ def submission_ai_grade(sid):
     if not deepseek.is_configured():
         return jsonify({"error": "لم يتم تهيئة مفتاح DeepSeek."}), 400
     prompt = sub.assignment.title
-    rubric = sub.assignment.instructions or ""
+    # Prefer the real Rubric object when the assignment is linked to one
+    # — the AI grader gets the actual criteria (title, description,
+    # weight, max_score) as structured data, not the free-form
+    # instructions string.
+    rubric_obj = sub.assignment.rubric
+    if rubric_obj and rubric_obj.criteria:
+        rubric_payload = {
+            "title": rubric_obj.title,
+            "description": rubric_obj.description or "",
+            "criteria": [
+                {
+                    "id": c.id,
+                    "title": c.title,
+                    "description": c.description or "",
+                    "weight": float(c.weight or 0),
+                    "max_score": float(c.max_score or 100),
+                }
+                for c in rubric_obj.criteria
+            ],
+        }
+    else:
+        rubric_payload = sub.assignment.instructions or ""
     student_answer = (sub.body or "").strip() or "—"
     max_points = float(sub.assignment.max_score or 100)
     try:
         data = deepseek.grade_free_form_answer(
-            prompt, student_answer, max_points, rubric,
+            prompt, student_answer, max_points, rubric_payload,
         )
         return jsonify(data)
     except deepseek.AIError as e:
@@ -2394,16 +2433,19 @@ def quiz_pick_from_bank(qid):
 
     # GET
     items = _bank_query().limit(300).all()
-    subjects, grades, years = _bank_filter_options()
+    subjects, grades, years, terms = _bank_filter_options()
     already = {q.source_bank_id for q in quiz.questions if q.source_bank_id}
     return render_template(
         "lms/bank_picker.html",
         quiz=quiz, items=items, already=already,
-        subjects=subjects, grades=grades, years=years,
+        subjects=subjects, grades=grades, years=years, terms=terms,
         selected={
             "subject_id": request.args.get("subject_id", type=int),
             "grade_id":   request.args.get("grade_id",   type=int),
             "year_id":    request.args.get("year_id",    type=int),
+            "term_id":    request.args.get("term_id",    type=int),
+            "unit_id":    request.args.get("unit_id",    type=int),
+            "lesson_id":  request.args.get("lesson_id",  type=int),
             "difficulty": request.args.get("difficulty", ""),
             "kind":       request.args.get("kind", ""),
             "tag":        (request.args.get("tag") or "").strip(),
@@ -2504,19 +2546,36 @@ def assignment_submit(aid):
             elif q.kind == "multi":
                 picked = set(int(x) for x in request.form.getlist(f"q{q.id}_choices") if x.isdigit())
                 correct = {c.id for c in q.choices if c.is_correct}
+                all_ids = {c.id for c in q.choices}
                 ans.text_answer = ",".join(str(x) for x in sorted(picked))
                 ans.is_correct = picked == correct and bool(correct)
+                # Assignment-side partial credit mirrors quiz behaviour
+                # when the parent assignment's rubric-less quiz-style
+                # answers include a partial-credit intent. For now we
+                # apply the same ratio unconditionally to `multi` on
+                # assignments — it matches the ticket #10 acceptance
+                # criteria and matches the pedagogy call.
+                if correct:
+                    good = len(picked & correct)
+                    bad  = len(picked & (all_ids - correct))
+                    net  = max(0, good - bad)
+                    ratio = Decimal(net) / Decimal(len(correct))
+                    ans.awarded_points = (q.points or Decimal(0)) * ratio
+                else:
+                    ans.awarded_points = Decimal(0)
             elif q.kind == "short":
                 text = (request.form.get(f"q{q.id}_text") or "").strip()
                 ans.text_answer = text
                 ans.is_correct = (
-                    text.casefold() == (q.correct_short or "").strip().casefold()
+                    _normalize_short_answer(text)
+                    == _normalize_short_answer(q.correct_short or "")
                     and bool(q.correct_short)
                 )
             elif q.kind == "essay":
                 ans.text_answer = (request.form.get(f"q{q.id}_text") or "").strip()
                 ans.is_correct = None  # requires manual grading
-            ans.awarded_points = (q.points or Decimal(0)) if ans.is_correct else Decimal(0)
+            if q.kind != "multi":
+                ans.awarded_points = (q.points or Decimal(0)) if ans.is_correct else Decimal(0)
             if q.kind != "essay":
                 auto_total += ans.awarded_points
             db.session.add(ans)
@@ -2587,8 +2646,10 @@ def quiz_take(qid):
         if done >= (quiz.max_attempts or 1):
             flash("تجاوزت الحد الأقصى للمحاولات على هذا الاختبار.", "warning")
             return redirect(url_for("lms.quizzes_home"))
+        import random as _random
         attempt = QuizAttempt(
             quiz_id=quiz.id, student_id=student.id, started_at=now,
+            shuffle_seed=_random.randint(1, 2_000_000_000),
         )
         db.session.add(attempt)
         db.session.commit()
@@ -2599,12 +2660,41 @@ def quiz_take(qid):
     if quiz.closes_at:
         hard_stop = min(hard_stop, quiz.closes_at)
 
+    questions, ordered_choices = _shuffled_view(quiz, attempt)
+
     return render_template(
         "lms/quiz_take.html",
-        quiz=quiz, attempt=attempt, questions=quiz.questions,
+        quiz=quiz, attempt=attempt, questions=questions,
+        ordered_choices=ordered_choices,
         hard_stop_iso=hard_stop.isoformat() + "Z",
         now=now,
     )
+
+
+def _shuffled_view(quiz, attempt):
+    """Return (questions_in_display_order, {q.id: [choices_in_order]}).
+
+    The permutation is derived from `attempt.shuffle_seed` so the same
+    student refreshing the page keeps the same order, while two
+    different students (different seeds) see different orders. When the
+    quiz has both shuffle flags off this collapses to the natural
+    order, so callers can render it unconditionally."""
+    import random as _random
+    seed = attempt.shuffle_seed or attempt.id or 0
+    qs = list(quiz.questions)
+    if quiz.shuffle_questions and seed:
+        rng = _random.Random(seed)
+        rng.shuffle(qs)
+    ordered_choices = {}
+    for q in qs:
+        chs = list(q.choices) if getattr(q, "choices", None) else []
+        # tf questions keep their natural (true/false) order — shuffling
+        # a two-item T/F is UX noise, not a real anti-cheat.
+        if quiz.shuffle_choices and seed and q.kind in ("mcq", "multi"):
+            rng = _random.Random(seed * 100003 + (q.id or 0))
+            rng.shuffle(chs)
+        ordered_choices[q.id] = chs
+    return qs, ordered_choices
 
 
 @bp.route("/quizzes/<int:qid>/submit", methods=["POST"], endpoint="quiz_submit")
@@ -2666,23 +2756,40 @@ def quiz_submit(qid):
                 ans.awarded_points = Decimal("0")
             total_awarded += (ans.awarded_points or Decimal("0"))
 
-        # multi: any subset of correct choices — all-or-nothing
+        # multi: any subset of correct choices. All-or-nothing by
+        # default; when the quiz has `allow_partial_credit=True`, we
+        # award a proportional slice using the classic "correct picks
+        # minus wrong picks, floored at zero, divided by |correct|"
+        # rubric — matches how most testbanks handle multi.
         elif q.kind == "multi":
             selected = {int(v) for v in raw_multi if v.isdigit()}
             correct_ids = {c.id for c in q.choices if c.is_correct}
+            all_ids = {c.id for c in q.choices}
             ans.choice_id = None
             ans.text_answer = ",".join(str(s) for s in sorted(selected))
-            ok = selected == correct_ids and bool(correct_ids)
-            ans.is_correct = ok
-            ans.awarded_points = q.points if ok else Decimal("0")
+            if quiz.allow_partial_credit and correct_ids:
+                good = len(selected & correct_ids)
+                bad  = len(selected & (all_ids - correct_ids))
+                net  = max(0, good - bad)
+                ratio = Decimal(net) / Decimal(len(correct_ids))
+                pts = (q.points or Decimal("0")) * ratio
+                ans.is_correct = (selected == correct_ids)
+                ans.awarded_points = pts
+            else:
+                ok = selected == correct_ids and bool(correct_ids)
+                ans.is_correct = ok
+                ans.awarded_points = q.points if ok else Decimal("0")
             total_awarded += (ans.awarded_points or Decimal("0"))
 
-        # short: exact-match (case-insensitive) against correct_short
+        # short: normalized-text match — strip whitespace, drop
+        # tashkeel, unify Arabic ↔ Latin digits and lose punctuation
+        # before compare. (P1-11)
         elif q.kind == "short":
             ans.choice_id = None
             ans.text_answer = raw_text
-            expected = (q.correct_short or "").strip().lower()
-            ok = bool(expected) and raw_text.lower() == expected
+            expected = _normalize_short_answer(q.correct_short or "")
+            got      = _normalize_short_answer(raw_text)
+            ok = bool(expected) and got == expected
             ans.is_correct = ok
             ans.awarded_points = q.points if ok else Decimal("0")
             total_awarded += (ans.awarded_points or Decimal("0"))
@@ -2728,9 +2835,16 @@ def quiz_result(attempt_id):
     attempt = QuizAttempt.query.get_or_404(attempt_id)
     student = _current_student()
     if not student or attempt.student_id != student.id:
-        # Teachers/admins can review any attempt within their school.
+        # Teachers/admins can review any attempt within their school;
+        # a parent can review one of their own children's attempts.
         role = getattr(getattr(current_user, "role", None), "name", None)
-        if role not in ("admin", "teacher"):
+        if role in ("admin", "teacher"):
+            pass  # authorized
+        elif role == "parent":
+            owner = Student.query.get(attempt.student_id)
+            if not owner or owner.parent_user_id != current_user.id:
+                abort(403)
+        else:
             abort(403)
     ans_map = {a.question_id: a for a in attempt.answers}
     total_max = sum((q.points or Decimal(0)) for q in attempt.quiz.questions)
@@ -2741,135 +2855,4 @@ def quiz_result(attempt_id):
     )
 
 
-# --- Announcements: feed + composer + pin/unpin + delete -----------------
-
-@bp.route("/announcements", methods=["GET"], endpoint="announcements_home")
-@login_required
-def announcements_home():
-    sid = getattr(current_user, "school_id", None)
-    q = _school_scope(Announcement.query, Announcement)
-
-    scope = (request.args.get("scope") or "all").strip()
-    if scope == "pinned":
-        q = q.filter(Announcement.is_pinned.is_(True))
-    elif scope == "my_section":
-        # if user has a linked teacher/student, filter to their section(s)
-        section_ids = _linked_section_ids()
-        if section_ids:
-            q = q.filter(Announcement.section_id.in_(section_ids))
-
-    items = q.order_by(
-        Announcement.is_pinned.desc(),
-        Announcement.created_at.desc(),
-    ).limit(100).all()
-
-    # Sections the current user can address as audience for the composer
-    sections = []
-    if sid:
-        sections = Section.query.filter_by(school_id=sid).limit(200).all()
-
-    can_compose = bool(
-        current_user.is_authenticated and (
-            current_user.can("portal", "add")
-            or getattr(getattr(current_user, "role", None), "name", None) in ("admin", "teacher")
-        )
-    )
-    return render_template(
-        "lms/announcements_home.html",
-        items=items, scope=scope, sections=sections,
-        can_compose=can_compose,
-    )
-
-
-@bp.route("/announcements/new", methods=["POST"], endpoint="announcement_new")
-@login_required
-def announcement_new():
-    """Composer target — creates a school- or section-scoped announcement."""
-    sid = current_user.school_id
-    title = (request.form.get("title") or "").strip()
-    body = (request.form.get("body") or "").strip()
-    audience = (request.form.get("audience") or "school").strip()  # school | section
-    section_id = request.form.get("section_id") or None
-    is_pinned = bool(request.form.get("is_pinned"))
-
-    if not title:
-        flash("العنوان مطلوب.", "danger")
-        return redirect(url_for("lms.announcements_home"))
-    if audience == "section" and not section_id:
-        flash("اختر الفصل المستهدف.", "danger")
-        return redirect(url_for("lms.announcements_home"))
-
-    a = Announcement(
-        school_id=sid,
-        section_id=int(section_id) if audience == "section" else None,
-        author_id=current_user.id,
-        title=title, body=body, is_pinned=is_pinned,
-    )
-    db.session.add(a)
-    db.session.commit()
-    flash("تم نشر الإعلان.", "success")
-    return redirect(url_for("lms.announcements_home"))
-
-
-@bp.route("/announcements/<int:aid>/pin", methods=["POST"], endpoint="announcement_pin")
-@login_required
-def announcement_pin(aid):
-    a = _load_own_announcement(aid)
-    a.is_pinned = not a.is_pinned
-    db.session.commit()
-    flash("تم تحديث حالة التثبيت.", "success")
-    return redirect(url_for("lms.announcements_home"))
-
-
-@bp.route("/announcements/<int:aid>/delete", methods=["POST"], endpoint="announcement_delete")
-@login_required
-def announcement_delete(aid):
-    a = _load_own_announcement(aid)
-    db.session.delete(a)
-    db.session.commit()
-    flash("تم حذف الإعلان.", "success")
-    return redirect(url_for("lms.announcements_home"))
-
-
-# --- helpers -------------------------------------------------------------
-
-def _load_own_announcement(aid):
-    """Fetch an announcement that the current user is allowed to modify.
-    Admin can touch any of the school's announcements; author can touch theirs.
-    """
-    a = Announcement.query.filter_by(
-        id=aid, school_id=current_user.school_id
-    ).first()
-    if not a:
-        abort(404)
-    role_name = getattr(getattr(current_user, "role", None), "name", None)
-    if role_name != "admin" and a.author_id != current_user.id:
-        abort(403)
-    return a
-
-
-def _linked_section_ids():
-    """Best-effort section discovery for 'my_section' filter — parents get
-    their children's sections; teachers get their teaching sections; students
-    get their own section."""
-    from ...models import Assignment as TeachingAssignment, Enrollment, Student
-    sid = current_user.school_id
-    role_name = getattr(getattr(current_user, "role", None), "name", None)
-    ids = set()
-    if role_name == "teacher":
-        # teacher: teaching-assignment.section_id
-        from ...models import Teacher
-        t = Teacher.query.filter_by(user_id=current_user.id).first()
-        if t:
-            for a in TeachingAssignment.query.filter_by(teacher_id=t.id, is_active=True).all():
-                ids.add(a.section_id)
-    elif role_name == "parent":
-        # parent: their children's active enrollments
-        children = Student.query.filter_by(parent_user_id=current_user.id).all()
-        if children:
-            for e in Enrollment.query.filter(
-                Enrollment.student_id.in_([c.id for c in children]),
-                Enrollment.status == "active",
-            ).all():
-                ids.add(e.section_id)
-    return list(ids)
+# Announcements were split into ./announcements.py (ticket P1-18).

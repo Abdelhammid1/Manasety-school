@@ -130,7 +130,7 @@
 
         <div class="mt-space-md flex flex-col gap-2">
           {% if q.kind in ('mcq','tf') %}
-            {% for c in q.choices %}
+            {% for c in (ordered_choices[q.id] if ordered_choices and q.id in ordered_choices else q.choices) %}
             <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
               <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}" onchange="markAnswered()"
                      class="w-5 h-5 accent-primary">
@@ -138,7 +138,7 @@
             </label>
             {% endfor %}
           {% elif q.kind == 'multi' %}
-            {% for c in q.choices %}
+            {% for c in (ordered_choices[q.id] if ordered_choices and q.id in ordered_choices else q.choices) %}
             <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
               <input type="checkbox" name="q_{{ q.id }}[]" value="{{ c.id }}" onchange="markAnswered()"
                      class="w-5 h-5 accent-primary">

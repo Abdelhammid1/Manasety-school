@@ -132,6 +132,42 @@
         </div>
       </div>
 
+      {# Axis / Indicator — cascading 2-level skill taxonomy #}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="axis_id">المحور</label>
+          <div class="relative">
+            <select name="axis_id" id="axis_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">— بدون تحديد —</option>
+              {% for a in axes %}
+              <option value="{{ a.id }}">{{ a.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="indicator_id">المؤشر</label>
+          <div class="relative">
+            <select name="indicator_id" id="indicator_id"
+                    class="w-full h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm appearance-none focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary shadow-sm cursor-pointer">
+              <option value="">— اختر المحور أولاً —</option>
+              {% for i in indicators %}
+              <option value="{{ i.id }}" data-axis="{{ i.axis_id }}">{{ i.name }}</option>
+              {% endfor %}
+            </select>
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">expand_more</span>
+          </div>
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-label-md font-bold text-on-surface" for="code">كود السؤال (يُولَّد تلقائياً إذا تُرك فارغاً)</label>
+          <input type="text" name="code" id="code"
+                 placeholder="مثال: S1-Y26-Q42"
+                 class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-sm text-body-sm placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"/>
+        </div>
+      </div>
+
       <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
         {# Unit #}
         <div class="flex flex-col gap-1.5">
@@ -231,28 +267,53 @@
           <span class="font-label-xs text-label-xs text-secondary font-bold bg-secondary-fixed/40 px-2 py-1 rounded-md">LaTeX جاهز</span>
         </div>
       </div>
-      {# Faux toolbar — visual only #}
-      <div class="rounded-xl bg-surface-container-low p-space-sm flex flex-wrap items-center gap-2 select-none">
+      {# Math + formatting toolbar — every button inserts a real
+         snippet at the caret. Arabic-digits toggle rewrites the
+         textarea's numerals in place. #}
+      <div class="rounded-xl bg-surface-container-low p-space-sm flex flex-wrap items-center gap-2 select-none" id="mathToolbar">
         <div class="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg">
-          {% for lbl in ['B','I','U'] %}
-            <span class="w-8 h-8 rounded flex items-center justify-center font-bold text-on-surface hover:bg-surface-container-low cursor-default">{{ lbl }}</span>
+          {% for lbl, snip in [('B','**|**'), ('I','_|_'), ('U','<u>|</u>')] %}
+            <button type="button" data-insert="{{ snip }}"
+                    class="w-8 h-8 rounded flex items-center justify-center font-bold text-on-surface hover:bg-surface-container-low cursor-pointer">{{ lbl }}</button>
           {% endfor %}
           <div class="w-px h-5 bg-surface-container-high mx-1"></div>
-          {% for ico in ['format_list_bulleted','format_list_numbered_rtl','image','table_chart'] %}
-            <span class="w-8 h-8 rounded flex items-center justify-center text-on-surface cursor-default">
+          {% for ico, snip, title in [
+              ('format_list_bulleted','\n- ','قائمة نقطية'),
+              ('format_list_numbered_rtl','\n1. ','قائمة مرقمة'),
+              ('table_chart','\n| رأس١ | رأس٢ |\n|---|---|\n| | |\n','جدول')] %}
+            <button type="button" data-insert="{{ snip }}" title="{{ title }}"
+                    class="w-8 h-8 rounded flex items-center justify-center text-on-surface hover:bg-surface-container-low cursor-pointer">
               <span class="material-symbols-outlined text-lg">{{ ico }}</span>
-            </span>
+            </button>
           {% endfor %}
+          <button type="button" id="digitsBtn" title="تبديل الأرقام (عربي/إنجليزي)"
+                  class="w-8 h-8 rounded flex items-center justify-center font-bold text-primary hover:bg-surface-container-low cursor-pointer">١٢</button>
         </div>
         <div class="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg text-on-surface font-title-md text-title-md" style="font-family:'Cambria Math','Latin Modern Math',serif;">
-          {% for glyph in ['x²','√','∫','∑','π','÷','≠','≤'] %}
-            <span class="w-9 h-8 rounded flex items-center justify-center cursor-default">{{ glyph }}</span>
+          {% for glyph, snip in [
+              ('x²',  '$$x^{|}$$'),
+              ('√',   '$$\\sqrt{|}$$'),
+              ('∫',   '$$\\int_{|}^{}$$'),
+              ('∑',   '$$\\sum_{|}^{}$$'),
+              ('π',   'π'),
+              ('÷',   '÷'),
+              ('≠',   '≠'),
+              ('≤',   '≤'),
+              ('≥',   '≥'),
+              ('°',   '°'),
+              ('α',   'α'),
+              ('β',   'β'),
+              ('θ',   'θ'),
+              ('a/b', '$$\\frac{|}{}$$')] %}
+            <button type="button" data-insert="{{ snip }}"
+                    class="w-9 h-8 rounded flex items-center justify-center hover:bg-surface-container-low cursor-pointer">{{ glyph }}</button>
           {% endfor %}
         </div>
       </div>
-      <textarea required name="prompt" rows="6"
+      <textarea required name="prompt" rows="6" id="promptArea"
                 placeholder="اكتب نص السؤال هنا… يمكنك تضمين معادلات LaTeX داخل $$ … $$"
-                class="w-full min-h-[160px] p-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm resize-y"></textarea>
+                class="w-full min-h-[160px] p-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm resize-y"
+                dir="rtl" style="unicode-bidi: plaintext;"></textarea>
     </section>
 
     {# Section 4 — Choices (only visible for mcq/tf/multi via JS) #}
@@ -369,6 +430,57 @@
   }
   form.querySelectorAll('input[name=kind]').forEach(r => r.addEventListener('change', sync));
   sync();
+
+  // ─── Math toolbar wire-up (ticket P0-6) ───────────────────────
+  // Every button in #mathToolbar carries `data-insert="…"`. A `|`
+  // inside the snippet marks where the caret should land after
+  // insertion so the teacher can immediately type the argument
+  // (e.g. `x^{}` → `x^{<caret>}`).
+  const ta = document.getElementById('promptArea');
+  function insertAtCaret(snippet){
+    if (!ta) return;
+    ta.focus();
+    const s = ta.selectionStart, e = ta.selectionEnd;
+    let text = snippet.replace('|', '');
+    const caretPos = snippet.indexOf('|');
+    const before = ta.value.slice(0, s);
+    const after  = ta.value.slice(e);
+    ta.value = before + text + after;
+    const newCaret = caretPos >= 0 ? (s + caretPos) : (s + text.length);
+    ta.selectionStart = ta.selectionEnd = newCaret;
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  }
+  document.querySelectorAll('#mathToolbar [data-insert]').forEach(btn => {
+    btn.addEventListener('click', () => insertAtCaret(btn.dataset.insert));
+  });
+  // Arabic-digit toggle: swap 0-9 ↔ ٠-٩ across the whole textarea.
+  const AR = '٠١٢٣٤٥٦٧٨٩', EN = '0123456789';
+  document.getElementById('digitsBtn')?.addEventListener('click', () => {
+    if (!ta) return;
+    const hasAr = /[٠-٩]/.test(ta.value);
+    const map   = hasAr ? { from: AR, to: EN } : { from: EN, to: AR };
+    ta.value = ta.value.replace(/./g, ch => {
+      const i = map.from.indexOf(ch);
+      return i >= 0 ? map.to[i] : ch;
+    });
+    ta.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+
+  // ─── Axis → Indicator cascade (ticket P0-5) ───────────────────
+  const axisSel = document.getElementById('axis_id');
+  const indSel  = document.getElementById('indicator_id');
+  if (axisSel && indSel) {
+    const all = Array.from(indSel.querySelectorAll('option[data-axis]'));
+    function syncInd(){
+      const cur = axisSel.value;
+      all.forEach(o => { o.hidden = cur && o.dataset.axis !== cur; });
+      // Reset selection if the current pick belongs to a hidden axis.
+      const picked = indSel.selectedOptions[0];
+      if (picked && picked.hidden) indSel.value = '';
+    }
+    axisSel.addEventListener('change', syncInd);
+    syncInd();
+  }
 })();
 </script>
 {% endblock %}

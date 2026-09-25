@@ -210,19 +210,42 @@ def review_pending_questions(questions: list[dict]) -> list[dict]:
 # ────────────────────────────────────────────────────────────────────
 def grade_free_form_answer(prompt: str, student_answer: str,
                             max_points: float,
-                            rubric: str | None = None) -> dict:
-    """Return {score: float, feedback: str, key_points: [str]}."""
+                            rubric=None) -> dict:
+    """Return {score, feedback, key_points, criterion_scores?}.
+
+    `rubric` may be a plain string (legacy — the assignment's free-form
+    instructions) or a dict shaped as {title, description, criteria: [
+    {id, title, description, weight, max_score}, ... ]}. When a
+    structured rubric is passed the returned JSON also includes
+    `criterion_scores`: [{id, score, note}, ...] so the caller can seed
+    a rubric-driven manual review UI."""
     system = (
         "أنت مصحح تربوي عربي. تعطي درجة عادلة على السؤال المقالي/القصير "
         "بناءً على نص إجابة الطالب، وتقدم تغذية راجعة قصيرة باللغة العربية."
     )
+    if isinstance(rubric, dict) and rubric.get("criteria"):
+        rubric_text = (
+            f"المعرِّف: {rubric.get('title') or ''}\n"
+            f"وصف: {rubric.get('description') or ''}\n"
+            "معايير التقييم (JSON):\n"
+            + json.dumps(rubric.get("criteria") or [], ensure_ascii=False,
+                         indent=2)
+        )
+        criterion_hint = (
+            "\n\"criterion_scores\": ["
+            "{\"id\": <id المعيار>, \"score\": <رقم>, \"note\": \"…\"}, …],"
+        )
+    else:
+        rubric_text = rubric or "—"
+        criterion_hint = ""
     user = (
-        f"السؤال: {prompt}\nالإجابة المقترحة (rubric):\n{rubric or '—'}\n"
+        f"السؤال: {prompt}\nالإجابة المقترحة (rubric):\n{rubric_text}\n"
         f"إجابة الطالب:\n{student_answer}\n"
         f"الدرجة القصوى: {max_points}\n\n"
         "أعد النتيجة كـ JSON:\n"
-        "{ \"score\": <رقم>, \"feedback\": \"…\", "
-        "\"key_points\": [\"نقطة 1\", …] }"
+        "{ \"score\": <رقم>, \"feedback\": \"…\","
+        f"{criterion_hint}"
+        " \"key_points\": [\"نقطة 1\", …] }"
     )
     return _chat(system, user, want_json=True, temperature=0.2)
 

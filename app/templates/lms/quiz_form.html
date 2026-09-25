@@ -48,6 +48,16 @@
         <span class="font-label-md text-on-surface font-bold">خلط الأسئلة</span>
       </label>
     </div>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="shuffle_choices" value="1" {% if quiz and quiz.shuffle_choices %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+        <span class="font-label-md text-on-surface font-bold">خلط ترتيب الخيارات لكل طالب</span>
+      </label>
+      <label class="flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="allow_partial_credit" value="1" {% if quiz and quiz.allow_partial_credit %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+        <span class="font-label-md text-on-surface font-bold">منح درجة جزئية للأسئلة متعددة الاختيار</span>
+      </label>
+    </div>
 
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
