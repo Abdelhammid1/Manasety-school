@@ -89,11 +89,19 @@ def refund_request_new(invoice_id):
             "danger",
         )
         return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+    pm_id = request.form.get("payment_method_id", type=int) or None
+    oa_id = request.form.get("override_account_id", type=int) or None
+    if not (pm_id or oa_id):
+        # Approval will need one or the other — catch it up front so the
+        # requester fixes it now rather than after the approver clicks.
+        flash("اختر طريقة الاسترداد (كاش/بنك) أو حساب مقابل قبل حفظ الطلب.",
+              "danger")
+        return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
     db.session.add(RefundRequest(
         school_id=_sid(), invoice_id=inv.id, amount=amount,
         reason=(request.form.get("reason") or "").strip() or None,
-        payment_method_id=request.form.get("payment_method_id", type=int) or None,
-        override_account_id=request.form.get("override_account_id", type=int) or None,
+        payment_method_id=pm_id,
+        override_account_id=oa_id,
         requested_by_user_id=current_user.id,
     ))
     db.session.commit()

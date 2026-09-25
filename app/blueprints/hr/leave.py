@@ -10,7 +10,7 @@ Endpoints
 - POST /hr/leave/balances/reset   — roll every balance forward at year-close
 """
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from flask import (
     flash, redirect, render_template, request, url_for,
@@ -22,7 +22,7 @@ from ..utils import require_permission
 from ...extensions import db
 from ...models import (
     Employee, LeaveBalance, LeaveRequest,
-    StaffAttendance,
+    SchoolCalendarDay, StaffAttendance,
 )
 
 
@@ -44,6 +44,37 @@ def _balance_for(employee_id, year, leave_type):
         school_id=_sid(),
         employee_id=employee_id, year=year, leave_type=leave_type,
     ).first()
+
+
+def _teaching_days_between(start: date, end: date) -> list[date]:
+    """Return the list of dates in [start, end] that count as working
+    days: default = Sun–Thu (region's school week), overridden by any
+    SchoolCalendarDay row. A row with `day_type` in
+    (weekend, holiday, break) drops the day; is_teaching() drops it
+    too. This is the same rule attendance/payroll already use so
+    balances stay consistent."""
+    if end < start:
+        return []
+    cal_rows = {
+        c.date: c for c in SchoolCalendarDay.query.filter(
+            SchoolCalendarDay.school_id == _sid(),
+            SchoolCalendarDay.date >= start,
+            SchoolCalendarDay.date <= end,
+        ).all()
+    }
+    out = []
+    d = start
+    while d <= end:
+        cal = cal_rows.get(d)
+        if cal is not None:
+            if cal.is_teaching:
+                out.append(d)
+        else:
+            # Fri (4) / Sat (5) treated as weekend when no calendar row.
+            if d.weekday() not in (4, 5):
+                out.append(d)
+        d += timedelta(days=1)
+    return out
 
 
 @bp.route("/leave", endpoint="leave_requests_list")
@@ -80,7 +111,10 @@ def leave_request_new():
     if end < start:
         flash("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.", "danger")
         return redirect(url_for("hr.leave_requests_list"))
-    days = (end - start).days + 1
+    days = len(_teaching_days_between(start, end))
+    if days == 0:
+        flash("النطاق المحدد لا يحتوي على أيام عمل.", "danger")
+        return redirect(url_for("hr.leave_requests_list"))
 
     # Balance advisory (not a hard-block per ticket).
     bal = _balance_for(employee_id, start.year, leave_type)
@@ -113,29 +147,37 @@ def leave_request_approve(req_id):
         flash("لا يمكن اعتماد طلب غير قيد المراجعة.", "danger")
         return redirect(url_for("hr.leave_requests_list"))
 
-    # Materialise StaffAttendance rows for every day in [start, end].
-    from datetime import timedelta
-    d = r.start_date
+    # Materialise StaffAttendance rows for every TEACHING day in the
+    # range — weekend/holiday rows are skipped so payroll deductions
+    # only fire for real work-days.
     added = 0
-    while d <= r.end_date:
+    for d in _teaching_days_between(r.start_date, r.end_date):
         existing = StaffAttendance.query.filter_by(
             school_id=_sid(), employee_id=r.employee_id, date=d,
         ).first()
         if existing:
-            existing.status = "leave"
-            existing.leave_type = r.leave_type
+            # Don't clobber a hand-set 'late' or 'official_mission'
+            # mark — only overwrite the neutral default.
+            if existing.status in ("present", "absent"):
+                existing.status = "leave"
+                existing.leave_type = r.leave_type
         else:
             db.session.add(StaffAttendance(
                 school_id=_sid(), employee_id=r.employee_id,
                 date=d, status="leave", leave_type=r.leave_type,
             ))
             added += 1
-        d += timedelta(days=1)
 
-    # Bump the used_days on the matching (employee, year, type) balance.
-    bal = _balance_for(r.employee_id, r.start_date.year, r.leave_type)
-    if bal:
-        bal.used_days = (bal.used_days or 0) + r.days_count
+    # Bump used_days on each year-scoped balance the range touches so
+    # a leave spanning Dec→Jan debits both years fairly.
+    from collections import Counter
+    per_year = Counter(
+        d.year for d in _teaching_days_between(r.start_date, r.end_date)
+    )
+    for year, day_count in per_year.items():
+        bal = _balance_for(r.employee_id, year, r.leave_type)
+        if bal:
+            bal.used_days = (bal.used_days or 0) + day_count
 
     r.status = "approved"
     r.approved_by_user_id = getattr(current_user, "id", None)

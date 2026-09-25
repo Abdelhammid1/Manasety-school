@@ -640,12 +640,17 @@ def _recompute_ranks_for_section(section):
 
 
 def _apply_dense_rank(rows, *, field):
+    """Dense-rank semantics — ties share the same rank AND the next
+    distinct value takes the immediately-following rank (no gaps).
+
+    For averages [95, 90, 90, 85] → ranks [1, 2, 2, 3], NOT [1, 2, 2, 4]
+    (standard-competition rank)."""
     prev_avg = None
     current_rank = 0
-    for i, yr in enumerate(rows, start=1):
+    for yr in rows:
         avg = Decimal(str(yr.average or 0))
         if prev_avg is None or avg != prev_avg:
-            current_rank = i
+            current_rank += 1
             prev_avg = avg
         setattr(yr, field, current_rank)
 
