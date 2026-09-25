@@ -21,6 +21,11 @@ from ...services.ledger import (
     send_payment_reminders,
     update_overdue_invoices,
 )
+# Ticket T5 — pull the monthly attendance report sender in so the
+# daily `tick` can fan it out on the 1st of every month.
+from ...services.attendance_pdf_report import (
+    send_reports_for_active_students,
+)
 
 
 def _authorised() -> bool:
@@ -60,6 +65,16 @@ def tick():
         # Ticket "تذكير قبل الاستحقاق" — email each parent T-N days
         # before an installment's due date, one shot per installment.
         installment_reminders[s.id] = send_installment_reminders(s.id)
+    # Ticket T5 — fan out the monthly attendance report once a month
+    # (fires on the 1st of the month). Doesn't need a per-school
+    # loop because send_reports_for_active_students walks every
+    # active enrollment across every school in one pass.
+    attendance_reports_sent = 0
+    if today.day == 1:
+        try:
+            attendance_reports_sent = send_reports_for_active_students()
+        except Exception:
+            current_app.logger.exception("attendance report cron failed")
     db.session.commit()
     return jsonify(
         ok=True, today=today.isoformat(),
@@ -67,4 +82,5 @@ def tick():
         overdue_flipped=overdue_by_school,
         reminders=reminders_by_school,
         installment_reminders=installment_reminders,
+        attendance_reports_sent=attendance_reports_sent,
     )

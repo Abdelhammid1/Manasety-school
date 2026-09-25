@@ -35,6 +35,16 @@
         {{ fld('occupation', 'المهنة', value=form.get('occupation')) }}
         {{ fld('address', 'العنوان', value=form.get('address')) }}
       </div>
+      {# Ticket S12 — differentiate a real ولي أمر from an emergency
+         contact. Emergency-only rows stay hidden from the guardians
+         listing + invoices + academic permissions. #}
+      <label class="mt-space-sm flex items-center gap-2 cursor-pointer">
+        <input type="checkbox" name="is_guardian" value="1" checked class="w-5 h-5 accent-primary">
+        <span class="font-label-md text-on-surface font-bold">هو ولي أمر رسمي (مش مجرد جهة اتصال للطوارئ)</span>
+      </label>
+      <p class="font-label-xs text-outline mt-1">
+        امسح الاختيار لو الشخص جهة اتصال للطوارئ فقط (جار، سائق، قريب بعيد) — لن يظهر ضمن أولياء الأمور الرسميين.
+      </p>
     </section>
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">

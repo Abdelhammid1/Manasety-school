@@ -617,6 +617,9 @@ def guardian_new():
             phone=phone, national_id=national_id, email=email,
             occupation=(request.form.get("occupation") or "").strip() or None,
             address=(request.form.get("address") or "").strip() or None,
+            # Ticket S12 — the form's `is_guardian` checkbox differentiates
+            # a proper ولي أمر from a pure emergency contact.
+            is_guardian=(request.form.get("is_guardian", "1") == "1"),
         )
         db.session.add(guardian); db.session.flush()
 
@@ -733,6 +736,22 @@ def enroll(student_id):
             return render_template(
                 "students/enroll.html", student=student, year=year, sections=sections, grades=grades
             )
+
+        # Ticket A1 — advisory prereq check (not a hard-block).
+        # Flashes each unmet prereq so the admin sees them, but the
+        # enrolment still proceeds.
+        try:
+            from ..academic.prerequisites import check_prereq_warnings
+            for subj, req_subj, note in check_prereq_warnings(
+                student, section.grade_id,
+            ):
+                flash(
+                    f"تنبيه: قد تحتاج المادة «{subj}» إكمال «{req_subj}» أولاً"
+                    + (f" — {note}" if note else "") + ".",
+                    "warning",
+                )
+        except Exception:
+            pass
 
         enrollment = Enrollment(
             school_id=_sid(),

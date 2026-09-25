@@ -42,46 +42,58 @@ def attendance_dashboard():
     end = date.today()
     start = end - timedelta(days=30)
 
-    # Aggregate raw statuses over the last 30 days.
-    rows = (
-        db.session.query(Attendance.status, func.count(Attendance.id))
-        .filter(
+    # Ticket T3-aware: pull every row and derive one status per
+    # (enrollment, date) so `both`-mode schools don't double-count.
+    # Raw GROUP BY over Attendance.status would count a period row +
+    # a daily row for the same date as two events, which is exactly
+    # the bug T3 killed for the per-student report.
+    raw_rows = (
+        Attendance.query.filter(
             Attendance.school_id == _sid(),
             Attendance.date >= start, Attendance.date <= end,
-        )
-        .group_by(Attendance.status).all()
+        ).all()
     )
-    totals = {s: n for s, n in rows}
+    grouped = {}
+    for r in raw_rows:
+        grouped.setdefault((r.enrollment_id, r.date), []).append(r)
+    totals = {"present": 0, "absent": 0, "late": 0,
+              "excused": 0, "partial": 0, "left_early": 0}
+    for day_records in grouped.values():
+        s = _derive_day_status(day_records)
+        if s and s in totals:
+            totals[s] += 1
     grand = sum(totals.values())
     kpi = {
-        "present":     totals.get("present", 0),
-        "absent":      totals.get("absent", 0),
-        "late":        totals.get("late", 0),
-        "excused":     totals.get("excused", 0),
+        "present":     totals["present"],
+        "absent":      totals["absent"],
+        "late":        totals["late"],
+        "excused":     totals["excused"],
         "attendance_rate": (
-            round(totals.get("present", 0) / grand * 100, 1)
+            round(totals["present"] / grand * 100, 1)
             if grand else 0
         ),
     }
 
-    # Chronic-absence list: students with >=5 absent days in the window.
+    # Chronic-absence list: students with >=5 absent DAYS (post-derive)
+    # in the window. Uses the already-grouped structure above to make
+    # this consistent with the KPI numbers.
     THRESHOLD = 5
-    absent_by_student = (
-        db.session.query(
-            Enrollment.student_id, func.count(Attendance.id).label("n"),
+    from ...models import Enrollment as _Enr
+    absent_days_by_student = {}
+    for (eid, _d), day_records in grouped.items():
+        if _derive_day_status(day_records) != "absent":
+            continue
+        e = _Enr.query.get(eid)
+        if not e:
+            continue
+        absent_days_by_student[e.student_id] = (
+            absent_days_by_student.get(e.student_id, 0) + 1
         )
-        .join(Attendance, Attendance.enrollment_id == Enrollment.id)
-        .filter(
-            Enrollment.school_id == _sid(),
-            Enrollment.status == "active",
-            Attendance.date >= start, Attendance.date <= end,
-            Attendance.status == "absent",
-        )
-        .group_by(Enrollment.student_id)
-        .having(func.count(Attendance.id) >= THRESHOLD)
-        .order_by(func.count(Attendance.id).desc())
-        .limit(30).all()
-    )
+    absent_by_student = sorted(
+        [(sid, n) for sid, n in absent_days_by_student.items()
+         if n >= THRESHOLD],
+        key=lambda x: -x[1],
+    )[:30]
     chronic = []
     for stu_id, cnt in absent_by_student:
         stu = Student.query.get(stu_id)
