@@ -872,20 +872,24 @@ def _upsert_roles(school: School) -> dict:
 
 
 def _upsert_admin(school: School, roles: dict) -> User:
+    """Admin needs password_hash set BEFORE the row is inserted (NOT NULL
+    column), so this bypasses the generic _upsert() helper, which flushes
+    the object right after construction — before set_password() would run.
+    """
     admin_role = roles["admin"]
-    admin, created = _upsert(
-        User,
-        {"school_id": school.id, "username": "admin"},
-        {
-            "role_id": admin_role.id,
-            "full_name": "مدير النظام",
-            "email": "admin@manasety.local",
-            "phone": "+966500000001",
-            "is_active": True,
-        },
-    )
-    if created:
+    admin = User.query.filter_by(school_id=school.id, username="admin").first()
+    if admin is None:
+        admin = User(
+            school_id=school.id,
+            username="admin",
+            role_id=admin_role.id,
+            full_name="مدير النظام",
+            email="admin@manasety.local",
+            phone="+966500000001",
+            is_active=True,
+        )
         admin.set_password("admin12345")
+        db.session.add(admin)
         db.session.flush()
         _log("✓ Created admin user: admin / admin12345")
     return admin
