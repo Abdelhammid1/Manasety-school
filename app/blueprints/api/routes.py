@@ -2451,10 +2451,14 @@ def student_attendance():
         Attendance.query.filter(Attendance.enrollment_id.in_(enrollment_ids))
         .order_by(Attendance.date.desc()).limit(200).all()
     )
+    # T8 — real excuse_reason column has priority now that the web
+    # form writes it. Falls back to the free-text `notes` for legacy
+    # rows that predate the excuse fields.
     return jsonify({"attendance": [{
         "date": r.date.isoformat() if r.date else None,
         "status": r.status,
-        "reason": r.notes or getattr(r, "excuse_reason", None),
+        "reason": r.excuse_reason or r.notes,
+        "excuse_document": r.excuse_document,
     } for r in rows]})
 
 

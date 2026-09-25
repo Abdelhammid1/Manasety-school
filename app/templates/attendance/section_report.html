@@ -13,6 +13,7 @@
 {% set tot_p = summaries|sum(attribute='present') %}
 {% set tot_a = summaries|sum(attribute='absent') %}
 {% set tot_l = summaries|sum(attribute='late') %}
+{% set tot_partial = summaries|sum(attribute='partial') %}
 {% set tot = tot_p + tot_a + tot_l %}
 {% set avg_rate = ((tot_p / tot * 100)|round(1)) if tot else 0 %}
 
@@ -45,6 +46,7 @@
         ('present', 'إجمالي الحضور',     tot_p,                    '#10B981', 'check'),
         ('absent',  'إجمالي الغياب',     tot_a,                    '#EF4444', 'close'),
         ('late',    'إجمالي التأخير',    tot_l,                    '#F59E0B', 'schedule'),
+        ('partial', 'أيام جزئية',        tot_partial,              '#8B5CF6', 'switch_left'),
     ] %}
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
       <div class="absolute right-0 top-0 bottom-0 w-1.5" style="background: {{ color }}"></div>
@@ -66,6 +68,7 @@
             <th class="px-4 py-3 font-label-lg text-primary text-center">حاضر</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">غائب</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">متأخر</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">جزئي</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">المجموع</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">نسبة الحضور</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">تفاصيل</th>
@@ -86,6 +89,7 @@
             <td class="px-4 py-3 text-center font-label-lg text-[#10B981] font-bold">{{ row.present }}</td>
             <td class="px-4 py-3 text-center font-label-lg text-error font-bold">{{ row.absent }}</td>
             <td class="px-4 py-3 text-center font-label-lg text-[#F59E0B] font-bold">{{ row.late }}</td>
+            <td class="px-4 py-3 text-center font-label-lg text-purple-700 font-bold">{{ row.partial }}</td>
             <td class="px-4 py-3 text-center font-label-lg text-on-surface-variant">{{ row.total }}</td>
             <td class="px-4 py-3">
               <div class="flex items-center gap-2 justify-center">

@@ -1,0 +1,71 @@
+{# Ticket T3 — per-day period-by-period breakdown for one student. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تفاصيل حضور يوم {{ the_day }} — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('attendance.student_report', student_id=student.id) }}" class="hover:text-primary">تقرير الحضور</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ the_day }}</span>
+{% endblock %}
+{% block page_content %}
+{% set status_label = {'present':'حاضر','absent':'غائب','late':'متأخر','excused':'معذور','partial':'جزئي','left_early':'خرج مبكراً'} %}
+{% set status_color = {'present':'#10B981','absent':'#EF4444','late':'#F59E0B','excused':'#3B82F6','partial':'#8B5CF6','left_early':'#F97316'} %}
+<div class="w-full max-w-[900px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="flex items-center justify-between flex-wrap gap-2">
+      <div>
+        <h1 class="font-headline-md text-primary font-extrabold">{{ student.full_name }}</h1>
+        <p class="font-body-sm text-on-surface-variant">تاريخ: {{ the_day.strftime('%Y-%m-%d') }}</p>
+      </div>
+      {% if derived %}
+      <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-white font-label-md font-bold"
+            style="background: {{ status_color.get(derived, '#94A3B8') }};">
+        <span class="material-symbols-outlined text-base">event</span>
+        <span>الحالة الإجمالية: {{ status_label.get(derived, derived) }}</span>
+      </span>
+      {% endif %}
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">التفاصيل حسب الحصة</h2>
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الحصة / المادة</th>
+          <th class="p-2">الحالة</th>
+          <th class="p-2">ملاحظات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2">
+            {% if r.period_id %}
+              الحصة #{{ r.period_id }}{% if r.period and r.period.name %} — {{ r.period.name }}{% endif %}
+            {% else %}
+              <b>يومي (بلا حصة)</b>
+            {% endif %}
+          </td>
+          <td class="p-2">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-white font-label-xs font-bold"
+                  style="background: {{ status_color.get(r.status, '#94A3B8') }};">
+              {{ status_label.get(r.status, r.status) }}
+            </span>
+          </td>
+          <td class="p-2 font-label-sm text-on-surface-variant">
+            {{ r.notes or (r.excuse_reason or '—') }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-outline">لا سجلات لهذا اليوم.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

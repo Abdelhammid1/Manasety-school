@@ -159,7 +159,11 @@ def document_upload(student_id):
 @login_required
 @require_permission("students", "edit")
 def document_delete(doc_id):
-    doc = StudentDocument.query.get_or_404(doc_id)
+    # T1 — IDOR fix. StudentDocument carries its own school_id, so a
+    # direct filter is enough. Prevents a user in school A from
+    # deleting a document owned by school B.
+    doc = StudentDocument.query.filter_by(
+        id=doc_id, school_id=_sid()).first_or_404()
     sid = doc.student_id
     # Try to remove the file too (best-effort).
     try:

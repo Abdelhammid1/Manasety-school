@@ -29,6 +29,88 @@ def _get(model, oid):
     return obj
 
 
+def _save_excuse_file(record, enrollment_id):
+    """Ticket T8 — persist an uploaded excuse document alongside the
+    attendance row. Stored under `static/uploads/attendance/<eid>/`.
+
+    Silently skips when no file is uploaded or the file is empty.
+    Overwrites `record.excuse_document` when a new file is uploaded on
+    a re-save."""
+    import os
+    from flask import current_app, url_for
+    from werkzeug.utils import secure_filename
+    f = request.files.get(f"excuse_file_{enrollment_id}")
+    if not f or not f.filename:
+        return
+    ext = f.filename.rsplit(".", 1)[-1].lower()
+    if ext not in {"pdf", "png", "jpg", "jpeg", "webp"}:
+        return
+    import uuid as _uuid
+    safe = secure_filename(f.filename)
+    unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
+    subdir = os.path.join(
+        current_app.static_folder, "uploads", "attendance", str(enrollment_id)
+    )
+    os.makedirs(subdir, exist_ok=True)
+    path = os.path.join(subdir, unique)
+    f.save(path)
+    record.excuse_document = url_for(
+        "static", filename=f"uploads/attendance/{enrollment_id}/{unique}"
+    )
+
+
+def _notify_absence(*, student, section, on_date, record):
+    """Ticket T2 — dispatch one absence notification per guardian on
+    `student.guardian_links` that has `can_receive_notifications=True`
+    and a phone number set.
+
+    Falls back to the legacy `student.parent_phone` when the student
+    has no guardian links at all — that's the migration bridge for
+    old rows imported before the Guardian model existed.
+
+    Returns the count of notifications actually sent."""
+    payload = {
+        "student": student.full_name,
+        "permanent_code": student.permanent_code,
+        "date": on_date.isoformat(),
+        "section": f"{section.grade.name} / {section.name}",
+        "message": (
+            f"تنبيه غياب: ابنكم {student.full_name} غائب "
+            f"بتاريخ {on_date.isoformat()} "
+            f"عن الفصل ({section.grade.name} / {section.name})."
+        ),
+    }
+    sent = 0
+    links = list(getattr(student, "guardian_links", None) or [])
+    if links:
+        for link in links:
+            if not getattr(link, "can_receive_notifications", False):
+                continue
+            g = getattr(link, "guardian", None)
+            phone = (getattr(g, "phone", "") or "").strip()
+            if not phone:
+                continue
+            send_notification(
+                school_id=_sid(), kind="absence", payload=payload,
+                target_phone=phone,
+                student_id=student.id,
+                related_kind="attendance", related_id=record.id,
+            )
+            sent += 1
+    else:
+        # Fallback: legacy flat-field row.
+        phone = (getattr(student, "parent_phone", "") or "").strip()
+        if phone:
+            send_notification(
+                school_id=_sid(), kind="absence", payload=payload,
+                target_phone=phone,
+                student_id=student.id,
+                related_kind="attendance", related_id=record.id,
+            )
+            sent += 1
+    return sent
+
+
 def _teacher_for_current_user():
     """Return the Teacher row for the logged-in user, or None if they aren't
     a teacher (admins, staff without a Teacher profile)."""
@@ -165,15 +247,25 @@ def mark(section_id):
         absent_notifs = 0
         for e in enrollments:
             status = request.form.get(f"status_{e.id}")
-            if status not in ("present", "absent", "late", "excused"):
+            # Ticket T7b — accept `left_early` (already defined in
+            # ATTENDANCE_STATUSES). Ticket T8 — read excuse_reason /
+            # excuse_document when the teacher marks `excused`.
+            if status not in ("present", "absent", "late", "excused", "left_early"):
                 continue
             note = (request.form.get(f"note_{e.id}") or "").strip() or None
+            excuse_reason = None
+            if status == "excused":
+                excuse_reason = (
+                    request.form.get(f"excuse_reason_{e.id}") or ""
+                ).strip() or None
 
             record = existing.get(e.id)
             prev_status = record.status if record else None
             if record:
                 record.status = status
                 record.notes = note
+                if status == "excused":
+                    record.excuse_reason = excuse_reason
                 record.recorded_by_user_id = current_user.id
                 record.recorded_at = datetime.utcnow()
                 updates += 1
@@ -184,37 +276,28 @@ def mark(section_id):
                     date=on_date,
                     status=status,
                     notes=note,
+                    excuse_reason=excuse_reason,
                     recorded_by_user_id=current_user.id,
                 )
                 db.session.add(record)
                 creates += 1
             db.session.flush()
 
-            # T-6.2: Notify parent on transition into 'absent'
+            # Ticket T8 — optional excuse document file upload.
+            if status == "excused":
+                _save_excuse_file(record, e.id)
+
+            # T2 — Notify every guardian with can_receive_notifications
+            # on transition into 'absent'. Falls back to the legacy
+            # student.parent_phone only when the student has zero
+            # guardian_links (old imports that never went through the
+            # new admission form / _sync_student_guardians).
             if status == "absent" and prev_status != "absent":
                 student = e.student
-                phone = (student.parent_phone or "").strip()
-                if phone:
-                    send_notification(
-                        school_id=_sid(),
-                        kind="absence",
-                        payload={
-                            "student": student.full_name,
-                            "permanent_code": student.permanent_code,
-                            "date": on_date.isoformat(),
-                            "section": f"{section.grade.name} / {section.name}",
-                            "message": (
-                                f"تنبيه غياب: ابنكم {student.full_name} غائب "
-                                f"بتاريخ {on_date.isoformat()} "
-                                f"عن الفصل ({section.grade.name} / {section.name})."
-                            ),
-                        },
-                        target_phone=phone,
-                        student_id=student.id,  # Sprint 11: parent-scoping FK
-                        related_kind="attendance",
-                        related_id=record.id,
-                    )
-                    absent_notifs += 1
+                absent_notifs += _notify_absence(
+                    student=student, section=section,
+                    on_date=on_date, record=record,
+                )
 
         # Ticket #8 — per-period cells. Form fields look like
         # perstatus_<enrollment_id>_<period_id>=<status>.
@@ -223,7 +306,7 @@ def mark(section_id):
                 for p in periods:
                     field = f"perstatus_{e.id}_{p.id}"
                     st = request.form.get(field)
-                    if st not in ("present", "absent", "late", "excused"):
+                    if st not in ("present", "absent", "late", "excused", "left_early"):
                         continue
                     row = existing_by_period.get((e.id, p.id))
                     if row is None:
@@ -273,33 +356,98 @@ def section_report(section_id):
         ).join(Student).order_by(Student.full_name).all()
     )
 
-    counts = {}
-    for status in ("present", "absent", "late"):
-        rows = (
-            db.session.query(Attendance.enrollment_id, func.count(Attendance.id))
-            .filter(Attendance.status == status,
-                    Attendance.date >= start, Attendance.date <= end,
-                    Attendance.enrollment_id.in_([e.id for e in enrollments]))
-            .group_by(Attendance.enrollment_id).all()
-        )
-        for eid, c in rows:
-            counts.setdefault(eid, {})[status] = c
+    # Ticket T3 — pull the full row set and derive per-day status
+    # (see `_derive_day_status`). This kills double-counting when the
+    # school runs in `both` mode.
+    counts = _day_status_counts(
+        eids=[e.id for e in enrollments],
+        start=start, end=end,
+    )
 
     summaries = []
     for e in enrollments:
         c = counts.get(e.id, {})
-        p, a, l = c.get("present", 0), c.get("absent", 0), c.get("late", 0)
-        total = p + a + l
+        p = c.get("present", 0); a = c.get("absent", 0)
+        l = c.get("late", 0);    partial = c.get("partial", 0)
+        total = p + a + l + partial
         rate = (p / total * 100) if total else 0
         summaries.append({
             "enrollment": e, "present": p, "absent": a, "late": l,
-            "total": total, "rate": round(rate, 1),
+            "partial": partial, "total": total, "rate": round(rate, 1),
         })
 
     return render_template(
         "attendance/section_report.html",
         section=section, start=start, end=end, summaries=summaries,
     )
+
+
+def _derive_day_status(day_records):
+    """Ticket T3 — collapse a single (enrollment, date) tuple's rows
+    to one status.
+
+    Rules (in priority order):
+      · Any daily row (period_id IS NULL) present alongside no
+        per-period rows → use the daily row's status verbatim.
+      · Per-period rows only:
+          - all `absent`             → 'absent'
+          - all `present` or mixed present+excused → 'present'
+          - any `absent` mixed with any present    → 'partial'
+          - any `late` and no absent               → 'late'
+      · When both daily and per-period rows are present for the
+        same date, the per-period breakdown wins (it's the finer
+        signal). Prevents double-counting in `both` mode.
+    """
+    if not day_records:
+        return None
+    period_rows = [r for r in day_records if r.period_id is not None]
+    daily_rows  = [r for r in day_records if r.period_id is None]
+    if not period_rows:
+        # Simple daily-only case.
+        return daily_rows[0].status if daily_rows else None
+    statuses = [r.status for r in period_rows]
+    present  = sum(1 for s in statuses if s == "present")
+    absent   = sum(1 for s in statuses if s == "absent")
+    late     = sum(1 for s in statuses if s == "late")
+    if absent == len(statuses):
+        return "absent"
+    if absent and (present or late):
+        return "partial"
+    if late:
+        return "late"
+    if present:
+        return "present"
+    # Fallback — unknown mix, treat as first period's status.
+    return statuses[0]
+
+
+def _day_status_counts(*, eids, start, end):
+    """Ticket T3 — group Attendance rows by (enrollment, date), apply
+    `_derive_day_status`, and return {enrollment_id: {status: n}}.
+
+    Returns partial as its own key so the caller can surface it.
+    """
+    if not eids:
+        return {}
+    rows = (
+        Attendance.query.filter(
+            Attendance.enrollment_id.in_(eids),
+            Attendance.date >= start, Attendance.date <= end,
+        ).all()
+    )
+    # (eid, date) -> [row, ...]
+    grouped = {}
+    for r in rows:
+        grouped.setdefault((r.enrollment_id, r.date), []).append(r)
+    counts = {}
+    for (eid, _d), day_records in grouped.items():
+        status = _derive_day_status(day_records)
+        if not status:
+            continue
+        counts.setdefault(eid, {})[status] = (
+            counts.get(eid, {}).get(status, 0) + 1
+        )
+    return counts
 
 
 @bp.route("/reports/student/<int:student_id>")
@@ -311,8 +459,11 @@ def student_report(student_id):
     start = _parse_date(request.args.get("start")) or (end - timedelta(days=60))
 
     enrollments = [e for e in student.enrollments if e.status == "active"]
+    # Ticket T3 — derive one status per day so `both`-mode schools
+    # don't double-count. `day_rows` powers the day-by-day table.
+    day_rows = []
+    p = a = l = partial = 0
     records = []
-    p = a = l = 0
     if enrollments:
         eids = [e.id for e in enrollments]
         records = (
@@ -321,16 +472,58 @@ def student_report(student_id):
                 Attendance.date >= start, Attendance.date <= end,
             ).order_by(Attendance.date.desc()).all()
         )
+        grouped = {}
         for r in records:
-            if r.status == "present": p += 1
-            elif r.status == "absent": a += 1
-            elif r.status == "late": l += 1
-    total = p + a + l
+            grouped.setdefault(r.date, []).append(r)
+        for d in sorted(grouped.keys(), reverse=True):
+            rowset = grouped[d]
+            status = _derive_day_status(rowset)
+            day_rows.append({
+                "date": d, "status": status,
+                "period_count": sum(1 for r in rowset if r.period_id is not None),
+                "has_daily": any(r.period_id is None for r in rowset),
+            })
+            if   status == "present": p += 1
+            elif status == "absent":  a += 1
+            elif status == "late":    l += 1
+            elif status == "partial": partial += 1
+    total = p + a + l + partial
     rate = round(p / total * 100, 1) if total else 0
     return render_template(
         "attendance/student_report.html",
         student=student, start=start, end=end, records=records,
-        present=p, absent=a, late=l, total=total, rate=rate,
+        day_rows=day_rows,
+        present=p, absent=a, late=l, partial=partial,
+        total=total, rate=rate,
+    )
+
+
+@bp.route("/reports/student/<int:student_id>/day/<date_str>",
+          endpoint="student_day_detail")
+@login_required
+@require_permission("attendance", "view")
+def student_day_detail(student_id, date_str):
+    """Ticket T3 — per-day breakdown of every period row for one
+    student. Called from any 'partial' cell in student_report."""
+    student = _get(Student, student_id)
+    the_day = _parse_date(date_str)
+    if not the_day:
+        abort(404)
+    enrollments = [e for e in student.enrollments if e.status == "active"]
+    rows = []
+    if enrollments:
+        eids = [e.id for e in enrollments]
+        rows = (
+            Attendance.query.filter(
+                Attendance.enrollment_id.in_(eids),
+                Attendance.date == the_day,
+            ).order_by(Attendance.period_id.asc().nullsfirst()).all()
+        )
+    derived = _derive_day_status(rows)
+    return render_template(
+        "attendance/student_day_detail.html",
+        student=student, the_day=the_day,
+        rows=rows, derived=derived,
     )
 
 

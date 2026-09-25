@@ -25,11 +25,24 @@ def _next_permanent_code() -> str:
     """
     Returns the next serial permanent code for this school.
 
-    Uses MAX(existing suffix) + 1 rather than COUNT(*) + 1 so that deleting
-    a student never causes a collision with an existing code on the next
-    insert (unique constraint uq_student_school_code).
+    Ticket T4 — locks the school row (SELECT ... FOR UPDATE) so that
+    two concurrent inserts can't both compute the same next number
+    before either commits. The lock is released on the next commit
+    or rollback of the surrounding transaction — i.e. right after the
+    student is saved.
+
+    On SQLite (dev/test) `with_for_update()` becomes a no-op; in that
+    case we rely on the fact that SQLite writers are already serialized.
+    Uses MAX(existing suffix) + 1 rather than COUNT(*) + 1 so that
+    deleting a student never causes a collision with an existing code
+    on the next insert (unique constraint uq_student_school_code).
     """
-    school = db.session.get(School, _sid())
+    school = (
+        db.session.query(School)
+        .filter_by(id=_sid())
+        .with_for_update()
+        .first()
+    )
     if school is None:
         raise ValueError("لا توجد مدرسة مرتبطة بالمستخدم الحالي")
     base = school.code or "SCH"
@@ -130,6 +143,25 @@ def _sync_student_guardians(student):
 
 def _get(model, oid):
     obj = model.query.filter_by(id=oid, school_id=_sid()).first()
+    if not obj:
+        abort(404)
+    return obj
+
+
+def _get_scoped_by_student(model, oid, student_fk="student_id"):
+    """Ticket T1 — IDOR helper for tables that don't carry `school_id`
+    directly. Joins through `Student` and returns the row only when
+    the linked student belongs to the current user's school.
+
+    Used by guardian_link_update / guardian_link_delete where
+    StudentGuardian has no `school_id` column."""
+    from ...models import Student as _Student
+    obj = (
+        model.query
+        .join(_Student, _Student.id == getattr(model, student_fk))
+        .filter(model.id == oid, _Student.school_id == _sid())
+        .first()
+    )
     if not obj:
         abort(404)
     return obj
@@ -258,6 +290,13 @@ def student_new():
                     ))
                     if g.user_id and not student.parent_user_id:
                         student.parent_user_id = g.user_id
+                # Ticket T5 — even when the father is a pre-existing
+                # Guardian, still sync the mother's row separately so
+                # her name+phone don't get dropped.
+                _upsert_guardian_link(
+                    student, student.mother_name, student.mother_phone,
+                    relationship="أم", is_primary=False,
+                )
             else:
                 # Ticket #1 — bridge the legacy parent_* fields to Guardian.
                 _sync_student_guardians(student)
@@ -456,7 +495,9 @@ def guardian_add(student_id):
 @require_permission("students", "edit")
 def guardian_link_update(link_id):
     from ...models import StudentGuardian
-    link = StudentGuardian.query.get_or_404(link_id)
+    # T1 — IDOR fix. StudentGuardian carries no school_id column, so
+    # we scope through the linked Student.
+    link = _get_scoped_by_student(StudentGuardian, link_id)
     link.relationship = (request.form.get("relationship") or link.relationship or "").strip() or None
     link.is_primary = bool(request.form.get("is_primary"))
     link.is_emergency_contact = bool(request.form.get("is_emergency_contact"))
@@ -474,7 +515,7 @@ def guardian_link_update(link_id):
 @require_permission("students", "edit")
 def guardian_link_delete(link_id):
     from ...models import StudentGuardian
-    link = StudentGuardian.query.get_or_404(link_id)
+    link = _get_scoped_by_student(StudentGuardian, link_id)
     sid = link.student_id
     db.session.delete(link); db.session.commit()
     flash("تم إلغاء ربط ولي الأمر بالطالب.", "success")

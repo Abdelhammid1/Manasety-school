@@ -40,6 +40,7 @@
         ('present', 'حاضر',         present,             '#10B981', 'check'),
         ('absent',  'غائب',         absent,              '#EF4444', 'close'),
         ('late',    'متأخر',        late,                '#F59E0B', 'schedule'),
+        ('partial', 'جزئي',         partial or 0,        '#8B5CF6', 'switch_left'),
         ('total',   'إجمالي الأيام',total,               '#0099CC', 'summarize'),
     ] %}
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
@@ -57,33 +58,44 @@
     <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
       <span class="material-symbols-outlined">history</span>سجل الأيام
     </h2>
-    {% if records %}
+    {% if day_rows %}
     <div class="flex flex-col gap-1">
-      {% for r in records %}
-      <div class="flex items-center justify-between p-2 rounded-lg
+      {% for r in day_rows %}
+      {% set is_partial = (r.status == 'partial') %}
+      <a href="{{ url_for('attendance.student_day_detail', student_id=student.id, date_str=r.date.strftime('%Y-%m-%d')) }}"
+         class="flex items-center justify-between p-2 rounded-lg hover:opacity-90 transition-opacity
                   {% if r.status == 'present' %}bg-[#ECFDF5]
                   {% elif r.status == 'absent' %}bg-error-container/40
                   {% elif r.status == 'late' %}bg-tertiary-fixed/50
+                  {% elif r.status == 'partial' %}bg-purple-100
                   {% else %}bg-surface-container-low{% endif %}">
         <div class="flex items-center gap-3">
           <div class="w-9 h-9 rounded-lg flex items-center justify-center text-white"
-               style="background: {% if r.status == 'present' %}#10B981{% elif r.status == 'absent' %}#EF4444{% elif r.status == 'late' %}#F59E0B{% else %}#64748B{% endif %}">
+               style="background: {% if r.status == 'present' %}#10B981{% elif r.status == 'absent' %}#EF4444{% elif r.status == 'late' %}#F59E0B{% elif r.status == 'partial' %}#8B5CF6{% else %}#64748B{% endif %}">
             <span class="material-symbols-outlined text-lg">
-              {% if r.status == 'present' %}check{% elif r.status == 'absent' %}close{% elif r.status == 'late' %}schedule{% else %}medical_information{% endif %}
+              {% if r.status == 'present' %}check{% elif r.status == 'absent' %}close{% elif r.status == 'late' %}schedule{% elif r.status == 'partial' %}switch_left{% else %}medical_information{% endif %}
             </span>
           </div>
           <div class="flex flex-col">
             <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ r.date.strftime('%Y-%m-%d') }}</span>
-            {% if r.notes %}<span class="font-label-xs text-label-xs text-on-surface-variant">📝 {{ r.notes }}</span>{% endif %}
+            {% if r.period_count %}
+            <span class="font-label-xs text-label-xs text-on-surface-variant">
+              {{ r.period_count }} حصة{% if r.has_daily %} + إدخال يومي{% endif %}
+            </span>
+            {% endif %}
           </div>
         </div>
-        <span class="font-label-md text-label-md font-bold">
-          {% if r.status == 'present' %}<span class="text-[#065F46]">حاضر</span>
-          {% elif r.status == 'absent' %}<span class="text-on-error-container">غائب</span>
-          {% elif r.status == 'late' %}<span class="text-on-tertiary-fixed-variant">متأخر</span>
-          {% else %}<span class="text-on-surface-variant">مستأذن</span>{% endif %}
-        </span>
-      </div>
+        <div class="flex items-center gap-2">
+          <span class="font-label-md text-label-md font-bold">
+            {% if r.status == 'present' %}<span class="text-[#065F46]">حاضر</span>
+            {% elif r.status == 'absent' %}<span class="text-on-error-container">غائب</span>
+            {% elif r.status == 'late' %}<span class="text-on-tertiary-fixed-variant">متأخر</span>
+            {% elif r.status == 'partial' %}<span class="text-purple-800">جزئي</span>
+            {% else %}<span class="text-on-surface-variant">مستأذن</span>{% endif %}
+          </span>
+          <span class="material-symbols-outlined text-outline">chevron_left</span>
+        </div>
+      </a>
       {% endfor %}
     </div>
     {% else %}

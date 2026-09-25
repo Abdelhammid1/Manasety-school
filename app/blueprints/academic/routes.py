@@ -1,5 +1,5 @@
 from datetime import datetime
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 
 from flask import abort, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
@@ -165,7 +165,10 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
         weight = Decimal(form["weight"])
         order_index = int(form["order_index"])
         name = (form.get("name") or "").strip()
-    except (KeyError, ValueError) as e:
+    # Ticket T6 — Decimal("abc") raises InvalidOperation, which is
+    # NOT a ValueError. Also catch TypeError for None-in-int / None-in-
+    # strptime scenarios so a bad form doesn't 500.
+    except (KeyError, ValueError, InvalidOperation, TypeError) as e:
         return None, f"بيانات غير صالحة: {e}"
 
     if not name:

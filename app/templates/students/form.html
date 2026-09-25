@@ -98,13 +98,14 @@
       </div>
       {% endif %}
 
+      {# Ticket T5 — split father + mother into separate blocks so
+         switching guardian_mode to "existing" only hides the FATHER
+         inputs; the mother fields stay visible in every mode. #}
       <div data-guardian-new>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
           {{ field('parent_name', 'اسم الأب / ولي الأمر', F.parent_name if F else '') }}
           {{ field('parent_phone', 'جوال الأب', F.parent_phone if F else '', kind='tel', ph='+9665...') }}
           {{ field('parent_email', 'البريد الإلكتروني', F.parent_email if F else '', kind='email') }}
-          {{ field('mother_name', 'اسم الأم', F.mother_name if F else '') }}
-          {{ field('mother_phone', 'جوال الأم', F.mother_phone if F else '', kind='tel') }}
         </div>
 
         {% if not student %}
@@ -113,6 +114,17 @@
           {{ field('guardian_account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password') }}
         </div>
         {% endif %}
+      </div>
+
+      <div data-mother-fields class="mt-space-md">
+        <h3 class="font-label-md text-on-surface font-bold mb-2">بيانات الأم</h3>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+          {{ field('mother_name', 'اسم الأم', F.mother_name if F else '') }}
+          {{ field('mother_phone', 'جوال الأم', F.mother_phone if F else '', kind='tel') }}
+        </div>
+        <p class="mt-1 font-label-xs text-outline">
+          يتم حفظ بيانات الأم في كل الأوضاع — حتى مع اختيار «ربط بولي أمر موجود».
+        </p>
       </div>
     </section>
 

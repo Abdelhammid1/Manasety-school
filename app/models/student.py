@@ -62,7 +62,10 @@ class Enrollment(db.Model):
     status = db.Column(db.String(16), default="active", nullable=False)
     final_result = db.Column(db.String(16), default="pending", nullable=False)
 
-    enrolled_at = db.Column(db.Date, default=datetime.utcnow().date, nullable=False)
+    # Ticket T7a — `datetime.utcnow().date` (no lambda) evaluates once
+    # at class-load time and freezes the date at server start. Wrap in
+    # a lambda so each fresh insert gets today's real date.
+    enrolled_at = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     status_changed_at = db.Column(db.Date)
     status_reason = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -84,7 +87,8 @@ class TransferLog(db.Model):
     enrollment_id = db.Column(db.Integer, db.ForeignKey("enrollments.id"), nullable=False, index=True)
     from_section_id = db.Column(db.Integer, db.ForeignKey("sections.id"), nullable=False)
     to_section_id = db.Column(db.Integer, db.ForeignKey("sections.id"), nullable=False)
-    transfer_date = db.Column(db.Date, default=datetime.utcnow().date, nullable=False)
+    # T7a — see Enrollment.enrolled_at for the same reasoning.
+    transfer_date = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     performed_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     notes = db.Column(db.String(255))
 
