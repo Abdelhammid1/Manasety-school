@@ -13,7 +13,8 @@ import io
 from datetime import date, datetime
 
 from flask import (
-    abort, flash, redirect, render_template, request, send_file, session, url_for,
+    abort, current_app, flash, redirect, render_template, request,
+    send_file, session, url_for,
 )
 from flask_login import current_user, login_required
 
@@ -213,8 +214,20 @@ def imports_commit():
         PermanentCodeAllocator(_school) if entity == "students" else None
     )
     success = 0
+    # B1 follow-up — wrap each row in a SAVEPOINT so an IntegrityError
+    # on row N (duplicate national_id, missing FK, etc.) only rolls back
+    # THAT row instead of leaving the whole session in a
+    # PendingRollbackError state that breaks every subsequent row too.
+    # The savepoint also rewinds any allocated permanent_code counter
+    # advance so the next successful row picks the correct number.
     for r in ok_rows:
         d = r["data"]
+        # Snapshot the allocator counter so we can rewind on failure —
+        # the SAVEPOINT doesn't know about in-memory state.
+        counter_snapshot = (
+            code_allocator._next if code_allocator is not None else None
+        )
+        sp = db.session.begin_nested()
         try:
             if entity == "students":
                 stu = Student(
@@ -274,7 +287,7 @@ def imports_commit():
                     email=d.get("email") or None,
                     hire_date=_parse_date(d.get("hire_date")),
                 )
-                db.session.add(t)
+                db.session.add(t); db.session.flush()
             elif entity == "guardians":
                 g = Guardian(
                     school_id=_sid(), full_name=d["full_name"],
@@ -285,10 +298,23 @@ def imports_commit():
                     occupation=d.get("occupation") or None,
                     address=d.get("address") or None,
                 )
-                db.session.add(g)
+                db.session.add(g); db.session.flush()
+            sp.commit()
             success += 1
         except Exception as e:
-            # Skip and log — don't blow up the batch on one bad row.
+            # Roll back only this row's savepoint — the rest of the
+            # session (including all previously committed rows) stays
+            # intact and usable for the next iteration.
+            try:
+                sp.rollback()
+            except Exception:
+                current_app.logger.exception(
+                    "savepoint rollback failed on import row %s", r["n"],
+                )
+            # Rewind the in-memory code counter so the number burned on
+            # the failed row goes to the next successful one.
+            if code_allocator is not None and counter_snapshot is not None:
+                code_allocator._next = counter_snapshot
             batch.error_log = (batch.error_log or []) + [{"n": r["n"], "reason": str(e)}]
             batch.failed_rows += 1
 
