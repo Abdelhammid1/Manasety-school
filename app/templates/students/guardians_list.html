@@ -70,6 +70,39 @@
           </div>
         </div>
       </div>
+
+      {# Ticket #1 (2026-09-25) — inline account controls for guardians
+         who have a linked User (guardian_mode=new_with_account path). #}
+      {% if g.user %}
+      <details class="mt-space-sm border-t border-outline-variant pt-space-sm">
+        <summary class="cursor-pointer font-label-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined text-sm">key</span>
+          <span>حساب الدخول:</span>
+          <code dir="ltr" class="text-outline">{{ g.user.username }}</code>
+          <span class="font-label-xs {% if g.user.is_active %}text-emerald-600{% else %}text-error{% endif %} font-bold">
+            ({{ 'نشط' if g.user.is_active else 'معطّل' }})
+          </span>
+        </summary>
+        <div class="mt-space-sm grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+          <form method="post" action="{{ url_for('students.guardian_account_reset_password', guardian_id=g.id) }}"
+                class="flex items-center gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="password" type="password" required minlength="8" placeholder="كلمة مرور جديدة (٨+)"
+                   class="flex-1 h-10 px-3 rounded-lg bg-surface-container-low">
+            <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+          </form>
+          <form method="post" action="{{ url_for('students.guardian_account_toggle', guardian_id=g.id) }}"
+                onsubmit="return confirm('{% if g.user.is_active %}تعطيل حساب ولي الأمر؟{% else %}تفعيل حساب ولي الأمر؟{% endif %}');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit"
+                    class="w-full h-10 rounded-lg font-label-md font-bold
+                           {% if g.user.is_active %}bg-error-container text-on-error-container{% else %}bg-emerald-100 text-emerald-800{% endif %}">
+              {{ 'تعطيل الحساب' if g.user.is_active else 'تفعيل الحساب' }}
+            </button>
+          </form>
+        </div>
+      </details>
+      {% endif %}
     </article>
     {% else %}
     <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">

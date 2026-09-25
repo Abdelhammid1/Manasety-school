@@ -175,21 +175,46 @@
 
       <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
         <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
-          <span class="material-symbols-outlined">link</span>الحساب المرتبط
+          <span class="material-symbols-outlined">key</span>حساب الدخول
         </h3>
         {% if teacher.user %}
         <div class="mt-space-sm p-2 rounded-lg bg-secondary-container/40 flex items-center gap-3">
           <div class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold">
             {{ teacher.user.full_name[:1] if teacher.user.full_name else '؟' }}
           </div>
-          <div class="flex flex-col">
-            <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ teacher.user.full_name }}</span>
-            <code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ teacher.user.username }}</code>
+          <div class="flex flex-col flex-1 min-w-0">
+            <code class="font-label-md text-label-md text-on-surface font-bold" dir="ltr">{{ teacher.user.username }}</code>
+            <span class="font-label-xs text-label-xs {% if teacher.user.is_active %}text-emerald-600{% else %}text-error{% endif %} font-bold">
+              {{ 'نشط' if teacher.user.is_active else 'معطّل' }}
+            </span>
           </div>
         </div>
+
+        <form method="post" action="{{ url_for('teachers.teacher_account_reset_password', teacher_id=teacher.id) }}"
+              class="mt-space-md flex flex-col gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="font-label-sm text-label-sm text-on-surface-variant">تعيين كلمة مرور جديدة</label>
+          <div class="flex items-center gap-2">
+            <input name="password" type="password" required minlength="8"
+                   placeholder="٨ أحرف على الأقل"
+                   class="flex-1 h-10 px-3 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+            <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+          </div>
+        </form>
+
+        <form method="post" action="{{ url_for('teachers.teacher_account_toggle', teacher_id=teacher.id) }}"
+              class="mt-space-sm"
+              onsubmit="return confirm('{% if teacher.user.is_active %}تعطيل حساب هذا المعلم؟{% else %}تفعيل حساب هذا المعلم؟{% endif %}');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit"
+                  class="w-full h-10 rounded-lg font-label-md font-bold
+                         {% if teacher.user.is_active %}bg-error-container text-on-error-container hover:bg-error-container/70{% else %}bg-emerald-100 text-emerald-800 hover:bg-emerald-200{% endif %}">
+            {{ 'تعطيل الحساب' if teacher.user.is_active else 'تفعيل الحساب' }}
+          </button>
+        </form>
         {% else %}
         <p class="mt-space-sm text-outline font-label-md text-label-md">
-          لم يُربط حساب مستخدم — <a href="{{ url_for('teachers.teacher_edit', teacher_id=teacher.id) }}" class="text-primary font-bold underline">ربط الآن</a>.
+          لم يُربط حساب مستخدم — سجّل هذا استثناء تاريخي.
         </p>
         {% endif %}
       </section>

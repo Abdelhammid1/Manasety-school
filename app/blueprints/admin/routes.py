@@ -13,6 +13,16 @@ from ...models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
 
 LOGO_ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
 
+# Ticket #1 (2026-09-25) — /admin/users and /admin/roles are for the
+# school's administrative staff only. teacher / student / parent users
+# are managed from their own module pages (teachers/, students/,
+# guardians/) so they never surface here. Same list is used to reject
+# a POST that tries to create/edit a user with one of those roles.
+ADMIN_ROLE_NAMES = frozenset({
+    "admin", "admin_full", "system_admin",
+    "accountant", "student_affairs", "warehouse",
+})
+
 
 def _save_school_logo(school, file_storage):
     """Ticket #2 — save a logo file uploaded from the settings form.
@@ -199,7 +209,15 @@ def audit_log():
 @login_required
 @require_permission("roles", "view")
 def roles_list():
-    roles = Role.query.filter_by(school_id=current_user.school_id).order_by(Role.id).all()
+    # Ticket #1 — surface only administrative-staff roles here. The
+    # `teacher` / `parent` / `student` rows keep existing in the DB
+    # (provision_user still looks them up by name) but are hidden
+    # from this admin listing.
+    roles = (
+        Role.query.filter_by(school_id=current_user.school_id)
+        .filter(Role.name.in_(ADMIN_ROLE_NAMES))
+        .order_by(Role.id).all()
+    )
     return render_template("admin/roles_list.html", roles=roles)
 
 
@@ -268,27 +286,57 @@ def role_delete(role_id):
 @login_required
 @require_permission("users", "view")
 def users_list():
+    # Ticket #1 — same scope as /admin/roles: administrative-staff
+    # users only. Teacher / parent / student accounts are managed
+    # from the teachers, students, and guardians modules.
     users = (
-        User.query.filter_by(school_id=current_user.school_id)
+        User.query
+        .join(Role, Role.id == User.role_id)
+        .filter(User.school_id == current_user.school_id)
+        .filter(Role.name.in_(ADMIN_ROLE_NAMES))
         .order_by(User.full_name)
         .all()
     )
     return render_template("admin/users_list.html", users=users)
 
 
+def _admin_roles_or_reject():
+    """Load the school's admin-staff roles, or None if the school has
+    none provisioned. Shared between user_new and user_edit."""
+    return (
+        Role.query.filter_by(school_id=current_user.school_id)
+        .filter(Role.name.in_(ADMIN_ROLE_NAMES))
+        .order_by(Role.id).all()
+    )
+
+
+def _reject_non_admin_role(submitted_role_id: int, roles) -> bool:
+    """Ticket #1 — backend guardrail. Anyone who bypasses the UI and
+    posts a `role_id` that maps to teacher / parent / student is
+    turned away here, before the User row is written."""
+    if submitted_role_id not in {r.id for r in roles}:
+        flash("لا يمكن إنشاء/تعديل المستخدمين بأدوار طالب/معلم/ولي أمر من هنا.",
+              "danger")
+        return True
+    return False
+
+
 @bp.route("/users/new", methods=["GET", "POST"])
 @login_required
 @require_permission("users", "add")
 def user_new():
-    roles = Role.query.filter_by(school_id=current_user.school_id).all()
+    roles = _admin_roles_or_reject()
     if request.method == "POST":
         password = request.form["password"]
         if len(password) < 8:
             flash("كلمة المرور يجب ألا تقل عن 8 أحرف.", "danger")
             return render_template("admin/user_form.html", user=None, roles=roles)
+        role_id = int(request.form["role_id"])
+        if _reject_non_admin_role(role_id, roles):
+            return render_template("admin/user_form.html", user=None, roles=roles)
         user = User(
             school_id=current_user.school_id,
-            role_id=int(request.form["role_id"]),
+            role_id=role_id,
             username=request.form["username"].strip(),
             full_name=request.form["full_name"].strip(),
             email=request.form.get("email") or None,
@@ -308,9 +356,19 @@ def user_new():
 @require_permission("users", "edit")
 def user_edit(user_id):
     user = _get_user(user_id)
-    roles = Role.query.filter_by(school_id=current_user.school_id).all()
+    roles = _admin_roles_or_reject()
+    # If somehow an admin lands on the edit page of a teacher/student/
+    # parent user (e.g. via a bookmarked URL), redirect back to the
+    # module page rather than let them change it here.
+    if user.role and user.role.name not in ADMIN_ROLE_NAMES:
+        flash("عدّل حسابات المعلمين/الطلاب/أولياء الأمور من صفحاتهم الخاصة.",
+              "danger")
+        return redirect(url_for("admin.users_list"))
     if request.method == "POST":
-        user.role_id = int(request.form["role_id"])
+        role_id = int(request.form["role_id"])
+        if _reject_non_admin_role(role_id, roles):
+            return render_template("admin/user_form.html", user=user, roles=roles)
+        user.role_id = role_id
         user.full_name = request.form["full_name"].strip()
         user.email = request.form.get("email") or None
         user.phone = request.form.get("phone") or None

@@ -360,24 +360,23 @@ def student_new():
                         primary_guardian.user_id = new_user.id
                         student.parent_user_id = new_user.id
 
-            # Ticket #7 — inline student account (parent-app / student portal).
-            if request.form.get("create_student_account"):
-                from ...services.user_provisioning import provision_user
-                new_user, err = provision_user(
-                    school_id=_sid(), kind="student",
-                    full_name=student.full_name,
-                    username=request.form.get("student_account_username"),
-                    password=request.form.get("student_account_password"),
-                    email=None, phone=None,
-                )
-                if err:
-                    db.session.rollback()
-                    flash(err, "danger")
-                    return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
-                # Ticket (2026-09-21) — link the new User back to the
-                # Student row via `student.user_id` so the student
-                # mobile app can look up its own profile on login.
-                student.user_id = new_user.id
+            # Ticket #1 (2026-09-25) — the student account is now
+            # mandatory at creation. The checkbox `create_student_account`
+            # was removed; provision_user is always called and rollback
+            # bubbles a clean error (short password etc).
+            from ...services.user_provisioning import provision_user
+            new_user, err = provision_user(
+                school_id=_sid(), kind="student",
+                full_name=student.full_name,
+                username=request.form.get("student_account_username"),
+                password=request.form.get("student_account_password"),
+                email=None, phone=None,
+            )
+            if err:
+                db.session.rollback()
+                flash(err, "danger")
+                return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
+            student.user_id = new_user.id
 
             db.session.commit()
         except Exception:
@@ -555,6 +554,92 @@ def guardian_link_delete(link_id):
     db.session.delete(link); db.session.commit()
     flash("تم إلغاء ربط ولي الأمر بالطالب.", "success")
     return redirect(url_for("students.student_detail", student_id=sid))
+
+
+# ---------- Ticket #1 (2026-09-25) — inline account panel ----------
+
+@bp.route("/<int:student_id>/account/reset-password", methods=["POST"],
+          endpoint="student_account_reset_password")
+@login_required
+@require_permission("students", "edit")
+def student_account_reset_password(student_id):
+    student = _get(Student, student_id)
+    if not student.user:
+        flash("لا يوجد حساب مربوط بهذا الطالب.", "danger")
+        return redirect(url_for("students.student_detail", student_id=student.id))
+    new_pw = (request.form.get("password") or "").strip()
+    if len(new_pw) < 8:
+        flash("كلمة المرور يجب ألا تقل عن 8 أحرف.", "danger")
+        return redirect(url_for("students.student_detail", student_id=student.id))
+    student.user.set_password(new_pw)
+    student.user.failed_attempts = 0
+    student.user.locked_until = None
+    db.session.commit()
+    flash("تم تعيين كلمة المرور الجديدة للطالب.", "success")
+    return redirect(url_for("students.student_detail", student_id=student.id))
+
+
+@bp.route("/<int:student_id>/account/toggle", methods=["POST"],
+          endpoint="student_account_toggle")
+@login_required
+@require_permission("students", "edit")
+def student_account_toggle(student_id):
+    student = _get(Student, student_id)
+    if not student.user:
+        flash("لا يوجد حساب مربوط بهذا الطالب.", "danger")
+        return redirect(url_for("students.student_detail", student_id=student.id))
+    student.user.is_active = not student.user.is_active
+    student.user.failed_attempts = 0
+    student.user.locked_until = None
+    db.session.commit()
+    flash("تم تحديث حالة حساب الطالب.", "success")
+    return redirect(url_for("students.student_detail", student_id=student.id))
+
+
+def _get_guardian(gid):
+    from ...models import Guardian
+    g = Guardian.query.filter_by(id=gid, school_id=_sid()).first()
+    if not g:
+        abort(404)
+    return g
+
+
+@bp.route("/guardians/<int:guardian_id>/account/reset-password",
+          methods=["POST"], endpoint="guardian_account_reset_password")
+@login_required
+@require_permission("students", "edit")
+def guardian_account_reset_password(guardian_id):
+    g = _get_guardian(guardian_id)
+    if not g.user_id or not g.user:
+        flash("لا يوجد حساب مربوط بولي الأمر.", "danger")
+        return redirect(url_for("students.guardians_list"))
+    new_pw = (request.form.get("password") or "").strip()
+    if len(new_pw) < 8:
+        flash("كلمة المرور يجب ألا تقل عن 8 أحرف.", "danger")
+        return redirect(url_for("students.guardians_list"))
+    g.user.set_password(new_pw)
+    g.user.failed_attempts = 0
+    g.user.locked_until = None
+    db.session.commit()
+    flash("تم تعيين كلمة المرور الجديدة لولي الأمر.", "success")
+    return redirect(url_for("students.guardians_list"))
+
+
+@bp.route("/guardians/<int:guardian_id>/account/toggle",
+          methods=["POST"], endpoint="guardian_account_toggle")
+@login_required
+@require_permission("students", "edit")
+def guardian_account_toggle(guardian_id):
+    g = _get_guardian(guardian_id)
+    if not g.user_id or not g.user:
+        flash("لا يوجد حساب مربوط بولي الأمر.", "danger")
+        return redirect(url_for("students.guardians_list"))
+    g.user.is_active = not g.user.is_active
+    g.user.failed_attempts = 0
+    g.user.locked_until = None
+    db.session.commit()
+    flash("تم تحديث حالة حساب ولي الأمر.", "success")
+    return redirect(url_for("students.guardians_list"))
 
 
 @bp.route("/guardians")

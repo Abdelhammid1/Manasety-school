@@ -26,9 +26,13 @@ class Student(db.Model):
     parent_phone = db.Column(db.String(32))
     parent_email = db.Column(db.String(128))
     parent_user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
-    # Student's own login (used by the student mobile app). Nullable — a
-    # student without an app account still exists as a school record.
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), index=True)
+    # Student's own login (used by the student mobile app). Nullable
+    # only for historical rows created before Ticket #1 (2026-09-25);
+    # every new student now gets a User in the same transaction and
+    # the `unique=True` here rejects any attempt to bind two Students
+    # to the same User.
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                        unique=True, index=True)
     mother_name = db.Column(db.String(160))
     mother_phone = db.Column(db.String(32))
     address = db.Column(db.String(255))

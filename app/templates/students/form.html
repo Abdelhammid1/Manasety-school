@@ -129,18 +129,19 @@
     </section>
 
     {% if not student %}
-    {# Ticket #7 — inline student login account. #}
+    {# Ticket #1 (2026-09-25) — student login is mandatory at creation.
+       The old checkbox was removed and both fields are visible + the
+       password is required. #}
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
-        <span class="material-symbols-outlined">key</span>حساب الطالب (اختياري)
+        <span class="material-symbols-outlined">key</span>حساب الدخول للطالب
       </h2>
-      <label class="flex items-center gap-2 cursor-pointer mb-space-md">
-        <input type="checkbox" name="create_student_account" id="createStuAcct" value="1" class="w-5 h-5 accent-primary">
-        <span class="font-label-md text-on-surface">إنشاء حساب دخول للطالب من نفس البيانات</span>
-      </label>
-      <div id="stuAcctFields" class="grid grid-cols-1 md:grid-cols-2 gap-space-md" style="display:none">
-        {{ field('student_account_username', 'اسم مستخدم الطالب (اختياري)', '', ph='يُولَّد تلقائيًا لو تُرك فارغًا') }}
-        {{ field('student_account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password') }}
+      <p class="font-label-sm text-outline mb-space-sm">
+        كل طالب لازم يبقى ليه حساب دخول لبوابة الطالب — لا يوجد خيار لإنشاء ملف بدون حساب.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        {{ field('student_account_username', 'اسم مستخدم الطالب (يُولَّد تلقائيًا لو تُرك فارغًا)', '') }}
+        {{ field('student_account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password', required=True) }}
       </div>
     </section>
     {% endif %}
@@ -166,9 +167,6 @@
         }
         modes.forEach(function(r){ r.addEventListener('change', apply); });
         apply();
-        var stu = document.getElementById('createStuAcct');
-        var stuFields = document.getElementById('stuAcctFields');
-        if (stu && stuFields) stu.addEventListener('change', function(){ stuFields.style.display = stu.checked ? '' : 'none'; });
       })();
     </script>
 

@@ -197,6 +197,55 @@
         {% endif %}
       </section>
 
+      {# Ticket #1 (2026-09-25) — student account panel. Same permission
+         module as the rest of the student profile so it does not need
+         users.edit. #}
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+          <span class="material-symbols-outlined">key</span>حساب الدخول للطالب
+        </h2>
+        {% if student.user %}
+        <div class="flex items-center gap-3 mb-space-md">
+          <div class="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold">
+            {{ student.user.username[:1]|upper }}
+          </div>
+          <div class="flex flex-col">
+            <code class="font-label-md text-on-surface font-bold" dir="ltr">{{ student.user.username }}</code>
+            <span class="font-label-xs font-bold {% if student.user.is_active %}text-emerald-600{% else %}text-error{% endif %}">
+              {{ 'نشط' if student.user.is_active else 'معطّل' }}
+            </span>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+          <form method="post" action="{{ url_for('students.student_account_reset_password', student_id=student.id) }}"
+                class="flex flex-col gap-2">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="font-label-sm text-on-surface-variant">تعيين كلمة مرور جديدة</label>
+            <div class="flex items-center gap-2">
+              <input name="password" type="password" required minlength="8" placeholder="٨ أحرف على الأقل"
+                     class="flex-1 h-10 px-3 rounded-lg bg-surface-container-low">
+              <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+            </div>
+          </form>
+          <form method="post" action="{{ url_for('students.student_account_toggle', student_id=student.id) }}"
+                class="flex flex-col gap-2 justify-end"
+                onsubmit="return confirm('{% if student.user.is_active %}تعطيل حساب الطالب؟{% else %}تفعيل حساب الطالب؟{% endif %}');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <label class="font-label-sm text-on-surface-variant">حالة الحساب</label>
+            <button type="submit"
+                    class="h-10 rounded-lg font-label-md font-bold
+                           {% if student.user.is_active %}bg-error-container text-on-error-container{% else %}bg-emerald-100 text-emerald-800{% endif %}">
+              {{ 'تعطيل الحساب' if student.user.is_active else 'تفعيل الحساب' }}
+            </button>
+          </form>
+        </div>
+        {% else %}
+        <p class="text-outline font-label-md">
+          لا يوجد حساب مربوط بهذا الطالب — سجل تاريخي أُنشئ قبل تفعيل الإجبار.
+        </p>
+        {% endif %}
+      </section>
+
       {# Ticket 1 — Guardians tab. Uses student.guardian_links (backfilled
          at migration time from the legacy parent_/mother_ fields). #}
       <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">

@@ -40,6 +40,10 @@ def teachers_list():
 @login_required
 @require_permission("teachers", "add")
 def teacher_new():
+    # Ticket #1 (2026-09-25) — a Teacher without a login user_id is no
+    # longer a valid state at creation time. provision_user is called
+    # in the same transaction. The "link existing user" dropdown was
+    # removed from the new-form; existing (nullable) rows keep working.
     users = User.query.filter_by(school_id=_sid()).order_by(User.full_name).all()
     if request.method == "POST":
         if not request.form.get("full_name", "").strip():
@@ -53,22 +57,16 @@ def teacher_new():
         phone = (request.form.get("phone") or "").strip() or None
         email = (request.form.get("email") or "").strip() or None
 
-        # Ticket #1 — the "link existing user" dropdown stays for admins
-        # who really need it, but the default path is now inline account
-        # creation from the same form.
-        user_id = int(request.form["user_id"]) if request.form.get("user_id") else None
-        if not user_id and request.form.get("create_account"):
-            from ...services.user_provisioning import provision_user
-            new_user, err = provision_user(
-                school_id=_sid(), kind="teacher", full_name=full_name,
-                username=request.form.get("account_username"),
-                password=request.form.get("account_password"),
-                email=email, phone=phone,
-            )
-            if err:
-                flash(err, "danger")
-                return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
-            user_id = new_user.id
+        from ...services.user_provisioning import provision_user
+        new_user, err = provision_user(
+            school_id=_sid(), kind="teacher", full_name=full_name,
+            username=request.form.get("account_username"),
+            password=request.form.get("account_password"),
+            email=email, phone=phone,
+        )
+        if err:
+            flash(err, "danger")
+            return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
 
         teacher = Teacher(
             school_id=_sid(),
@@ -79,11 +77,11 @@ def teacher_new():
             specialization=request.form["specialization"].strip(),
             hire_date=_parse_date(request.form.get("hire_date")),
             notes=(request.form.get("notes") or "").strip() or None,
-            user_id=user_id,
+            user_id=new_user.id,
         )
         db.session.add(teacher)
         db.session.commit()
-        flash(f"تم إنشاء ملف المعلم {teacher.full_name}.", "success")
+        flash(f"تم إنشاء ملف المعلم {teacher.full_name} + حساب دخول.", "success")
         return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
     return render_template("teachers/form.html", teacher=None, form={}, users=users)
 
@@ -131,7 +129,9 @@ def teacher_edit(teacher_id):
         teacher.specialization = request.form["specialization"].strip()
         teacher.hire_date = _parse_date(request.form.get("hire_date"))
         teacher.notes = (request.form.get("notes") or "").strip() or None
-        teacher.user_id = int(request.form["user_id"]) if request.form.get("user_id") else None
+        # Ticket #1 (2026-09-25) — the user_id link is not editable
+        # from this form any more; the detail page's account panel
+        # handles password reset + activation on the linked User row.
         db.session.commit()
         flash("تم تحديث بيانات المعلم.", "success")
         return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
@@ -166,6 +166,51 @@ def teacher_toggle(teacher_id):
     db.session.commit()
     flash("تم تحديث حالة المعلم.", "success")
     return redirect(url_for("teachers.teachers_list"))
+
+
+# ---------- Ticket #1 (2026-09-25) — inline account panel ----------
+
+@bp.route("/<int:teacher_id>/account/reset-password", methods=["POST"],
+          endpoint="teacher_account_reset_password")
+@login_required
+@require_permission("teachers", "edit")
+def teacher_account_reset_password(teacher_id):
+    """Reset the linked User's password from the teacher detail page.
+    Scoped under the `teachers` permission module so it does not
+    require the more powerful `users.edit` grant."""
+    teacher = _get(Teacher, teacher_id)
+    if not teacher.user:
+        flash("لا يوجد حساب مربوط بهذا المعلم.", "danger")
+        return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
+    new_pw = (request.form.get("password") or "").strip()
+    if len(new_pw) < 8:
+        flash("كلمة المرور يجب ألا تقل عن 8 أحرف.", "danger")
+        return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
+    teacher.user.set_password(new_pw)
+    teacher.user.failed_attempts = 0
+    teacher.user.locked_until = None
+    db.session.commit()
+    flash("تم تعيين كلمة المرور الجديدة.", "success")
+    return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
+
+
+@bp.route("/<int:teacher_id>/account/toggle", methods=["POST"],
+          endpoint="teacher_account_toggle")
+@login_required
+@require_permission("teachers", "edit")
+def teacher_account_toggle(teacher_id):
+    """Activate / deactivate the linked User row without changing the
+    teacher record itself."""
+    teacher = _get(Teacher, teacher_id)
+    if not teacher.user:
+        flash("لا يوجد حساب مربوط بهذا المعلم.", "danger")
+        return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
+    teacher.user.is_active = not teacher.user.is_active
+    teacher.user.failed_attempts = 0
+    teacher.user.locked_until = None
+    db.session.commit()
+    flash("تم تحديث حالة الحساب.", "success")
+    return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
 
 
 # ---------- T-4.2 Subjects ----------
