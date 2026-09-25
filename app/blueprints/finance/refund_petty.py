@@ -27,7 +27,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import (
-    Account, Employee, Invoice, PaymentMethod,
+    Account, Employee, Invoice, Payment, PaymentMethod,
     PettyCashTransaction, RefundRequest,
 )
 from ...services.accounting import post_journal
@@ -137,8 +137,17 @@ def refund_request_approve(req_id):
         db.session.rollback()
         flash(str(e), "danger")
         return redirect(url_for("finance.refunds_list"))
-    # Pin the produced Payment row for audit.
-    r.payment_id = inv.payments[-1].id if inv.payments else None
+    # Pin the produced Payment row for audit — query directly for the
+    # latest refund Payment on this invoice rather than trusting the
+    # order of the `inv.payments` collection (backref has no
+    # deterministic ordering).
+    latest_refund = (
+        Payment.query
+        .filter_by(school_id=_sid(), invoice_id=inv.id, is_refund=True)
+        .order_by(Payment.id.desc())
+        .first()
+    )
+    r.payment_id = latest_refund.id if latest_refund else None
     r.status = "approved"
     r.approved_by_user_id = current_user.id
     r.approved_at = datetime.utcnow()

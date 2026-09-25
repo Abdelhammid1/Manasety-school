@@ -21,6 +21,15 @@ from werkzeug.utils import secure_filename
 
 
 ATTACHMENT_EXTS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
+ATTACHMENT_MAX_BYTES = 8 * 1024 * 1024     # 8 MB hard cap per file
+ATTACHMENT_ALLOWED_MIMES = {
+    "pdf":  {"application/pdf"},
+    "png":  {"image/png"},
+    "jpg":  {"image/jpeg", "image/jpg"},
+    "jpeg": {"image/jpeg", "image/jpg"},
+    "gif":  {"image/gif"},
+    "webp": {"image/webp"},
+}
 
 from . import bp
 from ..utils import require_permission
@@ -39,7 +48,8 @@ def _sid():
 def _save_attachment(conv_id):
     """Ticket T4 — save an uploaded attachment (image/pdf), returning
     the URL relative to /static or None when nothing was uploaded /
-    the extension is not whitelisted.
+    the extension is not whitelisted / the file is too large / the
+    declared MIME does not match the extension.
 
     Called from both conversation_new and conversation_view POST
     handlers so the two entry points stay identical."""
@@ -49,6 +59,23 @@ def _save_attachment(conv_id):
     ext = f.filename.rsplit(".", 1)[-1].lower()
     if ext not in ATTACHMENT_EXTS:
         flash(f"صيغة الملف .{ext} غير مدعومة للمرفقات.", "danger")
+        return None
+    # MIME cross-check — rejects the trivial "rename .exe → .pdf" case.
+    declared = (f.mimetype or "").lower()
+    if declared and declared not in ATTACHMENT_ALLOWED_MIMES.get(ext, set()):
+        flash(f"محتوى الملف لا يطابق الامتداد .{ext}.", "danger")
+        return None
+    # Size cap — seek to end to read the real byte count, then rewind
+    # before save. Belt-and-braces atop Flask's MAX_CONTENT_LENGTH.
+    f.stream.seek(0, os.SEEK_END)
+    size = f.stream.tell()
+    f.stream.seek(0)
+    if size > ATTACHMENT_MAX_BYTES:
+        flash(
+            f"حجم الملف ({size // 1024} KB) يتجاوز الحد الأقصى "
+            f"({ATTACHMENT_MAX_BYTES // (1024 * 1024)} MB).",
+            "danger",
+        )
         return None
     safe = secure_filename(f.filename)
     unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
@@ -265,11 +292,13 @@ def messages_search():
     Returns a grouped list of (conversation, [matching Message]) so
     the UI can hyperlink to the exact match instead of just the
     conversation."""
+    from sqlalchemy.orm import joinedload
     q = (request.args.get("q") or "").strip()
     matches = []
     if q:
         rows = (
-            Message.query.join(
+            Message.query.options(joinedload(Message.conversation))
+            .join(
                 ConversationParticipant,
                 ConversationParticipant.conversation_id == Message.conversation_id,
             )
