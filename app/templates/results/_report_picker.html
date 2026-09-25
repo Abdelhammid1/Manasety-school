@@ -1,0 +1,31 @@
+{# Ticket T3 shared filter bar — used by missing_grades + class_average. #}
+<form method="get" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm grid grid-cols-1 md:grid-cols-5 gap-space-sm">
+  <select name="year_id" class="h-11 px-3 rounded-lg bg-surface-container-low"
+          onchange="this.form.submit()">
+    <option value="">— السنة —</option>
+    {% for y in picker.years %}
+    <option value="{{ y.id }}" {% if filters.year_id == y.id %}selected{% endif %}>{{ y.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="term_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+    <option value="">— الترم —</option>
+    {% for t in picker.terms %}
+    <option value="{{ t.id }}" {% if filters.term_id == t.id %}selected{% endif %}>{{ t.name }}</option>
+    {% endfor %}
+  </select>
+  <select name="section_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+    <option value="">— الشعبة —</option>
+    {% for s in picker.sections %}
+    <option value="{{ s.id }}" {% if filters.section_id == s.id %}selected{% endif %}>
+      {{ s.grade.name if s.grade else '' }} — {{ s.name }}
+    </option>
+    {% endfor %}
+  </select>
+  <select name="subject_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+    <option value="">— كل المواد —</option>
+    {% for s in picker.subjects %}
+    <option value="{{ s.id }}" {% if filters.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold">تحديث</button>
+</form>

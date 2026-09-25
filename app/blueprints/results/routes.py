@@ -456,6 +456,11 @@ def section_results(section_id):
                 continue
             if row["enrollment"].id in approved:
                 continue
+            # Ticket T1 — pin GPA + letter grade from the active
+            # GradingScale at approval time. The scale itself might
+            # change later; storing here freezes what the certificate
+            # shows.
+            gpa, letter = _gpa_and_letter_for(row["average"])
             snap = YearResult(
                 school_id=_sid(),
                 enrollment_id=row["enrollment"].id,
@@ -470,11 +475,20 @@ def section_results(section_id):
                 },
                 subject_scores={s.name: float(score) for s, score in row["subjects"]},
                 approved_by_user_id=current_user.id,
+                gpa=gpa,
+                grade_letter=letter,
             )
             row["enrollment"].final_result = row["status"]
             db.session.add(snap)
             approved_count += 1
         db.session.commit()
+
+        # Ticket T1 — rank right after approval so the numbers show up
+        # on the same page load. Every subsequent approval reruns this
+        # too, so ranks stay in sync as more students land.
+        _recompute_ranks_for_section(section)
+        db.session.commit()
+
         flash(
             f"تم اعتماد {approved_count} نتيجة. {skipped} متعذّر اعتمادها (غير مكتملة).",
             "success",
@@ -563,6 +577,101 @@ def term_results(section_id, term_id):
         subjects=subjects, matrix=matrix,
         enrollments=enrollments,
     )
+
+
+def _gpa_and_letter_for(average):
+    """Ticket T1 — resolve (gpa_points, label) from the school's
+    default GradingScale for a given numeric average. Returns
+    (None, None) if the school hasn't set one up yet."""
+    from ...models import GradingScale, GradingScaleLevel
+    scale = (
+        GradingScale.query.filter_by(school_id=_sid(), is_default=True)
+        .first()
+    )
+    if scale is None:
+        return None, None
+    avg = Decimal(str(average))
+    level = (
+        GradingScaleLevel.query.filter(
+            GradingScaleLevel.scale_id == scale.id,
+            GradingScaleLevel.min_score <= avg,
+            GradingScaleLevel.max_score >= avg,
+        )
+        .order_by(GradingScaleLevel.order_index.desc())
+        .first()
+    )
+    if level is None:
+        return None, None
+    return (level.gpa_points, level.label)
+
+
+def _recompute_ranks_for_section(section):
+    """Ticket T1 — recompute rank_in_section + rank_in_grade for every
+    YearResult in this section (and by extension, in the grade too).
+
+    Uses the classic "dense-rank on tied averages" rule: two students
+    with the same average share the same rank; the next distinct
+    average gets the immediately-following number (1, 2, 2, 3, not
+    1, 2, 2, 4). Matches how school reports typically show ranks."""
+    from ...models import YearResult
+    # Section-level ranking.
+    section_rows = (
+        YearResult.query.join(Enrollment)
+        .filter(
+            Enrollment.section_id == section.id,
+            Enrollment.year_id == section.year_id,
+        )
+        .order_by(YearResult.average.desc())
+        .all()
+    )
+    _apply_dense_rank(section_rows, field="rank_in_section")
+
+    # Grade-level ranking spans every section in the same (grade, year).
+    grade_rows = (
+        YearResult.query.join(Enrollment)
+        .filter(
+            Enrollment.grade_id == section.grade_id,
+            Enrollment.year_id == section.year_id,
+        )
+        .order_by(YearResult.average.desc())
+        .all()
+    )
+    _apply_dense_rank(grade_rows, field="rank_in_grade")
+
+
+def _apply_dense_rank(rows, *, field):
+    prev_avg = None
+    current_rank = 0
+    for i, yr in enumerate(rows, start=1):
+        avg = Decimal(str(yr.average or 0))
+        if prev_avg is None or avg != prev_avg:
+            current_rank = i
+            prev_avg = avg
+        setattr(yr, field, current_rank)
+
+
+@bp.route("/section/<int:section_id>/recompute-ranks",
+          methods=["POST"], endpoint="recompute_ranks")
+@login_required
+@require_permission("results", "edit")
+def recompute_ranks(section_id):
+    """Ticket T1 — teacher-driven rank refresh. Useful when a manual
+    GradeEntry edit lands after the initial section approval or when
+    the GradingScale changes."""
+    section = _get(Section, section_id)
+    # Refresh GPA + letter from the (possibly new) default scale.
+    from ...models import YearResult
+    for yr in YearResult.query.join(Enrollment).filter(
+        Enrollment.section_id == section.id,
+        Enrollment.year_id == section.year_id,
+    ).all():
+        gpa, letter = _gpa_and_letter_for(yr.average)
+        yr.gpa = gpa
+        yr.grade_letter = letter
+    _recompute_ranks_for_section(section)
+    db.session.commit()
+    flash("تمت إعادة حساب المعدل والترتيب.", "success")
+    return redirect(url_for("results.section_results", section_id=section.id))
 
 
 def _subjects_for_grade(grade_id: int):

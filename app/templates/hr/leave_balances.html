@@ -1,0 +1,81 @@
+{# Ticket T2 — Leave balances per employee/type/year. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}أرصدة الإجازات{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1000px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between flex-wrap gap-2">
+    <div>
+      <h1 class="font-headline-md font-extrabold text-primary">أرصدة الإجازات — {{ year }}</h1>
+      <p class="font-body-sm text-on-surface-variant">الرصيد الأصلي، المستخدم، والمتبقي لكل موظف ونوع.</p>
+    </div>
+    <div class="flex items-center gap-2">
+      <form method="get" class="inline">
+        <input type="number" name="year" value="{{ year }}" min="2020" max="2100"
+               onchange="this.form.submit()" class="h-10 px-3 rounded-lg bg-surface-container-low w-24">
+      </form>
+      <form method="post" action="{{ url_for('hr.leave_balances_reset') }}" class="inline"
+            onsubmit="return confirm('تجديد الرصيد للسنة القادمة؟');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="target_year" value="{{ year + 1 }}">
+        <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">
+          تجديد لـ{{ year + 1 }}
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">إضافة/تعديل رصيد</h2>
+    <form method="post" action="{{ url_for('hr.leave_balance_new') }}"
+          class="grid grid-cols-1 md:grid-cols-5 gap-space-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="year" value="{{ year }}">
+      <select name="employee_id" required class="h-11 px-3 rounded-lg bg-surface-container-low md:col-span-2">
+        <option value="">— الموظف —</option>
+        {% for e in employees %}
+        <option value="{{ e.id }}">{{ e.full_name }}</option>
+        {% endfor %}
+      </select>
+      <select name="leave_type" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+        {% for v, l in [('annual','سنوية'),('sick','مرضية'),('emergency','طارئة'),('unpaid','بدون راتب'),('other','أخرى')] %}
+        <option value="{{ v }}">{{ l }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="total_days" min="0" step="0.5" required placeholder="الرصيد الأصلي"
+             class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold">حفظ</button>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الموظف</th>
+          <th class="p-2">النوع</th>
+          <th class="p-2 text-center">الأصلي</th>
+          <th class="p-2 text-center">المستخدم</th>
+          <th class="p-2 text-center">المتبقي</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 font-bold">{{ r.employee.full_name if r.employee else '—' }}</td>
+          <td class="p-2">{{ r.leave_type }}</td>
+          <td class="p-2 text-center tabular-nums">{{ r.total_days }}</td>
+          <td class="p-2 text-center tabular-nums">{{ r.used_days }}</td>
+          <td class="p-2 text-center tabular-nums font-bold {% if r.remaining_days <= 0 %}text-error{% endif %}">
+            {{ r.remaining_days }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا أرصدة مسجّلة للسنة {{ year }}.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

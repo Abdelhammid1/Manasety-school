@@ -1,0 +1,81 @@
+{# Ticket T5 — Refund requests + approval. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}طلبات الاسترداد{% endblock %}
+{% block page_content %}
+{% set status_lbl = {'pending':'قيد الاعتماد','approved':'معتمد','rejected':'مرفوض'} %}
+{% set status_color = {'pending':'#F59E0B','approved':'#10B981','rejected':'#EF4444'} %}
+<div class="w-full max-w-[1100px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">طلبات الاسترداد</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      لا يتم قيد أي حركة محاسبية إلا بعد اعتماد الطلب من مستخدم مختلف عن مقدّم الطلب (Segregation of Duties).
+    </p>
+  </section>
+
+  <form method="get" class="flex items-center gap-2">
+    <select name="status" onchange="this.form.submit()"
+            class="h-9 px-3 rounded-lg bg-surface-container-low">
+      <option value="" {% if not status %}selected{% endif %}>كل الحالات</option>
+      {% for k, l in status_lbl.items() %}
+      <option value="{{ k }}" {% if status == k %}selected{% endif %}>{{ l }}</option>
+      {% endfor %}
+    </select>
+  </form>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الفاتورة</th>
+          <th class="p-2 text-center">المبلغ</th>
+          <th class="p-2">السبب</th>
+          <th class="p-2">المقدِّم</th>
+          <th class="p-2">المعتمد</th>
+          <th class="p-2 text-center">الحالة</th>
+          <th class="p-2 text-center">إجراء</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 font-bold"><a href="{{ url_for('finance.invoice_detail', invoice_id=r.invoice_id) }}" class="text-primary hover:underline">{{ r.invoice.number if r.invoice else r.invoice_id }}</a></td>
+          <td class="p-2 text-center tabular-nums">{{ r.amount }}</td>
+          <td class="p-2 font-label-sm">{{ r.reason or '—' }}</td>
+          <td class="p-2 font-label-sm">{{ r.requester.full_name if r.requester else '—' }}</td>
+          <td class="p-2 font-label-sm">{{ r.approver.full_name if r.approver else '—' }}</td>
+          <td class="p-2 text-center">
+            <span class="px-2 py-0.5 rounded-full text-white font-label-xs font-bold"
+                  style="background: {{ status_color.get(r.status, '#94A3B8') }};">
+              {{ status_lbl.get(r.status, r.status) }}
+            </span>
+          </td>
+          <td class="p-2 text-center">
+            {% if r.status == 'pending' and can_approve %}
+              {% if r.requested_by_user_id == current_user.id %}
+              <span class="text-outline font-label-xs" title="لا يمكنك اعتماد طلبك">SoD</span>
+              {% else %}
+              <form method="post" action="{{ url_for('finance.refund_request_approve', req_id=r.id) }}" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="text-emerald-700 font-label-md hover:underline">اعتماد</button>
+              </form>
+              <form method="post" action="{{ url_for('finance.refund_request_reject', req_id=r.id) }}"
+                    class="inline" onsubmit="return confirm('رفض الطلب؟');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="text-error font-label-md hover:underline mr-2">رفض</button>
+              </form>
+              {% endif %}
+            {% else %}
+            <span class="text-outline font-label-xs">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا طلبات مسجّلة.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

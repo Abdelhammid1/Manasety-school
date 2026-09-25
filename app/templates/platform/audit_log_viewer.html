@@ -1,0 +1,105 @@
+{# Ticket T6 — AuditLog viewer with filters, pagination, diff, CSV export. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}سجل التغييرات{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1200px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-md font-extrabold text-primary">سجل التغييرات (Audit Log)</h1>
+      <p class="font-body-sm text-on-surface-variant">
+        {{ total }} تغيير مسجّل · صفحة {{ page }} من {{ pages or 1 }}
+      </p>
+    </div>
+    <a href="{{ url_for('platform.audit_log_export', **request.args) }}"
+       class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold flex items-center gap-2">
+      <span class="material-symbols-outlined text-lg">download</span>
+      <span>تصدير CSV</span>
+    </a>
+  </section>
+
+  {# Filters #}
+  <form method="get" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm grid grid-cols-1 md:grid-cols-6 gap-space-sm">
+    <select name="user_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <option value="">— المستخدم —</option>
+      {% for u in users %}
+      <option value="{{ u.id }}" {% if filters.user_id == u.id %}selected{% endif %}>{{ u.full_name }}</option>
+      {% endfor %}
+    </select>
+    <select name="entity_type" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <option value="">— كل الجداول —</option>
+      {% for et in entity_types %}
+      <option value="{{ et }}" {% if filters.entity_type == et %}selected{% endif %}>{{ et }}</option>
+      {% endfor %}
+    </select>
+    <select name="action" class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <option value="">— كل العمليات —</option>
+      <option value="create" {% if filters.action == 'create' %}selected{% endif %}>إنشاء</option>
+      <option value="update" {% if filters.action == 'update' %}selected{% endif %}>تعديل</option>
+      <option value="delete" {% if filters.action == 'delete' %}selected{% endif %}>حذف</option>
+    </select>
+    <input type="date" name="start" value="{{ filters.start or '' }}"
+           class="h-11 px-3 rounded-lg bg-surface-container-low">
+    <input type="date" name="end" value="{{ filters.end or '' }}"
+           class="h-11 px-3 rounded-lg bg-surface-container-low">
+    <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold">تحديث</button>
+  </form>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+    {% if row_diffs %}
+    <div class="space-y-1">
+      {% for x in row_diffs %}
+      {% set r = x.row %}
+      <details class="p-space-sm rounded-lg bg-surface-container-low">
+        <summary class="cursor-pointer flex items-center gap-3 flex-wrap">
+          <span class="px-2 py-0.5 rounded-full font-label-xs font-bold
+                       {% if r.action == 'create' %}bg-emerald-100 text-emerald-800
+                       {% elif r.action == 'update' %}bg-amber-100 text-amber-800
+                       {% elif r.action == 'delete' %}bg-rose-100 text-rose-800
+                       {% else %}bg-surface-container-high{% endif %}">
+            {{ r.action }}
+          </span>
+          <span class="font-label-md font-bold">{{ r.entity_type }} #{{ r.entity_id }}</span>
+          <span class="font-label-sm text-outline">{{ r.user.full_name if r.user else '(system)' }}</span>
+          <span class="mr-auto font-label-xs text-outline">{{ r.created_at.strftime('%Y-%m-%d %H:%M:%S') if r.created_at else '' }}</span>
+        </summary>
+        {% if x.diff %}
+        <div class="mt-space-sm grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+          <div class="p-space-sm rounded-lg bg-rose-50">
+            <div class="font-label-xs text-rose-700 font-bold mb-1">قبل</div>
+            {% for field, (ov, nv) in x.diff.items() %}
+            <div class="font-label-sm"><b>{{ field }}:</b> <code dir="ltr">{{ ov if ov is not none else '—' }}</code></div>
+            {% endfor %}
+          </div>
+          <div class="p-space-sm rounded-lg bg-emerald-50">
+            <div class="font-label-xs text-emerald-700 font-bold mb-1">بعد</div>
+            {% for field, (ov, nv) in x.diff.items() %}
+            <div class="font-label-sm"><b>{{ field }}:</b> <code dir="ltr">{{ nv if nv is not none else '—' }}</code></div>
+            {% endfor %}
+          </div>
+        </div>
+        {% else %}
+        <div class="mt-space-sm text-outline font-label-sm">لا توجد فروق مسجّلة.</div>
+        {% endif %}
+      </details>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center text-outline py-space-md">لا نتائج للفلترة الحالية.</p>
+    {% endif %}
+
+    {% if pages and pages > 1 %}
+    <div class="flex items-center justify-center gap-2 mt-space-md">
+      {% if page > 1 %}
+      <a href="?{{ request.query_string.decode()|replace('page='+page|string, 'page='+(page-1)|string) if 'page=' in request.query_string.decode() else request.query_string.decode()+'&page='+(page-1)|string }}"
+         class="h-9 px-3 rounded-lg bg-surface-container-low font-label-md">« السابق</a>
+      {% endif %}
+      <span class="font-label-md">{{ page }} / {{ pages }}</span>
+      {% if page < pages %}
+      <a href="?{{ request.query_string.decode()|replace('page='+page|string, 'page='+(page+1)|string) if 'page=' in request.query_string.decode() else request.query_string.decode()+'&page='+(page+1)|string }}"
+         class="h-9 px-3 rounded-lg bg-surface-container-low font-label-md">التالي »</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

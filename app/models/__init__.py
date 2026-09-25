@@ -23,8 +23,12 @@ from .finance import (
     RecurringFeeSchedule, RecurringInvoiceLog,
     BankStatementLine, CostCenter,
     Budget, ReceiptVoucher,
+    RefundRequest, PettyCashTransaction,
 )
-from .hr import Employee, Payroll, PayrollSettlement, EmployeeAdvance
+from .hr import (
+    Employee, Payroll, PayrollSettlement, EmployeeAdvance,
+    LeaveRequest, LeaveBalance,
+)
 from .material import Material
 from .lms import (
     Course, CourseSection, Unit, Lesson, CourseAssignment, Submission,
@@ -92,7 +96,9 @@ __all__ = [
     "Vendor", "Expense", "PaymentMethod", "PAYMENT_METHOD_KINDS",
     "RecurringFeeSchedule", "RecurringInvoiceLog", "BankStatementLine",
     "CostCenter", "Budget", "ReceiptVoucher",
+    "RefundRequest", "PettyCashTransaction",
     "Employee", "Payroll", "PayrollSettlement", "EmployeeAdvance",
+    "LeaveRequest", "LeaveBalance",
     "Material",
     # LMS
     "Course", "CourseSection", "Unit", "Lesson", "CourseAssignment", "Submission",

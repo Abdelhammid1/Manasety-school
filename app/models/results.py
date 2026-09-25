@@ -84,6 +84,11 @@ class YearResult(db.Model):
     subject_scores = db.Column(db.JSON, nullable=False)
     approved_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     approved_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    # Ticket T1 — GPA + rank.
+    gpa               = db.Column(db.Numeric(4, 2), nullable=True)
+    grade_letter      = db.Column(db.String(4),    nullable=True)
+    rank_in_section   = db.Column(db.Integer, nullable=True)
+    rank_in_grade     = db.Column(db.Integer, nullable=True)
 
     enrollment = db.relationship("Enrollment", backref="year_result")
 

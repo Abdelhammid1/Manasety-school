@@ -1,0 +1,44 @@
+{# Ticket T4 — Messaging search UI. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}بحث الرسائل{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[900px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">بحث الرسائل</h1>
+    <form method="get" class="mt-space-sm flex items-center gap-space-sm">
+      <input name="q" value="{{ q }}" required placeholder="ابحث في نص الرسائل…"
+             class="flex-1 h-11 px-4 rounded-lg bg-surface-container-low">
+      <button type="submit"
+              class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold">
+        بحث
+      </button>
+    </form>
+  </section>
+
+  {% if q %}
+  <section class="space-y-space-sm">
+    {% for m in matches %}
+    <a href="{{ url_for('messaging.conversation_view', conv_id=m.conversation.id) }}"
+       class="block bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:bg-surface-container-low">
+      <div class="flex items-center justify-between mb-1">
+        <span class="font-title-md font-bold">{{ m.conversation.subject or '(بلا موضوع)' }}</span>
+        <span class="font-label-xs text-outline">{{ m.messages|length }} نتيجة</span>
+      </div>
+      <div class="space-y-1">
+        {% for msg in m.messages[:3] %}
+        <p class="font-body-sm text-on-surface-variant">
+          <span class="font-label-xs text-outline">{{ msg.created_at.strftime('%Y-%m-%d %H:%M') if msg.created_at else '' }} —</span>
+          {{ msg.body[:200] }}{% if msg.body|length > 200 %}…{% endif %}
+        </p>
+        {% endfor %}
+      </div>
+    </a>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm text-center text-outline">
+      لا نتائج.
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

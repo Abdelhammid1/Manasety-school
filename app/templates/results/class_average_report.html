@@ -1,0 +1,57 @@
+{# Ticket T3 — Class average + distribution report. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تحليل متوسط الفصل{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">تحليل درجات الفصل</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      المتوسط والمدى والتوزيع لكل مكوّن تقييم.
+    </p>
+  </section>
+
+  {% include "results/_report_picker.html" %}
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    {% if rows %}
+    <div class="space-y-space-md">
+      {% for r in rows %}
+      <div class="p-space-md rounded-xl bg-surface-container-low">
+        <div class="flex items-center justify-between mb-space-sm flex-wrap gap-2">
+          <div>
+            <div class="font-title-md font-bold">{{ r.component_name }}</div>
+            <div class="font-label-xs text-outline">{{ r.subject_name }} · حد أقصى {{ r.max_score }}</div>
+          </div>
+          <div class="flex items-center gap-3 font-label-sm">
+            <span><b class="text-emerald-700">متوسط:</b> {{ r.avg }}</span>
+            <span><b class="text-primary">أعلى:</b> {{ r.max }}</span>
+            <span><b class="text-rose-700">أدنى:</b> {{ r.min }}</span>
+            <span><b>عدد:</b> {{ r.n }}</span>
+          </div>
+        </div>
+        {# 10-bucket histogram — 0-9%, 10-19%, ..., 90-100%. #}
+        {% set peak = r.buckets|max %}
+        <div class="grid grid-cols-10 gap-1 items-end h-24">
+          {% for count in r.buckets %}
+          <div class="flex flex-col items-center gap-1">
+            <div class="w-full rounded-t"
+                 style="height: {{ (count / peak * 90) if peak else 0 }}%; min-height: 2px; background: {% if loop.index0 >= 5 %}#10B981{% elif loop.index0 >= 3 %}#F59E0B{% else %}#EF4444{% endif %};">
+            </div>
+            <div class="font-label-xs text-outline tabular-nums">{{ count }}</div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="grid grid-cols-10 gap-1 font-label-xs text-outline text-center mt-1">
+          {% for i in range(10) %}
+          <div>{% if i == 9 %}90+{% else %}{{ i*10 }}-{{ i*10+9 }}{% endif %}</div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <p class="text-center text-outline py-space-md">اختر السنة والترم والشعبة لعرض التحليل.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

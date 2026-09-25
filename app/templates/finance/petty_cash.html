@@ -1,0 +1,107 @@
+{# Ticket T5 — Petty cash (account 1170) admin. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}العهدة النقدية{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between flex-wrap gap-3">
+    <div>
+      <h1 class="font-headline-md font-extrabold text-primary">العهدة النقدية (1170)</h1>
+      <p class="font-body-sm text-on-surface-variant">صرف عهدة لموظف ثم تسويتها بالمصروفات الفعلية.</p>
+    </div>
+    <div class="text-center">
+      <div class="font-headline-md font-extrabold text-primary">{{ balance }}</div>
+      <div class="font-label-xs text-outline">الرصيد الحالي</div>
+    </div>
+  </section>
+
+  {% if not has_account %}
+  <div class="p-space-md rounded-xl bg-error-container/60 text-on-error-container">
+    حساب 1170 (عهدة نقدية) غير موجود في دليل الحسابات. أضفه أولاً من إعدادات المحاسبة.
+  </div>
+  {% endif %}
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">صرف عهدة جديدة</h2>
+    <form method="post" action="{{ url_for('finance.petty_cash_issue') }}"
+          class="grid grid-cols-1 md:grid-cols-5 gap-space-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="custodian_employee_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="">— أمين العهدة —</option>
+        {% for e in employees %}
+        <option value="{{ e.id }}">{{ e.full_name }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="amount" step="0.01" min="0.01" required placeholder="المبلغ"
+             class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <select name="payment_method_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="">— من (كاش/بنك) —</option>
+        {% for m in methods %}
+        <option value="{{ m.id }}">{{ m.name }}</option>
+        {% endfor %}
+      </select>
+      <input name="reason" placeholder="سبب/ملاحظة"
+             class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold">صرف</button>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">تسوية عهدة</h2>
+    <form method="post" action="{{ url_for('finance.petty_cash_settle') }}"
+          class="grid grid-cols-1 md:grid-cols-5 gap-space-sm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <select name="custodian_employee_id" class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="">— أمين العهدة —</option>
+        {% for e in employees %}
+        <option value="{{ e.id }}">{{ e.full_name }}</option>
+        {% endfor %}
+      </select>
+      <input type="number" name="amount" step="0.01" min="0.01" required placeholder="المبلغ"
+             class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <select name="expense_account_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <option value="">— حساب المصروف —</option>
+        {% for a in expense_accounts %}
+        <option value="{{ a.id }}">{{ a.code }} — {{ a.name }}</option>
+        {% endfor %}
+      </select>
+      <input name="reason" placeholder="بيان المصروف"
+             class="h-11 px-3 rounded-lg bg-surface-container-low">
+      <button type="submit" class="h-11 px-5 rounded-lg bg-primary text-on-primary font-label-lg font-bold">تسوية</button>
+    </form>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">آخر الحركات</h2>
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">التاريخ</th>
+          <th class="p-2">النوع</th>
+          <th class="p-2 text-center">المبلغ</th>
+          <th class="p-2">السبب</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 tabular-nums">{{ r.tx_date }}</td>
+          <td class="p-2">
+            {% if r.kind == 'issue' %}
+            <span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-label-xs font-bold">صرف</span>
+            {% else %}
+            <span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-xs font-bold">تسوية</span>
+            {% endif %}
+          </td>
+          <td class="p-2 text-center tabular-nums">{{ r.amount }}</td>
+          <td class="p-2 font-label-sm">{{ r.reason or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا حركات مسجّلة.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

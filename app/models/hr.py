@@ -126,3 +126,59 @@ class PayrollSettlement(db.Model):
 
     payment_method = db.relationship("PaymentMethod")
     journal_entry = db.relationship("JournalEntry")
+
+
+# ─── Ticket T2 — Leave management ──────────────────────────────────
+LEAVE_STATUSES = ["pending", "approved", "rejected", "cancelled"]
+
+
+class LeaveRequest(db.Model):
+    __tablename__ = "leave_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    employee_id = db.Column(db.Integer,
+                            db.ForeignKey("employees.id", ondelete="CASCADE"),
+                            nullable=False, index=True)
+    leave_type = db.Column(db.String(32), nullable=False)
+    start_date = db.Column(db.Date, nullable=False)
+    end_date   = db.Column(db.Date, nullable=False)
+    days_count = db.Column(db.Integer, nullable=False)
+    reason     = db.Column(db.Text)
+    status     = db.Column(db.String(16), nullable=False, default="pending")
+    approved_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    approved_at = db.Column(db.DateTime)
+    reject_reason = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    employee = db.relationship("Employee", backref="leave_requests")
+    approver = db.relationship("User", foreign_keys=[approved_by_user_id])
+
+
+class LeaveBalance(db.Model):
+    __tablename__ = "leave_balances"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    employee_id = db.Column(db.Integer,
+                            db.ForeignKey("employees.id", ondelete="CASCADE"),
+                            nullable=False, index=True)
+    year = db.Column(db.Integer, nullable=False)
+    leave_type = db.Column(db.String(32), nullable=False)
+    total_days = db.Column(db.Numeric(6, 2), default=0, nullable=False)
+    used_days  = db.Column(db.Numeric(6, 2), default=0, nullable=False)
+
+    employee = db.relationship("Employee", backref="leave_balances")
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "employee_id", "year", "leave_type",
+            name="uq_leave_balance_employee_year_type",
+        ),
+    )
+
+    @property
+    def remaining_days(self):
+        return float(self.total_days or 0) - float(self.used_days or 0)

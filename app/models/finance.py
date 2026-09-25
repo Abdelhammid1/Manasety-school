@@ -624,3 +624,79 @@ class ReceiptVoucher(db.Model):
         db.UniqueConstraint("school_id", "voucher_number",
                             name="uq_voucher_school_number"),
     )
+
+
+# ─── Ticket T5 — Refund approval workflow ─────────────────────────
+class RefundRequest(db.Model):
+    """Pending refund awaiting approval. Only on approval does the
+    ledger service actually cut the journal + create the Payment
+    row (is_refund=True). Segregation of duties — the requester
+    cannot approve their own row."""
+    __tablename__ = "refund_requests"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id  = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                           nullable=False, index=True)
+    invoice_id = db.Column(db.Integer,
+                           db.ForeignKey("invoices.id"),
+                           nullable=False, index=True)
+    amount     = db.Column(db.Numeric(14, 2), nullable=False)
+    reason     = db.Column(db.String(500))
+    payment_method_id  = db.Column(db.Integer,
+                                    db.ForeignKey("payment_methods.id"),
+                                    nullable=True)
+    override_account_id = db.Column(db.Integer,
+                                     db.ForeignKey("accounts.id"),
+                                     nullable=True)
+    requested_by_user_id = db.Column(db.Integer,
+                                      db.ForeignKey("users.id"),
+                                      nullable=False)
+    status = db.Column(db.String(16), nullable=False,
+                       default="pending", server_default="pending")
+    approved_by_user_id = db.Column(db.Integer,
+                                     db.ForeignKey("users.id"),
+                                     nullable=True)
+    approved_at = db.Column(db.DateTime)
+    reject_reason = db.Column(db.String(500))
+    payment_id  = db.Column(db.Integer,
+                             db.ForeignKey("payments.id"),
+                             nullable=True)   # populated on approval
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    invoice   = db.relationship("Invoice")
+    requester = db.relationship("User", foreign_keys=[requested_by_user_id])
+    approver  = db.relationship("User", foreign_keys=[approved_by_user_id])
+
+
+# ─── Ticket T5 — Petty cash (account 1170) ────────────────────────
+class PettyCashTransaction(db.Model):
+    """Every issue/settle of the cash-under-settlement account (1170).
+
+    kind: 'issue' → DR 1170 CR pay method (cash out to a custodian);
+          'settle' → DR expense CR 1170 (spends recorded, cash cleared).
+    """
+    __tablename__ = "petty_cash_transactions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id  = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                           nullable=False, index=True)
+    kind       = db.Column(db.String(10), nullable=False)  # issue | settle
+    custodian_employee_id = db.Column(db.Integer,
+                                       db.ForeignKey("employees.id"),
+                                       nullable=True)
+    amount     = db.Column(db.Numeric(14, 2), nullable=False)
+    tx_date    = db.Column(db.Date, default=lambda: date.today(),
+                            nullable=False)
+    reason     = db.Column(db.String(500))
+    journal_entry_id = db.Column(db.Integer,
+                                  db.ForeignKey("journal_entries.id"),
+                                  nullable=True)
+    counter_account_id = db.Column(db.Integer,
+                                    db.ForeignKey("accounts.id"),
+                                    nullable=True)
+    recorded_by_user_id = db.Column(db.Integer,
+                                     db.ForeignKey("users.id"))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    journal_entry   = db.relationship("JournalEntry")
+    counter_account = db.relationship("Account", foreign_keys=[counter_account_id])

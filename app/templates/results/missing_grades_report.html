@@ -1,0 +1,56 @@
+{# Ticket T3 — Missing grades report. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تقرير الدرجات الناقصة{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">تقرير الدرجات الناقصة</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      اختر السنة والترم والشعبة لعرض المكوّنات التي لم تكتمل درجاتها بعد.
+    </p>
+  </section>
+
+  {% include "results/_report_picker.html" %}
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">المكوّن</th>
+          <th class="p-2">المادة</th>
+          <th class="p-2 text-center">مسجّل</th>
+          <th class="p-2 text-center">متوقع</th>
+          <th class="p-2 text-center">ناقص</th>
+          <th class="p-2">الطلاب الناقصين</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low align-top">
+          <td class="p-2 font-bold">{{ r.component_name }}</td>
+          <td class="p-2">{{ r.subject_name }}</td>
+          <td class="p-2 text-center tabular-nums text-emerald-700">{{ r.recorded }}</td>
+          <td class="p-2 text-center tabular-nums">{{ r.expected }}</td>
+          <td class="p-2 text-center tabular-nums {% if r.missing_count %}text-error font-bold{% endif %}">{{ r.missing_count }}</td>
+          <td class="p-2 font-label-sm">
+            {% if r.missing %}
+              <div class="flex flex-wrap gap-1">
+                {% for s in r.missing %}
+                <span class="px-2 py-0.5 rounded-full bg-rose-50 text-rose-800 font-label-xs">{{ s.full_name }}</span>
+                {% endfor %}
+              </div>
+            {% else %}
+              <span class="text-emerald-700 font-bold">مكتمل ✓</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline py-space-md">اختر السنة والترم والشعبة لعرض النتائج.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -7,11 +7,20 @@
 Everything is auditable — deletes soft-null via Message.deleted_at.
 NotificationPreference rows control who wants alerts per channel/event.
 """
+import os
+import uuid as _uuid
 from datetime import datetime, timezone
 
-from flask import flash, redirect, render_template, request, url_for, abort
+from flask import (
+    abort, current_app, flash, jsonify, redirect, render_template,
+    request, url_for,
+)
 from flask_login import current_user, login_required
 from sqlalchemy import or_, and_, desc
+from werkzeug.utils import secure_filename
+
+
+ATTACHMENT_EXTS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
 
 from . import bp
 from ..utils import require_permission
@@ -25,6 +34,33 @@ from ...models import (
 
 def _sid():
     return current_user.school_id
+
+
+def _save_attachment(conv_id):
+    """Ticket T4 — save an uploaded attachment (image/pdf), returning
+    the URL relative to /static or None when nothing was uploaded /
+    the extension is not whitelisted.
+
+    Called from both conversation_new and conversation_view POST
+    handlers so the two entry points stay identical."""
+    f = request.files.get("attachment")
+    if not f or not f.filename:
+        return None
+    ext = f.filename.rsplit(".", 1)[-1].lower()
+    if ext not in ATTACHMENT_EXTS:
+        flash(f"صيغة الملف .{ext} غير مدعومة للمرفقات.", "danger")
+        return None
+    safe = secure_filename(f.filename)
+    unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
+    subdir = os.path.join(
+        current_app.static_folder, "uploads", "messages", str(conv_id or 0),
+    )
+    os.makedirs(subdir, exist_ok=True)
+    f.save(os.path.join(subdir, unique))
+    return url_for(
+        "static",
+        filename=f"uploads/messages/{conv_id or 0}/{unique}",
+    )
 
 
 def _can_message(a_user, b_user):
@@ -140,8 +176,11 @@ def conversation_new():
         recipient_id = request.form.get("recipient_id", type=int)
         subject = (request.form.get("subject") or "").strip() or None
         body = (request.form.get("body") or "").strip()
-        if not recipient_id or not body:
-            flash("اختر المستلم واكتب رسالة.", "danger")
+        # Ticket T4 — allow attachment-only messages (no body). The
+        # gate only trips when neither a body nor a file is present.
+        has_file = bool(request.files.get("attachment"))
+        if not recipient_id or (not body and not has_file):
+            flash("اختر المستلم واكتب رسالة أو أرفق ملفًا.", "danger")
             return redirect(url_for("messaging.conversation_new"))
         recipient = User.query.filter_by(id=recipient_id, school_id=_sid()).first()
         if recipient is None:
@@ -155,6 +194,8 @@ def conversation_new():
             last_message_at=datetime.now(timezone.utc),
         )
         db.session.add(conv); db.session.flush()
+        # Save the attachment now that we have conv.id for the folder.
+        attachment = _save_attachment(conv.id)
         db.session.add(ConversationParticipant(
             conversation_id=conv.id, user_id=current_user.id, role="initiator",
             last_read_at=datetime.now(timezone.utc),
@@ -163,7 +204,8 @@ def conversation_new():
             conversation_id=conv.id, user_id=recipient.id, role="recipient",
         ))
         db.session.add(Message(
-            conversation_id=conv.id, sender_user_id=current_user.id, body=body,
+            conversation_id=conv.id, sender_user_id=current_user.id,
+            body=body, attachment_path=attachment,
         ))
         db.session.commit()
         flash("تم إرسال الرسالة.", "success")
@@ -185,27 +227,18 @@ def conversation_view(conv_id):
 
     if request.method == "POST":
         body = (request.form.get("body") or "").strip()
-        if not body:
+        attachment = _save_attachment(conv.id)
+        # Allow an attachment-only message (no body) — matches typical
+        # WhatsApp/Telegram flows.
+        if not body and not attachment:
             flash("لا يمكن إرسال رسالة فارغة.", "danger")
         else:
-            # Ticket M1 — the sender is implicitly caught up on
-            # everything they just sent, so bump their `last_read_at`
-            # to match the outgoing message. Two subtleties:
-            # (1) `Message.created_at` has a Python-side default
-            #     (_utcnow) fired at FLUSH time. If we set
-            #     last_read_at to `datetime.now()` here and let the
-            #     default set created_at later, created_at ends up
-            #     strictly AFTER last_read_at and inbox()'s
-            #     `Message.created_at > last_read_at` counter still
-            #     ticks the outgoing message as unread.
-            # (2) fix: pin created_at explicitly to the same instant
-            #     we use for last_read_at, so the strict `>`
-            #     comparison in inbox() correctly excludes it.
             now = datetime.now(timezone.utc)
             db.session.add(Message(
                 conversation_id=conv.id,
                 sender_user_id=current_user.id,
-                body=body,
+                body=body or "",
+                attachment_path=attachment,
                 created_at=now,
             ))
             conv.last_message_at = now
@@ -220,6 +253,45 @@ def conversation_view(conv_id):
     return render_template(
         "messaging/conversation.html",
         conversation=conv, messages=messages, others=others,
+    )
+
+
+@bp.route("/search", endpoint="messages_search")
+@login_required
+def messages_search():
+    """Ticket T4 — text search scoped to conversations the current
+    user participates in. Case-insensitive ILIKE on body.
+
+    Returns a grouped list of (conversation, [matching Message]) so
+    the UI can hyperlink to the exact match instead of just the
+    conversation."""
+    q = (request.args.get("q") or "").strip()
+    matches = []
+    if q:
+        rows = (
+            Message.query.join(
+                ConversationParticipant,
+                ConversationParticipant.conversation_id == Message.conversation_id,
+            )
+            .filter(
+                ConversationParticipant.user_id == current_user.id,
+                Message.deleted_at.is_(None),
+                Message.body.ilike(f"%{q}%"),
+            )
+            .order_by(Message.created_at.desc())
+            .limit(200)
+            .all()
+        )
+        # Group by conversation for the template.
+        grouped = {}
+        for m in rows:
+            grouped.setdefault(m.conversation_id, {
+                "conversation": m.conversation,
+                "messages": [],
+            })["messages"].append(m)
+        matches = list(grouped.values())
+    return render_template(
+        "messaging/search.html", q=q, matches=matches,
     )
 
 

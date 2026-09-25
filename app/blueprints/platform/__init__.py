@@ -13,3 +13,4 @@ from . import rooms         # noqa: E402,F401
 from . import staff         # noqa: E402,F401
 from . import scopes        # noqa: E402,F401
 from . import imports       # noqa: E402,F401
+from . import audit_viewer  # noqa: E402,F401  T6 — AuditLog UI
