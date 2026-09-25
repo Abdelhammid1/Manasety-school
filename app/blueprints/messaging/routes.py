@@ -28,12 +28,17 @@ def _sid():
 
 
 def _can_message(a_user, b_user):
-    """Basic scope rule (ticket #13 last section):
-      admins ↔ anyone
-      guardian ↔ any teacher of any of their children + any admin
-      teacher ↔ guardians of students in any of their sections + admins
+    """Scope rule for opening a conversation.
 
-    Returns True when the pair is allowed to open a conversation."""
+      admins ↔ anyone
+      teacher ↔ parent — only when they share a student in one of the
+                          teacher's active Assignments
+      accountant ↔ parent — any parent in the same school (billing
+                            follow-up, overdue invoices, etc.)
+      student_affairs ↔ parent — any parent in the same school
+                                  (attendance, behaviour, discipline)
+      same-role peers (teacher↔teacher, admin↔admin, ...) allowed
+    """
     if a_user is None or b_user is None:
         return False
     if a_user.school_id != b_user.school_id:
@@ -52,8 +57,20 @@ def _can_message(a_user, b_user):
     admin_like = {"admin", "admin_full", "system_admin"}
     if a_role in admin_like or b_role in admin_like:
         return True
+
+    roles = {a_role, b_role}
+
+    # Ticket M-open-decision — accountant + student_affairs both need
+    # a direct line to parents (billing chase, discipline, absence
+    # calls). Same-school check above is enough — no student-link
+    # cross-check needed because these roles operate across the whole
+    # school by definition.
+    STAFF_TO_PARENT = {"accountant", "student_affairs"}
+    if "parent" in roles and (roles & STAFF_TO_PARENT):
+        return True
+
     # Teacher ↔ Guardian: check they share a student.
-    if ({a_role, b_role} == {"teacher", "parent"}) or (a_role in ("teacher", "parent") and b_role in ("teacher", "parent")):
+    if roles == {"teacher", "parent"}:
         # Find guardian side
         guardian_user, teacher_user = (a_user, b_user) if a_role == "parent" else (b_user, a_user)
         # guardian's linked students
@@ -169,6 +186,13 @@ def conversation_view(conv_id):
                 conversation_id=conv.id, sender_user_id=current_user.id, body=body,
             ))
             conv.last_message_at = datetime.now(timezone.utc)
+            # Ticket M1 — the sender is implicitly caught up on
+            # everything they just sent, so bump their `last_read_at`
+            # to now. Without this, `inbox()`'s unread counter would
+            # see the row `sender.last_read_at < message.created_at`
+            # and count the outgoing message as "unread" until the
+            # sender re-opens the thread.
+            me.last_read_at = datetime.now(timezone.utc)
             db.session.commit()
         return redirect(url_for("messaging.conversation_view", conv_id=conv.id))
 
