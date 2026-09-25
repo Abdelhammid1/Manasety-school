@@ -47,7 +47,9 @@ _TABLES = [
 # Unique constraints to swap for partial indexes.
 # Format: (table, constraint_name, columns)
 _UNIQUES = [
-    ('terms',           'uq_term_year_name',           ('year_id', 'name')),
+    # 'terms' excluded — no unique constraint on (year_id, name) exists;
+    # the real one is uq_term_year_order on (year_id, order_index), a
+    # different concern not covered by this soft-delete swap.
     ('grades',          'uq_grade_school_name',        ('school_id', 'name')),
     ('sections',        'uq_section_year_grade_name',  ('year_id', 'grade_id', 'name')),
     ('subjects',        'uq_subject_school_name',      ('school_id', 'name')),
