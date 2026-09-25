@@ -48,7 +48,11 @@ from ...models import (
 )
 
 
-ALLOWED_SUBMISSION_EXT = {"pdf", "doc", "docx", "png", "jpg", "jpeg", "zip", "txt"}
+ALLOWED_SUBMISSION_EXT = {
+    "pdf", "doc", "docx", "png", "jpg", "jpeg", "zip", "txt",
+    # Phase-2 ticket #20 — expanded to image/audio/video kinds.
+    "gif", "webp", "mp3", "wav", "m4a", "ogg", "mp4", "webm", "mov",
+}
 
 
 def _current_student():
@@ -138,6 +142,39 @@ def _parse_dt(s):
         return None
 
 
+def _parse_decimal(s):
+    """Parse a form-provided decimal; return None on empty/invalid."""
+    s = (s or "").strip()
+    if not s:
+        return None
+    try:
+        return Decimal(s)
+    except Exception:
+        return None
+
+
+def _apply_late_penalty(score, assignment, submitted_at):
+    """Return `score` after applying `assignment`'s late-penalty policy.
+
+    Precedence: `late_penalty_per_day` (compounded per-day) wins when
+    set; otherwise a flat `late_penalty_percent`. Total penalty is
+    capped at `max_penalty_percent` when provided. Floor at zero."""
+    if score is None or assignment.due_at is None:
+        return score
+    days = max(0, (submitted_at - assignment.due_at).days)
+    if assignment.late_penalty_per_day and days > 0:
+        pct = Decimal(str(assignment.late_penalty_per_day)) * days
+    elif assignment.late_penalty_percent:
+        pct = Decimal(str(assignment.late_penalty_percent))
+    else:
+        return score
+    if assignment.max_penalty_percent:
+        pct = min(pct, Decimal(str(assignment.max_penalty_percent)))
+    penalty = (Decimal(str(score)) * pct) / Decimal("100")
+    result = Decimal(str(score)) - penalty
+    return max(Decimal("0"), result)
+
+
 def _rubrics_for_subject(subject_id):
     from ...models import Rubric
     if not subject_id:
@@ -162,6 +199,15 @@ def assignment_new(cid):
             max_score=Decimal(request.form.get("max_score") or "100"),
             due_at=_parse_dt(request.form.get("due_at")),
             allow_late=bool(request.form.get("allow_late")),
+            late_penalty_percent=_parse_decimal(
+                request.form.get("late_penalty_percent")),
+            late_penalty_per_day=_parse_decimal(
+                request.form.get("late_penalty_per_day")),
+            max_penalty_percent=_parse_decimal(
+                request.form.get("max_penalty_percent")),
+            max_attempts=int(request.form.get("max_attempts") or 1),
+            allow_resubmit=bool(request.form.get("allow_resubmit")),
+            allow_review=request.form.get("allow_review", "1") == "1",
             is_published=bool(request.form.get("is_published")),
             rubric_id=request.form.get("rubric_id", type=int) or None,
         )
@@ -186,6 +232,15 @@ def assignment_edit(aid):
         a.max_score = Decimal(request.form.get("max_score") or "100")
         a.due_at = _parse_dt(request.form.get("due_at"))
         a.allow_late = bool(request.form.get("allow_late"))
+        a.late_penalty_percent = _parse_decimal(
+            request.form.get("late_penalty_percent"))
+        a.late_penalty_per_day = _parse_decimal(
+            request.form.get("late_penalty_per_day"))
+        a.max_penalty_percent = _parse_decimal(
+            request.form.get("max_penalty_percent"))
+        a.max_attempts = int(request.form.get("max_attempts") or 1)
+        a.allow_resubmit = bool(request.form.get("allow_resubmit"))
+        a.allow_review = request.form.get("allow_review", "1") == "1"
         a.is_published = bool(request.form.get("is_published"))
         a.rubric_id = request.form.get("rubric_id", type=int) or None
         db.session.commit()
@@ -307,6 +362,8 @@ def assignment_pick_from_bank(aid):
                 kind=bq.kind, prompt=bq.prompt,
                 points=bq.points or Decimal("1"),
                 correct_short=bq.correct_short or "",
+                explanation_video_url=bq.explanation_video_url,
+                hint_text=bq.hint_text,
                 source_bank_id=bq.id,
             )
             db.session.add(aq); db.session.flush()
@@ -514,6 +571,22 @@ def quiz_new(cid):
             shuffle_questions=bool(request.form.get("shuffle_questions")),
             shuffle_choices=bool(request.form.get("shuffle_choices")),
             allow_partial_credit=bool(request.form.get("allow_partial_credit")),
+            allow_review=request.form.get("allow_review", "1") == "1",
+            negative_marking_value=_parse_decimal(
+                request.form.get("negative_marking_value")),
+            navigation_mode=(request.form.get("navigation_mode") or "free"),
+            retake_policy=(request.form.get("retake_policy") or "on_request"),
+            retake_cooldown_minutes=(
+                int(request.form.get("retake_cooldown_minutes"))
+                if (request.form.get("retake_cooldown_minutes") or "").isdigit()
+                else None
+            ),
+            result_publish_mode=(
+                request.form.get("result_publish_mode") or "immediate"),
+            result_publish_at=_parse_dt(
+                request.form.get("result_publish_at")),
+            show_answers_after=(
+                request.form.get("show_answers_after") or "immediate"),
             is_published=bool(request.form.get("is_published")),
         )
         if not q.title:
@@ -540,6 +613,16 @@ def quiz_edit(qid):
         q.shuffle_questions = bool(request.form.get("shuffle_questions"))
         q.shuffle_choices = bool(request.form.get("shuffle_choices"))
         q.allow_partial_credit = bool(request.form.get("allow_partial_credit"))
+        q.allow_review = request.form.get("allow_review", "1") == "1"
+        q.negative_marking_value = _parse_decimal(
+            request.form.get("negative_marking_value"))
+        q.navigation_mode = request.form.get("navigation_mode") or "free"
+        q.retake_policy = request.form.get("retake_policy") or "on_request"
+        raw_cd = request.form.get("retake_cooldown_minutes")
+        q.retake_cooldown_minutes = int(raw_cd) if (raw_cd or "").isdigit() else None
+        q.result_publish_mode = request.form.get("result_publish_mode") or "immediate"
+        q.result_publish_at = _parse_dt(request.form.get("result_publish_at"))
+        q.show_answers_after = request.form.get("show_answers_after") or "immediate"
         q.is_published = bool(request.form.get("is_published"))
         db.session.commit()
         flash("تم حفظ الاختبار.", "success")
@@ -827,8 +910,21 @@ def _bank_query(*, include_all_states=False, include_archived=False):
     if diff:  q = q.filter(BankQuestion.difficulty == diff)
     if kind:  q = q.filter(BankQuestion.kind == kind)
     if tag:   q = q.filter(BankQuestion.tags.ilike(f"%{tag}%"))
+    # Phase-2 ticket #1 — Bloom cognitive level filter.
+    cognitive = (request.args.get("cognitive_level") or "").strip()
+    if cognitive:
+        q = q.filter(BankQuestion.cognitive_level == cognitive)
+    # Phase-2 ticket #34 — internal_label filter (dedicated field).
+    label = (request.args.get("internal_label") or "").strip()
+    if label:
+        q = q.filter(BankQuestion.internal_label.ilike(f"%{label}%"))
     if search:
-        q = q.filter(BankQuestion.prompt.ilike(f"%{search}%"))
+        # The main search now also spans the notes field so teachers can
+        # find questions by things like "الطلاب بيلخبطوا هنا" (ticket #33).
+        q = q.filter(db.or_(
+            BankQuestion.prompt.ilike(f"%{search}%"),
+            BankQuestion.notes.ilike(f"%{search}%"),
+        ))
     return q.order_by(BankQuestion.updated_at.desc())
 
 
@@ -1378,6 +1474,8 @@ def template_use(tid):
                     prompt=bq.prompt,
                     points=(it.points_override if it.points_override is not None else bq.points) or 1,
                     correct_short=bq.correct_short or "",
+                    explanation_video_url=bq.explanation_video_url,
+                    hint_text=bq.hint_text,
                     source_bank_id=bq.id,
                 )
                 db.session.add(aq)
@@ -1417,6 +1515,8 @@ def template_use(tid):
                 prompt=bq.prompt,
                 points=(it.points_override if it.points_override is not None else bq.points) or 1,
                 correct_short=bq.correct_short or "",
+                explanation_video_url=bq.explanation_video_url,
+                hint_text=bq.hint_text,
                 source_bank_id=bq.id,
             )
             db.session.add(q)
@@ -1577,6 +1677,8 @@ def blueprint_exam_create():
                 kind=bq.kind, prompt=bq.prompt,
                 points=bq.points or 1,
                 correct_short=bq.correct_short or "",
+                explanation_video_url=bq.explanation_video_url,
+                hint_text=bq.hint_text,
                 source_bank_id=bq.id,
             )
             db.session.add(q)
@@ -1748,6 +1850,18 @@ def _bank_save(item):
     posted_code = (request.form.get("code") or "").strip()
     if posted_code:
         item.code = posted_code
+    # Phase-2 tickets — Bloom cognitive level + explanation/hint +
+    # notes + internal_label.
+    cog = (request.form.get("cognitive_level") or "").strip()
+    item.cognitive_level = cog or None
+    item.explanation_video_url = (
+        (request.form.get("explanation_video_url") or "").strip() or None
+    )
+    item.hint_text     = (request.form.get("hint_text") or "").strip() or None
+    item.notes         = (request.form.get("notes") or "").strip() or None
+    item.internal_label = (
+        (request.form.get("internal_label") or "").strip() or None
+    )
     db.session.flush()
     if is_new:
         import uuid as _uuid
@@ -2431,6 +2545,8 @@ def quiz_pick_from_bank(qid):
                 prompt=bq.prompt,
                 points=bq.points or Decimal("1"),
                 correct_short=bq.correct_short or "",
+                explanation_video_url=bq.explanation_video_url,
+                hint_text=bq.hint_text,
                 source_bank_id=bq.id,
             )
             db.session.add(q); db.session.flush()
@@ -2511,14 +2627,48 @@ def assignment_submit(aid):
         flash("انتهى موعد التسليم ولا يُسمح بالتسليم المتأخر.", "danger")
         return redirect(url_for("lms.assignment_detail", aid=a.id))
 
-    submission = Submission.query.filter_by(
-        assignment_id=a.id, student_id=student.id
-    ).first()
-    if submission is None:
-        submission = Submission(assignment_id=a.id, student_id=student.id)
+    # Ticket #22 — max_attempts. Pick the most-recent submission; if
+    # it's already submitted and re-submission is disabled OR we've hit
+    # the cap, refuse. Otherwise create a fresh Submission with the
+    # next attempt_number.
+    prior = (
+        Submission.query
+        .filter_by(assignment_id=a.id, student_id=student.id)
+        .order_by(Submission.attempt_number.desc()).first()
+    )
+    if prior and prior.submitted_at is not None:
+        if not a.allow_resubmit:
+            flash("سبق تسليم هذا الواجب.", "warning")
+            return redirect(url_for("lms.assignment_detail", aid=a.id))
+        if (prior.attempt_number or 1) >= (a.max_attempts or 1):
+            flash("تجاوزت الحد الأقصى لعدد المحاولات.", "warning")
+            return redirect(url_for("lms.assignment_detail", aid=a.id))
+        submission = Submission(
+            assignment_id=a.id, student_id=student.id,
+            attempt_number=(prior.attempt_number or 1) + 1,
+        )
         db.session.add(submission)
+    elif prior is None:
+        submission = Submission(
+            assignment_id=a.id, student_id=student.id,
+            attempt_number=1,
+        )
+        db.session.add(submission)
+    else:
+        # Draft that hasn't been submitted yet — keep editing in place.
+        submission = prior
 
     submission.body = (request.form.get("body") or "").strip()
+
+    # Phase-2 ticket #20 — record submission kind + optional external URL.
+    kind_pick = (request.form.get("submission_kind") or "").strip().lower()
+    if kind_pick in {"text", "file", "link", "image", "audio", "video"}:
+        submission.submission_kind = kind_pick
+    ext_url = (request.form.get("external_url") or "").strip()
+    if ext_url:
+        submission.external_url = ext_url
+        if not submission.submission_kind:
+            submission.submission_kind = "link"
 
     # Optional file upload — capped by app.config['MAX_CONTENT_LENGTH'] and
     # by our whitelist. Saved under app/static/uploads/submissions/<aid>/.
@@ -2535,6 +2685,16 @@ def assignment_submit(aid):
         path = os.path.join(subdir, unique)
         file.save(path)
         submission.file_url = url_for("static", filename=f"uploads/submissions/{a.id}/{unique}")
+        # Auto-classify from the extension if the teacher didn't set one.
+        if not submission.submission_kind:
+            if ext in ("png", "jpg", "jpeg", "gif", "webp"):
+                submission.submission_kind = "image"
+            elif ext in ("mp3", "wav", "m4a", "ogg"):
+                submission.submission_kind = "audio"
+            elif ext in ("mp4", "webm", "mov"):
+                submission.submission_kind = "video"
+            else:
+                submission.submission_kind = "file"
 
     # Ticket #19 — lock all AssignmentQuestion rows on first answer.
     if a.questions:
@@ -2608,6 +2768,13 @@ def assignment_submit(aid):
             submission.score = auto_total
 
     submission.submitted_at = now
+
+    # Phase-2 ticket #21 — graduated late penalty. Applied to the auto
+    # score; teacher-side grading may re-apply after their manual pass.
+    if (submission.score is not None and a.due_at
+            and now > a.due_at
+            and (a.late_penalty_percent or a.late_penalty_per_day)):
+        submission.score = _apply_late_penalty(submission.score, a, now)
 
     # Ticket #3 — sync into GradeEntry when the assignment is fully
     # graded (no essay pending) and linked to an auto-syncing
@@ -2867,10 +3034,36 @@ def quiz_result(attempt_id):
             abort(403)
     ans_map = {a.question_id: a for a in attempt.answers}
     total_max = sum((q.points or Decimal(0)) for q in attempt.quiz.questions)
+    # Phase-2 tickets #16 + #30 — control what the student sees.
+    # `allow_review`: hide per-question detail entirely (still show
+    #                 the total score).
+    # `result_publish_mode`: `manual` waits for teacher; `scheduled`
+    #                 waits for result_publish_at.
+    # `show_answers_after`: `never` blocks answer-key detail even if
+    #                 the review page is open.
+    quiz = attempt.quiz
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    is_teacher = role in ("admin", "teacher")
+    now_ = _tz_safe_now(quiz.result_publish_at)
+    published = (
+        quiz.result_publish_mode == "immediate"
+        or (quiz.result_publish_mode == "scheduled"
+            and quiz.result_publish_at is not None
+            and now_ >= quiz.result_publish_at)
+        # `manual` publishes only when the teacher flips the attempt
+        # (out of scope for this ticket; teachers can always view).
+    )
+    hide_score  = (not is_teacher) and (not published)
+    hide_detail = (not is_teacher) and (
+        not quiz.allow_review
+        or quiz.show_answers_after == "never"
+        or (quiz.show_answers_after == "after_publish" and not published)
+    )
     return render_template(
         "lms/quiz_result.html",
-        attempt=attempt, quiz=attempt.quiz, questions=attempt.quiz.questions,
+        attempt=attempt, quiz=quiz, questions=quiz.questions,
         answers=ans_map, total_max=total_max,
+        hide_score=hide_score, hide_detail=hide_detail,
     )
 
 

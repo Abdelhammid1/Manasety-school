@@ -74,6 +74,77 @@
       </div>
     </div>
 
+    <!-- Phase-2 advanced quiz settings (P2 tickets #8, #9, #15, #16, #30) -->
+    <details class="rounded-xl bg-surface-container-low p-space-md">
+      <summary class="cursor-pointer font-label-md font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">tune</span>
+        <span>خيارات متقدمة (خصم، تنقل، إعادة، عرض النتيجة)</span>
+      </summary>
+      <div class="mt-space-md space-y-space-md">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">درجة سالبة لكل إجابة خاطئة</label>
+            <input name="negative_marking_value" type="number" step="0.25" min="0"
+                   value="{{ quiz.negative_marking_value if quiz and quiz.negative_marking_value else '' }}"
+                   placeholder="اتركه فارغاً للتعطيل"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">وضع التنقل بين الأسئلة</label>
+            <select name="navigation_mode" class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+              {% for v, lbl in [('free','حر — كل الاتجاهات'), ('sequential','متسلسل فقط'), ('locked_after_answer','لا رجوع بعد الإجابة')] %}
+              <option value="{{ v }}" {% if quiz and quiz.navigation_mode == v %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">سياسة إعادة المحاولة</label>
+            <select name="retake_policy" class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+              {% for v, lbl in [('on_request','عند الطلب'), ('auto','تلقائي'), ('admin_approval','بموافقة إدارية')] %}
+              <option value="{{ v }}" {% if quiz and quiz.retake_policy == v %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">فترة انتظار بين المحاولات (دقائق)</label>
+            <input name="retake_cooldown_minutes" type="number" min="0"
+                   value="{{ quiz.retake_cooldown_minutes if quiz and quiz.retake_cooldown_minutes else '' }}"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">نشر النتيجة</label>
+            <select name="result_publish_mode" class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+              {% for v, lbl in [('immediate','فور التسليم'), ('manual','يدوي من المعلم'), ('scheduled','مجدول')] %}
+              <option value="{{ v }}" {% if quiz and quiz.result_publish_mode == v %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">موعد النشر (لو مجدول)</label>
+            <input name="result_publish_at" type="datetime-local"
+                   value="{{ quiz.result_publish_at.strftime('%Y-%m-%dT%H:%M') if quiz and quiz.result_publish_at else '' }}"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">إظهار الإجابات الصحيحة للطالب</label>
+            <select name="show_answers_after" class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+              {% for v, lbl in [('immediate','فور التسليم'), ('after_publish','بعد نشر النتيجة'), ('never','أبداً')] %}
+              <option value="{{ v }}" {% if quiz and quiz.show_answers_after == v %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer h-12 mt-6">
+            <input type="checkbox" name="allow_review" value="1" {% if (not quiz) or quiz.allow_review %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+            <span class="font-label-md text-on-surface font-bold">السماح بمراجعة الاختبار بعد التسليم</span>
+          </label>
+        </div>
+      </div>
+    </details>
+
     <label class="flex items-center gap-2 cursor-pointer">
       <input type="checkbox" name="is_published" value="1" {% if quiz and quiz.is_published %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
       <span class="font-label-md text-on-surface font-bold">منشور (يظهر للطلاب) — انشره فقط بعد إضافة الأسئلة</span>

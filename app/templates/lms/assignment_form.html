@@ -67,6 +67,53 @@
       <input type="checkbox" name="allow_late" value="1" {% if (not assignment) or assignment.allow_late %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
       <span class="font-label-md text-on-surface font-bold">السماح بالتسليم المتأخر</span>
     </label>
+
+    <!-- Phase-2 advanced (P2 #21, #22, #30) -->
+    <details class="rounded-xl bg-surface-container-low p-space-md">
+      <summary class="cursor-pointer font-label-md font-bold text-primary flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">tune</span>
+        <span>خيارات متقدمة (خصم تأخير، محاولات، مراجعة)</span>
+      </summary>
+      <div class="mt-space-md space-y-space-md">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">خصم ثابت للتأخير (%)</label>
+            <input name="late_penalty_percent" type="number" step="0.5" min="0" max="100"
+                   value="{{ assignment.late_penalty_percent if assignment and assignment.late_penalty_percent else '' }}"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">خصم يومي (%)</label>
+            <input name="late_penalty_per_day" type="number" step="0.5" min="0" max="100"
+                   value="{{ assignment.late_penalty_per_day if assignment and assignment.late_penalty_per_day else '' }}"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">أقصى خصم مسموح (%)</label>
+            <input name="max_penalty_percent" type="number" step="0.5" min="0" max="100"
+                   value="{{ assignment.max_penalty_percent if assignment and assignment.max_penalty_percent else '' }}"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-label-md text-label-md font-bold">عدد المحاولات المسموح بها</label>
+            <input name="max_attempts" type="number" min="1" max="10"
+                   value="{{ assignment.max_attempts if assignment else 1 }}"
+                   class="h-12 px-4 rounded-xl bg-surface-container-lowest">
+          </div>
+          <label class="flex items-center gap-2 cursor-pointer h-12 mt-6">
+            <input type="checkbox" name="allow_resubmit" value="1" {% if assignment and assignment.allow_resubmit %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+            <span class="font-label-md text-on-surface font-bold">السماح بإعادة التسليم</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer h-12 mt-6">
+            <input type="checkbox" name="allow_review" value="1" {% if (not assignment) or assignment.allow_review %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+            <span class="font-label-md text-on-surface font-bold">السماح للطالب بمراجعة تفاصيل التصحيح</span>
+          </label>
+        </div>
+      </div>
+    </details>
+
     <label class="flex items-center gap-2 cursor-pointer">
       <input type="checkbox" name="is_published" value="1" {% if (not assignment) or assignment.is_published %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
       <span class="font-label-md text-on-surface font-bold">منشور (يظهر للطلاب)</span>

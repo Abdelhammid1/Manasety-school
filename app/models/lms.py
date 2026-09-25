@@ -12,7 +12,7 @@ Note: the existing `teacher.Assignment` model represents a *teaching assignment*
 `CourseAssignment` to avoid the name clash.
 """
 from datetime import datetime, timezone
-from sqlalchemy.sql import false as sa_false
+from sqlalchemy.sql import false as sa_false, true as sa_true
 
 from ..extensions import db
 from .mixins import SoftDeleteMixin
@@ -142,6 +142,22 @@ class CourseAssignment(SoftDeleteMixin, db.Model):
     max_score = db.Column(db.Numeric(6, 2), default=100)
     due_at = db.Column(db.DateTime(timezone=True))
     allow_late = db.Column(db.Boolean, default=True, nullable=False)
+    # Phase-2 ticket #21 — graduated late penalty. When set, a late
+    # submission's `score` is reduced by `late_penalty_per_day` percent
+    # per day past `due_at`, capped at `max_penalty_percent`. If
+    # `late_penalty_percent` is set instead (flat), it applies once
+    # regardless of days late.
+    late_penalty_percent  = db.Column(db.Numeric(5, 2), nullable=True)
+    late_penalty_per_day  = db.Column(db.Numeric(5, 2), nullable=True)
+    max_penalty_percent   = db.Column(db.Numeric(5, 2), nullable=True)
+    # Phase-2 ticket #22 — multiple submissions per assignment.
+    max_attempts   = db.Column(db.Integer, nullable=False,
+                               default=1, server_default="1")
+    allow_resubmit = db.Column(db.Boolean, nullable=False,
+                               default=False, server_default=sa_false())
+    # Ticket #30 — same allow_review toggle as Quiz.
+    allow_review = db.Column(db.Boolean, nullable=False,
+                             default=True, server_default=sa_true())
     is_published = db.Column(db.Boolean, default=False, nullable=False)
 
     # Ticket #16 part 5 — audit trail back to the AssignmentTemplate this
@@ -191,6 +207,16 @@ class Submission(db.Model):
     feedback = db.Column(db.Text, default="")
     graded_by_id = db.Column(db.Integer, db.ForeignKey("users.id"))
     graded_at = db.Column(db.DateTime(timezone=True))
+    # Phase-2 ticket #20 — record the kind of submission the student
+    # made so the teacher UI can render the right preview (link vs
+    # image vs audio vs video vs file vs text). NULL for legacy rows.
+    submission_kind = db.Column(db.String(20), nullable=True)
+    external_url    = db.Column(db.String(500), nullable=True)
+    # Phase-2 ticket #22 — attempt counter for max_attempts on the
+    # parent assignment. First submission = 1; subsequent resubmits
+    # (when `allow_resubmit`) increment.
+    attempt_number = db.Column(db.Integer, nullable=False,
+                               default=1, server_default="1")
 
     # Smart-assignment answers (ticket #16 part 3). Empty for legacy
     # free-form submissions; populated when the assignment has questions.
@@ -200,7 +226,10 @@ class Submission(db.Model):
     )
 
     __table_args__ = (
-        db.UniqueConstraint("assignment_id", "student_id", name="uq_submission_assignment_student"),
+        db.UniqueConstraint(
+            "assignment_id", "student_id", "attempt_number",
+            name="uq_submission_assignment_student_attempt",
+        ),
     )
 
 
@@ -294,6 +323,30 @@ class Quiz(SoftDeleteMixin, db.Model):
     # each `multi` awards a proportional slice of the question's points.
     allow_partial_credit = db.Column(db.Boolean, default=False,
                                      nullable=False, server_default=sa_false())
+    # Phase-2 ticket #8 — negative-marking penalty per wrong answer.
+    # NULL disables it; > 0 subtracts that many points per wrong pick.
+    negative_marking_value = db.Column(db.Numeric(6, 2), nullable=True)
+    # Phase-2 ticket #9 — navigation constraints inside the take page.
+    navigation_mode = db.Column(db.String(24), nullable=False,
+                                default="free", server_default="free")
+    # Phase-2 ticket #15 — retake policy + cooldown.
+    retake_policy = db.Column(db.String(20), nullable=False,
+                              default="on_request", server_default="on_request")
+    retake_cooldown_minutes = db.Column(db.Integer, nullable=True)
+    # Phase-2 ticket #16 — control when the result page unlocks for
+    # students. `immediate` (default) matches current behaviour;
+    # `manual` waits for the teacher; `scheduled` waits until publish_at.
+    result_publish_mode = db.Column(db.String(20), nullable=False,
+                                    default="immediate",
+                                    server_default="immediate")
+    result_publish_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    # `show_answers_after` = 'immediate' / 'after_publish' / 'never'
+    show_answers_after = db.Column(db.String(20), nullable=False,
+                                   default="immediate",
+                                   server_default="immediate")
+    # Ticket #30 — teacher choice for post-submission review.
+    allow_review = db.Column(db.Boolean, nullable=False,
+                             default=True, server_default=sa_true())
     is_published = db.Column(db.Boolean, default=False, nullable=False)
 
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
@@ -314,6 +367,10 @@ class Question(SoftDeleteMixin, db.Model):
     prompt = db.Column(db.Text, nullable=False)
     points = db.Column(db.Numeric(6, 2), default=1)
     correct_short = db.Column(db.String(200), default="")  # for short-answer
+    # Ticket #31/#32 — carry the bank's explanation video + hint through
+    # to the cloned question so the student sees them in-context.
+    explanation_video_url = db.Column(db.String(500), nullable=True)
+    hint_text             = db.Column(db.Text, nullable=True)
 
     # Provenance: if this question was pulled from the school's question bank,
     # keep a pointer back to the source BankQuestion (nullable, SET NULL on
@@ -420,6 +477,15 @@ class BankQuestion(SoftDeleteMixin, db.Model):
     correct_short = db.Column(db.String(200), default="")
     difficulty    = db.Column(db.String(10),  default="medium")   # easy | medium | hard | very_hard
     tags          = db.Column(db.String(500), default="")         # comma-separated
+    # Phase-2 ticket #1 — Bloom cognitive level, separate from
+    # `difficulty` (which is teacher's perceived hardness). Values:
+    # remember / understand / apply / analyze / evaluate / create.
+    cognitive_level = db.Column(db.String(20), nullable=True, index=True)
+    # Phase-2 tickets #31-#34 — content authoring extras.
+    explanation_video_url = db.Column(db.String(500), nullable=True)
+    hint_text             = db.Column(db.Text, nullable=True)
+    notes                 = db.Column(db.Text, nullable=True)
+    internal_label        = db.Column(db.String(120), nullable=True, index=True)
 
     # Qdrat-parity review workflow. A brand-new question lands in
     # `draft`; once the author fills every field it goes to `pending`

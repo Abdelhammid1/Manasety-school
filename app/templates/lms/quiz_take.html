@@ -128,6 +128,19 @@
 
         <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold leading-relaxed whitespace-pre-line">{{ q.prompt }}</h2>
 
+        {% if q.hint_text %}
+        {# Ticket #32 — student-facing hint toggle. Bar-less; no scoring impact. #}
+        <details class="mt-space-sm">
+          <summary class="cursor-pointer inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-primary/5 text-primary font-label-md font-bold hover:bg-primary/10">
+            <span class="material-symbols-outlined text-base">tips_and_updates</span>
+            <span>محتاج مساعدة؟</span>
+          </summary>
+          <div class="mt-2 p-space-sm rounded-xl bg-primary/5 border border-primary/20 font-body-md text-on-surface">
+            {{ q.hint_text }}
+          </div>
+        </details>
+        {% endif %}
+
         <div class="mt-space-md flex flex-col gap-2">
           {% if q.kind in ('mcq','tf') %}
             {% for c in (ordered_choices[q.id] if ordered_choices and q.id in ordered_choices else q.choices) %}

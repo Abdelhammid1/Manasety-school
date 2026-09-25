@@ -17,8 +17,13 @@
     <div class="flex items-center gap-space-md flex-wrap">
       <div class="relative w-28 h-28 rounded-full text-on-primary flex flex-col items-center justify-center shadow-lg shrink-0"
            style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        {% if hide_score %}
+        <span class="material-symbols-outlined text-4xl">lock</span>
+        <span class="font-label-xs text-label-xs opacity-90">قيد النشر</span>
+        {% else %}
         <span class="font-headline-lg text-headline-lg font-extrabold leading-none">{{ attempt.score or 0 }}</span>
         <span class="font-label-xs text-label-xs opacity-90">من {{ total_max }}</span>
+        {% endif %}
       </div>
       <div class="flex flex-col flex-1 min-w-0">
         <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">{{ quiz.title }}</h1>
@@ -32,7 +37,19 @@
     </div>
   </section>
 
-  {# Per-question review #}
+  {# Per-question review — hidden entirely when the teacher disabled it
+     (ticket #30) or answers are gated (ticket #16). Teachers always see. #}
+  {% if hide_detail %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg text-center">
+    <span class="material-symbols-outlined text-5xl text-outline">visibility_off</span>
+    <p class="mt-space-sm font-title-md text-title-md text-on-surface font-bold">
+      المعلم لم يُتِح مراجعة تفاصيل الأسئلة بعد التسليم.
+    </p>
+    <p class="font-body-md text-on-surface-variant">
+      الدرجة الإجمالية متاحة بالأعلى — أما تفاصيل الإجابات فستبقى محجوبة.
+    </p>
+  </section>
+  {% else %}
   <section class="flex flex-col gap-space-md">
     {% for q in questions %}
     {% set ans = answers.get(q.id) %}
@@ -80,9 +97,20 @@
         <p class="font-body-md text-body-md text-on-surface whitespace-pre-line">{{ ans.text_answer }}</p>
       </div>
       {% endif %}
+
+      {# Ticket #31 — explanation video embed appears here after the
+         student sees the answer key. #}
+      {% if q.explanation_video_url %}
+      <div class="mt-space-sm p-space-md rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-2">
+        <span class="material-symbols-outlined text-primary">smart_display</span>
+        <a href="{{ q.explanation_video_url }}" target="_blank" rel="noopener"
+           class="font-label-md font-bold text-primary hover:underline">شاهد الشرح</a>
+      </div>
+      {% endif %}
     </article>
     {% endfor %}
   </section>
+  {% endif %}
 
   <div class="flex items-center justify-between">
     <a href="{{ url_for('lms.quizzes_home') }}"
