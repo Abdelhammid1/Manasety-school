@@ -284,8 +284,14 @@ def assignment_pick_from_bank(aid):
             return redirect(url_for("lms.assignment_pick_from_bank", aid=a.id))
 
         existing_sources = {q.source_bank_id for q in a.questions if q.source_bank_id}
+        # Defense-in-depth for ticket P0-3: filter approved + non-archived
+        # here too, not just on the GET picker. A teacher posting a stale
+        # id from an earlier tab would otherwise sneak a rejected row into
+        # the assignment.
         pool = BankQuestion.query.filter(
             BankQuestion.school_id == current_user.school_id,
+            BankQuestion.review_state == "approved",
+            BankQuestion.is_archived == False,  # noqa: E712
             BankQuestion.id.in_(picked_ids),
         ).all()
 
@@ -1232,7 +1238,12 @@ def template_items_attach(tid):
     for bid in picked:
         if bid in existing:
             continue
-        bq = BankQuestion.query.filter_by(id=bid, school_id=sid).first()
+        # Same defense-in-depth as the quiz/assignment pickers — only
+        # approved, non-archived bank rows can be attached to a template.
+        bq = BankQuestion.query.filter_by(
+            id=bid, school_id=sid,
+            review_state="approved", is_archived=False,
+        ).first()
         if not bq:
             continue
         db.session.add(AssessmentTemplateItem(
@@ -1388,6 +1399,8 @@ def template_use(tid):
             opens_at=_parse_dt(request.form.get("opens_at")),
             closes_at=_parse_dt(request.form.get("closes_at")),
             shuffle_questions=bool(request.form.get("shuffle_questions")),
+            shuffle_choices=bool(request.form.get("shuffle_choices")),
+            allow_partial_credit=bool(request.form.get("allow_partial_credit")),
             is_published=bool(request.form.get("publish")),
         )
         db.session.add(quiz)
@@ -1534,6 +1547,7 @@ def blueprint_exam_create():
         description=(form.get("description") or "").strip(),
         duration_minutes=duration,
         shuffle_questions=shuffle_q,
+        shuffle_choices=shuffle_c,
         is_published=False,
     )
     db.session.add(quiz)
@@ -2392,8 +2406,13 @@ def quiz_pick_from_bank(qid):
         existing_sources = {
             q.source_bank_id for q in quiz.questions if q.source_bank_id
         }
+        # Defense-in-depth for ticket P0-3 — mirror the picker's
+        # approved+non-archived filter on the POST side so a stale
+        # bank_id can't sneak a rejected row into the live quiz.
         pool = BankQuestion.query.filter(
             BankQuestion.school_id == current_user.school_id,
+            BankQuestion.review_state == "approved",
+            BankQuestion.is_archived == False,  # noqa: E712
             BankQuestion.id.in_(picked_ids),
         ).all()
 

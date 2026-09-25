@@ -55,8 +55,12 @@ def upgrade():
                       primary_key=True),
         )
 
-    # Backfill from the legacy comma-string. Skips rows where the
-    # target assoc row already exists (retry safety).
+    # Backfill from the legacy comma-string.
+    #
+    # Portable across Postgres + SQLite: no RETURNING, no ON CONFLICT.
+    # We look the tag up first (case-insensitive), insert if missing,
+    # then re-select the id; the assoc-side de-dupes with an in-memory
+    # set per question so ON CONFLICT would be redundant.
     rows = bind.execute(
         sa.text(
             "SELECT id, school_id, COALESCE(tags,'') AS tags "
@@ -76,33 +80,52 @@ def upgrade():
             seen.add(key)
             tag_id = tag_cache.get(key)
             if tag_id is None:
-                row = bind.execute(
+                found = bind.execute(
                     sa.text(
                         "SELECT id FROM lms_bank_tags "
                         "WHERE school_id = :sid AND lower(name) = :n LIMIT 1"
                     ),
                     {"sid": school_id, "n": name.casefold()},
                 ).fetchone()
-                if row:
-                    tag_id = row[0]
+                if found:
+                    tag_id = found[0]
                 else:
-                    res = bind.execute(
+                    bind.execute(
                         sa.text(
                             "INSERT INTO lms_bank_tags (school_id, name) "
-                            "VALUES (:sid, :n) RETURNING id"
+                            "VALUES (:sid, :n)"
                         ),
                         {"sid": school_id, "n": name},
                     )
-                    tag_id = res.fetchone()[0]
-                tag_cache[key] = tag_id
-            # Insert-or-ignore into assoc.
-            bind.execute(
+                    found = bind.execute(
+                        sa.text(
+                            "SELECT id FROM lms_bank_tags "
+                            "WHERE school_id = :sid AND lower(name) = :n LIMIT 1"
+                        ),
+                        {"sid": school_id, "n": name.casefold()},
+                    ).fetchone()
+                    tag_id = found[0] if found else None
+                if tag_id is not None:
+                    tag_cache[key] = tag_id
+            if tag_id is None:
+                continue
+            # De-dupe on the assoc side with a per-question skip. Retry
+            # safety on partial runs: check before inserting.
+            existing = bind.execute(
                 sa.text(
-                    "INSERT INTO lms_bank_question_tags (question_id, tag_id) "
-                    "VALUES (:q, :t) ON CONFLICT DO NOTHING"
+                    "SELECT 1 FROM lms_bank_question_tags "
+                    "WHERE question_id = :q AND tag_id = :t LIMIT 1"
                 ),
                 {"q": qid, "t": tag_id},
-            )
+            ).fetchone()
+            if not existing:
+                bind.execute(
+                    sa.text(
+                        "INSERT INTO lms_bank_question_tags "
+                        "(question_id, tag_id) VALUES (:q, :t)"
+                    ),
+                    {"q": qid, "t": tag_id},
+                )
 
 
 def downgrade():
