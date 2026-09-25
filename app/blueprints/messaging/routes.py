@@ -110,7 +110,12 @@ def inbox():
         .order_by(desc(Conversation.last_message_at), desc(Conversation.id))
         .all()
     )
-    # Unread count per conversation.
+    # Unread count per conversation. Ticket M1 — always exclude the
+    # current user's own outgoing messages from the count. The
+    # `last_read_at` bump in conversation_view POST is the primary
+    # fix; this extra filter is a belt-and-braces guard so any future
+    # write path that adds a Message without touching last_read_at
+    # can't re-introduce the bug.
     unread = {}
     for c in my_convs:
         me = next((p for p in c.participants if p.user_id == current_user.id), None)
@@ -120,6 +125,7 @@ def inbox():
         n = Message.query.filter(
             Message.conversation_id == c.id,
             Message.deleted_at.is_(None),
+            Message.sender_user_id != current_user.id,
             *(Message.created_at > last for _ in [1] if last is not None),
         ).count()
         unread[c.id] = n
@@ -182,17 +188,28 @@ def conversation_view(conv_id):
         if not body:
             flash("لا يمكن إرسال رسالة فارغة.", "danger")
         else:
-            db.session.add(Message(
-                conversation_id=conv.id, sender_user_id=current_user.id, body=body,
-            ))
-            conv.last_message_at = datetime.now(timezone.utc)
             # Ticket M1 — the sender is implicitly caught up on
             # everything they just sent, so bump their `last_read_at`
-            # to now. Without this, `inbox()`'s unread counter would
-            # see the row `sender.last_read_at < message.created_at`
-            # and count the outgoing message as "unread" until the
-            # sender re-opens the thread.
-            me.last_read_at = datetime.now(timezone.utc)
+            # to match the outgoing message. Two subtleties:
+            # (1) `Message.created_at` has a Python-side default
+            #     (_utcnow) fired at FLUSH time. If we set
+            #     last_read_at to `datetime.now()` here and let the
+            #     default set created_at later, created_at ends up
+            #     strictly AFTER last_read_at and inbox()'s
+            #     `Message.created_at > last_read_at` counter still
+            #     ticks the outgoing message as unread.
+            # (2) fix: pin created_at explicitly to the same instant
+            #     we use for last_read_at, so the strict `>`
+            #     comparison in inbox() correctly excludes it.
+            now = datetime.now(timezone.utc)
+            db.session.add(Message(
+                conversation_id=conv.id,
+                sender_user_id=current_user.id,
+                body=body,
+                created_at=now,
+            ))
+            conv.last_message_at = now
+            me.last_read_at = now
             db.session.commit()
         return redirect(url_for("messaging.conversation_view", conv_id=conv.id))
 
