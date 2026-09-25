@@ -460,115 +460,26 @@ def invoice_new():
             flash("أضف نوع رسم واحد على الأقل.", "danger")
             return redirect(url_for("finance.invoice_new"))
 
-        # Ticket "Race Condition في ترقيم الفاتورة" — the old
-        # `count() + 1` was inherently racy: two concurrent requests
-        # read the same count and both generated the same INV-YY-00007.
-        # `uq_invoice_school_number` would raise IntegrityError for
-        # whichever committed second. Retry against the DB constraint
-        # up to 8 times, walking forward past the highest number a
-        # SELECT ... FOR UPDATE returns. Any survivor after that is a
-        # real concurrency storm and legitimately errors out.
-        from sqlalchemy.exc import IntegrityError
-        from ...services.ledger import next_invoice_number
-        inv = None
-        for attempt in range(8):
-            number = next_invoice_number(_sid(), year.name)
-            candidate = Invoice(
+        # Ticket "توحيد منطق إنشاء الفاتورة" — the safe numbering + tax
+        # + discount + installment logic all live inside
+        # `services.ledger.create_invoice` now, which the recurring
+        # generator also uses. This route stays responsible for form
+        # parsing, tenant checks, and the notification hook.
+        from ...services.ledger import create_invoice, post_invoice_to_ledger, LedgerError
+        fee_lines_in = list(zip(fee_ids, amounts))
+        try:
+            inv = create_invoice(
                 school_id=_sid(),
                 enrollment_id=enrollment_id,
-                number=number,
-                issue_date=issue,
-                due_date=due,
-                status="sent",
+                year_name=year.name,
+                fee_lines=fee_lines_in,
+                issue_date=issue, due_date=due,
+                installments_count=installments_count,
             )
-            db.session.add(candidate)
-            try:
-                db.session.flush()
-                inv = candidate
-                break
-            except IntegrityError:
-                db.session.rollback()
-                # Re-fetch the enrollment on the fresh session
-                # (rollback nukes any stale identity map row).
-                continue
-        if inv is None:
-            flash("تعذّر توليد رقم فاتورة فريد — حاول مرة أخرى.", "danger")
+        except LedgerError as e:
+            db.session.rollback()
+            flash(str(e), "danger")
             return redirect(url_for("finance.invoice_new"))
-
-        # Ticket "Additional 9" — read school's default VAT rate. If
-        # any of the picked fee types are is_taxable, we accumulate tax
-        # on their subtotals; the invoice's total_amount stays GROSS
-        # (net + tax) so downstream paid/remaining math is unchanged.
-        # (School is already imported at the module top — a nested
-        # `from ...models import School` here would rebind it as a
-        # local and break the GET-branch reference at line 505.)
-        school = db.session.get(School, _sid())
-        default_rate = Decimal(str(school.default_tax_rate or 0))
-
-        subtotal = Decimal(0)
-        taxable_subtotal = Decimal(0)
-        for fid, amt_raw in zip(fee_ids, amounts):
-            amt = Decimal(amt_raw or "0")
-            if amt <= 0:
-                continue
-            ft = FeeType.query.filter_by(school_id=_sid(), id=fid).first()
-            if not ft:
-                continue
-            line = InvoiceLine(
-                invoice_id=inv.id, fee_type_id=ft.id,
-                description=ft.name, amount=amt,
-            )
-            db.session.add(line)
-            subtotal += amt
-            if ft.is_taxable:
-                taxable_subtotal += amt
-
-        # Ticket "تضارب حساب الضريبة مع الخصومات" — explicit policy:
-        # VAT is computed on the pre-discount taxable subtotal. This
-        # matches how most tax authorities require the tax base to be
-        # recorded (the invoice's *invoiced value* is what's taxed;
-        # discounts flow through separately). The three numbers stay
-        # coherent because `total_amount = subtotal + tax - discount`
-        # is a linear composition; auditors can always reconstruct
-        # each component from the stored fields.
-        tax_amount = (taxable_subtotal * default_rate / Decimal(100)).quantize(Decimal("0.01"))
-        inv.tax_rate = default_rate
-        inv.tax_amount = tax_amount
-        total = subtotal + tax_amount
-
-        # Ticket #17 — auto-apply approved StudentDiscount rows on this
-        # enrollment. Written as negative InvoiceLine rows so the parent
-        # sees the breakdown; ledger service handles the contra-revenue.
-        from ...services.discounts import applicable_discounts_for
-        applied = applicable_discounts_for(enrollment_id, total)
-        for label, amount, _sd in applied:
-            db.session.add(InvoiceLine(
-                invoice_id=inv.id, fee_type_id=fee_ids[0] if fee_ids else None,
-                description=f"خصم: {label}",
-                amount=-amount,     # negative line
-            ))
-            total -= amount
-
-        inv.total_amount = total
-
-        # Split installments
-        if installments_count < 1:
-            installments_count = 1
-        per = (total / installments_count).quantize(Decimal("0.01"))
-        accum = Decimal(0)
-        for i in range(installments_count):
-            d = due if installments_count == 1 else due + timedelta(days=30 * i)
-            amt = per if i < installments_count - 1 else total - accum
-            db.session.add(Installment(
-                invoice_id=inv.id, due_date=d, amount=amt,
-            ))
-            accum += amt
-
-        db.session.flush()   # so `inv.lines` is queryable inside ledger
-        # Ticket "Full financial automation" — one call, no account choices.
-        # The service resolves the student's AR sub-account, splits credits
-        # per fee_type, and books the discount contra-line automatically.
-        from ...services.ledger import post_invoice_to_ledger, LedgerError
         try:
             post_invoice_to_ledger(inv, entry_date=issue)
         except LedgerError as e:
@@ -576,6 +487,7 @@ def invoice_new():
             flash(str(e), "danger")
             return redirect(url_for("finance.invoice_new"))
         db.session.commit()
+        number = inv.number
 
         # T-8.5: notify parent on issue
         e = inv.enrollment

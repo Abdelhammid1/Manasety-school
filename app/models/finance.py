@@ -460,7 +460,7 @@ class PaymentMethod(SoftDeleteMixin, db.Model):
 RECURRING_FREQUENCIES = ("monthly", "termly", "yearly")
 
 
-class RecurringFeeSchedule(db.Model):
+class RecurringFeeSchedule(SoftDeleteMixin, db.Model):
     __tablename__ = "recurring_fee_schedules"
 
     id = db.Column(db.Integer, primary_key=True)

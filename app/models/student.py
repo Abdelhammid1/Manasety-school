@@ -1,5 +1,6 @@
 from datetime import datetime
 from ..extensions import db
+from .mixins import SoftDeleteMixin
 
 
 ENROLLMENT_STATUSES = ["active", "withdrawn", "transferred", "promoted_out"]

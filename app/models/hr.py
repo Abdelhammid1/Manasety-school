@@ -31,7 +31,7 @@ class Employee(SoftDeleteMixin, db.Model):
     payrolls = db.relationship("Payroll", backref="employee", order_by="Payroll.period_month.desc()")
 
 
-class Payroll(db.Model):
+class Payroll(SoftDeleteMixin, db.Model):
     """A single monthly salary run for an employee.
 
     Financial-automation ticket — the Payroll row is now the *accrual*:

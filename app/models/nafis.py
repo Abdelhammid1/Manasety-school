@@ -13,6 +13,7 @@ SQL stay portable; Arabic labels live in `*_ar` columns.
 from datetime import datetime, timezone
 
 from ..extensions import db
+from .mixins import SoftDeleteMixin
 
 
 # ─── Enums (kept as short strings; no CHECK constraints — validated in app) ──
@@ -76,7 +77,7 @@ class LearningOutcome(db.Model):
 
 # ─── NAFIS test cycle (one per ETEC round) ────────────────────────────
 
-class NafisCycle(db.Model):
+class NafisCycle(SoftDeleteMixin, db.Model):
     """Dorat نافس — one testing round (typically once per Hijri year)."""
     __tablename__ = "nafis_cycles"
 

@@ -1,4 +1,5 @@
 from datetime import datetime
+from .mixins import SoftDeleteMixin
 from ..extensions import db
 
 
@@ -21,7 +22,7 @@ class PassRule(db.Model):
     __table_args__ = (db.UniqueConstraint("year_id", name="uq_pass_rule_year"),)
 
 
-class AssessmentComponent(db.Model):
+class AssessmentComponent(SoftDeleteMixin, db.Model):
     __tablename__ = "assessment_components"
 
     id = db.Column(db.Integer, primary_key=True)

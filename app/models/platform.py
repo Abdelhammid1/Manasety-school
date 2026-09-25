@@ -7,6 +7,7 @@ would spread across seven files.
 """
 from datetime import datetime, timezone
 from ..extensions import db
+from .mixins import SoftDeleteMixin
 
 
 def _utcnow():
@@ -48,7 +49,7 @@ class Guardian(db.Model):
     )
 
 
-class StudentGuardian(db.Model):
+class StudentGuardian(SoftDeleteMixin, db.Model):
     """Join row — permissions live here, not on Guardian, so the same
     guardian can have different rights per child (rare but real)."""
     __tablename__ = "student_guardians"
@@ -80,7 +81,7 @@ class StudentGuardian(db.Model):
 
 # ─── Ticket 4 — SchoolCalendarDay ────────────────────────────────────
 
-class SchoolCalendarDay(db.Model):
+class SchoolCalendarDay(SoftDeleteMixin, db.Model):
     """A single dated entry in the school calendar. day_type drives the
     behaviour hooks (attendance refuses entry on holidays, etc)."""
     __tablename__ = "calendar_days"
@@ -139,7 +140,7 @@ class AuditLog(db.Model):
 
 # ─── Ticket 7 — Rooms ────────────────────────────────────────────────
 
-class Room(db.Model):
+class Room(SoftDeleteMixin, db.Model):
     __tablename__ = "rooms"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -254,7 +255,7 @@ class HealthIncident(db.Model):
 
 # ─── Ticket 11 — StudentDocument ─────────────────────────────────────
 
-class StudentDocument(db.Model):
+class StudentDocument(SoftDeleteMixin, db.Model):
     __tablename__ = "student_documents"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -477,7 +478,8 @@ class GradingScaleLevel(db.Model):
 
 # ─── Ticket 16 — Rubrics ─────────────────────────────────────────────
 
-class Rubric(db.Model):
+class Rubric(SoftDeleteMixin, db.Model):
+    __soft_delete_cascades__ = ("criteria",)
     __tablename__ = "rubrics"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -496,7 +498,7 @@ class Rubric(db.Model):
     )
 
 
-class RubricCriterion(db.Model):
+class RubricCriterion(SoftDeleteMixin, db.Model):
     __tablename__ = "rubric_criteria"
 
     id = db.Column(db.Integer, primary_key=True)

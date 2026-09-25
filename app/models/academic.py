@@ -1,8 +1,9 @@
 from datetime import datetime
+from .mixins import SoftDeleteMixin
 from ..extensions import db
 
 
-class AcademicYear(db.Model):
+class AcademicYear(SoftDeleteMixin, db.Model):
     __tablename__ = "academic_years"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -25,7 +26,7 @@ class AcademicYear(db.Model):
     __table_args__ = (db.UniqueConstraint("school_id", "name", name="uq_year_school_name"),)
 
 
-class Term(db.Model):
+class Term(SoftDeleteMixin, db.Model):
     __tablename__ = "terms"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -64,7 +65,7 @@ class Term(db.Model):
         return "مفتوح" if self.is_open else "مغلق"
 
 
-class Grade(db.Model):
+class Grade(SoftDeleteMixin, db.Model):
     __tablename__ = "grades"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -81,7 +82,7 @@ class Grade(db.Model):
     )
 
 
-class Section(db.Model):
+class Section(SoftDeleteMixin, db.Model):
     __tablename__ = "sections"
 
     id = db.Column(db.Integer, primary_key=True)

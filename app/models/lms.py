@@ -1,5 +1,4 @@
-"""
-LMS domain models — the "learning" half of Manasety.
+"""LMS domain models — the "learning" half of Manasety.
 
 Adds on top of the existing SIS/ERP:
 - Course (per subject × section × academic year)
@@ -16,6 +15,7 @@ from datetime import datetime, timezone
 from sqlalchemy.sql import false as sa_false
 
 from ..extensions import db
+from .mixins import SoftDeleteMixin
 
 
 def _utcnow():
@@ -24,7 +24,12 @@ def _utcnow():
 
 # ---------- Courses & Lessons ----------
 
-class Course(db.Model):
+class Course(SoftDeleteMixin, db.Model):
+    # When a course is soft-deleted the whole content tree disappears
+    # with it (ticket "cascade على الأبناء"). Restore walks back only
+    # the children we brought down (< 60s apart).
+    __soft_delete_cascades__ = ("lessons", "assignments", "quizzes",
+                                "course_sections")
     __tablename__ = "lms_courses"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -84,7 +89,7 @@ class CourseSection(db.Model):
     )
 
 
-class Unit(db.Model):
+class Unit(SoftDeleteMixin, db.Model):
     """A Unit groups Lessons under a Course (ticket #16 part 1).
     Lesson.unit_id is nullable, so pre-existing lessons show up under a
     virtual "no unit" bucket until a teacher tags them."""
@@ -103,7 +108,7 @@ class Unit(db.Model):
     lessons = db.relationship("Lesson", backref="unit", order_by="Lesson.order_index")
 
 
-class Lesson(db.Model):
+class Lesson(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_lessons"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -125,7 +130,7 @@ class Lesson(db.Model):
 
 # ---------- Assignments ----------
 
-class CourseAssignment(db.Model):
+class CourseAssignment(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_assignments"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -198,7 +203,7 @@ class Submission(db.Model):
     )
 
 
-class AssignmentQuestion(db.Model):
+class AssignmentQuestion(SoftDeleteMixin, db.Model):
     """Quiz-style question attached to a CourseAssignment. Mirrors the
     `Question` model exactly so the bank picker can clone rows either
     into a Quiz or into an Assignment with the same code path."""
@@ -264,7 +269,7 @@ class AssignmentAnswer(db.Model):
 
 # ---------- Quizzes ----------
 
-class Quiz(db.Model):
+class Quiz(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_quizzes"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -286,7 +291,7 @@ class Quiz(db.Model):
                                 order_by="Question.order_index")
 
 
-class Question(db.Model):
+class Question(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_questions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -376,7 +381,7 @@ class Answer(db.Model):
 # - choices live in a separate table (BankChoice) mirroring the Choice
 #   table's shape 1-to-1, so the picker copy is a straight field-map.
 
-class BankQuestion(db.Model):
+class BankQuestion(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_bank_questions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -478,7 +483,7 @@ class BankChoice(db.Model):
 # after the fact does not silently rewrite an already-distributed
 # assignment.
 
-class AssignmentTemplate(db.Model):
+class AssignmentTemplate(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_assignment_templates"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -585,7 +590,7 @@ class AssessmentTemplate(db.Model):
     )
 
 
-class AssessmentTemplateItem(db.Model):
+class AssessmentTemplateItem(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_assessment_template_questions"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -618,7 +623,7 @@ class AssessmentTemplateItem(db.Model):
 # The passage stays independent — questions carry `passage_id` and can
 # be re-parented; deleting the passage nulls the FK on each question.
 
-class Passage(db.Model):
+class Passage(SoftDeleteMixin, db.Model):
     __tablename__ = "passages"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -696,7 +701,7 @@ class Indicator(db.Model):
 
 # ---------- Announcements ----------
 
-class Announcement(db.Model):
+class Announcement(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_announcements"
 
     id = db.Column(db.Integer, primary_key=True)

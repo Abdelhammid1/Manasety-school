@@ -1,4 +1,5 @@
 from datetime import datetime
+from .mixins import SoftDeleteMixin
 from ..extensions import db
 
 
@@ -51,7 +52,7 @@ class Teacher(db.Model):
     subjects = db.relationship("Subject", secondary=teacher_subjects, backref="teachers")
 
 
-class Subject(db.Model):
+class Subject(SoftDeleteMixin, db.Model):
     __tablename__ = "subjects"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -99,7 +100,7 @@ class Assignment(db.Model):
     )
 
 
-class Day(db.Model):
+class Day(SoftDeleteMixin, db.Model):
     __tablename__ = "days"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -118,7 +119,7 @@ class Day(db.Model):
     )
 
 
-class Period(db.Model):
+class Period(SoftDeleteMixin, db.Model):
     __tablename__ = "periods"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -139,7 +140,7 @@ class Period(db.Model):
     )
 
 
-class ScheduleSlot(db.Model):
+class ScheduleSlot(SoftDeleteMixin, db.Model):
     __tablename__ = "schedule_slots"
 
     id = db.Column(db.Integer, primary_key=True)

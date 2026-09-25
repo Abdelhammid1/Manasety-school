@@ -1012,6 +1012,106 @@ def _period_key(freq: str, today) -> str:
     return today.isoformat()
 
 
+def create_invoice(*, school_id: int, enrollment_id: int, year_name: str,
+                   fee_lines, issue_date, due_date,
+                   installments_count: int = 1,
+                   number_prefix_extra: str = "",
+                   status: str = "sent") -> "Invoice":
+    """Unified invoice-creation helper — used by BOTH `invoice_new` and
+    `generate_recurring_invoices` so numbering, tax, discount and
+    installment logic have exactly one source of truth (Ticket "توحيد
+    منطق إنشاء الفاتورة").
+
+    * `fee_lines`: iterable of (fee_type_id, amount).
+    * Numbering is race-safe (uses `next_invoice_number` + retry loop).
+    * VAT policy is pre-discount taxable subtotal (matches invoice_new).
+    * StudentDiscount rows on the enrollment auto-apply as negative
+      lines (contra-revenue booked by `post_invoice_to_ledger`).
+    * Installments are split evenly with the remainder trailed to the
+      last row so the sum matches total to the cent.
+
+    Returns the flushed Invoice. Caller commits.
+    """
+    from sqlalchemy.exc import IntegrityError
+    from ..models import Invoice, InvoiceLine, Installment, FeeType, School
+    from ..services.discounts import applicable_discounts_for
+    from datetime import timedelta
+
+    # ── 1. Race-safe number allocation with retry loop.
+    inv = None
+    for _ in range(8):
+        number_base = next_invoice_number(school_id, year_name)
+        number = (f"{number_base[:-6]}{number_prefix_extra}{number_base[-6:]}"
+                  if number_prefix_extra else number_base)
+        candidate = Invoice(
+            school_id=school_id, enrollment_id=enrollment_id,
+            number=number, issue_date=issue_date, due_date=due_date,
+            status=status,
+        )
+        db.session.add(candidate)
+        try:
+            db.session.flush()
+            inv = candidate; break
+        except IntegrityError:
+            db.session.rollback()
+            continue
+    if inv is None:
+        raise LedgerError("تعذّر توليد رقم فاتورة فريد.")
+
+    # ── 2. Lines + tax accumulation (pre-discount taxable subtotal).
+    school = db.session.get(School, school_id)
+    default_rate = Decimal(str(school.default_tax_rate or 0))
+    subtotal = Decimal(0); taxable_subtotal = Decimal(0)
+    for fee_id, amt in fee_lines:
+        amt = Decimal(str(amt or 0))
+        if amt <= 0:
+            continue
+        ft = FeeType.query.filter_by(school_id=school_id, id=fee_id).first()
+        if not ft:
+            continue
+        db.session.add(InvoiceLine(
+            invoice_id=inv.id, fee_type_id=ft.id,
+            description=ft.name, amount=amt,
+        ))
+        subtotal += amt
+        if ft.is_taxable:
+            taxable_subtotal += amt
+
+    tax_amount = (taxable_subtotal * default_rate / Decimal(100)).quantize(Decimal("0.01"))
+    inv.tax_rate = default_rate
+    inv.tax_amount = tax_amount
+    total = subtotal + tax_amount
+
+    # ── 3. Auto-apply approved discounts (contra-revenue negative lines).
+    applied = applicable_discounts_for(enrollment_id, total)
+    for label, amount, _sd in applied:
+        first_fee_id = None
+        for fee_id, _amt in fee_lines:
+            first_fee_id = fee_id; break
+        db.session.add(InvoiceLine(
+            invoice_id=inv.id, fee_type_id=first_fee_id,
+            description=f"خصم: {label}", amount=-amount,
+        ))
+        total -= amount
+
+    inv.total_amount = total
+
+    # ── 4. Installments.
+    installments_count = max(1, installments_count)
+    per = (total / installments_count).quantize(Decimal("0.01"))
+    accum = Decimal(0)
+    for i in range(installments_count):
+        d = due_date if installments_count == 1 else due_date + timedelta(days=30 * i)
+        amt = per if i < installments_count - 1 else total - accum
+        db.session.add(Installment(
+            invoice_id=inv.id, due_date=d, amount=amt,
+        ))
+        accum += amt
+
+    db.session.flush()
+    return inv
+
+
 def generate_recurring_invoices(school_id: int, *, today=None) -> dict:
     """Ticket "Additional 8" — sweep every active RecurringFeeSchedule
     for a school and materialise invoices for every eligible student.
@@ -1062,27 +1162,29 @@ def generate_recurring_invoices(school_id: int, *, today=None) -> dict:
             if already:
                 continue
 
-            n = Invoice.query.filter_by(school_id=school_id).count() + 1
-            number = f"INV-{year.name}-R{sched.id}-{period_key}-{n:05d}"
-            due = today + timedelta(days=15)
             amount = ft.default_amount or Decimal(0)
             if amount <= 0:
                 continue
+            due = today + timedelta(days=15)
 
-            inv = Invoice(
-                school_id=school_id, enrollment_id=enr.id,
-                number=number, issue_date=today, due_date=due,
-                status="sent", total_amount=amount,
-            )
-            db.session.add(inv); db.session.flush()
-            db.session.add(InvoiceLine(
-                invoice_id=inv.id, fee_type_id=ft.id,
-                description=ft.name, amount=amount,
-            ))
-            db.session.add(Installment(
-                invoice_id=inv.id, due_date=due, amount=amount,
-            ))
-            db.session.flush()
+            # Ticket "توحيد منطق إنشاء الفاتورة" — route through the
+            # shared helper so tax and enrollment discounts are honoured
+            # on recurring invoices too. Previously this branch built
+            # the row inline with no tax and no discount application.
+            try:
+                inv = create_invoice(
+                    school_id=school_id,
+                    enrollment_id=enr.id,
+                    year_name=year.name,
+                    fee_lines=[(ft.id, amount)],
+                    issue_date=today,
+                    due_date=due,
+                    installments_count=1,
+                    number_prefix_extra=f"R{sched.id}",
+                )
+            except LedgerError:
+                db.session.rollback()
+                continue
             try:
                 post_invoice_to_ledger(inv, entry_date=today)
             except LedgerError:
