@@ -1,0 +1,47 @@
+{# Ticket A4 — Subject rollup across every grade it's taught in. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تقرير المادة — {{ subject.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تقرير المادة</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[900px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">{{ subject.name }}</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      {% if year %}السنة {{ year.name }}{% endif %}
+    </p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الصف</th>
+          <th class="p-2 text-center">عدد الدرجات</th>
+          <th class="p-2 text-center">متوسط الدرجات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for gid, gname, entries, avg_val in rows %}
+        <tr class="border-t border-surface-container-low hover:bg-surface-container-low">
+          <td class="p-2 font-bold">
+            <a href="{{ url_for('academic.grade_report', grade_id=gid) }}"
+               class="text-primary hover:underline">{{ gname }}</a>
+          </td>
+          <td class="p-2 text-center tabular-nums">{{ entries }}</td>
+          <td class="p-2 text-center tabular-nums font-bold">
+            {{ '%.2f'|format(avg_val) if avg_val is not none else '—' }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا درجات مسجّلة لهذه المادة بعد.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

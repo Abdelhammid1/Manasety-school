@@ -2,7 +2,7 @@
 from datetime import date
 from decimal import Decimal
 
-from flask import flash, redirect, render_template, request, url_for
+from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import bp
@@ -123,6 +123,36 @@ def substitution_new():
         reason=(request.form.get("reason") or "").strip() or None,
         created_by_user_id=getattr(current_user, "id", None),
     )
-    db.session.add(log); db.session.commit()
+    db.session.add(log); db.session.flush()
+
+    # Ticket A3 — automatic notification to the substitute teacher.
+    # Fires only on successful create so a duplicate-guard failure
+    # above doesn't send a bogus message.
+    try:
+        from ...services.notifications import send_notification
+        from ...models import Teacher as _Teacher, User as _User
+        sub_teacher = _Teacher.query.filter_by(
+            id=sub, school_id=_sid()).first()
+        if sub_teacher and sub_teacher.user_id:
+            u = _User.query.get(sub_teacher.user_id)
+            phone = getattr(u, "phone", None) if u else None
+            payload = {
+                "date": d.isoformat() if d else None,
+                "slot_id": slot_id,
+                "reason": log.reason,
+                "message": (
+                    f"تم تكليفك بتغطية حصة يوم {d.isoformat()}. "
+                    f"يرجى مراجعة الجدول للتفاصيل."
+                ),
+            }
+            send_notification(
+                school_id=_sid(), kind="substitution", payload=payload,
+                target_phone=phone,
+                related_kind="substitution", related_id=log.id,
+            )
+    except Exception:
+        current_app.logger.exception("substitution notification failed")
+
+    db.session.commit()
     flash("تم تسجيل التغطية.", "success")
     return redirect(url_for("platform.substitutions_list"))

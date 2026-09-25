@@ -1,0 +1,48 @@
+{# Ticket T7 — Per-period attendance rates. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تحليل الحصص{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[900px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">تحليل الحضور لكل حصة</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      نسبة الحضور محسوبة على مستوى الحصة (بيتم تجاهل الإدخالات اليومية).
+    </p>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    {% if rows %}
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الحصة</th>
+          <th class="p-2 text-center">إجمالي الرصد</th>
+          <th class="p-2 text-center">حاضر</th>
+          <th class="p-2 text-center">نسبة الحضور</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 font-bold">{{ r.period_name }}</td>
+          <td class="p-2 text-center tabular-nums">{{ r.total }}</td>
+          <td class="p-2 text-center tabular-nums text-emerald-700">{{ r.present }}</td>
+          <td class="p-2">
+            <div class="flex items-center gap-2 justify-center">
+              <div class="h-2 w-32 rounded-full bg-surface-container-high overflow-hidden">
+                <div class="h-full"
+                     style="width: {{ r.rate }}%; background: {% if r.rate >= 90 %}#10B981{% elif r.rate >= 75 %}#F59E0B{% else %}#EF4444{% endif %};"></div>
+              </div>
+              <span class="font-label-md tabular-nums">{{ r.rate }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-center text-outline">لا بيانات حضور بالحصة لعرضها.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

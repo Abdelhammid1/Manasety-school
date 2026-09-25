@@ -1,0 +1,63 @@
+{# Ticket A4 — Grade rollup: attendance + avg grade per section. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تقرير الصف — {{ grade.name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تقرير الصف</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-md font-extrabold text-primary">{{ grade.name }}</h1>
+      <p class="font-body-sm text-on-surface-variant">
+        {% if year %}السنة {{ year.name }}{% endif %} · {{ stats.total_students }} طالب
+      </p>
+    </div>
+    <div class="flex items-center gap-3">
+      <div class="text-center">
+        <div class="font-headline-md font-extrabold text-primary">{{ stats.attendance_rate }}%</div>
+        <div class="font-label-xs text-outline">نسبة الحضور</div>
+      </div>
+      <div class="text-center">
+        <div class="font-headline-md font-extrabold text-primary">{{ stats.avg_grade or '—' }}</div>
+        <div class="font-label-xs text-outline">متوسط الدرجات</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm overflow-x-auto">
+    <table class="w-full text-right font-body-md min-w-[720px]">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الفصل</th>
+          <th class="p-2 text-center">الطلاب</th>
+          <th class="p-2 text-center">نسبة الحضور</th>
+          <th class="p-2 text-center">حاضر</th>
+          <th class="p-2 text-center">غائب</th>
+          <th class="p-2 text-center">متأخر</th>
+          <th class="p-2 text-center">متوسط الدرجات</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in per_section %}
+        <tr class="border-t border-surface-container-low hover:bg-surface-container-low">
+          <td class="p-2 font-bold">
+            <a href="{{ url_for('students.students_list', section_id=r.id) }}"
+               class="text-primary hover:underline">{{ r.name }}</a>
+          </td>
+          <td class="p-2 text-center tabular-nums">{{ r.student_count }}</td>
+          <td class="p-2 text-center tabular-nums">{{ r.attendance_rate }}%</td>
+          <td class="p-2 text-center tabular-nums text-emerald-700">{{ r.present }}</td>
+          <td class="p-2 text-center tabular-nums text-error">{{ r.absent }}</td>
+          <td class="p-2 text-center tabular-nums text-tertiary">{{ r.late }}</td>
+          <td class="p-2 text-center tabular-nums font-bold">{{ r.avg_grade or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td class="p-space-lg text-center text-outline" colspan="7">لا فصول لهذا الصف.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,47 @@
+{# Ticket A5 — Section capacity dashboard. Heatmap-style grouped list. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}إشغال الفصول{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">لوحة إشغال الفصول</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1200px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md font-extrabold text-primary">إشغال الفصول</h1>
+    <p class="font-body-sm text-on-surface-variant">
+      {% if year %}السنة الدراسية: {{ year.name }}{% else %}لا توجد سنة نشطة{% endif %}
+    </p>
+  </section>
+
+  {% for grade, sections in by_grade.items() %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h2 class="font-title-md font-bold mb-space-sm">{{ grade }}</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-space-md">
+      {% for r in sections %}
+      {% set color = '#10B981' if r.pct < 75 else ('#F59E0B' if r.pct < 95 else '#EF4444') %}
+      <a href="{{ url_for('students.students_list', section_id=r.id) }}"
+         class="p-space-md rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
+        <div class="flex items-center justify-between mb-2">
+          <span class="font-title-md font-bold text-on-surface">{{ r.section }}</span>
+          {% if r.over %}
+          <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-label-xs font-bold">تجاوز</span>
+          {% endif %}
+        </div>
+        <div class="flex items-end justify-between font-headline-md font-extrabold" style="color: {{ color }};">
+          <span>{{ r.current }}</span>
+          <span class="font-label-md text-on-surface-variant">/ {{ r.capacity or '∞' }}</span>
+        </div>
+        <div class="mt-1 h-2 bg-surface-container-high rounded-full overflow-hidden">
+          <div class="h-full" style="width: {{ [r.pct, 100]|min }}%; background: {{ color }};"></div>
+        </div>
+        <div class="mt-1 font-label-xs text-outline">{{ r.pct }}% إشغال</div>
+      </a>
+      {% endfor %}
+    </div>
+  </section>
+  {% else %}
+  <p class="text-center text-outline">لا فصول للسنة الحالية.</p>
+  {% endfor %}
+</div>
+{% endblock %}
