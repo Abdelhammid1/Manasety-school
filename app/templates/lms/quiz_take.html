@@ -93,14 +93,16 @@
         </div>
         <div class="grid grid-cols-5 md:grid-cols-4 gap-1.5" id="qNav">
           {% for q in questions %}
+          {% set flagged = flagged_ids and q.id in flagged_ids %}
           <button type="button" onclick="goTo({{ loop.index }})"
-                  class="q-cell w-full aspect-square rounded-lg flex items-center justify-center font-label-md text-label-md font-bold text-on-surface-variant bg-surface-container-low hover:bg-surface-container transition-colors"
+                  class="q-cell w-full aspect-square rounded-lg flex items-center justify-center font-label-md text-label-md font-bold text-on-surface-variant bg-surface-container-low hover:bg-surface-container transition-colors {% if flagged %}ring-2 ring-tertiary{% endif %}"
                   data-qn="{{ loop.index }}">{{ loop.index }}</button>
           {% endfor %}
         </div>
         <div class="mt-4 pt-4 border-t border-surface-container-low space-y-1.5 font-label-xs text-label-xs">
           <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-primary"></span><span class="text-on-surface-variant">تمت الإجابة</span></div>
           <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-secondary-fixed"></span><span class="text-on-surface-variant">السؤال الحالي</span></div>
+          <div class="flex items-center gap-2"><span class="w-3 h-3 rounded ring-2 ring-tertiary"></span><span class="text-on-surface-variant">معلّم للمراجعة</span></div>
           <div class="flex items-center gap-2"><span class="w-3 h-3 rounded bg-surface-container-low border border-outline-variant"></span><span class="text-on-surface-variant">لم تجب بعد</span></div>
         </div>
       </div>
@@ -123,9 +125,10 @@
           </span>
           <div class="flex items-center gap-2">
             {# Phase-2 ticket #11 — flag-for-review toggle #}
+            {% set is_flagged = flagged_ids and q.id in flagged_ids %}
             <button type="button"
-                    class="flag-btn inline-flex items-center gap-1 h-8 px-3 rounded-full bg-surface-container-low text-on-surface-variant font-label-xs font-bold transition-colors"
-                    data-qidx="{{ loop.index }}" data-flagged="0"
+                    class="flag-btn inline-flex items-center gap-1 h-8 px-3 rounded-full {% if is_flagged %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% else %}bg-surface-container-low text-on-surface-variant{% endif %} font-label-xs font-bold transition-colors"
+                    data-qidx="{{ loop.index }}" data-flagged="{{ '1' if is_flagged else '0' }}"
                     onclick="toggleFlag(this, {{ q.id }})">
               <span class="material-symbols-outlined text-sm">flag</span>
               <span>للمراجعة</span>
@@ -152,10 +155,13 @@
         {% endif %}
 
         <div class="mt-space-md flex flex-col gap-2">
+          {% set pa = prior_answers.get(q.id) if prior_answers else None %}
+          {% set multi_prev = (pa.text_answer.split(',') if pa and pa.text_answer else []) %}
           {% if q.kind in ('mcq','tf') %}
             {% for c in (ordered_choices[q.id] if ordered_choices and q.id in ordered_choices else q.choices) %}
             <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
               <input type="radio" name="q_{{ q.id }}" value="{{ c.id }}" onchange="markAnswered()"
+                     {% if pa and pa.choice_id == c.id %}checked{% endif %}
                      class="w-5 h-5 accent-primary">
               <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
             </label>
@@ -164,6 +170,7 @@
             {% for c in (ordered_choices[q.id] if ordered_choices and q.id in ordered_choices else q.choices) %}
             <label class="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all">
               <input type="checkbox" name="q_{{ q.id }}[]" value="{{ c.id }}" onchange="markAnswered()"
+                     {% if (c.id|string) in multi_prev %}checked{% endif %}
                      class="w-5 h-5 accent-primary">
               <span class="flex-1 font-body-md text-body-md text-on-surface">{{ c.label }}</span>
             </label>
@@ -171,12 +178,13 @@
             <p class="font-label-xs text-label-xs text-on-surface-variant">يمكن اختيار أكثر من إجابة.</p>
           {% elif q.kind == 'short' %}
             <input type="text" name="q_{{ q.id }}_text" oninput="markAnswered()"
+                   value="{{ pa.text_answer if pa else '' }}"
                    placeholder="أدخل إجابتك القصيرة..."
                    class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
           {% else %}{# essay #}
             <textarea name="q_{{ q.id }}_text" rows="6" oninput="markAnswered()"
                       placeholder="اكتب إجابتك المقالية هنا. تُصحّح يدوياً بواسطة المعلم."
-                      class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors leading-loose"></textarea>
+                      class="w-full px-4 py-3 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors leading-loose">{{ pa.text_answer if pa else '' }}</textarea>
           {% endif %}
         </div>
       </section>
@@ -373,6 +381,7 @@
     requestFs();
     paintCurrent();
     markAnswered();
+    updateFinishModalCounts();
   }
   document.getElementById('startBtn').addEventListener('click', beginExam);
 

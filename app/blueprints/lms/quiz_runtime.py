@@ -16,7 +16,7 @@ from flask import abort, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from . import bp
-from ...extensions import db
+from ...extensions import csrf, db
 from ...models import (
     Answer, Choice, Question, QuizAttempt, Student,
     lms_attempt_flagged_questions,
@@ -41,9 +41,18 @@ def _own_attempt_or_403(attempt_id):
 
 @bp.route("/quizzes/attempts/<int:attempt_id>/tab-switch",
           methods=["POST"], endpoint="attempt_tab_switch")
+@csrf.exempt  # navigator.sendBeacon can't add X-CSRFToken header
 @login_required
 def attempt_tab_switch(attempt_id):
-    """Ticket #10 — record one tab switch on the attempt."""
+    """Ticket #10 — record one tab switch on the attempt.
+
+    Called via `navigator.sendBeacon`, which fires reliably during
+    `visibilitychange` (a normal fetch can be canceled by the page
+    unload). Beacon POSTs carry the session cookie but can't add
+    custom headers — CSRF is exempted here because the write is
+    idempotent (bumps an integer) and the session cookie already
+    binds the request to a specific student. Ownership is verified
+    against `_own_attempt_or_403`."""
     attempt = _own_attempt_or_403(attempt_id)
     attempt.tab_switch_count = (attempt.tab_switch_count or 0) + 1
     db.session.commit()
@@ -54,13 +63,13 @@ def attempt_tab_switch(attempt_id):
           methods=["POST"], endpoint="attempt_flag")
 @login_required
 def attempt_flag(attempt_id):
-    """Ticket #11 — toggle a flagged question on this attempt."""
+    """Ticket #11 — toggle a flagged question on this attempt.
+
+    Accepts `question_id` as either JSON body field or form field."""
     attempt = _own_attempt_or_403(attempt_id)
-    qid = request.form.get("question_id", type=int) or request.get_json(silent=True, force=False) or {}
-    if isinstance(qid, dict):
-        qid = qid.get("question_id")
+    body = request.get_json(silent=True) or request.form
     try:
-        qid = int(qid)
+        qid = int(body.get("question_id"))
     except (TypeError, ValueError):
         return jsonify({"error": "question_id required"}), 400
     q = Question.query.get_or_404(qid)

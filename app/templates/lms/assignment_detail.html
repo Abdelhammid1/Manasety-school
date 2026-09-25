@@ -66,13 +66,19 @@
         </div>
       </div>
     </div>
-    {% if submission.feedback %}
+    {% if submission.feedback and not hide_detail %}
     <div class="mt-space-md p-space-md rounded-xl bg-primary-container/10 border border-primary/20">
       <h4 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
         <span class="material-symbols-outlined">rate_review</span>
         ملاحظات المعلم
       </h4>
       <p class="mt-2 font-body-md text-body-md text-on-surface leading-relaxed whitespace-pre-line">{{ submission.feedback }}</p>
+    </div>
+    {% endif %}
+    {% if hide_detail %}
+    <div class="mt-space-md p-space-md rounded-xl bg-surface-container-low border border-outline/20 flex items-center gap-2">
+      <span class="material-symbols-outlined text-outline">visibility_off</span>
+      <span class="font-body-sm text-on-surface-variant">المعلم لم يُتِح مراجعة تفاصيل التصحيح لهذا الواجب.</span>
     </div>
     {% endif %}
   </section>
@@ -153,6 +159,27 @@
                 </p>
               </div>
             </div>
+
+            {% if q.hint_text %}
+            {# Ticket #32 — hint toggle #}
+            <details class="mt-space-sm">
+              <summary class="cursor-pointer inline-flex items-center gap-1.5 px-3 h-9 rounded-full bg-primary/5 text-primary font-label-md font-bold hover:bg-primary/10">
+                <span class="material-symbols-outlined text-base">tips_and_updates</span>
+                <span>محتاج مساعدة؟</span>
+              </summary>
+              <div class="mt-2 p-space-sm rounded-xl bg-primary/5 border border-primary/20 font-body-md text-on-surface">
+                {{ q.hint_text }}
+              </div>
+            </details>
+            {% endif %}
+            {% if q.explanation_video_url and submission and submission.score is not none and assignment.allow_review %}
+            {# Ticket #31 — explanation video, only after submit + allow_review #}
+            <div class="mt-space-sm p-space-sm rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-2">
+              <span class="material-symbols-outlined text-primary">smart_display</span>
+              <a href="{{ q.explanation_video_url }}" target="_blank" rel="noopener"
+                 class="font-label-md font-bold text-primary hover:underline">شاهد الشرح</a>
+            </div>
+            {% endif %}
 
             <div class="mt-space-sm">
               {% if q.kind in ('mcq','tf') %}

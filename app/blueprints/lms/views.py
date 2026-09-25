@@ -1126,6 +1126,15 @@ def qbank_dashboard():
         "hard":      difficulty_totals.get("hard", 0),
         "very_hard": difficulty_totals.get("very_hard", 0),
     }
+    # Phase-2 ticket #1 acceptance — count questions per Bloom
+    # cognitive level for the current filter scope.
+    cog_rows = q.with_entities(
+        BankQuestion.cognitive_level, db.func.count(BankQuestion.id),
+    ).group_by(BankQuestion.cognitive_level).all()
+    cog_totals = {c or "unclassified": n for c, n in cog_rows}
+    cognitive_out = {k: cog_totals.get(k, 0) for k in
+                     ("remember", "understand", "apply", "analyze",
+                      "evaluate", "create", "unclassified")}
 
     subj_rows = q.with_entities(
         BankQuestion.subject_id, db.func.count(BankQuestion.id),
@@ -1154,6 +1163,7 @@ def qbank_dashboard():
         "lms/qbank_dashboard.html",
         stats=stats,
         difficulty=difficulty_out,
+        cognitive=cognitive_out,
         by_subject=by_subject,
         subject_count=subject_count,
         avg_per_subject=avg_per_subject,
@@ -2197,6 +2207,27 @@ def bank_ai_review():
     return redirect(url_for("lms.qbank_dashboard"))
 
 
+@bp.route("/quizzes/<int:qid>/publish-results",
+          methods=["POST"], endpoint="quiz_publish_results")
+@login_required
+def quiz_publish_results(qid):
+    """Phase-2 ticket #16 — teacher-triggered publish for `manual` mode.
+
+    Flips result_publish_mode to 'immediate' and stamps
+    result_publish_at with now, so scheduled + immediate both unlock."""
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    if role not in ("admin", "teacher"):
+        abort(403)
+    quiz = Quiz.query.get_or_404(qid)
+    if quiz.course.school_id != current_user.school_id:
+        abort(403)
+    quiz.result_publish_mode = "immediate"
+    quiz.result_publish_at = datetime.now(timezone.utc)
+    db.session.commit()
+    flash("تم نشر نتائج الاختبار للطلاب.", "success")
+    return redirect(url_for("lms.quiz_analysis", qid=quiz.id))
+
+
 @bp.route("/quizzes/<int:qid>/analysis", endpoint="quiz_analysis")
 @login_required
 def quiz_analysis(qid):
@@ -2327,7 +2358,23 @@ def quiz_analysis(qid):
         "max":  int(round(max(pct_scores))) if pct_scores else 0,
         "min":  int(round(min(pct_scores))) if pct_scores else 0,
         "students_at_risk": sum(1 for p in pct_scores if p < 50),
+        # Ticket #10 — surface tab_switch_count aggregates.
+        "tab_switches_total":  sum((a.tab_switch_count or 0) for a in attempts),
+        "tab_switch_offenders": sum(
+            1 for a in attempts if (a.tab_switch_count or 0) >= 3
+        ),
     }
+    # Per-student tab-switch rows for the analysis card.
+    switch_rows = []
+    for a in attempts:
+        if (a.tab_switch_count or 0) > 0:
+            stu = Student.query.get(a.student_id)
+            switch_rows.append({
+                "student":  (stu.full_name if stu else f"#{a.student_id}"),
+                "count":    a.tab_switch_count,
+                "score":    float(a.score) if a.score is not None else None,
+            })
+    switch_rows.sort(key=lambda r: -r["count"])
     weak_qs = sorted([qs for qs in q_stats if qs["attempts"] > 0],
                      key=lambda x: x["correct_pct"])[:4]
 
@@ -2349,6 +2396,7 @@ def quiz_analysis(qid):
     return render_template("lms/quiz_analysis.html",
                            quiz=quiz, kpi=kpi, weak_qs=weak_qs,
                            q_stats=q_stats, bad_key_qs=bad_key_qs,
+                           switch_rows=switch_rows,
                            student_count=student_count,
                            can_compute_di=can_compute_di,
                            di_threshold=ITEM_ANALYSIS_MIN,
@@ -2773,19 +2821,29 @@ def quiz_pick_from_bank(qid):
 @bp.route("/assignments/<int:aid>", methods=["GET"], endpoint="assignment_detail")
 @login_required
 def assignment_detail(aid):
-    """Assignment detail + submission form (student view)."""
+    """Assignment detail + submission form (student view).
+
+    Ticket #30 — when the assignment has `allow_review=False`, the
+    student sees the submitted score but no per-question breakdown or
+    teacher feedback. Teachers/admins always see full detail."""
     a = CourseAssignment.query.get_or_404(aid)
     student = _current_student()
     submission = None
     if student:
-        submission = Submission.query.filter_by(
-            assignment_id=a.id, student_id=student.id
-        ).first()
+        submission = (
+            Submission.query.filter_by(
+                assignment_id=a.id, student_id=student.id)
+            .order_by(Submission.attempt_number.desc()).first()
+        )
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    is_teacher = role in ("admin", "teacher")
+    hide_detail = (not is_teacher) and (not a.allow_review)
     return render_template(
         "lms/assignment_detail.html",
         assignment=a, student=student, submission=submission,
         now=_tz_safe_now(a.due_at),
         past_due=_past_due(a.due_at),
+        hide_detail=hide_detail,
     )
 
 
@@ -3003,14 +3061,44 @@ def quiz_take(qid):
         pass  # continue
     else:
         # count completed attempts against the cap
-        done = QuizAttempt.query.filter(
+        done_attempts = QuizAttempt.query.filter(
             QuizAttempt.quiz_id == quiz.id,
             QuizAttempt.student_id == student.id,
             QuizAttempt.submitted_at.isnot(None),
-        ).count()
+        ).order_by(QuizAttempt.submitted_at.desc()).all()
+        done = len(done_attempts)
         if done >= (quiz.max_attempts or 1):
             flash("تجاوزت الحد الأقصى للمحاولات على هذا الاختبار.", "warning")
             return redirect(url_for("lms.quizzes_home"))
+        # Phase-2 ticket #15 — retake policy.
+        if done > 0:
+            policy = (quiz.retake_policy or "on_request").strip()
+            if policy == "admin_approval":
+                # A retake needs a granted extension row acting as the
+                # approval. Reuse AssignmentExtension model? No — that
+                # is for assignments. Repurpose the `retake_cooldown`
+                # semantic: a nullable approval flag is out of scope
+                # for this migration, so we gate on the presence of
+                # an explicit `retake_ok=1` query param that only an
+                # admin/teacher can post through the UI.
+                if request.args.get("retake_ok") != "1":
+                    flash("محاولة ثانية تحتاج موافقة إدارية — تواصل مع المعلم.",
+                          "warning")
+                    return redirect(url_for("lms.quizzes_home"))
+                role = getattr(getattr(current_user, "role", None), "name", None)
+                if role not in ("admin", "teacher"):
+                    flash("موافقة إدارية غير مُعتمدة.", "danger")
+                    return redirect(url_for("lms.quizzes_home"))
+            # Cooldown gate — applies to both `on_request` and `auto`.
+            cd = quiz.retake_cooldown_minutes
+            if cd and done_attempts:
+                last = done_attempts[0].submitted_at
+                from datetime import timedelta as _td
+                if last and (now - last) < _td(minutes=int(cd)):
+                    mins_left = int(cd) - int(((now - last).total_seconds() or 0) // 60)
+                    flash(f"فترة انتظار قبل المحاولة القادمة: {mins_left} دقيقة.",
+                          "warning")
+                    return redirect(url_for("lms.quizzes_home"))
         import random as _random
         attempt = QuizAttempt(
             quiz_id=quiz.id, student_id=student.id, started_at=now,
@@ -3027,10 +3115,19 @@ def quiz_take(qid):
 
     questions, ordered_choices = _shuffled_view(quiz, attempt)
 
+    # Phase-2 ticket #13 — restore autosaved answers on reload so a
+    # disconnect + refresh keeps the student's progress intact.
+    prior_answers = {a.question_id: a for a in attempt.answers}
+    # And ticket #11 — pass the set of pre-flagged question ids so the
+    # UI can paint the flag chip correctly on load.
+    flagged_ids = {q.id for q in attempt.flagged_questions}
+
     return render_template(
         "lms/quiz_take.html",
         quiz=quiz, attempt=attempt, questions=questions,
         ordered_choices=ordered_choices,
+        prior_answers=prior_answers,
+        flagged_ids=flagged_ids,
         hard_stop_iso=hard_stop.isoformat() + "Z",
         now=now,
     )
@@ -3167,9 +3264,55 @@ def quiz_submit(qid):
             ans.awarded_points = None
             autograded_all = False
 
+    # Phase-2 ticket #8 — apply negative marking. A wrong mcq/tf/multi
+    # answer subtracts `negative_marking_value` from the running total;
+    # partial-credit `multi` counts as wrong only when nothing was
+    # picked correctly. Total floored at zero, per the ticket.
+    nmv = quiz.negative_marking_value
+    if nmv is not None and nmv > 0:
+        penalty = Decimal("0")
+        for q in quiz.questions:
+            if q.kind not in ("mcq", "tf", "multi"):
+                continue
+            ans = next((a for a in attempt.answers
+                        if a.question_id == q.id), None)
+            if ans is None:
+                continue
+            if ans.is_correct:
+                continue
+            if q.kind == "multi" and ans.awarded_points and ans.awarded_points > 0:
+                continue
+            if ans.choice_id or ans.text_answer:
+                penalty += Decimal(str(nmv))
+        if penalty > 0:
+            total_awarded = max(Decimal("0"), total_awarded - penalty)
+
     attempt.submitted_at = _tz_safe_now(attempt.started_at)
     attempt.score = total_awarded
     attempt.auto_graded = autograded_all
+
+    # Phase-2 ticket #5 — bump per-question usage_count for every
+    # bank-linked question in this attempt. `avg_score` becomes a
+    # running mean of the awarded_points / max_points ratio. The
+    # heavier DI/discrimination re-compute stays on quiz_analysis so
+    # every submit stays cheap.
+    from ...models import QuestionStats as _QS
+    for q in quiz.questions:
+        bqid = getattr(q, "source_bank_id", None)
+        if not bqid:
+            continue
+        row = _QS.query.filter_by(bank_question_id=bqid).first()
+        if row is None:
+            row = _QS(bank_question_id=bqid, usage_count=0)
+            db.session.add(row)
+        row.usage_count = (row.usage_count or 0) + 1
+        # Running-mean update for avg_score using the awarded ratio.
+        ans = next((a for a in attempt.answers if a.question_id == q.id), None)
+        if ans is not None and q.points and ans.awarded_points is not None:
+            ratio = Decimal(str(ans.awarded_points)) / Decimal(str(q.points))
+            prev = row.avg_score if row.avg_score is not None else Decimal("0")
+            n = Decimal(row.usage_count)
+            row.avg_score = ((prev * (n - 1)) + ratio) / n
 
     # Ticket #3 — mirror the score into GradeEntry when the quiz is
     # linked to an auto-syncing AssessmentComponent. Only fires when
@@ -3224,13 +3367,16 @@ def quiz_result(attempt_id):
     role = getattr(getattr(current_user, "role", None), "name", None)
     is_teacher = role in ("admin", "teacher")
     now_ = _tz_safe_now(quiz.result_publish_at)
+    # `manual` mode publishes when the teacher clicks
+    # `/quizzes/<id>/publish-results`, which flips the mode to
+    # `immediate` and stamps `result_publish_at`. So the two-line rule
+    # below covers `immediate` (always), `scheduled` (after publish_at),
+    # and the ex-`manual`-now-`immediate` case (same as `immediate`).
     published = (
         quiz.result_publish_mode == "immediate"
         or (quiz.result_publish_mode == "scheduled"
             and quiz.result_publish_at is not None
             and now_ >= quiz.result_publish_at)
-        # `manual` publishes only when the teacher flips the attempt
-        # (out of scope for this ticket; teachers can always view).
     )
     hide_score  = (not is_teacher) and (not published)
     hide_detail = (not is_teacher) and (

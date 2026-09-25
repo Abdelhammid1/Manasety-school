@@ -645,11 +645,9 @@ class Skill(db.Model):
     order_index = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
 
-    parent   = db.relationship("Skill", remote_side=[id])
     children = db.relationship(
-        "Skill", backref=db.backref("parent_ref", remote_side=[id]),
-        foreign_keys=[parent_id],
-        primaryjoin="Skill.parent_id == Skill.id",
+        "Skill",
+        backref=db.backref("parent", remote_side=[id]),
         cascade="all",
     )
 
