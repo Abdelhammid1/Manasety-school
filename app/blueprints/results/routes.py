@@ -155,6 +155,19 @@ def components():
             ).order_by(AssessmentComponent.id).all()
         )
         total = sum((c.max_score for c in components_list), Decimal(0))
+        # Ticket B2 — advisory: warn (don't block) when the sum is not
+        # 100. `_compute_year` normalises to a percentage before
+        # applying the term weight, so a non-100 total no longer
+        # breaks the final average — but it still means each component
+        # doesn't carry its intended weight vs the others, so the
+        # admin should know.
+        if total != 0 and total != Decimal(100):
+            flash(
+                f"تنبيه: مجموع درجات المكوّنات لهذه المادة/الفترة = "
+                f"{total}. يُفضّل أن يكون 100 حتى يعكس كل مكوّن وزنه "
+                "الفعلي في الدرجة النهائية.",
+                "warning",
+            )
 
     if request.method == "POST" and term_id and subject_id:
         action = request.form.get("action")
@@ -284,10 +297,18 @@ def grade_sheet(section_id, term_id, subject_id):
             )
             return redirect(url_for("results.grades_index"))
 
-    locked = YearResult.query.join(Enrollment).filter(
-        Enrollment.section_id == section.id,
-        Enrollment.year_id == section.year_id,
-    ).first() is not None
+    # Ticket B3 — the lock is PER ENROLLMENT, not per section. The
+    # old code checked `any YearResult in this section → lock the
+    # whole sheet` which meant approving one student's result froze
+    # data entry for every other student. Now we build the set of
+    # locked enrollment ids and enforce per row on both display + POST.
+    locked_enrollment_ids = {
+        yr.enrollment_id for yr in
+        YearResult.query.join(Enrollment).filter(
+            Enrollment.section_id == section.id,
+            Enrollment.year_id == section.year_id,
+        ).all()
+    }
 
     components = (
         AssessmentComponent.query.filter_by(
@@ -309,16 +330,20 @@ def grade_sheet(section_id, term_id, subject_id):
         entries[(ge.enrollment_id, ge.component_id)] = ge
 
     if request.method == "POST":
-        if locked:
-            flash("النتائج معتمدة لهذه السنة. لا يمكن التعديل إلا بصلاحية أعلى.", "danger")
-            return redirect(url_for("results.grade_sheet",
-                                    section_id=section.id, term_id=term.id, subject_id=subject.id))
         if not current_user.can("results", "edit"):
             abort(403)
 
         rejected = 0
+        locked_skipped = 0
         saved = 0
         for e in enrollments:
+            if e.id in locked_enrollment_ids:
+                # B3 — per-student lock. Only reject rows whose
+                # enrollment is actually approved; others go through.
+                for c in components:
+                    if request.form.get(f"score_{e.id}_{c.id}", "").strip():
+                        locked_skipped += 1
+                continue
             for c in components:
                 key = f"score_{e.id}_{c.id}"
                 raw = (request.form.get(key) or "").strip()
@@ -349,7 +374,10 @@ def grade_sheet(section_id, term_id, subject_id):
         msg = f"تم حفظ {saved} درجة."
         if rejected:
             msg += f" تم رفض {rejected} قيمة تجاوزت الحد الأقصى أو غير صالحة."
-        flash(msg, "warning" if rejected else "success")
+        if locked_skipped:
+            msg += (f" تم تجاهل {locked_skipped} قيمة لطلاب اعتُمدت نتائجهم "
+                    "بالفعل (غير قابلة للتعديل).")
+        flash(msg, "warning" if (rejected or locked_skipped) else "success")
         return redirect(url_for("results.grade_sheet",
                                 section_id=section.id, term_id=term.id, subject_id=subject.id))
 
@@ -370,7 +398,13 @@ def grade_sheet(section_id, term_id, subject_id):
         "results/grade_sheet.html",
         section=section, term=term, subject=subject,
         components=components, enrollments=enrollments,
-        entries=entries, term_totals=term_totals, locked=locked,
+        entries=entries, term_totals=term_totals,
+        # B3 — expose the per-enrollment lock set. The old boolean
+        # `locked` stays for template code that hasn't been updated
+        # yet; True iff ALL enrollments are locked.
+        locked_enrollment_ids=locked_enrollment_ids,
+        locked=(bool(enrollments)
+                and all(e.id in locked_enrollment_ids for e in enrollments)),
     )
 
 
@@ -560,8 +594,25 @@ def _compute_year(enrollment, terms, subjects, rule: PassRule):
                 incomplete = True
                 term_scores.append((term, None))
             else:
-                total = sum((e.score for e in entries), Decimal(0))
-                term_scores.append((term, total))
+                # Ticket B2 — NORMALIZE to a 0..100 percentage before
+                # applying the term weight. The old code weighted raw
+                # points (e.g. 27/30 * term.weight) which made the
+                # final average scale with sum(component.max_score) —
+                # so schools whose components summed to 30 (not 100)
+                # were producing averages capped at ~30 and every
+                # student was auto-failing against the default 50
+                # threshold. `term_results()` in this same module
+                # already used percentage — bringing this path in
+                # line.
+                comp_max_total = sum(
+                    (c.max_score for c in comps), Decimal(0)
+                )
+                raw_total = sum((e.score for e in entries), Decimal(0))
+                pct = (
+                    (raw_total / comp_max_total) * Decimal(100)
+                    if comp_max_total else Decimal(0)
+                )
+                term_scores.append((term, pct))
 
         # weighted average across terms
         weighted = Decimal(0)

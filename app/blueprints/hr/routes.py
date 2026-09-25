@@ -352,6 +352,23 @@ def payroll_delete(payroll_id):
     without this we couldn't re-issue a corrected payroll for the same
     month."""
     p = Payroll.query.filter_by(id=payroll_id, school_id=_sid()).first_or_404()
+
+    # Ticket B4 — refuse to delete a payroll that has already been
+    # paid (fully or partially). Each PayrollSettlement carries its
+    # own journal_entry_id (the disbursement journal, separate from
+    # the accrual journal deleted below); cascade removal of a
+    # settlement won't touch that JE, so a naive delete leaves
+    # orphan journal entries and unbalanced accounts.
+    settlements = list(getattr(p, "settlements", []) or [])
+    if settlements or (p.paid_amount or 0) > 0:
+        flash(
+            f"لا يمكن حذف الراتب — تم صرف {p.paid_amount} منه بالفعل عبر "
+            f"{len(settlements)} عملية سداد. راجع القيود المحاسبية أولاً "
+            "أو قم بعكس الصرف قبل الحذف.",
+            "danger",
+        )
+        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+
     je_id = p.journal_entry_id
     employee_name = p.employee.full_name if p.employee else "—"
     db.session.delete(p)

@@ -125,7 +125,10 @@
             <tbody id="gradeRows">
               {% for e in enrollments %}
               {% set tt = term_totals[e.id] %}
-              <tr class="border-t border-outline-variant hover:bg-surface-container-low transition-colors" data-enrollment="{{ e.id }}">
+              {# Ticket B3 — per-student lock. Only rows whose YearResult
+                 was already approved get their inputs disabled + a badge. #}
+              {% set row_locked = locked_enrollment_ids and e.id in locked_enrollment_ids %}
+              <tr class="border-t border-outline-variant hover:bg-surface-container-low transition-colors {% if row_locked %}bg-surface-container-low{% endif %}" data-enrollment="{{ e.id }}">
                 <td class="sticky right-0 bg-surface-container-lowest px-4 py-3 z-10">
                   <div class="flex items-center gap-2">
                     <div class="w-8 h-8 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold text-xs shrink-0">
@@ -135,6 +138,11 @@
                       <span class="font-label-lg text-label-lg text-on-surface font-semibold truncate">{{ e.student.full_name }}</span>
                       <span class="font-label-xs text-label-xs text-outline">{{ e.student.permanent_code }}</span>
                     </div>
+                    {% if row_locked %}
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-xs font-bold">
+                      <span class="material-symbols-outlined text-xs">lock</span>معتمد
+                    </span>
+                    {% endif %}
                   </div>
                 </td>
                 {% for c in components %}
@@ -147,7 +155,7 @@
                          data-row="{{ e.id }}"
                          onchange="recomputeRow({{ e.id }}); recomputeClassAvg();"
                          oninput="colorCell(this)"
-                         {% if locked %}disabled{% endif %}
+                         {% if locked or row_locked %}disabled{% endif %}
                          placeholder="—"
                          class="score-cell w-20 h-9 text-center font-label-lg text-label-lg rounded-lg border-2 border-transparent bg-surface-container-low focus:bg-surface-container-lowest focus:border-primary/40 focus:outline-none transition-colors">
                 </td>

@@ -201,13 +201,26 @@ def imports_commit():
     db.session.add(batch); db.session.flush()
 
     active_year = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
+    # Ticket B1 — batch-allocate permanent codes ONCE. Doing it per
+    # row would (a) MAX-scan the students table on every iteration
+    # and (b) still race against a parallel admissions form. The
+    # allocator takes a FOR UPDATE lock on the school and hands out
+    # sequential codes from an in-memory counter — safe + fast.
+    from ...services.student_codes import PermanentCodeAllocator
+    from ...models import School as _School
+    _school = db.session.get(_School, _sid())
+    code_allocator = (
+        PermanentCodeAllocator(_school) if entity == "students" else None
+    )
     success = 0
     for r in ok_rows:
         d = r["data"]
         try:
             if entity == "students":
                 stu = Student(
-                    school_id=_sid(), full_name=d["full_name"],
+                    school_id=_sid(),
+                    permanent_code=code_allocator.take(),
+                    full_name=d["full_name"],
                     national_id=d.get("national_id") or None,
                     gender=d.get("gender") or None,
                     dob=_parse_date(d.get("dob")),

@@ -22,44 +22,14 @@ def _active_year():
 
 
 def _next_permanent_code() -> str:
-    """
-    Returns the next serial permanent code for this school.
+    """Thin adapter around `services.student_codes.next_permanent_code`.
 
-    Ticket T4 — locks the school row (SELECT ... FOR UPDATE) so that
-    two concurrent inserts can't both compute the same next number
-    before either commits. The lock is released on the next commit
-    or rollback of the surrounding transaction — i.e. right after the
-    student is saved.
-
-    On SQLite (dev/test) `with_for_update()` becomes a no-op; in that
-    case we rely on the fact that SQLite writers are already serialized.
-    Uses MAX(existing suffix) + 1 rather than COUNT(*) + 1 so that
-    deleting a student never causes a collision with an existing code
-    on the next insert (unique constraint uq_student_school_code).
-    """
-    school = (
-        db.session.query(School)
-        .filter_by(id=_sid())
-        .with_for_update()
-        .first()
-    )
-    if school is None:
-        raise ValueError("لا توجد مدرسة مرتبطة بالمستخدم الحالي")
-    base = school.code or "SCH"
-    prefix = f"{base}-"
-    codes = (
-        db.session.query(Student.permanent_code)
-        .filter(Student.school_id == _sid(),
-                Student.permanent_code.like(f"{prefix}%"))
-        .all()
-    )
-    max_n = 0
-    for (code,) in codes:
-        try:
-            max_n = max(max_n, int(code[len(prefix):]))
-        except (ValueError, TypeError):
-            pass
-    return f"{prefix}{max_n + 1:05d}"
+    Historical name kept so the rest of this module (and any external
+    caller that imports it) doesn't need to change. The heavy lifting
+    now lives in `services/student_codes.py` so `platform/imports.py`
+    can share the exact same logic — ticket B1."""
+    from ...services.student_codes import next_permanent_code
+    return next_permanent_code(school_id=_sid())
 
 
 def _upsert_guardian_link(student, name, phone, *, relationship, is_primary):

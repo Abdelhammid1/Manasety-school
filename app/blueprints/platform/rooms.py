@@ -56,6 +56,20 @@ def room_toggle(room_id):
 @require_permission("sections", "delete")
 def room_delete(room_id):
     r = Room.query.filter_by(id=room_id, school_id=current_user.school_id).first_or_404()
+
+    # Ticket B5 — refuse to delete a Room that's still referenced by
+    # any ScheduleSlot. Matches the pattern used by section_delete,
+    # grade_delete, term_delete throughout the project.
+    from ...models import ScheduleSlot
+    n_slots = ScheduleSlot.query.filter_by(room_id=r.id).count()
+    if n_slots:
+        flash(
+            f"لا يمكن حذف القاعة ({r.name}) — محجوزة في {n_slots} حصة. "
+            "ألغِ الحجوزات أولاً أو عطّل القاعة بدل حذفها.",
+            "danger",
+        )
+        return redirect(url_for("platform.rooms_list"))
+
     db.session.delete(r); db.session.commit()
     flash("تم حذف القاعة.", "success")
     return redirect(url_for("platform.rooms_list"))
