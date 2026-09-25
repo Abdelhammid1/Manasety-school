@@ -7,7 +7,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import (
-    AcademicYear, Assignment, Grade, Section, Subject, Teacher, Term, User,
+    AcademicYear, Assignment, Grade, Section, Subject, Teacher, Term,
 )
 
 
@@ -44,14 +44,13 @@ def teacher_new():
     # longer a valid state at creation time. provision_user is called
     # in the same transaction. The "link existing user" dropdown was
     # removed from the new-form; existing (nullable) rows keep working.
-    users = User.query.filter_by(school_id=_sid()).order_by(User.full_name).all()
     if request.method == "POST":
         if not request.form.get("full_name", "").strip():
             flash("الاسم الكامل حقل إلزامي.", "danger")
-            return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
+            return render_template("teachers/form.html", teacher=None, form=request.form)
         if not request.form.get("specialization", "").strip():
             flash("التخصص حقل إلزامي.", "danger")
-            return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
+            return render_template("teachers/form.html", teacher=None, form=request.form)
 
         full_name = request.form["full_name"].strip()
         phone = (request.form.get("phone") or "").strip() or None
@@ -66,7 +65,7 @@ def teacher_new():
         )
         if err:
             flash(err, "danger")
-            return render_template("teachers/form.html", teacher=None, form=request.form, users=users)
+            return render_template("teachers/form.html", teacher=None, form=request.form)
 
         teacher = Teacher(
             school_id=_sid(),
@@ -83,7 +82,7 @@ def teacher_new():
         db.session.commit()
         flash(f"تم إنشاء ملف المعلم {teacher.full_name} + حساب دخول.", "success")
         return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
-    return render_template("teachers/form.html", teacher=None, form={}, users=users)
+    return render_template("teachers/form.html", teacher=None, form={})
 
 
 @bp.route("/<int:teacher_id>")
@@ -120,7 +119,6 @@ def teacher_detail(teacher_id):
 @require_permission("teachers", "edit")
 def teacher_edit(teacher_id):
     teacher = _get(Teacher, teacher_id)
-    users = User.query.filter_by(school_id=_sid()).order_by(User.full_name).all()
     if request.method == "POST":
         teacher.full_name = request.form["full_name"].strip()
         teacher.national_id = (request.form.get("national_id") or "").strip() or None
@@ -135,7 +133,7 @@ def teacher_edit(teacher_id):
         db.session.commit()
         flash("تم تحديث بيانات المعلم.", "success")
         return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
-    return render_template("teachers/form.html", teacher=teacher, form={}, users=users)
+    return render_template("teachers/form.html", teacher=teacher, form={})
 
 
 @bp.route("/<int:teacher_id>/specialization", methods=["POST"])

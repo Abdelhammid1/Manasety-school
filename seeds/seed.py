@@ -52,6 +52,10 @@ DEFAULT_ROLES = [
     ]),
     ("warehouse",        "أمين مخزن",     False, [("expenses", ["view", "add"])]),
     ("parent",           "ولي أمر",       False, [("portal", ["view"])]),
+    # Ticket #1 (2026-09-25) — every student now gets a login at
+    # creation time and provision_user resolves the role by name.
+    # Marked is_system so role_delete refuses to remove it.
+    ("student",          "طالب",          True,  [("portal", ["view"])]),
 ]
 
 
