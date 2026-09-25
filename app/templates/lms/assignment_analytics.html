@@ -1,0 +1,64 @@
+{# Phase-2 ticket #23 — Assignment analytics for the teacher. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تحليلات الواجب — {{ assignment.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.assignments_home') }}" class="hover:text-primary">الواجبات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تحليلات</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1200px] mx-auto space-y-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm space-y-2">
+    <h1 class="font-headline-md font-extrabold text-primary">{{ assignment.title }}</h1>
+    <p class="font-body-sm text-on-surface-variant">من {{ assignment.max_score }} نقطة{% if assignment.due_at %} · موعد {{ assignment.due_at.strftime('%Y-%m-%d %H:%M') }}{% endif %}</p>
+  </section>
+
+  <section class="grid grid-cols-2 md:grid-cols-6 gap-space-md">
+    {% for lbl, val in [('التسليمات', stats.total), ('صحّح', stats.graded), ('قيد التصحيح', stats.ungraded), ('المتوسط', stats.avg), ('الأعلى', stats.top), ('الأدنى', stats.low)] %}
+    <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm text-center">
+      <div class="font-headline-md font-extrabold text-primary tabular-nums">{{ val }}</div>
+      <div class="font-label-sm text-on-surface-variant">{{ lbl }}</div>
+    </div>
+    {% endfor %}
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="font-title-md font-bold mb-space-sm">توزيع الدرجات</div>
+    <div class="space-y-1.5">
+      {% for band, cnt in stats.bands.items() %}
+      {% set pct = (cnt / stats.graded * 100) if stats.graded else 0 %}
+      <div class="flex items-center gap-2">
+        <span class="w-20 font-label-sm font-bold tabular-nums">{{ band }}%</span>
+        <div class="flex-1 h-2 bg-surface-container-high rounded-full overflow-hidden">
+          <div class="h-full bg-primary" style="width: {{ pct }}%"></div>
+        </div>
+        <span class="w-10 text-left font-label-sm tabular-nums">{{ cnt }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <div class="font-title-md font-bold mb-space-sm">التسليمات المتأخرة</div>
+    {% if stats.late %}
+    <table class="w-full text-right font-body-md">
+      <thead><tr class="text-on-surface-variant font-label-md">
+        <th class="p-2">الطالب</th><th class="p-2">أيام متأخرة</th><th class="p-2">الدرجة</th>
+      </tr></thead>
+      <tbody>
+        {% for r in stats.late %}
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 font-bold">{{ r.student }}</td>
+          <td class="p-2 tabular-nums text-error font-bold">{{ r.days_late }}</td>
+          <td class="p-2 tabular-nums">{{ r.score if r.score is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="text-outline">لا تسليمات متأخرة.</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

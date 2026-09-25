@@ -1,0 +1,86 @@
+{# Phase-2 ticket #19 — Live monitor for an in-progress quiz.
+   Polls /quizzes/<qid>/live.json every 5s and re-renders. Static
+   HTML shell renders instantly; the JS fills the rows. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}متابعة مباشرة — {{ quiz.title }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.quizzes_home') }}" class="hover:text-primary">الاختبارات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">متابعة مباشرة</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1200px] mx-auto space-y-space-md">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center justify-between gap-space-md">
+    <div>
+      <h1 class="font-headline-md font-extrabold text-primary">{{ quiz.title }}</h1>
+      <p class="font-body-sm text-on-surface-variant">تحديث تلقائي كل 5 ثوانٍ.</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="totalQs" class="px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md font-bold">— أسئلة</span>
+      <span id="pulse" class="w-3 h-3 rounded-full bg-emerald-500 animate-pulse"></span>
+    </div>
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <table class="w-full text-right font-body-md">
+      <thead>
+        <tr class="text-on-surface-variant font-label-md">
+          <th class="p-2">الطالب</th>
+          <th class="p-2">التقدم</th>
+          <th class="p-2">إجابات</th>
+          <th class="p-2">تبديل التاب</th>
+          <th class="p-2">بدأ في</th>
+          <th class="p-2">الحالة</th>
+        </tr>
+      </thead>
+      <tbody id="rows">
+        <tr><td colspan="6" class="p-space-lg text-center text-outline">جارٍ التحميل…</td></tr>
+      </tbody>
+    </table>
+  </section>
+</div>
+
+<script>
+(function(){
+  const url = '{{ url_for("lms.quiz_live_monitor_json", qid=quiz.id) }}';
+  const tbody = document.getElementById('rows');
+  const totalQs = document.getElementById('totalQs');
+  function esc(s){
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    })[c]);
+  }
+  function tick(){
+    fetch(url, {credentials:'same-origin'}).then(r => r.json()).then(d => {
+      totalQs.textContent = (d.total_qs || 0) + ' أسئلة';
+      if (!d.rows || !d.rows.length) {
+        tbody.innerHTML = '<tr><td colspan="6" class="p-space-lg text-center text-outline">لا محاولات بعد.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = d.rows.map(r => `
+        <tr class="border-t border-surface-container-low">
+          <td class="p-2 font-bold">${esc(r.student)}</td>
+          <td class="p-2 w-64">
+            <div class="h-2 rounded-full bg-surface-container-high overflow-hidden">
+              <div class="h-full bg-primary" style="width:${r.progress}%"></div>
+            </div>
+            <div class="font-label-xs text-outline mt-0.5">${r.progress}%</div>
+          </td>
+          <td class="p-2 tabular-nums">${r.answered} / ${r.total_qs}</td>
+          <td class="p-2 tabular-nums ${r.tab_switches >= 3 ? 'text-error font-bold' : 'text-on-surface'}">${r.tab_switches}</td>
+          <td class="p-2 font-label-sm text-on-surface-variant">${esc(r.started_at || '')}</td>
+          <td class="p-2">
+            ${r.submitted
+                ? '<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-xs font-bold">سلّم</span>'
+                : '<span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-xs font-bold">في التقدم</span>'}
+          </td>
+        </tr>`).join('');
+    }).catch(() => {});
+  }
+  tick();
+  setInterval(tick, 5000);
+})();
+</script>
+{% endblock %}

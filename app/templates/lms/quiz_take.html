@@ -114,16 +114,26 @@
       <input type="hidden" name="auto_submitted" id="autoSubmitFlag" value="">
 
       {% for q in questions %}
-      <section id="q{{ loop.index }}" data-qn="{{ loop.index }}"
+      <section id="q{{ loop.index }}" data-qn="{{ loop.index }}" data-qid="{{ q.id }}"
                class="question-card bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm {% if not loop.first %}hidden{% endif %}">
         <div class="flex items-center justify-between mb-space-md">
           <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10 text-primary font-label-md text-label-md font-bold">
             <span class="material-symbols-outlined text-sm">quiz</span>
             السؤال {{ loop.index }} من {{ questions|length }}
           </span>
-          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">
-            {{ q.points }} نقطة
-          </span>
+          <div class="flex items-center gap-2">
+            {# Phase-2 ticket #11 — flag-for-review toggle #}
+            <button type="button"
+                    class="flag-btn inline-flex items-center gap-1 h-8 px-3 rounded-full bg-surface-container-low text-on-surface-variant font-label-xs font-bold transition-colors"
+                    data-qidx="{{ loop.index }}" data-flagged="0"
+                    onclick="toggleFlag(this, {{ q.id }})">
+              <span class="material-symbols-outlined text-sm">flag</span>
+              <span>للمراجعة</span>
+            </button>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">
+              {{ q.points }} نقطة
+            </span>
+          </div>
         </div>
 
         <h2 class="font-headline-sm text-headline-sm text-on-surface font-bold leading-relaxed whitespace-pre-line">{{ q.prompt }}</h2>
@@ -203,7 +213,14 @@
         <h3 class="font-title-md text-title-md text-primary font-bold">تأكيد إنهاء الاختبار</h3>
         <p class="mt-1 font-body-md text-body-md text-on-surface-variant">
           أجبت على <b><span id="mAnswered">0</span></b> من {{ questions|length }} سؤالاً.
-          لن تتمكن من العودة بعد الإرسال.
+          <br>
+          <span class="inline-flex items-center gap-1 text-tertiary font-bold">
+            <span class="material-symbols-outlined text-base">flag</span>
+            <span>معلّم للمراجعة:</span>
+            <span id="mFlagged">0</span>
+          </span>
+          <br>
+          <span class="text-error font-bold">لن تتمكن من العودة بعد الإرسال.</span>
         </p>
       </div>
       <button type="button" data-modal-close class="text-outline hover:text-primary p-1"><span class="material-symbols-outlined">close</span></button>
@@ -408,8 +425,105 @@
     // Same guard as fullscreen: don't fire until we've actually entered
     // fullscreen once. Otherwise Brave/Chrome's permission overlay for the
     // fullscreen request itself briefly hides the tab and false-fires this.
-    if (fsArmed && started && document.hidden && !submitting) triggerExitWarn('tab-switch');
+    if (fsArmed && started && document.hidden && !submitting) {
+      // Ticket #10 — beacon the switch to the server before the
+      // exit-warn overlay takes over.
+      try {
+        const b = new Blob([JSON.stringify({})], {type: 'application/json'});
+        navigator.sendBeacon(
+          '{{ url_for("lms.attempt_tab_switch", attempt_id=attempt.id) }}',
+          b
+        );
+      } catch (_) {}
+      triggerExitWarn('tab-switch');
+    }
   });
+
+  // ── Autosave (Phase-2 ticket #13) ────────────────────────────────
+  // Fires with a 750ms debounce whenever an answer input changes.
+  // Uses the batched value for each question so the server always has
+  // the most-recent draft even if the student crashes/reloads.
+  const AUTOSAVE_URL = '{{ url_for("lms.attempt_autosave", attempt_id=attempt.id) }}';
+  const CSRF = '{{ csrf_token() }}';
+  let saveTimers = {};
+  function autosave(qid, payload){
+    if (!started || submitting) return;
+    clearTimeout(saveTimers[qid]);
+    saveTimers[qid] = setTimeout(() => {
+      fetch(AUTOSAVE_URL, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': CSRF,
+        },
+        body: JSON.stringify(payload),
+      }).catch(() => {});
+    }, 750);
+  }
+  cards.forEach((card, idx) => {
+    const qid = card.getAttribute('data-qid');
+    if (!qid) return;
+    card.addEventListener('change', () => {
+      const radios = card.querySelectorAll('input[type=radio]:checked');
+      const checks = card.querySelectorAll('input[type=checkbox]:checked');
+      const text   = card.querySelector('input[type=text], textarea');
+      if (radios.length) {
+        autosave(qid, {question_id: qid, choice_id: radios[0].value});
+      } else if (checks.length) {
+        autosave(qid, {
+          question_id: qid,
+          choice_ids: Array.from(checks).map(c => c.value).join(','),
+        });
+      } else if (text && (text.value || '').trim()) {
+        autosave(qid, {question_id: qid, text: text.value});
+      }
+    });
+    card.addEventListener('input', (e) => {
+      if (e.target.matches('input[type=text], textarea')) {
+        autosave(qid, {question_id: qid, text: e.target.value});
+      }
+    });
+  });
+
+  // ── Flag toggle (Phase-2 ticket #11) ─────────────────────────────
+  const FLAG_URL = '{{ url_for("lms.attempt_flag", attempt_id=attempt.id) }}';
+  window.toggleFlag = function(btn, qid){
+    if (!started) return;
+    fetch(FLAG_URL, {
+      method: 'POST', credentials: 'same-origin',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF,
+      },
+      body: JSON.stringify({question_id: qid}),
+    }).then(r => r.json()).then(d => {
+      btn.dataset.flagged = d.flagged ? '1' : '0';
+      btn.classList.toggle('bg-tertiary-fixed', d.flagged);
+      btn.classList.toggle('text-on-tertiary-fixed-variant', d.flagged);
+      const idx = parseInt(btn.dataset.qidx, 10);
+      if (!isNaN(idx)) {
+        cells[idx-1].classList.toggle('ring-2', d.flagged);
+        cells[idx-1].classList.toggle('ring-tertiary', d.flagged);
+      }
+      updateFinishModalCounts();
+    }).catch(() => {});
+  };
+  function updateFinishModalCounts(){
+    const flagged = document.querySelectorAll('.flag-btn[data-flagged="1"]').length;
+    const el = document.getElementById('mFlagged');
+    if (el) el.textContent = flagged;
+  }
+
+  // ── Navigation mode (Phase-2 ticket #9) ──────────────────────────
+  const NAV_MODE = "{{ quiz.navigation_mode or 'free' }}";
+  if (NAV_MODE === 'sequential' || NAV_MODE === 'locked_after_answer') {
+    // Disable the sidebar cell click and the prev button when the
+    // teacher chose a locked mode.
+    cells.forEach(c => { c.style.pointerEvents = 'none'; c.style.opacity = '0.6'; });
+    const pb = document.getElementById('prevBtn');
+    if (pb) pb.style.display = 'none';
+  }
 
   // ── Submit paths ──────────────────────────────────────────────────
   window.submitAttempt = function(auto){

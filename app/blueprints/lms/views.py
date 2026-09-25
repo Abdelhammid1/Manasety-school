@@ -220,6 +220,61 @@ def assignment_new(cid):
     return render_template("lms/assignment_form.html", assignment=None, course=course, rubrics=rubrics)
 
 
+@bp.route("/assignments/<int:aid>/analytics", endpoint="assignment_analytics")
+@login_required
+def assignment_analytics(aid):
+    """Phase-2 ticket #23 — teacher-side view of one assignment's
+    submissions: score distribution, late list, avg time to submit
+    (using submitted_at - assignment.due_at as a proxy in the absence
+    of a proper `started_at`), and a running count of ungraded rows."""
+    a = CourseAssignment.query.get_or_404(aid)
+    if a.course.school_id != current_user.school_id:
+        abort(403)
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    if role not in ("admin", "teacher"):
+        abort(403)
+
+    subs = Submission.query.filter_by(assignment_id=a.id).all()
+    total = len(subs)
+    graded  = [s for s in subs if s.score is not None]
+    ungraded = total - len(graded)
+    scores = [float(s.score) for s in graded]
+    avg_score = round(sum(scores) / len(scores), 2) if scores else 0
+    top_score = max(scores) if scores else 0
+    low_score = min(scores) if scores else 0
+
+    bands = {"90-100": 0, "75-89": 0, "60-74": 0, "50-59": 0, "<50": 0}
+    if a.max_score:
+        max_s = float(a.max_score)
+        for s in scores:
+            pct = (s / max_s) * 100
+            if pct >= 90:   bands["90-100"] += 1
+            elif pct >= 75: bands["75-89"]  += 1
+            elif pct >= 60: bands["60-74"]  += 1
+            elif pct >= 50: bands["50-59"]  += 1
+            else:            bands["<50"]   += 1
+
+    late = []
+    if a.due_at:
+        for s in subs:
+            if s.submitted_at and s.submitted_at > a.due_at:
+                late.append({
+                    "student_id": s.student_id,
+                    "student":    (s.student.full_name if s.student else f"#{s.student_id}"),
+                    "days_late":  (s.submitted_at - a.due_at).days,
+                    "score":      float(s.score) if s.score is not None else None,
+                })
+
+    return render_template(
+        "lms/assignment_analytics.html",
+        assignment=a, stats={
+            "total": total, "graded": len(graded), "ungraded": ungraded,
+            "avg": avg_score, "top": top_score, "low": low_score,
+            "bands": bands, "late": late,
+        },
+    )
+
+
 @bp.route("/assignments/<int:aid>/edit", methods=["GET", "POST"], endpoint="assignment_edit")
 @login_required
 def assignment_edit(aid):
@@ -1965,6 +2020,12 @@ BANK_STATE_LABEL = {
     "draft":     ("تم إرجاعه لمسودة.",  "info"),
     "no_answer": ("تم وسمه (بدون إجابة).", "warning"),
     "duplicate": ("تم وسمه (متشابه).",  "warning"),
+    # Phase-2 ticket #27 — deeper review workflow. Author drafts →
+    # sends for reviewer feedback → reviewer forwards to approver →
+    # approver stamps → publisher publishes. States can be skipped
+    # so a school that doesn't want the extra layers keeps working.
+    "in_review":  ("قيد المراجعة اللغوية.", "info"),
+    "approved_pending_publish": ("معتمد بانتظار النشر.", "info"),
 }
 
 
@@ -2154,6 +2215,20 @@ def quiz_analysis(qid):
         QuizAttempt.submitted_at.isnot(None),
     ).all()
     student_count = len({a.student_id for a in attempts})
+    # Phase-2 ticket #6 — Discrimination Index is only meaningful when
+    # you have enough attempts to define an upper/lower group. Under 30
+    # we surface the raw distribution but skip the DI calc.
+    ITEM_ANALYSIS_MIN = 30
+    can_compute_di = len(attempts) >= ITEM_ANALYSIS_MIN
+    # Precompute the upper/lower thirds by total score for DI.
+    if can_compute_di:
+        by_score = sorted(attempts, key=lambda a: float(a.score or 0),
+                          reverse=True)
+        cut = max(1, len(by_score) // 3)
+        upper_ids = {a.id for a in by_score[:cut]}
+        lower_ids = {a.id for a in by_score[-cut:]}
+    else:
+        upper_ids = lower_ids = set()
 
     # Per-question stats + per-choice distribution (P1-13).
     # `bad_key_alert=True` when a plurality of students picked a choice
@@ -2212,13 +2287,36 @@ def quiz_analysis(qid):
             elif bank.lesson:
                 topic = bank.lesson.title
 
+        # Ticket #6 — Item Discrimination Index (DI): (P_upper - P_lower)
+        # where P_group = fraction of that group who got the item right.
+        # DI < 0 → the low-scoring students beat the high-scoring ones
+        # on this item — strong smell of a broken key.
+        difficulty_index = round(correct / n, 4) if n else None
+        discrimination_index = None
+        if can_compute_di and upper_ids and lower_ids:
+            upper_correct = sum(1 for a in answered
+                                 if a.attempt_id in upper_ids and a.is_correct)
+            lower_correct = sum(1 for a in answered
+                                 if a.attempt_id in lower_ids and a.is_correct)
+            upper_n = sum(1 for a in answered if a.attempt_id in upper_ids)
+            lower_n = sum(1 for a in answered if a.attempt_id in lower_ids)
+            if upper_n and lower_n:
+                p_upper = upper_correct / upper_n
+                p_lower = lower_correct / lower_n
+                discrimination_index = round(p_upper - p_lower, 4)
+                if discrimination_index < 0 and not bad_key_alert:
+                    bad_key_alert = True
+
         q_stats.append({
-            "prompt":         q.prompt[:120],
-            "correct_pct":    pct,
-            "topic":          topic,
-            "attempts":       n,
-            "choice_dist":    choice_dist,
-            "bad_key_alert":  bad_key_alert,
+            "prompt":               q.prompt[:120],
+            "correct_pct":          pct,
+            "topic":                topic,
+            "attempts":             n,
+            "choice_dist":          choice_dist,
+            "bad_key_alert":        bad_key_alert,
+            "difficulty_index":     difficulty_index,
+            "discrimination_index": discrimination_index,
+            "source_bank_id":       getattr(q, "source_bank_id", None),
         })
     # Compute score bands.
     scores = [float(a.score or 0) for a in attempts if a.score is not None]
@@ -2243,10 +2341,47 @@ def quiz_analysis(qid):
 
     bad_key_qs = [qs for qs in q_stats if qs["bad_key_alert"]]
 
+    # Ticket #5 — snapshot each question's rolling stats. Every fully
+    # graded attempt bumps usage_count on the linked bank row and
+    # updates difficulty/discrimination when we have enough samples.
+    _persist_question_stats(q_stats, len(attempts))
+
     return render_template("lms/quiz_analysis.html",
                            quiz=quiz, kpi=kpi, weak_qs=weak_qs,
                            q_stats=q_stats, bad_key_qs=bad_key_qs,
-                           student_count=student_count, ai=ai, ai_error=ai_error)
+                           student_count=student_count,
+                           can_compute_di=can_compute_di,
+                           di_threshold=ITEM_ANALYSIS_MIN,
+                           ai=ai, ai_error=ai_error)
+
+
+def _persist_question_stats(q_stats, attempt_count):
+    """Write per-question rolling stats to `QuestionStats` (P2 #5).
+
+    Called from `quiz_analysis` so the snapshot updates every time a
+    teacher opens the analysis page — bounded work regardless of how
+    many attempts came in between opens."""
+    from ...models import QuestionStats
+    from decimal import Decimal as _D
+    for qs in q_stats:
+        bqid = qs.get("source_bank_id")
+        if not bqid:
+            continue
+        row = QuestionStats.query.filter_by(bank_question_id=bqid).first()
+        if row is None:
+            row = QuestionStats(bank_question_id=bqid)
+            db.session.add(row)
+        row.usage_count = max(row.usage_count or 0, attempt_count)
+        if qs["attempts"]:
+            row.avg_score = _D(str(qs["correct_pct"] / 100))
+        if qs["difficulty_index"] is not None:
+            row.difficulty_index = _D(str(qs["difficulty_index"]))
+        if qs["discrimination_index"] is not None:
+            row.discrimination_index = _D(str(qs["discrimination_index"]))
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 # Passages were split into ./passages.py (ticket P1-18).

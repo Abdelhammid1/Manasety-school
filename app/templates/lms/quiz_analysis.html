@@ -177,6 +177,12 @@
       {# Item analysis — choice distribution + bad-key alert (P1-13) #}
       {% if q_stats %}
       <div class="pt-space-md border-t border-surface-container-low space-y-space-md">
+        {% if not can_compute_di %}
+        <div class="p-space-md rounded-xl bg-primary/5 border border-primary/20 flex items-center gap-2 font-body-sm">
+          <span class="material-symbols-outlined text-primary">info</span>
+          <span>مؤشر التمييز (Discrimination Index) يحتاج على الأقل {{ di_threshold }} محاولة مسلَّمة ليكون موثوقاً — الأرقام أدناه بدون هذا المؤشر حالياً.</span>
+        </div>
+        {% endif %}
         {% if bad_key_qs %}
         <div class="p-space-md rounded-xl bg-rose-50 border border-rose-300 space-y-1">
           <div class="flex items-center gap-2">
@@ -214,6 +220,16 @@
                 {% endfor %}
               </div>
               {% if qs.topic %}<div class="font-label-xs text-outline">الوحدة/الدرس: {{ qs.topic }}</div>{% endif %}
+              <div class="flex items-center gap-3 flex-wrap font-label-xs text-outline">
+                {% if qs.difficulty_index is not none %}
+                <span>معامل الصعوبة: <b class="text-on-surface">{{ qs.difficulty_index }}</b></span>
+                {% endif %}
+                {% if qs.discrimination_index is not none %}
+                <span>مؤشر التمييز:
+                  <b class="{% if qs.discrimination_index < 0 %}text-error{% elif qs.discrimination_index < 0.2 %}text-tertiary{% else %}text-emerald-700{% endif %}">{{ qs.discrimination_index }}</b>
+                </span>
+                {% endif %}
+              </div>
             </div>
             {% endif %}
           {% endfor %}
