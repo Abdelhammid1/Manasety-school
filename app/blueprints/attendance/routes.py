@@ -369,11 +369,14 @@ def section_report(section_id):
         c = counts.get(e.id, {})
         p = c.get("present", 0); a = c.get("absent", 0)
         l = c.get("late", 0);    partial = c.get("partial", 0)
-        total = p + a + l + partial
+        excused    = c.get("excused", 0)
+        left_early = c.get("left_early", 0)
+        total = p + a + l + partial + excused + left_early
         rate = (p / total * 100) if total else 0
         summaries.append({
             "enrollment": e, "present": p, "absent": a, "late": l,
-            "partial": partial, "total": total, "rate": round(rate, 1),
+            "partial": partial, "excused": excused, "left_early": left_early,
+            "total": total, "rate": round(rate, 1),
         })
 
     return render_template(
@@ -462,7 +465,7 @@ def student_report(student_id):
     # Ticket T3 — derive one status per day so `both`-mode schools
     # don't double-count. `day_rows` powers the day-by-day table.
     day_rows = []
-    p = a = l = partial = 0
+    p = a = l = partial = excused = left_early = 0
     records = []
     if enrollments:
         eids = [e.id for e in enrollments]
@@ -483,17 +486,20 @@ def student_report(student_id):
                 "period_count": sum(1 for r in rowset if r.period_id is not None),
                 "has_daily": any(r.period_id is None for r in rowset),
             })
-            if   status == "present": p += 1
-            elif status == "absent":  a += 1
-            elif status == "late":    l += 1
-            elif status == "partial": partial += 1
-    total = p + a + l + partial
+            if   status == "present":    p += 1
+            elif status == "absent":     a += 1
+            elif status == "late":       l += 1
+            elif status == "partial":    partial += 1
+            elif status == "excused":    excused += 1
+            elif status == "left_early": left_early += 1
+    total = p + a + l + partial + excused + left_early
     rate = round(p / total * 100, 1) if total else 0
     return render_template(
         "attendance/student_report.html",
         student=student, start=start, end=end, records=records,
         day_rows=day_rows,
         present=p, absent=a, late=l, partial=partial,
+        excused=excused, left_early=left_early,
         total=total, rate=rate,
     )
 
