@@ -3,7 +3,12 @@ from ..extensions import db
 from .mixins import SoftDeleteMixin
 
 
-ENROLLMENT_STATUSES = ["active", "withdrawn", "transferred", "promoted_out"]
+ENROLLMENT_STATUSES = [
+    "active", "withdrawn", "transferred", "promoted_out",
+    # Ticket S4 — final-year students land here after graduation instead
+    # of being deleted / promoted-out again.
+    "graduated",
+]
 RESULT_VALUES = ["pending", "pass", "fail"]
 
 
@@ -70,6 +75,12 @@ class Enrollment(db.Model):
     enrolled_at = db.Column(db.Date, default=lambda: datetime.utcnow().date(), nullable=False)
     status_changed_at = db.Column(db.Date)
     status_reason = db.Column(db.String(255))
+    # Ticket S4 — set when status transitions to 'graduated'.
+    graduation_date = db.Column(db.Date, nullable=True)
+    # Ticket S5 — checklist snapshot for the exit interview at
+    # withdrawal time. Stored as a JSON string so it survives without
+    # a dedicated table for the v1.
+    exit_checklist = db.Column(db.JSON, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     year = db.relationship("AcademicYear")

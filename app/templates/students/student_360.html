@@ -1,0 +1,113 @@
+{# Ticket S1 — Student 360 dashboard. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}ملف شامل — {{ student.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.student_detail', student_id=student.id) }}" class="hover:text-primary">{{ student.full_name }}</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الملف الشامل</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1200px] mx-auto space-y-space-md">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex items-center gap-space-md">
+    {% if student.photo_url %}
+    <img src="{{ student.photo_url }}" class="w-20 h-20 rounded-2xl object-cover" alt="">
+    {% else %}
+    <div class="w-20 h-20 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center font-headline-md font-extrabold">
+      {{ student.full_name[:1] }}
+    </div>
+    {% endif %}
+    <div class="flex-1 min-w-0">
+      <h1 class="font-headline-md text-primary font-extrabold">{{ student.full_name }}</h1>
+      <p class="font-label-md text-outline" dir="ltr"><code>{{ student.permanent_code }}</code></p>
+      {% if data.academic.current_section %}
+      <p class="font-label-sm text-on-surface-variant">
+        {{ data.academic.current_section.grade }} — {{ data.academic.current_section.section }}
+      </p>
+      {% endif %}
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    {# Academic #}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined text-primary">school</span>
+        <span class="font-title-md font-bold">الأكاديمي</span>
+      </div>
+      <p><b>متوسط الدرجات:</b> {{ data.academic.avg_grade if data.academic.avg_grade is not none else '—' }}</p>
+      {% if data.academic.last_grade %}
+      <p><b>آخر درجة:</b> {{ data.academic.last_grade.value or '—' }}
+        <span class="font-label-xs text-outline">{{ data.academic.last_grade.recorded_at }}</span></p>
+      {% endif %}
+    </div>
+
+    {# Attendance #}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined text-primary">event_available</span>
+        <span class="font-title-md font-bold">الحضور</span>
+      </div>
+      <p><b>نسبة الحضور:</b> {{ data.attendance.rate }}%</p>
+      {% if data.attendance.last_seen %}
+      <p><b>آخر رصد:</b> {{ data.attendance.last_seen.date }} ({{ data.attendance.last_seen.status }})</p>
+      {% endif %}
+    </div>
+
+    {# Financial #}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined text-primary">payments</span>
+        <span class="font-title-md font-bold">المالي</span>
+      </div>
+      <p><b>إجمالي فواتير:</b> {{ '%.2f'|format(data.financial.invoiced) }}</p>
+      <p><b>مدفوع:</b> {{ '%.2f'|format(data.financial.paid) }}</p>
+      <p><b>متبقي:</b>
+        <span class="{% if data.financial.remaining > 0 %}text-error font-bold{% endif %}">
+          {{ '%.2f'|format(data.financial.remaining) }}
+        </span>
+      </p>
+    </div>
+
+    {# Behavior #}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined text-primary">psychology</span>
+        <span class="font-title-md font-bold">السلوك</span>
+      </div>
+      <p><b>إجمالي النقاط:</b> {{ data.behavior.total_points }}</p>
+      <p><b>عدد الحوادث:</b> {{ data.behavior.incidents_count }}</p>
+      {% if data.behavior.last_incident %}
+      <p><b>آخر حادثة:</b> {{ data.behavior.last_incident.date }} ({{ data.behavior.last_incident.points }})</p>
+      {% endif %}
+    </div>
+
+    {# Health #}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined text-primary">medical_services</span>
+        <span class="font-title-md font-bold">الصحي</span>
+      </div>
+      {% if data.health.has_profile %}
+      <p><b>فصيلة الدم:</b> {{ data.health.blood_type or '—' }}</p>
+      {% if data.health.allergies %}<p><b>حساسيات:</b> {{ data.health.allergies }}</p>{% endif %}
+      {% if data.health.chronic_conditions %}<p><b>أمراض مزمنة:</b> {{ data.health.chronic_conditions }}</p>{% endif %}
+      {% else %}
+      <p class="text-outline">لا يوجد ملف صحي.</p>
+      {% endif %}
+      <p><b>حوادث صحية:</b> {{ data.health.incidents_count }}</p>
+    </div>
+
+    {# Docs + Siblings #}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+      <div class="flex items-center gap-2 mb-space-sm">
+        <span class="material-symbols-outlined text-primary">description</span>
+        <span class="font-title-md font-bold">مستندات + إخوة</span>
+      </div>
+      <p><b>عدد المستندات:</b> {{ data.documents.count }}</p>
+      <p><b>الإخوة في المدرسة:</b> {{ data.siblings.count }}</p>
+    </div>
+  </div>
+</div>
+{% endblock %}

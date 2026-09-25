@@ -20,6 +20,7 @@ from ..models import (
     GradeEntry, YearResult, Attendance, Enrollment,
     Student, Guardian, Invoice, Payment, User, Role, Assignment,
     PassRule, AuditLog, PaymentMethod, JournalEntry,
+    ScheduleSlot,
 )
 
 
@@ -33,6 +34,10 @@ _WATCHED = [
     # silently point "نقدي" at a different account). JournalEntry
     # rounds it out so every posting is captured, not just the shape.
     PaymentMethod, JournalEntry,
+    # Ticket A9 — timetable versioning via AuditLog. Every ScheduleSlot
+    # change now leaves an old/new snapshot so admins can rewind to
+    # "what the schedule looked like last week".
+    ScheduleSlot,
 ]
 
 

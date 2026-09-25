@@ -1,0 +1,50 @@
+{# Ticket T5 — Periodic report template. Rendered by
+   services.attendance_pdf_report.build_report_html; used both for
+   inline delivery in the parent app and as HTML input to
+   weasyprint (PDF generator, optional). #}
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<title>تقرير حضور — {{ student.full_name }}</title>
+<style>
+  body { font-family: 'Cairo', 'Amiri', sans-serif; padding: 20px; color: #0F172A; }
+  h1 { color: #1E3A8A; }
+  .kpi { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .kpi > div { background: #F1F5F9; padding: 10px 14px; border-radius: 8px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 6px 10px; border-bottom: 1px solid #E2E8F0; text-align: right; }
+  .present { color: #10B981; }
+  .absent  { color: #EF4444; }
+  .late    { color: #F59E0B; }
+</style>
+</head>
+<body>
+  <h1>{{ student.full_name }}</h1>
+  <p><b>الكود الدائم:</b> {{ student.permanent_code }}</p>
+  <p><b>الفترة:</b> من {{ stats.start }} إلى {{ stats.end }}</p>
+  <div class="kpi">
+    <div><b>نسبة الحضور</b>: {{ stats.rate }}%</div>
+    <div class="present"><b>حاضر</b>: {{ stats.present }}</div>
+    <div class="absent"><b>غائب</b>: {{ stats.absent }}</div>
+    <div class="late"><b>متأخر</b>: {{ stats.late }}</div>
+    <div><b>الإجمالي</b>: {{ stats.total }}</div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>التاريخ</th><th>الحالة</th><th>ملاحظات</th></tr>
+    </thead>
+    <tbody>
+      {% for r in rows %}
+      <tr>
+        <td>{{ r.date }}</td>
+        <td class="{{ r.status }}">{{ r.status }}</td>
+        <td>{{ r.notes or '' }}</td>
+      </tr>
+      {% else %}
+      <tr><td colspan="3">لا سجلات في هذه الفترة.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</body>
+</html>

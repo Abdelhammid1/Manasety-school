@@ -52,10 +52,56 @@ def year_new():
             status=status,
         )
         db.session.add(year)
+        db.session.flush()
+
+        # Ticket A7 — optional rollover from a prior year. Copies
+        # Section rows only (not enrollments or courses — those need
+        # a fresh cycle per school policy).
+        from_year_id = request.form.get("rollover_from", type=int)
+        if from_year_id:
+            source = AcademicYear.query.filter_by(
+                id=from_year_id, school_id=_sid()).first()
+            if source:
+                copied = _rollover_sections(source, year)
+                flash(
+                    f"تم نسخ {copied} فصل من {source.name}.",
+                    "info",
+                )
+
         db.session.commit()
         flash("تم إنشاء السنة الدراسية.", "success")
         return redirect(url_for("academic.years_list"))
-    return render_template("academic/year_form.html", year=None)
+    prior_years = (
+        AcademicYear.query.filter_by(school_id=_sid())
+        .order_by(AcademicYear.start_date.desc()).all()
+    )
+    return render_template(
+        "academic/year_form.html", year=None,
+        prior_years=prior_years,
+    )
+
+
+def _rollover_sections(source_year, target_year):
+    """Ticket A7 — copy every Section from `source_year` into
+    `target_year`, keeping (name, capacity, grade_id). Skips names
+    that already exist in the target so re-running is safe."""
+    existing_names = {
+        s.name for s in Section.query.filter_by(
+            school_id=_sid(), year_id=target_year.id).all()
+    }
+    sources = Section.query.filter_by(
+        school_id=_sid(), year_id=source_year.id).all()
+    added = 0
+    for s in sources:
+        if s.name in existing_names:
+            continue
+        db.session.add(Section(
+            school_id=_sid(), year_id=target_year.id,
+            grade_id=s.grade_id, name=s.name,
+            capacity=s.capacity,
+        ))
+        added += 1
+    return added
 
 
 @bp.route("/years/<int:year_id>/edit", methods=["GET", "POST"], endpoint="year_edit")

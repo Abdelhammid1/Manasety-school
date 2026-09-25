@@ -49,6 +49,24 @@
       </select>
     </div>
 
+    {# Ticket A7 — optional structure rollover from a prior year. #}
+    {% if not year and prior_years %}
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">
+        نسخ هيكل الفصول من سنة سابقة (اختياري)
+      </label>
+      <select name="rollover_from" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <option value="">— بدون نسخ —</option>
+        {% for y in prior_years %}
+        <option value="{{ y.id }}">{{ y.name }}</option>
+        {% endfor %}
+      </select>
+      <p class="font-label-xs text-outline">
+        بينسخ الفصول (Section) بنفس الأسماء والسعات فقط. الكورسات والتسجيلات بتتعمل من الصفر.
+      </p>
+    </div>
+    {% endif %}
+
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('academic.years_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"

@@ -682,6 +682,38 @@ class LearningObjective(db.Model):
     lesson = db.relationship("Lesson", foreign_keys=[lesson_id])
 
 
+# ─── Ticket A1 — Subject prerequisites ─────────────────────────────
+class SubjectPrerequisite(db.Model):
+    """Ticket A1 — declare that one Subject requires another. Enforced
+    as a warning at enrolment time (not hard-block in v1) so the admin
+    still has final call. Same-school only."""
+    __tablename__ = "subject_prerequisites"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    subject_id = db.Column(db.Integer,
+                           db.ForeignKey("subjects.id", ondelete="CASCADE"),
+                           nullable=False, index=True)
+    requires_subject_id = db.Column(
+        db.Integer, db.ForeignKey("subjects.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    note = db.Column(db.String(255), nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    subject          = db.relationship("Subject", foreign_keys=[subject_id])
+    required_subject = db.relationship("Subject",
+                                        foreign_keys=[requires_subject_id])
+
+    __table_args__ = (
+        db.UniqueConstraint(
+            "school_id", "subject_id", "requires_subject_id",
+            name="uq_subject_prereq",
+        ),
+    )
+
+
 # ─── Phase-2 ticket #5 — Question performance stats ────────────────
 # Snapshot updated after every fully-graded attempt. Averages hold the
 # rolling mean; discrimination_index is computed after n >= 30 by the
