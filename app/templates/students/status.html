@@ -73,6 +73,37 @@
       </p>
     </div>
 
+    {% if outstanding is defined and outstanding > 0 %}
+    <div class="p-space-md rounded-2xl bg-rose-50 border-2 border-rose-300 text-rose-900 space-y-3">
+      <div class="flex items-start gap-2">
+        <span class="material-symbols-outlined text-2xl">gpp_maybe</span>
+        <div class="flex-1">
+          <h3 class="font-title-md font-extrabold">تنبيه مديونية مالية</h3>
+          <p class="font-body-md mt-1">
+            يوجد على الطالب مديونية بقيمة
+            <b class="font-mono text-lg">{{ '{:,.2f}'.format(outstanding) }}</b>
+            موزّعة على {{ open_invoices|length }} فاتورة مفتوحة.
+          </p>
+          <ul class="mt-2 space-y-1 text-sm">
+            {% for inv in open_invoices %}
+            <li>
+              <a href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}"
+                 class="underline hover:text-primary font-mono">{{ inv.number }}</a>
+              — {{ inv.status }} — متبقّي: <b class="font-mono">{{ '{:,.2f}'.format((inv.total_amount or 0) - (inv.paid_amount or 0)) }}</b>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+      <label class="flex items-start gap-2 p-space-sm rounded-xl bg-white border border-rose-300 cursor-pointer">
+        <input type="checkbox" name="confirm_debt" value="1" required class="mt-1 w-5 h-5 accent-rose-600">
+        <span class="font-label-md font-bold">
+          أؤكد سحب/نقل الطالب رغم وجود مديونية عليه — سيتم تسجيل قيمة المديونية في ملاحظات القيد للمرجعية.
+        </span>
+      </label>
+    </div>
+    {% endif %}
+
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('students.student_detail', student_id=enrollment.student_id) }}"
          class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">إلغاء</a>

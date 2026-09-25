@@ -2,6 +2,7 @@ from datetime import datetime
 from flask_login import UserMixin
 
 from ..extensions import db, bcrypt
+from .mixins import SoftDeleteMixin
 
 
 PERMISSION_MODULES = [
@@ -17,7 +18,7 @@ PERMISSION_MODULES = [
 PERMISSION_ACTIONS = ["view", "add", "edit", "delete"]
 
 
-class Role(db.Model):
+class Role(SoftDeleteMixin, db.Model):
     __tablename__ = "roles"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -51,7 +52,7 @@ class User(UserMixin, db.Model):
     last_login_at = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    role = db.relationship("Role", backref="users")
+    role = db.relationship("Role", foreign_keys=[role_id], backref="users")
     school = db.relationship("School", backref="users")
 
     __table_args__ = (db.UniqueConstraint("school_id", "username", name="uq_user_school_username"),)

@@ -1,0 +1,57 @@
+{# Budget vs Actual — one row per budget entry with planned/actual/remaining/%. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}المخطط مقابل الفعلي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('finance.budgets_home') }}" class="hover:text-primary">الموازنة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المخطط مقابل الفعلي</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-md text-primary font-bold">المخطط مقابل الفعلي</h1>
+    {% if year %}<span class="font-label-md text-on-surface-variant">السنة الدراسية: <b>{{ year.name }}</b></span>{% endif %}
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <table class="w-full text-right">
+      <thead>
+        <tr class="bg-surface-container-low text-on-surface-variant font-label-sm">
+          <th class="py-3 px-4 font-semibold">البند</th>
+          <th class="py-3 px-4 font-semibold">الفترة</th>
+          <th class="py-3 px-4 font-semibold text-left">المخطط</th>
+          <th class="py-3 px-4 font-semibold text-left">الفعلي</th>
+          <th class="py-3 px-4 font-semibold text-left">المتبقّي</th>
+          <th class="py-3 px-4 font-semibold text-center">نسبة الإنجاز</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-surface-container-high/40">
+        {% for r in rows %}
+        <tr class="{% if r.warn %}bg-rose-50{% endif %}">
+          <td class="py-3 px-4">
+            <div class="font-semibold">{{ r.label }}</div>
+            {% if r.note %}<div class="text-xs text-on-surface-variant">{{ r.note }}</div>{% endif %}
+          </td>
+          <td class="py-3 px-4 font-mono">{{ r.period }}</td>
+          <td class="py-3 px-4 font-mono text-left">{{ '{:,.2f}'.format(r.planned) }}</td>
+          <td class="py-3 px-4 font-mono text-left {% if r.warn %}text-rose-700 font-bold{% endif %}">{{ '{:,.2f}'.format(r.actual) }}</td>
+          <td class="py-3 px-4 font-mono text-left {% if r.remaining < 0 %}text-rose-700 font-bold{% else %}text-emerald-700{% endif %}">{{ '{:,.2f}'.format(r.remaining) }}</td>
+          <td class="py-3 px-4">
+            <div class="flex items-center gap-2">
+              <div class="flex-1 h-3 bg-surface-container-low rounded-full overflow-hidden">
+                <div class="h-full {% if r.pct >= 100 %}bg-rose-500{% elif r.warn %}bg-amber-500{% else %}bg-emerald-500{% endif %}"
+                     style="width: {{ [r.pct, 100]|min }}%"></div>
+              </div>
+              <span class="font-mono font-bold w-14 text-left {% if r.warn %}text-rose-600{% else %}text-emerald-700{% endif %}">{{ r.pct }}%</span>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="py-8 text-center text-outline">لا بنود موازنة لهذه السنة.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+</div>
+{% endblock %}

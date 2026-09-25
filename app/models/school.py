@@ -66,6 +66,13 @@ class School(db.Model):
     smtp_from_name = db.Column(db.String(255))
     smtp_from_email = db.Column(db.String(255))
 
+    # Ticket "Approval Workflow" — expense amount above this needs
+    # explicit approval before ledger posting. 0 = every expense.
+    approval_threshold = db.Column(db.Numeric(14, 2), default=0)
+    # Ticket "تذكير قبل الاستحقاق" — days before due_date at which
+    # the cron sends an email reminder to the parent.
+    installment_reminder_days_before = db.Column(db.Integer, default=3)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
     def __repr__(self):

@@ -1,0 +1,102 @@
+{# Unified financial dashboard — aggregates treasury + aging + collection
+   + forecast + overdue in one screen. Every KPI links to the full report. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}لوحة المالية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">لوحة المالية</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-primary via-primary-container to-secondary p-6 md:p-8 text-on-primary shadow-lg">
+    <div class="flex items-start gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-on-primary/15 backdrop-blur-md flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">payments</span>
+      </div>
+      <div class="flex-1">
+        <h1 class="font-headline-lg font-bold">اللوحة المالية</h1>
+        <p class="mt-1 text-on-primary/85">صورة كاملة عن الوضع المالي في نظرة واحدة — كل بطاقة قابلة للنقر لعرض التفاصيل.</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-space-md">
+    <a href="{{ url_for('finance.treasury') }}" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md transition-shadow block">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-on-surface-variant">النقدية</span>
+        <span class="material-symbols-outlined text-emerald-600">savings</span>
+      </div>
+      <div class="font-headline-md font-extrabold text-primary mt-2">{{ '{:,.2f}'.format(cash_total) }}</div>
+      <div class="font-label-xs text-outline">إجمالي الصناديق النقدية</div>
+    </a>
+    <a href="{{ url_for('finance.treasury') }}" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md transition-shadow block">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-on-surface-variant">البنوك</span>
+        <span class="material-symbols-outlined text-sky-600">account_balance</span>
+      </div>
+      <div class="font-headline-md font-extrabold text-primary mt-2">{{ '{:,.2f}'.format(bank_total) }}</div>
+      <div class="font-label-xs text-outline">إجمالي الحسابات البنكية</div>
+    </a>
+    <a href="{{ url_for('finance.report_aging') }}" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md transition-shadow block">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-on-surface-variant">الفواتير المتأخرة</span>
+        <span class="material-symbols-outlined text-rose-600">warning</span>
+      </div>
+      <div class="font-headline-md font-extrabold text-rose-600 mt-2">{{ overdue_count }}</div>
+      <div class="font-label-xs text-outline">إجمالي المتبقّي: {{ '{:,.2f}'.format(overdue_total) }}</div>
+    </a>
+    <a href="{{ url_for('finance.report_collection') }}" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md transition-shadow block">
+      <div class="flex items-center justify-between">
+        <span class="font-label-md text-on-surface-variant">التحصيل هذا الشهر</span>
+        <span class="material-symbols-outlined text-primary">trending_up</span>
+      </div>
+      <div class="font-headline-md font-extrabold text-primary mt-2">
+        {{ '{:.0%}'.format(collect.collected_pct if collect.collected_pct is defined else 0) }}
+      </div>
+      <div class="font-label-xs text-outline">من إجمالي المستحق</div>
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md">
+    <a href="{{ url_for('finance.report_aging') }}" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm block">
+      <div class="flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined text-primary">timelapse</span>
+        <span class="font-title-md font-bold">أعمار الديون</span>
+        <span class="mr-auto font-label-sm text-outline">تفاصيل →</span>
+      </div>
+      {% if aging.buckets %}
+      <div class="space-y-2">
+        {% for bucket in aging.buckets %}
+        <div class="flex items-center justify-between">
+          <span class="font-label-md">{{ bucket.label }}</span>
+          <span class="font-mono font-bold {% if bucket.days_max > 90 %}text-rose-600{% elif bucket.days_max > 30 %}text-amber-600{% else %}text-primary{% endif %}">{{ '{:,.2f}'.format(bucket.total) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-outline text-center py-4">لا مديونيات متأخرة.</div>
+      {% endif %}
+    </a>
+
+    <a href="{{ url_for('finance.report_forecast') }}" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm block">
+      <div class="flex items-center gap-2 mb-space-md">
+        <span class="material-symbols-outlined text-primary">insights</span>
+        <span class="font-title-md font-bold">توقع السيولة القادمة</span>
+        <span class="mr-auto font-label-sm text-outline">تفاصيل →</span>
+      </div>
+      {% if forecast.rows %}
+      <div class="space-y-2">
+        {% for r in forecast.rows %}
+        <div class="flex items-center justify-between">
+          <span class="font-label-md font-mono">{{ r.period }}</span>
+          <span class="font-mono font-bold text-primary">{{ '{:,.2f}'.format(r.expected) }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-outline text-center py-4">لا استحقاقات قادمة مسجلة.</div>
+      {% endif %}
+    </a>
+  </div>
+</div>
+{% endblock %}

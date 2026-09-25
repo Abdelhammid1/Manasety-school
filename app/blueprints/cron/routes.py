@@ -43,9 +43,11 @@ def tick():
     is harmless (no invoice flips overdue → overdue)."""
     if not _authorised():
         return jsonify(ok=False, reason="unauthorised"), 401
+    from ...services.ledger import send_installment_reminders
     today = date.today()
     overdue_by_school: dict[int, int] = {}
     reminders_by_school: dict[int, dict] = {}
+    installment_reminders: dict[int, dict] = {}
     recurring_by_school: dict[int, dict] = {}
     for s in School.query.all():
         # Order matters — generate recurring FIRST so newly-issued
@@ -55,10 +57,14 @@ def tick():
         recurring_by_school[s.id] = generate_recurring_invoices(s.id, today=today)
         overdue_by_school[s.id] = update_overdue_invoices(s.id, today=today)
         reminders_by_school[s.id] = send_payment_reminders(s.id, today=today)
+        # Ticket "تذكير قبل الاستحقاق" — email each parent T-N days
+        # before an installment's due date, one shot per installment.
+        installment_reminders[s.id] = send_installment_reminders(s.id)
     db.session.commit()
     return jsonify(
         ok=True, today=today.isoformat(),
         recurring=recurring_by_school,
         overdue_flipped=overdue_by_school,
         reminders=reminders_by_school,
+        installment_reminders=installment_reminders,
     )

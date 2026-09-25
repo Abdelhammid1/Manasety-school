@@ -735,18 +735,56 @@ def transfer(enrollment_id):
 @login_required
 @require_permission("students", "edit")
 def status_change(enrollment_id):
+    from ...models import Invoice
+    from decimal import Decimal
     enrollment = _get(Enrollment, enrollment_id)
+
+    # Ticket "تحذير عند سحب طالب له مديونية" — surface any open
+    # (sent/partial/overdue) invoices on this enrollment before the
+    # admin commits a withdrawn/transferred flip. Admins can still
+    # proceed (their call); we just make sure it doesn't happen
+    # silently.
+    open_invoices = (
+        Invoice.query.filter_by(enrollment_id=enrollment.id)
+        .filter(Invoice.status.in_(("sent", "partial", "overdue")))
+        .all()
+    )
+    outstanding = sum(
+        (Decimal(str(i.total_amount or 0)) - Decimal(str(i.paid_amount or 0)))
+        for i in open_invoices
+    )
+
     if request.method == "POST":
         new_status = request.form["status"]
         if new_status not in {"active", "withdrawn", "transferred"}:
             abort(400)
+        # Two-step confirm when there's debt.
+        if new_status in {"withdrawn", "transferred"} and outstanding > 0 \
+           and not request.form.get("confirm_debt"):
+            flash(
+                f"⚠ يوجد على الطالب مديونية بقيمة {outstanding:.2f} — "
+                "رجاء التأكيد أدناه للمتابعة.",
+                "warning",
+            )
+            return render_template("students/status.html", enrollment=enrollment,
+                                   open_invoices=open_invoices,
+                                   outstanding=outstanding)
         enrollment.status = new_status
         enrollment.status_changed_at = date.today()
-        enrollment.status_reason = (request.form.get("reason") or "").strip() or None
+        reason = (request.form.get("reason") or "").strip() or None
+        # If the admin overrode a debt warning, stamp the amount on the
+        # enrollment.status_reason so a later dispute has a clear paper
+        # trail without a schema change.
+        if new_status in {"withdrawn", "transferred"} and outstanding > 0:
+            debt_note = f"مديونية وقت السحب: {outstanding:.2f}"
+            reason = f"{reason} — {debt_note}" if reason else debt_note
+        enrollment.status_reason = reason
         db.session.commit()
         flash("تم تحديث حالة قيد الطالب.", "success")
         return redirect(url_for("students.student_detail", student_id=enrollment.student_id))
-    return render_template("students/status.html", enrollment=enrollment)
+    return render_template("students/status.html", enrollment=enrollment,
+                           open_invoices=open_invoices,
+                           outstanding=outstanding)
 
 
 # ---------- T-3.4 / Sprint 8 Ticket 4: Auto pass/fail-driven promotion ----------

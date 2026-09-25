@@ -11,6 +11,7 @@ from .finance import (
     PAYMENT_METHOD_KINDS,
     RecurringFeeSchedule, RecurringInvoiceLog,
     BankStatementLine, CostCenter,
+    Budget, ReceiptVoucher,
 )
 from .hr import Employee, Payroll, PayrollSettlement, EmployeeAdvance
 from .material import Material
@@ -67,7 +68,7 @@ __all__ = [
     "Invoice", "InvoiceLine", "Installment", "Payment",
     "Vendor", "Expense", "PaymentMethod", "PAYMENT_METHOD_KINDS",
     "RecurringFeeSchedule", "RecurringInvoiceLog", "BankStatementLine",
-    "CostCenter",
+    "CostCenter", "Budget", "ReceiptVoucher",
     "Employee", "Payroll", "PayrollSettlement", "EmployeeAdvance",
     "Material",
     # LMS

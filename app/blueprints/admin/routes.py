@@ -256,7 +256,7 @@ def role_delete(role_id):
     elif role.users:
         flash("لا يمكن حذف دور مرتبط بمستخدمين.", "danger")
     else:
-        db.session.delete(role)
+        role.soft_delete(getattr(current_user, "id", None))
         db.session.commit()
         flash("تم حذف الدور.", "success")
     return redirect(url_for("admin.roles_list"))
@@ -377,3 +377,67 @@ def smtp_test_connection():
     ok, msg = _mailer.test_connection(school)
     flash(msg, "success" if ok else "danger")
     return redirect(url_for("admin.school_settings") + "#smtp")
+
+
+# ── Trash / restore centre ────────────────────────────────────────
+@bp.route("/trash")
+@login_required
+@require_permission("users", "edit")
+def trash_home():
+    """Everything the school has soft-deleted, grouped by kind. Uses
+    the escape hatch on the global filter so the rows actually appear."""
+    from ...models import Vendor, PaymentMethod, FeeType, CostCenter, Role
+    from ...models.hr import Employee
+    from sqlalchemy import select
+
+    sid = current_user.school_id
+    groups = []
+
+    def _load(cls, label, icon, endpoint):
+        stmt = (select(cls)
+                .execution_options(include_deleted=True)
+                .filter(cls.school_id == sid)
+                .filter(cls.deleted_at.isnot(None))
+                .order_by(cls.deleted_at.desc()))
+        rows = db.session.execute(stmt).scalars().all()
+        if rows:
+            groups.append({
+                "label": label, "icon": icon,
+                "endpoint": endpoint, "rows": rows,
+            })
+
+    _load(Vendor,        "الموردون",       "storefront",      "vendors")
+    _load(PaymentMethod, "طرق الدفع",      "credit_card",    "payment_methods")
+    _load(FeeType,       "أنواع الرسوم",   "receipt",        "fee_types")
+    _load(CostCenter,    "مراكز التكلفة", "hub",            "cost_centers")
+    _load(Role,          "الأدوار",         "admin_panel_settings", "roles")
+    _load(Employee,      "الموظفون",       "badge",          "employees")
+
+    return render_template("admin/trash.html", groups=groups)
+
+
+@bp.route("/trash/<kind>/<int:oid>/restore", methods=["POST"], endpoint="trash_restore")
+@login_required
+@require_permission("users", "edit")
+def trash_restore(kind, oid):
+    from sqlalchemy import select
+    from ...models import Vendor, PaymentMethod, FeeType, CostCenter, Role
+    from ...models.hr import Employee
+    cls_map = {
+        "vendors": Vendor, "payment_methods": PaymentMethod,
+        "fee_types": FeeType, "cost_centers": CostCenter,
+        "roles": Role, "employees": Employee,
+    }
+    cls = cls_map.get(kind)
+    if not cls:
+        abort(404)
+    obj = db.session.execute(
+        select(cls).execution_options(include_deleted=True)
+        .filter(cls.id == oid, cls.school_id == current_user.school_id)
+    ).scalar_one_or_none()
+    if not obj:
+        abort(404)
+    obj.restore()
+    db.session.commit()
+    flash("تم استرجاع الصف.", "success")
+    return redirect(url_for("admin.trash_home"))

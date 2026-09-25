@@ -1,8 +1,9 @@
 from datetime import datetime, date
+from .mixins import SoftDeleteMixin
 from ..extensions import db
 
 
-class Employee(db.Model):
+class Employee(SoftDeleteMixin, db.Model):
     __tablename__ = "employees"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -25,7 +26,7 @@ class Employee(db.Model):
                               nullable=True, index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 
-    user = db.relationship("User")
+    user = db.relationship("User", foreign_keys=[user_id])
     ap_account = db.relationship("Account", foreign_keys=[ap_account_id])
     payrolls = db.relationship("Payroll", backref="employee", order_by="Payroll.period_month.desc()")
 

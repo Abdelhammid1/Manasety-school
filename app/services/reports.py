@@ -383,3 +383,60 @@ def forecast_report(school_id: int, months_ahead: int = 6):
         buckets[key] = buckets.get(key, Decimal(0)) + Decimal(str(amt or 0))
     out = [{"period": k, "expected": v} for k, v in sorted(buckets.items())]
     return {"rows": out, "total": sum((r["expected"] for r in out), Decimal(0))}
+
+
+def budget_vs_actual_report(school_id: int, year_id: int):
+    """One row per (account or cost_center) budget entry with planned,
+    actual, remaining and % achieved. `actual` reads the same source
+    Account.balance uses so the numbers reconcile with the ledger."""
+    from ..models import Budget
+    from ..models.finance import JournalEntry, JournalLine
+    from sqlalchemy import func
+    rows = Budget.query.filter_by(school_id=school_id, year_id=year_id).all()
+    out = []
+    for b in rows:
+        actual = Decimal(0)
+        if b.account_id:
+            # For expense/revenue accounts the "actual" is the sum of
+            # ledger movements on the natural side.
+            d = db.session.query(func.coalesce(func.sum(JournalLine.debit), 0))\
+                .filter_by(account_id=b.account_id).scalar() or 0
+            c = db.session.query(func.coalesce(func.sum(JournalLine.credit), 0))\
+                .filter_by(account_id=b.account_id).scalar() or 0
+            actual = Decimal(str(d)) - Decimal(str(c))
+            # Revenue accounts run on the credit side; flip.
+            if b.account and b.account.type == "revenue":
+                actual = -actual
+        elif b.cost_center_id:
+            d = (db.session.query(func.coalesce(func.sum(JournalLine.debit), 0))
+                 .filter(JournalLine.cost_center_id == b.cost_center_id).scalar() or 0)
+            actual = Decimal(str(d))
+        planned = Decimal(str(b.planned_amount or 0))
+        remaining = planned - actual
+        pct = int(actual / planned * 100) if planned > 0 else 0
+        label = (b.account.name if b.account else
+                 (b.cost_center.name if b.cost_center else ""))
+        out.append({
+            "id": b.id, "label": label, "period": b.period,
+            "planned": planned, "actual": actual, "remaining": remaining,
+            "pct": pct, "warn": pct >= (b.warn_pct or 90),
+            "note": b.note or "",
+        })
+    return out
+
+
+def installments_due_for_reminder(school_id: int, days_before: int):
+    """Every pending Installment whose due_date lands on
+    today + days_before AND that hasn't had a reminder sent yet."""
+    from datetime import date, timedelta
+    from ..models.finance import Installment, Invoice
+    target = date.today() + timedelta(days=days_before)
+    return (
+        db.session.query(Installment, Invoice)
+        .join(Invoice, Invoice.id == Installment.invoice_id)
+        .filter(Invoice.school_id == school_id)
+        .filter(Installment.status == "pending")
+        .filter(Installment.due_date == target)
+        .filter(Installment.reminder_sent_at.is_(None))
+        .all()
+    )

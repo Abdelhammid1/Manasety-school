@@ -183,7 +183,7 @@ def employee_delete(employee_id):
             "danger",
         )
         return redirect(url_for("hr.employees_list"))
-    db.session.delete(e); db.session.commit()
+    e.soft_delete(getattr(current_user, "id", None)); db.session.commit()
     flash("تم حذف الموظف نهائياً.", "success")
     return redirect(url_for("hr.employees_list"))
 

@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from ..extensions import db
+from .mixins import SoftDeleteMixin
 
 
 ACCOUNT_TYPES = ["asset", "liability", "equity", "revenue", "expense"]
@@ -237,7 +238,7 @@ class JournalLine(db.Model):
     account = db.relationship("Account")
 
 
-class FeeType(db.Model):
+class FeeType(SoftDeleteMixin, db.Model):
     __tablename__ = "fee_types"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -318,6 +319,10 @@ class Installment(db.Model):
     amount = db.Column(db.Numeric(12, 2), nullable=False)
     paid_amount = db.Column(db.Numeric(12, 2), default=0, nullable=False)
     status = db.Column(db.String(16), default="pending", nullable=False)
+    # Ticket "تذكير تلقائي بالبريد قبل الاستحقاق" — stamped after the
+    # cron sends a reminder so the same installment can't be pinged
+    # twice in one window.
+    reminder_sent_at = db.Column(db.DateTime(timezone=True), nullable=True)
 
     @property
     def remaining(self) -> float:
@@ -344,7 +349,7 @@ class Payment(db.Model):
     journal_entry = db.relationship("JournalEntry")
 
 
-class Vendor(db.Model):
+class Vendor(SoftDeleteMixin, db.Model):
     __tablename__ = "vendors"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -387,6 +392,16 @@ class Expense(db.Model):
                                db.ForeignKey("cost_centers.id", ondelete="SET NULL"),
                                nullable=True, index=True)
 
+    # Ticket "Approval Workflow على المصروفات" — mirror of StudentDiscount:
+    # pending → approved (posted) or rejected. Threshold-driven at
+    # save time from School.approval_threshold.
+    approval_status = db.Column(db.String(16), default="approved",
+                                nullable=False, server_default="approved")
+    approved_by_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                               nullable=True)
+    approved_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    reject_reason = db.Column(db.String(255), nullable=True)
+
     expense_account = db.relationship("Account", foreign_keys=[expense_account_id])
     cash_account = db.relationship("Account", foreign_keys=[cash_account_id])
     journal_entry = db.relationship("JournalEntry")
@@ -409,7 +424,7 @@ class Expense(db.Model):
 PAYMENT_METHOD_KINDS = ("immediate_cash", "immediate_bank", "deferred")
 
 
-class PaymentMethod(db.Model):
+class PaymentMethod(SoftDeleteMixin, db.Model):
     __tablename__ = "payment_methods"
 
     id = db.Column(db.Integer, primary_key=True)
@@ -465,7 +480,7 @@ class RecurringFeeSchedule(db.Model):
     grade = db.relationship("Grade")
 
 
-class CostCenter(db.Model):
+class CostCenter(SoftDeleteMixin, db.Model):
     """Ticket F — cost/profit center for management reporting.
     Optional 2-level hierarchy (name + code + parent). Applied on
     JournalLine/Expense/InvoiceLine via a nullable FK — completely
@@ -558,4 +573,54 @@ class RecurringInvoiceLog(db.Model):
     __table_args__ = (
         db.UniqueConstraint("schedule_id", "student_id", "period_key",
                             name="uq_recurring_run"),
+    )
+
+
+# ── Budget (planned amount per year × account or cost center) ────
+class Budget(db.Model):
+    __tablename__ = "budgets"
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    year_id = db.Column(db.Integer, db.ForeignKey("academic_years.id"),
+                        nullable=False, index=True)
+    account_id = db.Column(db.Integer, db.ForeignKey("accounts.id"),
+                           nullable=True, index=True)
+    cost_center_id = db.Column(db.Integer, db.ForeignKey("cost_centers.id"),
+                               nullable=True, index=True)
+    period = db.Column(db.String(16), default="annual", nullable=False)
+    planned_amount = db.Column(db.Numeric(14, 2), default=0, nullable=False)
+    warn_pct = db.Column(db.Integer, default=90, nullable=False)
+    note = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    year = db.relationship("AcademicYear")
+    account = db.relationship("Account")
+    cost_center = db.relationship("CostCenter")
+
+
+# ── Receipt / Payment Voucher (سند قبض/صرف) ──────────────────────
+class ReceiptVoucher(db.Model):
+    __tablename__ = "receipt_vouchers"
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    voucher_type = db.Column(db.String(8), nullable=False)  # receipt | payment
+    voucher_number = db.Column(db.String(32), nullable=False)
+    payment_id = db.Column(db.Integer, db.ForeignKey("payments.id"),
+                           nullable=True, index=True)
+    expense_id = db.Column(db.Integer, db.ForeignKey("expenses.id"),
+                           nullable=True, index=True)
+    amount = db.Column(db.Numeric(14, 2), nullable=False)
+    voucher_date = db.Column(db.Date, default=lambda: date.today(),
+                             nullable=False)
+    notes = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    payment = db.relationship("Payment")
+    expense = db.relationship("Expense")
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "voucher_number",
+                            name="uq_voucher_school_number"),
     )

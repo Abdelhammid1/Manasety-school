@@ -14,6 +14,12 @@ def create_app(config_class=Config):
     bcrypt.init_app(app)
     csrf.init_app(app)
 
+    # Global soft-delete filter — every SELECT on a SoftDeleteMixin
+    # class transparently appends `deleted_at IS NULL`. See
+    # app/services/soft_delete.py for the escape hatch.
+    from .services.soft_delete import register as _register_soft_delete
+    _register_soft_delete(app)
+
     from .models import User
 
     @login_manager.user_loader

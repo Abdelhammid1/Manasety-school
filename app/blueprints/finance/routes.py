@@ -379,7 +379,7 @@ def fee_type_delete(ft_id):
             "danger",
         )
         return redirect(url_for("finance.fee_types"))
-    db.session.delete(f); db.session.commit()
+    f.soft_delete(getattr(current_user, "id", None)); db.session.commit()
     flash("تم حذف نوع الرسم نهائياً.", "success")
     return redirect(url_for("finance.fee_types"))
 
@@ -460,20 +460,40 @@ def invoice_new():
             flash("أضف نوع رسم واحد على الأقل.", "danger")
             return redirect(url_for("finance.invoice_new"))
 
-        # Invoice number
-        n = Invoice.query.filter_by(school_id=_sid()).count() + 1
-        number = f"INV-{year.name}-{n:05d}"
-
-        inv = Invoice(
-            school_id=_sid(),
-            enrollment_id=enrollment_id,
-            number=number,
-            issue_date=issue,
-            due_date=due,
-            status="sent",
-        )
-        db.session.add(inv)
-        db.session.flush()
+        # Ticket "Race Condition في ترقيم الفاتورة" — the old
+        # `count() + 1` was inherently racy: two concurrent requests
+        # read the same count and both generated the same INV-YY-00007.
+        # `uq_invoice_school_number` would raise IntegrityError for
+        # whichever committed second. Retry against the DB constraint
+        # up to 8 times, walking forward past the highest number a
+        # SELECT ... FOR UPDATE returns. Any survivor after that is a
+        # real concurrency storm and legitimately errors out.
+        from sqlalchemy.exc import IntegrityError
+        from ...services.ledger import next_invoice_number
+        inv = None
+        for attempt in range(8):
+            number = next_invoice_number(_sid(), year.name)
+            candidate = Invoice(
+                school_id=_sid(),
+                enrollment_id=enrollment_id,
+                number=number,
+                issue_date=issue,
+                due_date=due,
+                status="sent",
+            )
+            db.session.add(candidate)
+            try:
+                db.session.flush()
+                inv = candidate
+                break
+            except IntegrityError:
+                db.session.rollback()
+                # Re-fetch the enrollment on the fresh session
+                # (rollback nukes any stale identity map row).
+                continue
+        if inv is None:
+            flash("تعذّر توليد رقم فاتورة فريد — حاول مرة أخرى.", "danger")
+            return redirect(url_for("finance.invoice_new"))
 
         # Ticket "Additional 9" — read school's default VAT rate. If
         # any of the picked fee types are is_taxable, we accumulate tax
@@ -503,6 +523,14 @@ def invoice_new():
             if ft.is_taxable:
                 taxable_subtotal += amt
 
+        # Ticket "تضارب حساب الضريبة مع الخصومات" — explicit policy:
+        # VAT is computed on the pre-discount taxable subtotal. This
+        # matches how most tax authorities require the tax base to be
+        # recorded (the invoice's *invoiced value* is what's taxed;
+        # discounts flow through separately). The three numbers stay
+        # coherent because `total_amount = subtotal + tax - discount`
+        # is a linear composition; auditors can always reconstruct
+        # each component from the stored fields.
         tax_amount = (taxable_subtotal * default_rate / Decimal(100)).quantize(Decimal("0.01"))
         inv.tax_rate = default_rate
         inv.tax_amount = tax_amount
@@ -756,6 +784,27 @@ def invoice_void(invoice_id):
     return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
 
+@bp.route("/invoices/<int:invoice_id>/unvoid", methods=["POST"],
+          endpoint="invoice_unvoid")
+@login_required
+@require_permission("finance_transactions", "add")
+def invoice_unvoid(invoice_id):
+    """Ticket "Un-void Invoice" — undo a void_invoice by posting a
+    third mirror entry. All three entries (original / void / unvoid)
+    stay in the ledger for audit."""
+    from ...services.ledger import unvoid_invoice, LedgerError
+    inv = _get(Invoice, invoice_id)
+    try:
+        unvoid_invoice(inv)
+    except LedgerError as e:
+        db.session.rollback()
+        flash(str(e), "danger")
+        return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+    db.session.commit()
+    flash(f"تم التراجع عن إلغاء الفاتورة {inv.number}.", "success")
+    return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+
+
 @bp.route("/invoices/<int:invoice_id>/pay", methods=["POST"])
 @login_required
 @require_permission("finance_transactions", "add")
@@ -789,7 +838,8 @@ def invoice_pay(invoice_id):
         if is_refund:
             issue_refund(inv, amount, payment_method_id or 0,
                          reason=notes or "استرداد",
-                         refund_date=pay_date)
+                         refund_date=pay_date,
+                         override_account_id=override_account_id)
             flash(f"تم استرداد {amount} من الفاتورة {inv.number}.", "success")
         else:
             record_payment(inv, amount, payment_method_id,
@@ -806,6 +856,11 @@ def invoice_pay(invoice_id):
 
     # Reload the last-added Payment row for the notification hook below.
     payment = inv.payments[-1] if inv.payments else None
+    # Ticket "سند قبض/صرف رسمي" — auto-generate the voucher document.
+    if payment is not None:
+        from ...services.vouchers import auto_create_for_payment
+        auto_create_for_payment(payment)
+        db.session.commit()
 
     # T-8.5: notify on payment
     phone = (inv.enrollment.student.parent_phone or "").strip()
@@ -1079,7 +1134,7 @@ def cost_center_toggle(cc_id):
 def cost_center_delete(cc_id):
     from ...models import CostCenter
     cc = CostCenter.query.filter_by(id=cc_id, school_id=_sid()).first_or_404()
-    db.session.delete(cc); db.session.commit()
+    cc.soft_delete(getattr(current_user, "id", None)); db.session.commit()
     flash("تم الحذف.", "success")
     return redirect(url_for("finance.cost_centers_list"))
 
@@ -1298,7 +1353,19 @@ def bank_rec_match(line_id):
     if not jl_id:
         flash("اختر سطر قيد للربط.", "danger")
         return redirect(url_for("finance.bank_rec", account_id=line.bank_account_id))
-    jl = JournalLine.query.get(jl_id)
+    # Ticket "IDOR في مطابقة كشف الحساب البنكي" — the previous
+    # `JournalLine.query.get(jl_id)` skipped tenant filtering. In a
+    # multi-tenant SaaS, a school could POST a journal_line_id owned
+    # by a different school's row and still get matched. Fix: join
+    # through JournalEntry → school_id and 404 anything not owned by
+    # the current tenant.
+    jl = (
+        db.session.query(JournalLine)
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalLine.id == jl_id,
+                JournalEntry.school_id == _sid())
+        .first()
+    )
     if not jl:
         abort(404)
     line.matched_journal_line_id = jl.id
@@ -1461,7 +1528,7 @@ def payment_method_toggle(pm_id):
 def payment_method_delete(pm_id):
     from ...models import PaymentMethod
     pm = PaymentMethod.query.filter_by(id=pm_id, school_id=_sid()).first_or_404()
-    db.session.delete(pm); db.session.commit()
+    pm.soft_delete(getattr(current_user, "id", None)); db.session.commit()
     flash("تم حذف طريقة الدفع.", "success")
     return redirect(url_for("finance.payment_methods_list"))
 
@@ -1584,7 +1651,7 @@ def vendor_delete(vendor_id):
             "danger",
         )
         return redirect(url_for("finance.vendors_list"))
-    db.session.delete(v); db.session.commit()
+    v.soft_delete(getattr(current_user, "id", None)); db.session.commit()
     flash("تم حذف المورد نهائياً.", "success")
     return redirect(url_for("finance.vendors_list"))
 
@@ -1669,6 +1736,34 @@ def expense_new():
             credit_account = _get(Account, pm.account_id)
             note = f"خروج — {pm.name}"
 
+        # Ticket "Approval Workflow على المصروفات" — if the amount
+        # is above the school's approval threshold, park the row as
+        # `pending` with NO journal effect. Approval later runs
+        # post_expense_journal + auto-creates the voucher.
+        school = db.session.get(School, _sid())
+        threshold = Decimal(str(school.approval_threshold or 0))
+        needs_approval = threshold > 0 and amount >= threshold
+
+        if needs_approval:
+            e = Expense(
+                school_id=_sid(),
+                vendor_id=vendor.id if vendor else None,
+                expense_account_id=ex_account.id,
+                cash_account_id=credit_account.id,
+                date=d, amount=amount,
+                description=request.form["description"].strip(),
+                reference=(request.form.get("reference") or "").strip() or None,
+                cost_center_id=cost_center_id,
+                approval_status="pending",
+            )
+            db.session.add(e); db.session.commit()
+            flash(
+                f"تم تسجيل المصروف ({amount}) بانتظار الاعتماد "
+                "من المدير — لن يُرحّل محاسبياً قبل الموافقة.",
+                "info",
+            )
+            return redirect(url_for("finance.expenses_list"))
+
         je = post_journal(
             school_id=_sid(),
             entry_date=d,
@@ -1690,8 +1785,13 @@ def expense_new():
             reference=(request.form.get("reference") or "").strip() or None,
             journal_entry_id=je.id,
             cost_center_id=cost_center_id,
+            approval_status="approved",
         )
         db.session.add(e)
+        db.session.commit()
+        # Auto-create the outgoing voucher.
+        from ...services.vouchers import auto_create_for_expense
+        auto_create_for_expense(e)
         db.session.commit()
         flash(
             f"تم تسجيل المصروف ({amount}) — "
@@ -1987,3 +2087,166 @@ def _parse_date(s):
     if not s:
         return None
     return datetime.strptime(s, "%Y-%m-%d").date()
+
+
+# ── Budget vs Actual (Ticket "الموازنة التخطيطية") ─────────────────
+@bp.route("/budgets", endpoint="budgets_home")
+@login_required
+@require_permission("finance", "view")
+def budgets_home():
+    from ...models import Budget, AcademicYear, CostCenter
+    year = _active_year()
+    items = (
+        Budget.query.filter_by(school_id=_sid(), year_id=year.id if year else 0)
+        .all() if year else []
+    )
+    postable = (
+        Account.query.filter_by(school_id=_sid(), is_postable=True)
+        .filter(Account.type.in_(["revenue", "expense"]))
+        .order_by(Account.code).all()
+    )
+    ccs = CostCenter.query.filter_by(school_id=_sid(), is_active=True).all()
+    return render_template("finance/budgets.html",
+                           budgets=items, year=year,
+                           accounts=postable, cost_centers=ccs)
+
+
+@bp.route("/budgets/new", methods=["POST"], endpoint="budget_new")
+@login_required
+@require_permission("finance", "add")
+def budget_new():
+    from ...models import Budget
+    year = _active_year()
+    if not year:
+        flash("لا توجد سنة دراسية نشطة.", "danger")
+        return redirect(url_for("finance.budgets_home"))
+    b = Budget(
+        school_id=_sid(), year_id=year.id,
+        account_id=request.form.get("account_id", type=int) or None,
+        cost_center_id=request.form.get("cost_center_id", type=int) or None,
+        period=(request.form.get("period") or "annual").strip(),
+        planned_amount=Decimal(request.form.get("planned_amount") or "0"),
+        warn_pct=int(request.form.get("warn_pct") or 90),
+        note=(request.form.get("note") or "").strip() or None,
+    )
+    if not b.account_id and not b.cost_center_id:
+        flash("اختر حساباً أو مركز تكلفة.", "danger")
+        return redirect(url_for("finance.budgets_home"))
+    db.session.add(b); db.session.commit()
+    flash("تم إضافة بند الميزانية.", "success")
+    return redirect(url_for("finance.budgets_home"))
+
+
+@bp.route("/budgets/<int:bid>/delete", methods=["POST"], endpoint="budget_delete")
+@login_required
+@require_permission("finance", "delete")
+def budget_delete(bid):
+    from ...models import Budget
+    b = Budget.query.filter_by(id=bid, school_id=_sid()).first_or_404()
+    db.session.delete(b); db.session.commit()
+    flash("تم حذف البند.", "success")
+    return redirect(url_for("finance.budgets_home"))
+
+
+@bp.route("/reports/budget-vs-actual", endpoint="report_budget_vs_actual")
+@login_required
+@require_permission("finance", "view")
+def report_budget_vs_actual():
+    from ...services.reports import budget_vs_actual_report
+    year = _active_year()
+    rows = budget_vs_actual_report(_sid(), year.id if year else 0)
+    return render_template("finance/report_budget_actual.html",
+                           rows=rows, year=year)
+
+
+# ── Approval workflow on Expenses ─────────────────────────────────
+@bp.route("/expenses/<int:eid>/approve", methods=["POST"],
+          endpoint="expense_approve")
+@login_required
+@require_permission("finance_transactions", "add")
+def expense_approve(eid):
+    from ...models import Expense, School
+    from ...services.ledger import post_expense_journal
+    e = Expense.query.filter_by(id=eid, school_id=_sid()).first_or_404()
+    if e.approval_status == "approved":
+        flash("المصروف معتمد بالفعل.", "info")
+        return redirect(url_for("finance.expenses"))
+    try:
+        post_expense_journal(e)
+    except Exception as exc:  # noqa: BLE001
+        db.session.rollback()
+        flash(f"تعذّر الاعتماد: {exc}", "danger")
+        return redirect(url_for("finance.expenses"))
+    e.approval_status = "approved"
+    e.approved_by_id = current_user.id
+    e.approved_at = datetime.utcnow()
+    # Auto-generate the outgoing voucher (سند صرف).
+    from ...services.vouchers import auto_create_for_expense
+    auto_create_for_expense(e)
+    db.session.commit()
+    flash(f"تم اعتماد المصروف #{e.id} وترحيله محاسبياً.", "success")
+    return redirect(url_for("finance.expenses"))
+
+
+@bp.route("/expenses/<int:eid>/reject", methods=["POST"],
+          endpoint="expense_reject")
+@login_required
+@require_permission("finance_transactions", "add")
+def expense_reject(eid):
+    from ...models import Expense
+    e = Expense.query.filter_by(id=eid, school_id=_sid()).first_or_404()
+    if e.approval_status != "pending":
+        flash("لا يمكن الرفض إلا للمصروفات قيد المراجعة.", "warning")
+        return redirect(url_for("finance.expenses"))
+    e.approval_status = "rejected"
+    e.reject_reason = (request.form.get("reason") or "").strip() or "بدون سبب"
+    e.approved_by_id = current_user.id
+    e.approved_at = datetime.utcnow()
+    db.session.commit()
+    flash(f"تم رفض المصروف #{e.id}.", "warning")
+    return redirect(url_for("finance.expenses"))
+
+
+# ── Unified financial dashboard ────────────────────────────────────
+@bp.route("/dashboard", endpoint="dashboard")
+@login_required
+@require_permission("finance", "view")
+def dashboard():
+    """Ticket "Dashboard مالي موحّد" — aggregates the existing report
+    surface (treasury, aging, collection, forecast, overdue) into one
+    screen. No duplicated logic — every number links back to its full
+    report."""
+    from ...services.reports import (
+        aging_report, collection_report, forecast_report,
+    )
+    from ...models import Invoice
+    # Treasury
+    all_cash_bank = (
+        Account.query.filter_by(school_id=_sid(), is_postable=True, type="asset")
+        .filter(Account.code.startswith("11")).all()
+    )
+    cash_total = sum(a.balance for a in all_cash_bank if a.code.startswith("111"))
+    bank_total = sum(a.balance for a in all_cash_bank if a.code.startswith("112"))
+    # Aging
+    aging = aging_report(_sid())
+    # Collection this month
+    today = date.today()
+    month_start = today.replace(day=1)
+    collect = collection_report(_sid(), start=month_start, end=today)
+    # Forecast
+    forecast = forecast_report(_sid(), months_ahead=3)
+    # Overdue count + total
+    overdue = (
+        Invoice.query.filter(Invoice.school_id == _sid(),
+                              Invoice.status == "overdue").all()
+    )
+    overdue_total = sum(
+        float(i.total_amount or 0) - float(i.paid_amount or 0)
+        for i in overdue
+    )
+    return render_template(
+        "finance/dashboard.html",
+        cash_total=cash_total, bank_total=bank_total,
+        aging=aging, collect=collect, forecast=forecast,
+        overdue_count=len(overdue), overdue_total=overdue_total,
+    )

@@ -1,0 +1,67 @@
+{# Soft-delete trash centre — every row soft-deleted across the app,
+   grouped by kind, with a one-click restore button. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}المحذوفات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المحذوفات</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+  <section class="relative overflow-hidden rounded-2xl bg-gradient-to-l from-rose-600 via-rose-500 to-orange-500 p-6 md:p-8 text-white shadow-lg">
+    <div class="flex items-start gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-white/15 backdrop-blur-md flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">delete_sweep</span>
+      </div>
+      <div>
+        <h1 class="font-headline-lg font-bold">المحذوفات</h1>
+        <p class="mt-1 text-white/90">كل الصفوف اللي اتحذفت (Soft-Delete) — يمكن استرجاعها بضغطة واحدة، وأي حذف ممنوع بشكل دائم.</p>
+      </div>
+    </div>
+  </section>
+
+  {% if not groups %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-lg text-center text-outline">
+    <span class="material-symbols-outlined text-4xl">check_circle</span>
+    <div class="mt-2 font-title-md">لا صفوف محذوفة حالياً.</div>
+  </div>
+  {% endif %}
+
+  {% for g in groups %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm">
+    <div class="p-space-md border-b border-surface-container-low flex items-center gap-2">
+      <span class="material-symbols-outlined text-primary">{{ g.icon }}</span>
+      <span class="font-title-md font-bold text-on-surface">{{ g.label }}</span>
+      <span class="px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 font-label-xs font-bold">{{ g.rows|length }}</span>
+    </div>
+    <table class="w-full text-right">
+      <thead>
+        <tr class="bg-surface-container-low text-on-surface-variant font-label-sm">
+          <th class="py-3 px-4 font-semibold">#</th>
+          <th class="py-3 px-4 font-semibold">الاسم / الوصف</th>
+          <th class="py-3 px-4 font-semibold">تاريخ الحذف</th>
+          <th class="py-3 px-4 font-semibold text-center">استرجاع</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-surface-container-high/40">
+        {% for row in g.rows %}
+        <tr>
+          <td class="py-3 px-4 font-mono text-outline">#{{ row.id }}</td>
+          <td class="py-3 px-4">{{ row.name if row.name is defined else row.full_name if row.full_name is defined else row.__class__.__name__ }}</td>
+          <td class="py-3 px-4 font-mono text-outline">{{ row.deleted_at.strftime('%Y-%m-%d %H:%M') if row.deleted_at else '' }}</td>
+          <td class="py-3 px-4 text-center">
+            <form method="post" action="{{ url_for('admin.trash_restore', kind=g.endpoint, oid=row.id) }}" class="inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 font-label-md font-bold">
+                <span class="material-symbols-outlined text-lg">restore</span>استرجاع
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

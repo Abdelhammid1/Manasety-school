@@ -39,6 +39,35 @@ def _dec(v) -> Decimal:
     return Decimal(str(v or 0))
 
 
+def next_invoice_number(school_id: int, year_name: str) -> str:
+    """Race-safe sequential invoice number for the given (school, year).
+
+    Uses `SELECT MAX(number) ... FOR UPDATE` on Postgres so parallel
+    invoice_new calls serialize on the same row-set instead of both
+    reading the same count and colliding at the unique constraint.
+    SQLite (dev/test) doesn't honour FOR UPDATE — the outer retry loop
+    in the caller absorbs any collision that slips through.
+    """
+    import re
+    from sqlalchemy import func
+    prefix = f"INV-{year_name}-"
+    q = (
+        db.session.query(func.max(Invoice.number))
+        .filter(Invoice.school_id == school_id)
+        .filter(Invoice.number.like(f"{prefix}%"))
+    )
+    dialect = db.session.bind.dialect.name if db.session.bind else ""
+    if dialect == "postgresql":
+        q = q.with_for_update()
+    last = q.scalar()
+    n = 1
+    if last:
+        m = re.search(r"(\d+)$", last)
+        if m:
+            n = int(m.group(1)) + 1
+    return f"{prefix}{n:05d}"
+
+
 def _discount_account_for(school_id: int) -> Optional[Account]:
     from .system_codes import get_account_by_code
     return get_account_by_code(school_id, "4910")
@@ -457,7 +486,22 @@ def settle_accrual(payroll: Payroll, payment_method_id: int, amount=None,
 
 def void_invoice(invoice: Invoice, reason: str, *, entry_date=None):
     """Reverse the original invoice journal entry entirely. Only allowed
-    while paid_amount == 0; anything else needs `issue_refund`."""
+    while paid_amount == 0; anything else needs `issue_refund`.
+
+    Ticket "invoice_void بيكسر لأي فاتورة عليها خصم أو ضريبة" — the
+    old implementation rebuilt reversal lines from `invoice.lines`
+    (raw gross fees only). That skipped the discount line (4910) and
+    the VAT line (2250) that `post_invoice_to_ledger` had booked
+    separately, producing an unbalanced entry that `post_journal`
+    rejected.
+
+    Fix: look up the original `JournalEntry` (via `related_kind='invoice'
+    AND related_id=invoice.id`) and mirror EVERY one of its lines with
+    DR↔CR swapped. That guarantees balance no matter how many contra
+    lines the original entry carried.
+    """
+    from ..models import JournalEntry
+    from ..models.finance import JournalLine
     if _dec(invoice.paid_amount) > 0:
         raise LedgerError(
             "لا يمكن إلغاء فاتورة عليها مبالغ مسددة — استخدم استرداد بدل الإلغاء."
@@ -465,22 +509,26 @@ def void_invoice(invoice: Invoice, reason: str, *, entry_date=None):
     if invoice.status == "cancelled":
         raise LedgerError("الفاتورة ملغاة بالفعل.")
 
-    ar = party_ar_account(invoice)
-    total = _dec(invoice.total_amount)
-    if total <= 0:
-        # Nothing to reverse — just mark cancelled.
+    original = (
+        JournalEntry.query
+        .filter_by(school_id=invoice.school_id,
+                   related_kind="invoice", related_id=invoice.id)
+        .order_by(JournalEntry.id.asc()).first()
+    )
+    if original is None:
+        # No journal entry to reverse (invoice was created with total
+        # 0, or a legacy row from before the ledger was wired). Just
+        # mark cancelled — no ledger effect to undo.
         invoice.status = "cancelled"
+        invoice.notes = ((invoice.notes or "") + f"\nإلغاء: {reason}").strip()
         return None
 
-    # Reverse the original entry with symmetric CR/DR flip.
-    #   CR AR (release the receivable)
-    #   DR revenue lines (reverse recognition)
-    lines: list[tuple[int, Decimal, Decimal, str]] = [
-        (ar.id, Decimal(0), total, f"إلغاء ذمم — {invoice.enrollment.student.full_name}"),
-    ]
-    for aid, dr, cr, desc in _revenue_lines_by_fee_type(invoice):
-        # swap dr↔cr
-        lines.append((aid, cr, dr, f"عكس {desc}"))
+    # Mirror every original line with DR↔CR swapped. Preserves both
+    # the discount (4910) and VAT (2250) contra lines automatically.
+    lines: list[tuple[int, Decimal, Decimal, str]] = []
+    for jl in original.lines:
+        dr = _dec(jl.debit); cr = _dec(jl.credit)
+        lines.append((jl.account_id, cr, dr, f"عكس {jl.description or ''}".strip()))
 
     je = post_journal(
         school_id=invoice.school_id,
@@ -495,16 +543,67 @@ def void_invoice(invoice: Invoice, reason: str, *, entry_date=None):
     return je
 
 
+# ─── Un-void invoice (Ticket "Un-void Invoice") ──────────────────────
+
+def unvoid_invoice(invoice: Invoice, *, entry_date=None):
+    """Reverse the reversal — cancels `void_invoice` by mirroring the
+    `related_kind='invoice_void'` entry back. The invoice's original
+    ledger effect is now restored + the audit trail keeps three
+    entries (original / void / un-void), none of them hidden.
+    """
+    from ..models import JournalEntry
+    if invoice.status != "cancelled":
+        raise LedgerError("لا يمكن التراجع إلا عن فاتورة ملغاة.")
+
+    void_entry = (
+        JournalEntry.query
+        .filter_by(school_id=invoice.school_id,
+                   related_kind="invoice_void", related_id=invoice.id)
+        .order_by(JournalEntry.id.desc()).first()
+    )
+    if void_entry is None:
+        # Cancelled without a journal effect → just restore the status.
+        invoice.status = "partial" if _dec(invoice.paid_amount) > 0 else "sent"
+        return None
+
+    lines: list[tuple[int, Decimal, Decimal, str]] = []
+    for jl in void_entry.lines:
+        dr = _dec(jl.debit); cr = _dec(jl.credit)
+        lines.append((jl.account_id, cr, dr,
+                      f"تراجع عن إلغاء {invoice.number}"))
+    je = post_journal(
+        school_id=invoice.school_id,
+        entry_date=entry_date or _date_cls.today(),
+        description=f"تراجع عن إلغاء فاتورة {invoice.number}",
+        reference=invoice.number,
+        lines=lines,
+        related_kind="invoice_unvoid", related_id=invoice.id,
+    )
+    # Restore the status. If the invoice had part-paid before void
+    # (impossible under current rules — void only allowed at paid=0 —
+    # but defensive anyway), we'd flip to partial.
+    invoice.status = "partial" if _dec(invoice.paid_amount) > 0 else "sent"
+    return je
+
+
 def issue_refund(invoice: Invoice, amount, payment_method_id: int, reason: str,
-                 *, refund_date: Optional[_date_cls] = None):
+                 *, refund_date: Optional[_date_cls] = None,
+                 override_account_id: Optional[int] = None):
     """Refund cash we already received on this invoice.
 
       DR   student's AR sub-account (يعاد الدين — لا شيء مطلوب من الطالب الآن)
-      CR   payment_method.account (خروج فلوس)
+      CR   payment_method.account (خروج فلوس) — OR override_account_id
+           when the admin picked "حساب آخر…" instead of a payment method.
 
     Capped by paid_amount so we can never refund more than was actually
     collected. Also lowers invoice.paid_amount + installment.paid_amount
     LIFO (reverse of intake).
+
+    Ticket "الاسترداد مع حساب آخر مكسور" — the refund form let the
+    admin pick a raw override account; the old signature ignored it
+    and 500'd on `payment_method_id=0`. Now `override_account_id`
+    takes precedence over `payment_method_id`, mirroring the exact
+    contract of `record_payment` on the intake side.
     """
     amount = _dec(amount)
     if amount <= 0:
@@ -514,9 +613,24 @@ def issue_refund(invoice: Invoice, amount, payment_method_id: int, reason: str,
             f"لا يمكن استرداد أكثر من المدفوع ({invoice.paid_amount})."
         )
 
-    pm = _resolve_pm(invoice.school_id, payment_method_id)
-    if pm.kind == "deferred" or pm.account_id is None:
-        raise LedgerError("اختر طريقة دفع فعلية — الاسترداد يستدعي حركة كاش/بنك.")
+    pm = None
+    cash_account_id = None
+    method_label = "حساب آخر"
+    if override_account_id:
+        acct = Account.query.filter_by(
+            id=override_account_id, school_id=invoice.school_id).first()
+        if acct is None:
+            raise LedgerError("الحساب المُختار غير موجود لهذه المدرسة.")
+        if not acct.is_postable:
+            raise LedgerError("لا يمكن الاسترداد على حساب تجميعي.")
+        cash_account_id = acct.id
+        method_label = acct.name[:16]
+    else:
+        pm = _resolve_pm(invoice.school_id, payment_method_id)
+        if pm.kind == "deferred" or pm.account_id is None:
+            raise LedgerError("اختر طريقة دفع فعلية — الاسترداد يستدعي حركة كاش/بنك.")
+        cash_account_id = pm.account_id
+        method_label = pm.name[:16]
 
     ar = party_ar_account(invoice)
     at = refund_date or _date_cls.today()
@@ -528,7 +642,7 @@ def issue_refund(invoice: Invoice, amount, payment_method_id: int, reason: str,
         reference=invoice.number,
         lines=[
             (ar.id, amount, Decimal(0), f"إعادة ذمة — {invoice.enrollment.student.full_name}"),
-            (pm.account_id, Decimal(0), amount, f"خروج — {pm.name}"),
+            (cash_account_id, Decimal(0), amount, f"خروج — {method_label}"),
         ],
         related_kind="invoice_refund", related_id=invoice.id,
     )
@@ -556,8 +670,8 @@ def issue_refund(invoice: Invoice, amount, payment_method_id: int, reason: str,
         invoice_id=invoice.id,
         payment_date=at,
         amount=amount,
-        method=pm.name[:16],
-        cash_account_id=pm.account_id,
+        method=method_label,
+        cash_account_id=cash_account_id,
         is_refund=True,
         reference=None, notes=reason,
         journal_entry_id=je.id,
@@ -1003,3 +1117,78 @@ def update_overdue_invoices(school_id: int, *, today=None) -> int:
     for inv in rows:
         inv.status = "overdue"
     return len(rows)
+
+
+def post_expense_journal(expense):
+    """Post the ledger effect of an approved expense. Called on approval
+    (Ticket "Approval Workflow"). Idempotent — safe to call after a
+    prior post attempt failed."""
+    from ..models.finance import Expense
+    if expense.journal_entry_id is not None:
+        return  # already posted
+    amt = _dec(expense.amount)
+    if amt <= 0:
+        raise LedgerError("مبلغ المصروف يجب أن يكون أكبر من صفر.")
+    je = post_journal(
+        school_id=expense.school_id,
+        entry_date=expense.date,
+        description=f"مصروف — {expense.description}",
+        reference=expense.reference,
+        lines=[
+            (expense.expense_account_id, amt, Decimal(0),
+             f"مصروف: {expense.description}"),
+            (expense.cash_account_id, Decimal(0), amt,
+             f"خروج من الحساب — {expense.description}"),
+        ],
+        related_kind="expense", related_id=expense.id,
+    )
+    expense.journal_entry_id = je.id
+    return je
+
+
+def send_installment_reminders(school_id: int):
+    """Ticket "تذكير قبل الاستحقاق" — cron entry point. Reads
+    installments due `school.installment_reminder_days_before` days
+    from today, emails the parent via services.mailer, and stamps
+    reminder_sent_at so the same installment can't be pinged twice."""
+    from datetime import datetime, timezone as _tz
+    from ..models import School, Student, Enrollment
+    from ..services.reports import installments_due_for_reminder
+    from ..services import mailer as _mailer
+    school = db.session.get(School, school_id)
+    if not school or not _mailer.is_configured(school):
+        return {"school_id": school_id, "sent": 0, "skipped_no_smtp": True}
+    days = int(school.installment_reminder_days_before or 3)
+    pairs = installments_due_for_reminder(school_id, days)
+    sent = 0
+    for inst, inv in pairs:
+        # Resolve parent's email via Enrollment → Student → parent User.
+        parent_email = None
+        try:
+            enrollment = db.session.get(Enrollment, inv.enrollment_id)
+            student = enrollment.student if enrollment else None
+            if student and student.parent_user and student.parent_user.email:
+                parent_email = student.parent_user.email
+        except Exception:
+            parent_email = None
+        if not parent_email:
+            continue
+        try:
+            _mailer.send(
+                school, parent_email,
+                subject=f"تذكير: قسط فاتورة {inv.number}",
+                body=(
+                    f"مرحباً،\n\n"
+                    f"تذكير بأن قسط الفاتورة رقم {inv.number} "
+                    f"بقيمة {inst.amount} "
+                    f"يستحق بتاريخ {inst.due_date}.\n\n"
+                    f"يرجى السداد قبل تاريخ الاستحقاق لتجنب رسوم التأخير.\n\n"
+                    f"مع تحيات إدارة {school.name}."
+                ),
+            )
+            inst.reminder_sent_at = datetime.now(_tz.utc)
+            sent += 1
+        except Exception:
+            continue
+    db.session.commit()
+    return {"school_id": school_id, "sent": sent}
