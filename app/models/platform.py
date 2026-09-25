@@ -6,6 +6,7 @@ to review — the natural per-domain homes (student.py, results.py …)
 would spread across seven files.
 """
 from datetime import datetime, timezone
+from sqlalchemy.sql import true as sa_true
 from ..extensions import db
 from .mixins import SoftDeleteMixin
 
@@ -36,6 +37,12 @@ class Guardian(db.Model):
     email = db.Column(db.String(128))
     occupation = db.Column(db.String(128))
     address = db.Column(db.String(255))
+    # Ticket S12 — some rows are pure emergency contacts (neighbour,
+    # driver, distant relative). When False, this Guardian row is
+    # emergency-only and MUST NOT appear on invoices, academic
+    # permissions, or the "ولي أمر رسمي" listing.
+    is_guardian = db.Column(db.Boolean, default=True, nullable=False,
+                            server_default=sa_true())
     # Login-side link so a guardian can sign in via the parent app.
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=True)
 

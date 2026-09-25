@@ -193,6 +193,16 @@ def students_list():
             db.or_(Student.full_name.ilike(like), Student.permanent_code.ilike(like))
         )
 
+    # Ticket S11 — filter by tag(s). `?tag_id=<n>` picks students that
+    # carry that tag; multi-select allowed.
+    tag_ids = [int(x) for x in request.args.getlist("tag_id") if x.isdigit()]
+    if tag_ids:
+        from ...models import student_tag_links
+        query = query.join(
+            student_tag_links,
+            student_tag_links.c.student_id == Student.id,
+        ).filter(student_tag_links.c.tag_id.in_(tag_ids)).distinct()
+
     # Ticket #14 — scope the list by the user's UserScope. When the
     # user has grade/section scopes, join through their active
     # Enrollment and filter by those. Users with no UserScope pass
@@ -207,9 +217,15 @@ def students_list():
                             grade_field=Enrollment.grade_id)
 
     students = query.order_by(Student.full_name).limit(500).all()
+    from ...models import StudentTag as _ST
+    all_tags = (
+        _ST.query.filter_by(school_id=_sid())
+        .order_by(_ST.name).all()
+    )
     return render_template(
         "students/list.html", students=students, q=q,
         active_year=year, section_ctx=section_ctx,
+        all_tags=all_tags, selected_tag_ids=tag_ids,
     )
 
 
@@ -244,6 +260,31 @@ def student_new():
         except ValueError:
             flash("تاريخ الميلاد غير صالح — استخدم صيغة YYYY-MM-DD.", "danger")
             return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
+
+        # Ticket S9 — secondary duplicate check by (full_name, dob,
+        # parent_phone). Triggers only when all three match at once —
+        # matches the "same kid re-entered" case without spamming the
+        # admin for common-name collisions.
+        full_name_probe = (request.form.get("full_name") or "").strip()
+        parent_phone_probe = (
+            request.form.get("parent_phone") or "").strip() or None
+        if full_name_probe and dob and parent_phone_probe:
+            dup2 = Student.query.filter_by(
+                school_id=_sid(),
+                full_name=full_name_probe,
+                dob=dob,
+                parent_phone=parent_phone_probe,
+            ).first()
+            if dup2 and request.form.get("confirm_dup") != "1":
+                flash(
+                    f"تنبيه: يوجد طالب آخر بنفس الاسم وتاريخ الميلاد وجوال الأب "
+                    f"({dup2.full_name} — {dup2.permanent_code}). أكّد الحفظ إذا كنت متأكدًا.",
+                    "warning",
+                )
+                return render_template(
+                    "students/form.html", student=None,
+                    form=request.form, dup=dup2, **render_kwargs,
+                )
 
         parent_name = (request.form.get("parent_name") or "").strip() or None
         parent_phone = (request.form.get("parent_phone") or "").strip() or None
@@ -529,7 +570,13 @@ def guardians_list():
     """School-wide guardian directory. Each row shows the guardian +
     their linked students so admins can see brothers/sisters together."""
     from ...models import Guardian
+    # Ticket S12 — the primary listing hides pure emergency-only rows
+    # (is_guardian=False). Admins looking for those flip the include
+    # switch via `?include_emergency=1`.
+    include_emergency = request.args.get("include_emergency") == "1"
     q = Guardian.query.filter_by(school_id=current_user.school_id)
+    if not include_emergency:
+        q = q.filter(Guardian.is_guardian == True)  # noqa: E712
     search = (request.args.get("q") or "").strip()
     if search:
         q = q.filter(db.or_(
@@ -538,7 +585,9 @@ def guardians_list():
             Guardian.national_id.ilike(f"%{search}%"),
         ))
     items = q.order_by(Guardian.full_name).limit(300).all()
-    return render_template("students/guardians_list.html", guardians=items, search=search)
+    return render_template("students/guardians_list.html",
+                           guardians=items, search=search,
+                           include_emergency=include_emergency)
 
 
 @bp.route("/guardians/new", methods=["GET", "POST"], endpoint="guardian_new")

@@ -28,6 +28,8 @@ class Student(db.Model):
     mother_phone = db.Column(db.String(32))
     address = db.Column(db.String(255))
     notes = db.Column(db.Text)
+    # Ticket S6 — profile photo URL. Uploaded via student_tabs.
+    photo_url = db.Column(db.String(500), nullable=True)
     # Financial-automation ticket — subsidiary AR sub-account under 1210.
     # Lazy-created by services.subsidiary.ensure_student_account on the
     # first invoice; stays NULL until the student actually needs one.
@@ -95,3 +97,80 @@ class TransferLog(db.Model):
     enrollment = db.relationship("Enrollment", backref="transfer_logs")
     from_section = db.relationship("Section", foreign_keys=[from_section_id])
     to_section = db.relationship("Section", foreign_keys=[to_section_id])
+
+
+# ─── Ticket S10 — StudentNote (timeline log, not the flat Student.notes) ──
+class StudentNote(db.Model):
+    __tablename__ = "student_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id  = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                           nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id",
+                                                     ondelete="CASCADE"),
+                           nullable=False, index=True)
+    author_id  = db.Column(db.Integer, db.ForeignKey("users.id"),
+                           nullable=True)
+    body       = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    student = db.relationship("Student", backref=db.backref(
+        "diary_notes", order_by="StudentNote.created_at.desc()",
+        cascade="all, delete-orphan",
+    ))
+    author = db.relationship("User")
+
+
+# ─── Ticket S11 — StudentTag (M:N) ────────────────────────────────────
+student_tag_links = db.Table(
+    "student_tag_links",
+    db.Column("student_id", db.Integer,
+              db.ForeignKey("students.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("tag_id", db.Integer,
+              db.ForeignKey("student_tags.id", ondelete="CASCADE"),
+              primary_key=True),
+)
+
+
+class StudentTag(db.Model):
+    __tablename__ = "student_tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    name  = db.Column(db.String(60), nullable=False)
+    color = db.Column(db.String(16), nullable=True)   # HEX or tailwind key
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    students = db.relationship("Student", secondary="student_tag_links",
+                               backref="tags", lazy="selectin")
+
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "name", name="uq_student_tag_school_name"),
+    )
+
+
+# ─── Ticket S3 — PreviousSchool (student's academic history pre-enrolment) ─
+class PreviousSchool(db.Model):
+    __tablename__ = "student_previous_schools"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id  = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                           nullable=False, index=True)
+    student_id = db.Column(db.Integer, db.ForeignKey("students.id",
+                                                     ondelete="CASCADE"),
+                           nullable=False, index=True)
+    name        = db.Column(db.String(200), nullable=False)
+    city        = db.Column(db.String(100), nullable=True)
+    from_year   = db.Column(db.String(20), nullable=True)
+    to_year     = db.Column(db.String(20), nullable=True)
+    reason      = db.Column(db.Text, nullable=True)
+    document_url = db.Column(db.String(500), nullable=True)
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    student = db.relationship("Student", backref=db.backref(
+        "previous_schools",
+        order_by="PreviousSchool.created_at.desc()",
+        cascade="all, delete-orphan",
+    ))

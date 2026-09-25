@@ -64,6 +64,10 @@ def _notify_absence(*, student, section, on_date, record):
     `student.guardian_links` that has `can_receive_notifications=True`
     and a phone number set.
 
+    Ticket T9 — also push a copy to any DeviceToken row registered by
+    the student's own app (app='student'), so the student's phone
+    surfaces the notice too, not just the parents'.
+
     Falls back to the legacy `student.parent_phone` when the student
     has no guardian links at all — that's the migration bridge for
     old rows imported before the Guardian model existed.
@@ -104,6 +108,33 @@ def _notify_absence(*, student, section, on_date, record):
             send_notification(
                 school_id=_sid(), kind="absence", payload=payload,
                 target_phone=phone,
+                student_id=student.id,
+                related_kind="attendance", related_id=record.id,
+            )
+            sent += 1
+
+    # Ticket T9 — queue a per-student self-notification when the
+    # student's app has a device registered. The FCM pusher (built on
+    # top of DeviceToken.app='student') picks up unpushed rows by
+    # kind+student_id. Only enqueued when there's actually a device
+    # token so we don't spam the log with never-pushed rows.
+    if getattr(student, "user_id", None):
+        from ...models import DeviceToken
+        has_device = DeviceToken.query.filter_by(
+            school_id=_sid(), user_id=student.user_id, app="student",
+        ).first()
+        if has_device is not None:
+            student_payload = dict(payload,
+                message=(
+                    f"تنبيه: تم رصد غيابك يوم {on_date.isoformat()} "
+                    f"في {section.grade.name} / {section.name}."
+                ),
+                target_app="student",
+                target_user_id=student.user_id,
+            )
+            send_notification(
+                school_id=_sid(), kind="absence", payload=student_payload,
+                target_phone=None,
                 student_id=student.id,
                 related_kind="attendance", related_id=record.id,
             )
