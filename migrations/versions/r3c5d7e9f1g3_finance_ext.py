@@ -20,9 +20,9 @@ depends_on = None
 
 
 def _has(table, col):
-    conn = op.get_bind()
-    return col in {r[1] for r in conn.exec_driver_sql(
-        f"PRAGMA table_info({table})").fetchall()}
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    return any(c["name"] == col for c in insp.get_columns(table))
 
 
 def upgrade():
@@ -36,9 +36,8 @@ def upgrade():
                                    sa.Integer, nullable=True, server_default='3'))
 
     # ── Budget ────────────────────────────────────────────────────
-    conn = op.get_bind()
-    tables = {r[0] for r in conn.exec_driver_sql(
-        "SELECT name FROM sqlite_master WHERE type='table'").fetchall()}
+    bind = op.get_bind()
+    tables = set(sa.inspect(bind).get_table_names())
     if 'budgets' not in tables: op.create_table(
         'budgets',
         sa.Column('id', sa.Integer, primary_key=True),

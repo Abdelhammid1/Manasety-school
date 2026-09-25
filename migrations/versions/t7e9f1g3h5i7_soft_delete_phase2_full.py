@@ -55,28 +55,20 @@ _UNIQUES = [
 
 
 def _has(table, col):
-    conn = op.get_bind()
-    try:
-        rows = conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
-    except Exception:
-        return True  # be defensive on postgres — treat missing as "already there"
-    return col in {r[1] for r in rows}
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    return any(c["name"] == col for c in insp.get_columns(table))
 
 
 def _table_exists(name):
-    conn = op.get_bind()
-    rows = conn.exec_driver_sql(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-    ).fetchall()
-    return name in {r[0] for r in rows}
+    bind = op.get_bind()
+    return sa.inspect(bind).has_table(name)
 
 
-def _index_exists(name):
-    conn = op.get_bind()
-    rows = conn.exec_driver_sql(
-        "SELECT name FROM sqlite_master WHERE type='index'"
-    ).fetchall()
-    return name in {r[0] for r in rows}
+def _index_exists(table, name):
+    bind = op.get_bind()
+    insp = sa.inspect(bind)
+    return any(ix["name"] == name for ix in insp.get_indexes(table))
 
 
 def upgrade():
@@ -101,7 +93,7 @@ def upgrade():
         if not _table_exists(table):
             continue
         idx_name = f'ux_{table}_active_uq'
-        if _index_exists(idx_name):
+        if _index_exists(table, idx_name):
             continue
         try:
             if dialect == 'sqlite':
