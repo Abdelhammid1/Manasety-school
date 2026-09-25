@@ -360,9 +360,10 @@ def payroll_delete(payroll_id):
     # settlement won't touch that JE, so a naive delete leaves
     # orphan journal entries and unbalanced accounts.
     settlements = list(getattr(p, "settlements", []) or [])
-    if settlements or (p.paid_amount or 0) > 0:
+    paid = p.paid_amount or 0
+    if settlements or paid > 0:
         flash(
-            f"لا يمكن حذف الراتب — تم صرف {p.paid_amount} منه بالفعل عبر "
+            f"لا يمكن حذف الراتب — تم صرف {paid} منه بالفعل عبر "
             f"{len(settlements)} عملية سداد. راجع القيود المحاسبية أولاً "
             "أو قم بعكس الصرف قبل الحذف.",
             "danger",
