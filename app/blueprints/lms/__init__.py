@@ -7,3 +7,4 @@ from . import rubric_grading  # noqa: E402,F401  Sprint 19 — rubric scoring
 from . import reports         # noqa: E402,F401  P1-18 split
 from . import announcements   # noqa: E402,F401  P1-18 split
 from . import passages        # noqa: E402,F401  P1-18 split
+from . import taxonomy        # noqa: E402,F401  Phase-2 CRUD

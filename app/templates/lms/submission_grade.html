@@ -155,6 +155,18 @@
         {% endif %}
         <div class="space-y-1.5">
           <label class="font-label-md font-bold" for="feedback">تعديل التغذية الراجعة قبل الإرسال</label>
+          {# Phase-2 ticket #29 — quick-pick from teacher's saved
+             feedback templates. Lazy-loaded on first open. #}
+          <div class="flex items-center gap-2">
+            <select id="fbTemplateSel"
+                    class="flex-1 h-10 px-3 rounded-lg bg-surface-container-low text-on-surface font-label-md">
+              <option value="">— اسحب من قوالب التغذية الراجعة —</option>
+            </select>
+            <button type="button" id="fbInsertBtn"
+                    class="h-10 px-3 rounded-lg bg-primary/10 text-primary font-label-md font-bold">
+              إدراج
+            </button>
+          </div>
           <textarea name="feedback" id="feedback" rows="4"
                     class="w-full p-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary/40 resize-y"></textarea>
         </div>
@@ -249,6 +261,30 @@
   }
   document.querySelectorAll('.crit-score').forEach(inp => {
     inp.addEventListener('input', recomputeRubricRollup);
+  });
+
+  // ── Feedback templates (Phase-2 ticket #29) ───────────────────
+  const fbSel = document.getElementById('fbTemplateSel');
+  const fbBtn = document.getElementById('fbInsertBtn');
+  const fbTa  = document.getElementById('feedback');
+  let fbTemplates = [];
+  fetch('{{ url_for("lms.feedback_templates_json") }}', {credentials:'same-origin'})
+    .then(r => r.json())
+    .then(rows => {
+      fbTemplates = rows;
+      rows.forEach(r => {
+        const o = document.createElement('option');
+        o.value = r.id; o.textContent = r.title;
+        fbSel.appendChild(o);
+      });
+    })
+    .catch(() => {});
+  fbBtn?.addEventListener('click', () => {
+    const id = parseInt(fbSel.value, 10);
+    if (!id) return;
+    const t = fbTemplates.find(x => x.id === id);
+    if (!t) return;
+    fbTa.value = fbTa.value ? (fbTa.value + '\n\n' + t.body) : t.body;
   });
 })();
 </script>

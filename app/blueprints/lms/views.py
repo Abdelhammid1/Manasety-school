@@ -918,6 +918,15 @@ def _bank_query(*, include_all_states=False, include_archived=False):
     label = (request.args.get("internal_label") or "").strip()
     if label:
         q = q.filter(BankQuestion.internal_label.ilike(f"%{label}%"))
+    # Phase-2 tickets #2 / #3 — skill_id / objective_id join filters.
+    skill_id = request.args.get("skill_id", type=int)
+    if skill_id:
+        from ...models import lms_bank_question_skills as _sk
+        q = q.join(_sk).filter(_sk.c.skill_id == skill_id)
+    objective_id = request.args.get("objective_id", type=int)
+    if objective_id:
+        from ...models import lms_bank_question_objectives as _ob
+        q = q.join(_ob).filter(_ob.c.objective_id == objective_id)
     if search:
         # The main search now also spans the notes field so teachers can
         # find questions by things like "الطلاب بيلخبطوا هنا" (ticket #33).
@@ -976,7 +985,7 @@ def _bank_form_extras(item=None):
     # Qdrat-parity — 2-level skill taxonomy for the form. `axes` are
     # top-level buckets; `indicators` carry axis_id so the picker can
     # cascade axis → indicator client-side.
-    from ...models import Axis, Indicator
+    from ...models import Axis, Indicator, Skill, LearningObjective
     axes = (
         Axis.query.filter_by(school_id=sid)
         .order_by(Axis.order_index, Axis.name).all()
@@ -985,8 +994,18 @@ def _bank_form_extras(item=None):
         Indicator.query.filter_by(school_id=sid)
         .order_by(Indicator.axis_id, Indicator.order_index).all()
     )
+    # Phase-2 tickets #2 / #3 — skills tree + learning objectives.
+    skills = (
+        Skill.query.filter_by(school_id=sid)
+        .order_by(Skill.parent_id, Skill.order_index, Skill.title).all()
+    )
+    objectives = (
+        LearningObjective.query.filter_by(school_id=sid)
+        .order_by(LearningObjective.lesson_id,
+                  LearningObjective.order_index).all()
+    )
     return (subjects, grades, years, terms, courses, units, lessons,
-            axes, indicators)
+            axes, indicators, skills, objectives)
 
 
 @bp.route("/bank/dashboard", endpoint="qbank_dashboard")
@@ -1767,12 +1786,13 @@ def bank_new():
     if request.method == "POST":
         return _bank_save(None)
     (subjects, grades, years, terms, courses, units, lessons,
-     axes, indicators) = _bank_form_extras()
+     axes, indicators, skills, objectives) = _bank_form_extras()
     return render_template(
         "lms/bank_form.html", item=None,
         subjects=subjects, grades=grades, years=years, terms=terms,
         courses=courses, units=units, lessons=lessons,
         axes=axes, indicators=indicators,
+        skills=skills, objectives=objectives,
     )
 
 
@@ -1785,12 +1805,13 @@ def bank_smart_new():
     if request.method == "POST":
         return _bank_save(None)
     (subjects, grades, years, terms, _courses, units, lessons,
-     axes, indicators) = _bank_form_extras()
+     axes, indicators, skills, objectives) = _bank_form_extras()
     return render_template(
         "lms/bank_smart.html",
         subjects=subjects, grades=grades, years=years, terms=terms,
         units=units, lessons=lessons,
         axes=axes, indicators=indicators,
+        skills=skills, objectives=objectives,
     )
 
 
@@ -1801,12 +1822,13 @@ def bank_edit(bid):
     if request.method == "POST":
         return _bank_save(item)
     (subjects, grades, years, terms, courses, units, lessons,
-     axes, indicators) = _bank_form_extras(item)
+     axes, indicators, skills, objectives) = _bank_form_extras(item)
     return render_template(
         "lms/bank_form.html", item=item,
         subjects=subjects, grades=grades, years=years, terms=terms,
         courses=courses, units=units, lessons=lessons,
         axes=axes, indicators=indicators,
+        skills=skills, objectives=objectives,
     )
 
 
@@ -1851,7 +1873,7 @@ def _bank_save(item):
     if posted_code:
         item.code = posted_code
     # Phase-2 tickets — Bloom cognitive level + explanation/hint +
-    # notes + internal_label.
+    # notes + internal_label + visibility.
     cog = (request.form.get("cognitive_level") or "").strip()
     item.cognitive_level = cog or None
     item.explanation_video_url = (
@@ -1862,6 +1884,28 @@ def _bank_save(item):
     item.internal_label = (
         (request.form.get("internal_label") or "").strip() or None
     )
+    vis = (request.form.get("visibility") or "").strip()
+    if vis in ("private", "shared", "public"):
+        item.visibility = vis
+    # Skills + Objectives M:N (P2 #2 / #3). Form sends multi-value
+    # `skill_ids[]` and `objective_ids[]`; we resolve them scoped to
+    # the current school so a client can't set foreign IDs.
+    from ...models import Skill as _Skill, LearningObjective as _Obj
+    sid = current_user.school_id
+    skill_ids = [int(x) for x in request.form.getlist("skill_ids")
+                 if x.isdigit()]
+    if skill_ids:
+        item.skills = _Skill.query.filter(
+            _Skill.school_id == sid, _Skill.id.in_(skill_ids)).all()
+    else:
+        item.skills = []
+    obj_ids = [int(x) for x in request.form.getlist("objective_ids")
+               if x.isdigit()]
+    if obj_ids:
+        item.objectives = _Obj.query.filter(
+            _Obj.school_id == sid, _Obj.id.in_(obj_ids)).all()
+    else:
+        item.objectives = []
     db.session.flush()
     if is_new:
         import uuid as _uuid

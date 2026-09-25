@@ -419,9 +419,23 @@ class QuizAttempt(db.Model):
     # answer key stays in sync between what the student saw and what the
     # server scored.
     shuffle_seed = db.Column(db.Integer, nullable=True)
+    # Phase-2 ticket #10 — soft anti-cheat: count how many times the
+    # student left the tab during the attempt. Bumped by an AJAX beacon
+    # from the take page's `visibilitychange` listener.
+    tab_switch_count = db.Column(db.Integer, nullable=False,
+                                 default=0, server_default="0")
+    # Phase-2 ticket #14 — Blueprint-generated A/B/C variants pin the
+    # student to a specific variant so re-opening keeps the same order.
+    # NULL for regular quizzes.
+    variant_label = db.Column(db.String(4), nullable=True)
 
     quiz = db.relationship("Quiz")
     answers = db.relationship("Answer", backref="attempt", cascade="all, delete-orphan")
+    flagged_questions = db.relationship(
+        "Question",
+        secondary="lms_attempt_flagged_questions",
+        lazy="selectin",
+    )
 
 
 class Answer(db.Model):
@@ -486,6 +500,11 @@ class BankQuestion(SoftDeleteMixin, db.Model):
     hint_text             = db.Column(db.Text, nullable=True)
     notes                 = db.Column(db.Text, nullable=True)
     internal_label        = db.Column(db.String(120), nullable=True, index=True)
+    # Phase-2 ticket #26 — visibility across teachers within a school
+    # (or between schools when 'public'). `private` = only the author.
+    visibility = db.Column(db.String(16), nullable=False,
+                           default="private", server_default="private",
+                           index=True)
 
     # Qdrat-parity review workflow. A brand-new question lands in
     # `draft`; once the author fills every field it goes to `pending`
@@ -545,6 +564,15 @@ class BankQuestion(SoftDeleteMixin, db.Model):
     indicator = db.relationship("Indicator", foreign_keys=[indicator_id])
     tag_rows  = db.relationship("BankTag", secondary="lms_bank_question_tags",
                                 lazy="selectin")
+    # Phase-2 M:N relations.
+    skills     = db.relationship("Skill",
+                                 secondary="lms_bank_question_skills",
+                                 lazy="selectin")
+    objectives = db.relationship("LearningObjective",
+                                 secondary="lms_bank_question_objectives",
+                                 lazy="selectin")
+    stats      = db.relationship("QuestionStats", uselist=False,
+                                 cascade="all, delete-orphan")
 
     @property
     def tag_list(self):
@@ -585,6 +613,181 @@ class BankTag(db.Model):
     __table_args__ = (
         db.UniqueConstraint("school_id", "name", name="uq_bank_tags_school_name"),
     )
+
+
+# ─── Phase-2 ticket #2 — Skills taxonomy (hierarchical) + M:N ──────
+# Skills are a tree — top-level skills are root nodes (parent_id NULL),
+# children hang off them. Every question can link to zero or more
+# skills. Scoped per-school so two schools can maintain distinct trees.
+
+lms_bank_question_skills = db.Table(
+    "lms_bank_question_skills",
+    db.Column("question_id", db.Integer,
+              db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("skill_id", db.Integer,
+              db.ForeignKey("lms_skills.id", ondelete="CASCADE"),
+              primary_key=True),
+)
+
+
+class Skill(db.Model):
+    __tablename__ = "lms_skills"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    parent_id = db.Column(db.Integer,
+                          db.ForeignKey("lms_skills.id", ondelete="SET NULL"),
+                          nullable=True, index=True)
+    title = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text, default="")
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    parent   = db.relationship("Skill", remote_side=[id])
+    children = db.relationship(
+        "Skill", backref=db.backref("parent_ref", remote_side=[id]),
+        foreign_keys=[parent_id],
+        primaryjoin="Skill.parent_id == Skill.id",
+        cascade="all",
+    )
+
+
+# ─── Phase-2 ticket #3 — Learning Objectives (per Lesson) + M:N ────
+lms_bank_question_objectives = db.Table(
+    "lms_bank_question_objectives",
+    db.Column("question_id", db.Integer,
+              db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("objective_id", db.Integer,
+              db.ForeignKey("lms_learning_objectives.id", ondelete="CASCADE"),
+              primary_key=True),
+)
+
+
+class LearningObjective(db.Model):
+    __tablename__ = "lms_learning_objectives"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    lesson_id = db.Column(db.Integer,
+                          db.ForeignKey("lms_lessons.id", ondelete="CASCADE"),
+                          nullable=True, index=True)
+    code  = db.Column(db.String(40), nullable=True, index=True)
+    title = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text, default="")
+    order_index = db.Column(db.Integer, default=0, nullable=False)
+    created_at  = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    lesson = db.relationship("Lesson", foreign_keys=[lesson_id])
+
+
+# ─── Phase-2 ticket #5 — Question performance stats ────────────────
+# Snapshot updated after every fully-graded attempt. Averages hold the
+# rolling mean; discrimination_index is computed after n >= 30 by the
+# item-analysis cron (ticket #6). All fields are computed downstream,
+# never edited by the teacher.
+class QuestionStats(db.Model):
+    __tablename__ = "lms_question_stats"
+
+    id = db.Column(db.Integer, primary_key=True)
+    bank_question_id = db.Column(
+        db.Integer,
+        db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+        nullable=False, unique=True, index=True,
+    )
+    usage_count           = db.Column(db.Integer, default=0, nullable=False)
+    avg_score             = db.Column(db.Numeric(6, 3), nullable=True)
+    avg_time_seconds      = db.Column(db.Numeric(8, 2), nullable=True)
+    difficulty_index      = db.Column(db.Numeric(6, 4), nullable=True)
+    discrimination_index  = db.Column(db.Numeric(6, 4), nullable=True)
+    last_computed_at      = db.Column(db.DateTime(timezone=True),
+                                      default=_utcnow, onupdate=_utcnow)
+
+
+# ─── Phase-2 ticket #11 — flagged-questions on an attempt ──────────
+lms_attempt_flagged_questions = db.Table(
+    "lms_attempt_flagged_questions",
+    db.Column("attempt_id", db.Integer,
+              db.ForeignKey("lms_quiz_attempts.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("question_id", db.Integer,
+              db.ForeignKey("lms_questions.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("flagged_at", db.DateTime(timezone=True), default=_utcnow),
+)
+
+
+# ─── Phase-2 ticket #24 — Assignment extensions (per-student due) ──
+class AssignmentExtension(db.Model):
+    __tablename__ = "lms_assignment_extensions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    assignment_id = db.Column(
+        db.Integer, db.ForeignKey("lms_assignments.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    student_id = db.Column(
+        db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"),
+        nullable=False, index=True,
+    )
+    new_due_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    reason      = db.Column(db.Text, default="")
+    granted_by_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                              nullable=True)
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    __table_args__ = (
+        db.UniqueConstraint("assignment_id", "student_id",
+                            name="uq_extension_assignment_student"),
+    )
+
+
+# ─── Phase-2 ticket #28 — Question collections (folders) + M:N ─────
+lms_bank_question_collection_items = db.Table(
+    "lms_bank_question_collection_items",
+    db.Column("collection_id", db.Integer,
+              db.ForeignKey("lms_question_collections.id", ondelete="CASCADE"),
+              primary_key=True),
+    db.Column("question_id", db.Integer,
+              db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
+              primary_key=True),
+)
+
+
+class QuestionCollection(db.Model):
+    __tablename__ = "lms_question_collections"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                              nullable=True)
+    title = db.Column(db.String(160), nullable=False)
+    description = db.Column(db.Text, default="")
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
+
+    questions = db.relationship(
+        "BankQuestion",
+        secondary="lms_bank_question_collection_items",
+        lazy="dynamic",
+    )
+
+
+# ─── Phase-2 ticket #29 — Feedback templates ───────────────────────
+class FeedbackTemplate(db.Model):
+    __tablename__ = "lms_feedback_templates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"),
+                          nullable=False, index=True)
+    owner_user_id = db.Column(db.Integer, db.ForeignKey("users.id"),
+                              nullable=True)
+    title = db.Column(db.String(160), nullable=False)
+    body  = db.Column(db.Text, nullable=False, default="")
+    created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
 
 
 class BankChoice(db.Model):
