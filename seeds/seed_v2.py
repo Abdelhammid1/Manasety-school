@@ -244,18 +244,38 @@ PERIODS = [
 
 
 # (name_ar, code, list_of_grade_order_indexes)
+#
+# Verified against real Saudi 1447H curriculum sources (web search,
+# 2026-09-26) — not guessed. Grade order_index: 3-8 primary, 9-11
+# middle, 12 = 1st secondary common track (المسار المشترك). Grades
+# 13-14 (2nd/3rd secondary) are intentionally left with NO subjects
+# here — they split by student-chosen track (صحة وحياة / حاسب
+# وهندسة / إدارة أعمال / شرعي / عام) and hardcoding one set would be
+# wrong; track-based subjects are a future seed, not this one.
 SUBJECTS = [
-    ("القرآن الكريم",             "QUR", list(range(3, 12))),        # 1st primary → 3rd middle
-    ("التربية الإسلامية",         "ISL", list(range(3, 15))),        # 1st primary → 3rd secondary
-    ("اللغة العربية",             "ARB", list(range(3, 15))),
-    ("الرياضيات",                 "MTH", list(range(3, 15))),
-    ("العلوم",                    "SCI", list(range(3, 12))),
-    ("الدراسات الاجتماعية",       "SOC", list(range(3, 15))),
-    ("اللغة الإنجليزية",          "ENG", list(range(3, 15))),
-    ("الحاسب وتقنية المعلومات",   "CS",  list(range(6, 15))),
-    ("التربية الفنية",            "ART", list(range(3, 12))),
-    ("التربية البدنية",           "PE",  list(range(3, 15))),
-    ("المهارات الحياتية والأسرية", "LFS", list(range(3, 12))),
+    # ── ابتدائي + متوسط (3‒11) ──
+    ("القرآن الكريم والدراسات الإسلامية", "QIS", list(range(3, 12))),
+    ("اللغة العربية",                    "ARB", list(range(3, 12))),
+    ("الرياضيات",                        "MTH", list(range(3, 12))),
+    ("العلوم",                           "SCI", list(range(3, 12))),
+    ("الدراسات الاجتماعية",              "SOC", list(range(3, 12))),
+    ("اللغة الإنجليزية",                 "ENG", list(range(3, 12))),
+    ("المهارات الرقمية",                 "DGS", list(range(6, 12))),  # من الرابع الابتدائي
+    ("التربية الفنية",                   "ART", list(range(3, 12))),
+    ("التربية البدنية",                  "PE",  list(range(3, 12))),
+    ("المهارات الحياتية والأسرية",       "LFS", list(range(3, 12))),
+
+    # ── الأول الثانوي (12) — المسار المشترك بس ──
+    ("القرآن الكريم والتفسير", "ISL", [12]),
+    ("التفكير الناقد",         "CRT", [12]),
+    ("الكفايات اللغوية",       "ARL", [12]),
+    ("اللغة الإنجليزية",       "ENG", [12]),   # نفس الكود ENG، M2M هيربطه صح
+    ("الرياضيات",              "MTH", [12]),   # نفس الكود MTH
+    ("التقنية الرقمية",        "DGT", [12]),
+    ("الأحياء",                "BIO", [12]),
+    ("الفيزياء",               "PHY", [12]),
+    ("الكيمياء",               "CHM", [12]),
+    ("المعرفة المالية",        "FIN", [12]),
 ]
 
 
@@ -350,19 +370,43 @@ BANK_QUESTIONS = [
     ("SCI", 7, "short", "hard", "اشرح دورة الماء في الطبيعة بإيجاز.", Decimal("3"),
      "تبخر ثم تكاثف ثم هطول", []),
 
-    # ── التربية الإسلامية (ISL) — 4th primary ─────────────────────
-    ("ISL", 6, "mcq", "easy", "كم عدد أركان الإسلام؟", Decimal("1"), "",
+    # ── القرآن الكريم والدراسات الإسلامية (QIS) — 4th primary ──────
+    # Ticket: renamed from ISL. ISL is now reserved for the 1st-secondary
+    # "القرآن الكريم والتفسير" subject only (grade 12) — these
+    # elementary-level questions belong under QIS instead.
+    ("QIS", 6, "mcq", "easy", "كم عدد أركان الإسلام؟", Decimal("1"), "",
      [("3", False), ("4", False), ("5", True), ("6", False)]),
-    ("ISL", 6, "tf", "easy", "الصلاة واجبة على كل مسلم بالغ عاقل.", Decimal("1"), "",
+    ("QIS", 6, "tf", "easy", "الصلاة واجبة على كل مسلم بالغ عاقل.", Decimal("1"), "",
      [("صح", True), ("خطأ", False)]),
-    ("ISL", 6, "short", "medium", "اذكر أول أركان الإسلام.", Decimal("2"),
+    ("QIS", 6, "short", "medium", "اذكر أول أركان الإسلام.", Decimal("2"),
      "الشهادتان", []),
 
-    # ── الإسلامية — 5th primary ───────────────────────────────────
-    ("ISL", 7, "mcq", "medium", "في أي شهر يصوم المسلمون؟", Decimal("1"), "",
+    # ── القرآن الكريم والدراسات الإسلامية — 5th primary ────────────
+    ("QIS", 7, "mcq", "medium", "في أي شهر يصوم المسلمون؟", Decimal("1"), "",
      [("رمضان", True), ("شوال", False), ("رجب", False), ("محرم", False)]),
-    ("ISL", 7, "short", "hard", "اذكر ثلاثة من أركان الوضوء.", Decimal("3"),
+    ("QIS", 7, "short", "hard", "اذكر ثلاثة من أركان الوضوء.", Decimal("3"),
      "غسل الوجه، غسل اليدين، مسح الرأس", []),
+
+    # ── المهارات الرقمية (DGS) — 4th primary ───────────────────────
+    ("DGS", 6, "mcq", "easy", "أي البرامج التالية يُستخدم لكتابة المستندات؟",
+     Decimal("1"), "",
+     [("معالج نصوص (Word)", True), ("متصفح إنترنت", False),
+      ("مشغل فيديو", False), ("آلة حاسبة", False)]),
+    ("DGS", 6, "tf", "easy", "كلمة المرور القوية يجب ألا تتم مشاركتها مع أحد.",
+     Decimal("1"), "", [("صح", True), ("خطأ", False)]),
+
+    # ── الأول الثانوي — مواد المسار المشترك (12) ────────────────────
+    ("ISL", 12, "mcq", "medium", "ما اسم أول سورة نزلت من القرآن الكريم؟",
+     Decimal("1"), "",
+     [("العلق", True), ("الفاتحة", False), ("البقرة", False), ("الإخلاص", False)]),
+    ("DGT", 12, "mcq", "medium", "أي مما يلي مثال على الذكاء الاصطناعي؟",
+     Decimal("1"), "",
+     [("المساعد الصوتي", True), ("الآلة الحاسبة العادية", False),
+      ("جهاز الفاكس", False), ("الراديو", False)]),
+    ("FIN", 12, "mcq", "medium", "ما الهدف الأساسي من إعداد الميزانية الشخصية؟",
+     Decimal("1"), "",
+     [("التحكم في الدخل والمصروفات", True), ("زيادة الديون", False),
+      ("تجنب الادخار", False), ("تقليل الدخل", False)]),
 
     # ── الدراسات الاجتماعية (SOC) — 4th primary ───────────────────
     ("SOC", 6, "mcq", "easy", "ما عاصمة المملكة العربية السعودية؟", Decimal("1"), "",
