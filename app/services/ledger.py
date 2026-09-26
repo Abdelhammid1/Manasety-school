@@ -134,12 +134,12 @@ def post_invoice_to_ledger(invoice: Invoice, *, entry_date: Optional[_date_cls] 
         from .system_codes import get_account_by_code
         vat_acc = get_account_by_code(invoice.school_id, "2250")
         if vat_acc is not None:
+            # Revenue lines from _revenue_lines_by_fee_type are net-of-tax
+            # (fee amounts entered are tax-exclusive; tax_amount is added
+            # on top in create_invoice: total = subtotal + tax_amount).
+            # So the VAT line is simply an ADDITIONAL credit — no revenue
+            # line should be reduced, or CR falls short of DR by tax_amt.
             lines.append((vat_acc.id, Decimal(0), tax_amt, "ضريبة قيمة مضافة مستحقة"))
-            rev_lines = [i for i, l in enumerate(lines) if l[2] > 0 and l[0] != vat_acc.id]
-            if rev_lines:
-                idx = rev_lines[0]
-                aid, dr, cr, desc = lines[idx]
-                lines[idx] = (aid, dr, cr - tax_amt, desc)
 
     # Discounts are negative InvoiceLine rows; aggregate their absolute
     # amount and post it to the discount account (contra-revenue debit).
