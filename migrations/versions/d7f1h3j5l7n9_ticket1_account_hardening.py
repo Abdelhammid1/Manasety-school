@@ -55,9 +55,9 @@ def upgrade():
     # ── 2. is_system=True for teacher/parent/student roles ─────────
     bind.execute(sa.text("""
         UPDATE roles
-           SET is_system = 1
+           SET is_system = true
          WHERE name IN ('teacher', 'parent', 'student')
-           AND (is_system IS NULL OR is_system = 0)
+           AND (is_system IS NULL OR is_system = false)
     """))
 
 
