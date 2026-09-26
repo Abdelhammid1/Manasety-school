@@ -1,19 +1,22 @@
 """Phase-2 CRUD for Skills, LearningObjectives, QuestionCollections,
 FeedbackTemplates, and AssignmentExtensions (tickets #2, #3, #24, #28, #29).
 
-Each is a light school-scoped resource; the routes are meant to be
-called from the qbank sidebar / assignment detail / submission grader.
-No template surface here — endpoints redirect back to whichever page
-triggered them. That keeps this file free of Jinja imports and small."""
+Each is a light school-scoped resource; the JSON routes are meant to
+be called from the qbank sidebar / assignment detail / submission
+grader. Ticket D4 (2026-09-26) adds a full admin page at /taxonomy
+so admins can seed Skill trees and LearningObjective rows the bank
+forms depend on."""
 
-from flask import abort, flash, jsonify, redirect, request, url_for
+from flask import abort, flash, jsonify, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import bp
+from ..utils import require_permission
 from ...extensions import db
 from ...models import (
-    AssignmentExtension, CourseAssignment, FeedbackTemplate,
-    LearningObjective, QuestionCollection, Skill, Student,
+    AssignmentExtension, Course, CourseAssignment, FeedbackTemplate,
+    LearningObjective, Lesson, QuestionCollection, Skill, Student,
+    Subject, Unit,
 )
 from ._helpers import _parse_dt
 
@@ -179,3 +182,174 @@ def assignment_extension_add(aid):
     db.session.commit()
     flash("تم تمديد المهلة للطالب.", "success")
     return redirect(url_for("lms.assignment_edit", aid=a.id))
+
+
+# ── Ticket D4 (2026-09-26) — Skills + Objectives admin page ────────
+#
+# The dashboard-triggered JSON routes above stay for XHR callers.
+# These new form-based routes drive the /taxonomy admin page: same
+# CRUD but redirect back so the page can be edited without JS.
+
+def _sid():
+    return current_user.school_id
+
+
+def _skills_scoped():
+    return (Skill.query.filter_by(school_id=_sid())
+            .order_by(Skill.parent_id.nulls_first(), Skill.order_index,
+                      Skill.title).all())
+
+
+def _objectives_scoped():
+    return (LearningObjective.query.filter_by(school_id=_sid())
+            .order_by(LearningObjective.code.nulls_last(),
+                      LearningObjective.title).all())
+
+
+def _lessons_scoped():
+    return (Lesson.query
+            .join(Course, Course.id == Lesson.course_id)
+            .filter(Course.school_id == _sid())
+            .order_by(Course.id, Lesson.order_index, Lesson.title).all())
+
+
+@bp.route("/taxonomy", endpoint="taxonomy_home")
+@login_required
+@require_permission("lms", "view")
+def taxonomy_home():
+    return render_template(
+        "lms/taxonomy_home.html",
+        skills=_skills_scoped(),
+        objectives=_objectives_scoped(),
+        lessons=_lessons_scoped(),
+    )
+
+
+# ── Skills — form flavour ─────────────────────────────────────────
+@bp.route("/taxonomy/skills/new", methods=["POST"],
+          endpoint="taxonomy_skill_new")
+@login_required
+@require_permission("lms", "edit")
+def taxonomy_skill_new():
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("عنوان المهارة مطلوب.", "danger")
+        return redirect(url_for("lms.taxonomy_home"))
+    parent_id = request.form.get("parent_id", type=int) or None
+    if parent_id:
+        # Refuse a parent that lives in another school.
+        parent = Skill.query.filter_by(id=parent_id, school_id=_sid()).first()
+        if not parent:
+            flash("المهارة الأم غير موجودة.", "danger")
+            return redirect(url_for("lms.taxonomy_home"))
+    db.session.add(Skill(
+        school_id=_sid(), title=title, parent_id=parent_id,
+        description=(request.form.get("description") or "").strip(),
+    ))
+    db.session.commit()
+    flash("تمت إضافة المهارة.", "success")
+    return redirect(url_for("lms.taxonomy_home"))
+
+
+@bp.route("/taxonomy/skills/<int:sid>/edit", methods=["POST"],
+          endpoint="taxonomy_skill_edit")
+@login_required
+@require_permission("lms", "edit")
+def taxonomy_skill_edit(sid):
+    s = Skill.query.filter_by(id=sid, school_id=_sid()).first_or_404()
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("عنوان المهارة مطلوب.", "danger")
+        return redirect(url_for("lms.taxonomy_home"))
+    new_parent = request.form.get("parent_id", type=int) or None
+    if new_parent == s.id:
+        flash("لا يمكن جعل المهارة أمًا لنفسها.", "danger")
+        return redirect(url_for("lms.taxonomy_home"))
+    s.title = title
+    s.description = (request.form.get("description") or "").strip()
+    s.parent_id = new_parent
+    db.session.commit()
+    flash("تم تحديث المهارة.", "success")
+    return redirect(url_for("lms.taxonomy_home"))
+
+
+@bp.route("/taxonomy/skills/<int:sid>/delete", methods=["POST"],
+          endpoint="taxonomy_skill_delete")
+@login_required
+@require_permission("lms", "delete")
+def taxonomy_skill_delete(sid):
+    s = Skill.query.filter_by(id=sid, school_id=_sid()).first_or_404()
+    # Children stay alive with parent_id nulled (matches the FK's
+    # ON DELETE SET NULL). Bank question tags cascade via M:N.
+    db.session.delete(s); db.session.commit()
+    flash("تم حذف المهارة.", "success")
+    return redirect(url_for("lms.taxonomy_home"))
+
+
+# ── Learning Objectives — form flavour ────────────────────────────
+@bp.route("/taxonomy/objectives/new", methods=["POST"],
+          endpoint="taxonomy_objective_new")
+@login_required
+@require_permission("lms", "edit")
+def taxonomy_objective_new():
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("عنوان ناتج التعلم مطلوب.", "danger")
+        return redirect(url_for("lms.taxonomy_home"))
+    lesson_id = request.form.get("lesson_id", type=int) or None
+    if lesson_id:
+        lesson = (Lesson.query.join(Course)
+                  .filter(Lesson.id == lesson_id,
+                          Course.school_id == _sid()).first())
+        if not lesson:
+            flash("الدرس المحدد غير موجود في هذه المدرسة.", "danger")
+            return redirect(url_for("lms.taxonomy_home"))
+    db.session.add(LearningObjective(
+        school_id=_sid(), title=title,
+        code=(request.form.get("code") or "").strip() or None,
+        lesson_id=lesson_id,
+        description=(request.form.get("description") or "").strip(),
+    ))
+    db.session.commit()
+    flash("تمت إضافة ناتج التعلم.", "success")
+    return redirect(url_for("lms.taxonomy_home"))
+
+
+@bp.route("/taxonomy/objectives/<int:oid>/edit", methods=["POST"],
+          endpoint="taxonomy_objective_edit")
+@login_required
+@require_permission("lms", "edit")
+def taxonomy_objective_edit(oid):
+    o = LearningObjective.query.filter_by(
+        id=oid, school_id=_sid()).first_or_404()
+    title = (request.form.get("title") or "").strip()
+    if not title:
+        flash("عنوان ناتج التعلم مطلوب.", "danger")
+        return redirect(url_for("lms.taxonomy_home"))
+    lesson_id = request.form.get("lesson_id", type=int) or None
+    if lesson_id:
+        lesson = (Lesson.query.join(Course)
+                  .filter(Lesson.id == lesson_id,
+                          Course.school_id == _sid()).first())
+        if not lesson:
+            flash("الدرس المحدد غير موجود في هذه المدرسة.", "danger")
+            return redirect(url_for("lms.taxonomy_home"))
+    o.title = title
+    o.code = (request.form.get("code") or "").strip() or None
+    o.lesson_id = lesson_id
+    o.description = (request.form.get("description") or "").strip()
+    db.session.commit()
+    flash("تم تحديث ناتج التعلم.", "success")
+    return redirect(url_for("lms.taxonomy_home"))
+
+
+@bp.route("/taxonomy/objectives/<int:oid>/delete", methods=["POST"],
+          endpoint="taxonomy_objective_delete")
+@login_required
+@require_permission("lms", "delete")
+def taxonomy_objective_delete(oid):
+    o = LearningObjective.query.filter_by(
+        id=oid, school_id=_sid()).first_or_404()
+    db.session.delete(o); db.session.commit()
+    flash("تم حذف ناتج التعلم.", "success")
+    return redirect(url_for("lms.taxonomy_home"))

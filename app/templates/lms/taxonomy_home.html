@@ -1,0 +1,196 @@
+{# Ticket D4 (2026-09-26) — school-scoped admin for the Skill tree
+   + LearningObjective list. Both sets are consumed by the bank
+   question forms; before this page they could only be seeded by
+   XHR calls with no UI. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}المهارات ونواتج التعلم — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('lms.qbank_dashboard') }}" class="hover:text-primary">بنك الأسئلة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">المهارات ونواتج التعلم</span>
+{% endblock %}
+
+{% block page_content %}
+{# Skill row macro must be declared before it's used below. #}
+{% macro render_skill_row(s, is_child=False, depth=1) %}
+<details class="rounded-lg bg-surface-container-low"
+         style="margin-inline-start: {{ 24 * depth if is_child else 0 }}px;">
+  <summary class="p-space-md cursor-pointer flex items-center gap-2 list-none">
+    {% if is_child %}<span class="material-symbols-outlined text-outline text-sm">subdirectory_arrow_right</span>{% endif %}
+    <span class="font-label-md text-on-surface font-bold flex-1">{{ s.title }}</span>
+    {% if s.description %}<span class="font-label-xs text-outline truncate max-w-[240px]">{{ s.description }}</span>{% endif %}
+    <span class="material-symbols-outlined text-primary">expand_more</span>
+  </summary>
+  <form method="post" action="{{ url_for('lms.taxonomy_skill_edit', sid=s.id) }}"
+        class="p-space-md pt-0 border-t border-outline-variant flex flex-col gap-space-sm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input name="title" value="{{ s.title }}" required
+           class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+    <select name="parent_id" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+      <option value="">— مهارة رئيسية (بلا أب) —</option>
+      {% for other in skills if other.id != s.id %}
+      <option value="{{ other.id }}" {% if s.parent_id == other.id %}selected{% endif %}>
+        {% if other.parent_id %}— {% endif %}{{ other.title }}
+      </option>
+      {% endfor %}
+    </select>
+    <input name="description" value="{{ s.description or '' }}" placeholder="وصف"
+           class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+    <div class="flex items-center gap-space-sm justify-end">
+      <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+    </div>
+  </form>
+  <form method="post" action="{{ url_for('lms.taxonomy_skill_delete', sid=s.id) }}"
+        class="px-space-md pb-space-md"
+        onsubmit="return confirm('حذف هذه المهارة؟ سيُفصل أطفالها منها.');">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button type="submit" class="text-error font-label-sm hover:underline">
+      <span class="material-symbols-outlined text-sm align-middle">delete</span> حذف
+    </button>
+  </form>
+</details>
+{% endmacro %}
+
+{# Build the parent → children map once for the tree render. #}
+{% set roots  = skills | selectattr('parent_id', 'none') | list %}
+{% set kids_by_parent = {} %}
+{% for s in skills %}
+  {% if s.parent_id %}
+    {% set _ = kids_by_parent.setdefault(s.parent_id, []).append(s) %}
+  {% endif %}
+{% endfor %}
+
+<div class="w-full max-w-[1300px] mx-auto flex flex-col gap-space-md">
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary">المهارات ونواتج التعلم</h1>
+    <p class="font-body-sm text-on-surface-variant mt-1">
+      تُستخدم هذه القوائم لتصنيف أسئلة البنك (فورم عادي وفورم متقدم). لا تظهر إلا بعد إضافتها هنا.
+    </p>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md">
+
+    {# ─── Skills ─────────────────────────────────────────────── #}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="flex items-center justify-between">
+        <h2 class="font-title-md text-primary font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined">psychology</span>المهارات ({{ skills|length }})
+        </h2>
+      </div>
+
+      <form method="post" action="{{ url_for('lms.taxonomy_skill_new') }}"
+            class="p-space-md rounded-xl bg-surface-container-low grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="title" required placeholder="عنوان المهارة"
+               class="h-10 px-3 rounded-lg bg-surface-container-lowest md:col-span-2">
+        <select name="parent_id" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+          <option value="">— مهارة رئيسية (بلا أب) —</option>
+          {% for s in skills %}
+          <option value="{{ s.id }}">
+            {% if s.parent_id %}— {% endif %}{{ s.title }}
+          </option>
+          {% endfor %}
+        </select>
+        <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">
+          <span class="material-symbols-outlined text-sm align-middle">add</span> إضافة
+        </button>
+        <input name="description" placeholder="وصف مختصر (اختياري)"
+               class="h-10 px-3 rounded-lg bg-surface-container-lowest md:col-span-2">
+      </form>
+
+      {% if roots %}
+      <div class="flex flex-col gap-2">
+        {% for r in roots %}
+        {{ render_skill_row(r) }}
+        {% for c in kids_by_parent.get(r.id, []) %}
+          {{ render_skill_row(c, is_child=True) }}
+          {% for gc in kids_by_parent.get(c.id, []) %}
+            {{ render_skill_row(gc, is_child=True, depth=2) }}
+          {% endfor %}
+        {% endfor %}
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-center text-outline py-space-lg">لا مهارات مضافة بعد.</p>
+      {% endif %}
+    </section>
+
+    {# ─── Learning objectives ────────────────────────────────── #}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <h2 class="font-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined">checklist</span>نواتج التعلم ({{ objectives|length }})
+      </h2>
+
+      <form method="post" action="{{ url_for('lms.taxonomy_objective_new') }}"
+            class="p-space-md rounded-xl bg-surface-container-low grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input name="title" required placeholder="عنوان الناتج"
+               class="h-10 px-3 rounded-lg bg-surface-container-lowest md:col-span-2">
+        <input name="code" placeholder="كود (مثال: 1447-M-3.2)"
+               class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+        <select name="lesson_id" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+          <option value="">— بدون درس محدد —</option>
+          {% for l in lessons %}
+          <option value="{{ l.id }}">{{ l.title }}</option>
+          {% endfor %}
+        </select>
+        <input name="description" placeholder="وصف مختصر (اختياري)"
+               class="h-10 px-3 rounded-lg bg-surface-container-lowest md:col-span-2">
+        <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold md:col-span-2">
+          <span class="material-symbols-outlined text-sm align-middle">add</span> إضافة ناتج
+        </button>
+      </form>
+
+      {% if objectives %}
+      <div class="flex flex-col gap-2 max-h-[560px] overflow-y-auto">
+        {% for o in objectives %}
+        <details class="rounded-lg bg-surface-container-low">
+          <summary class="p-space-md cursor-pointer flex items-center gap-2 list-none">
+            {% if o.code %}<code class="px-2 py-0.5 rounded-full bg-primary-container text-primary font-label-xs" dir="ltr">{{ o.code }}</code>{% endif %}
+            <span class="font-label-md text-on-surface font-bold flex-1">{{ o.title }}</span>
+            {% if o.lesson %}<span class="font-label-xs text-outline">{{ o.lesson.title }}</span>{% endif %}
+            <span class="material-symbols-outlined text-primary">expand_more</span>
+          </summary>
+          <form method="post" action="{{ url_for('lms.taxonomy_objective_edit', oid=o.id) }}"
+                class="p-space-md pt-0 border-t border-outline-variant flex flex-col gap-space-sm">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="title" value="{{ o.title }}" required
+                   class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+              <input name="code" value="{{ o.code or '' }}" placeholder="كود"
+                     class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+              <select name="lesson_id" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+                <option value="">— بدون درس محدد —</option>
+                {% for l in lessons %}
+                <option value="{{ l.id }}" {% if o.lesson_id == l.id %}selected{% endif %}>{{ l.title }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <input name="description" value="{{ o.description or '' }}" placeholder="وصف"
+                   class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+            <div class="flex items-center gap-space-sm justify-end">
+              <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+            </div>
+          </form>
+          <form method="post" action="{{ url_for('lms.taxonomy_objective_delete', oid=o.id) }}"
+                class="px-space-md pb-space-md"
+                onsubmit="return confirm('حذف هذا الناتج نهائيًا؟');">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="text-error font-label-sm hover:underline">
+              <span class="material-symbols-outlined text-sm align-middle">delete</span> حذف
+            </button>
+          </form>
+        </details>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-center text-outline py-space-lg">لا نواتج مضافة بعد.</p>
+      {% endif %}
+    </section>
+
+  </div>
+</div>
+
+{% endblock %}
