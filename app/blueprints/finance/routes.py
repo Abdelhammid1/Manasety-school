@@ -499,11 +499,11 @@ def invoice_new():
                 payload={
                     "student": e.student.full_name,
                     "invoice_number": number,
-                    "amount": float(total),
+                    "amount": float(inv.total_amount),
                     "due_date": due.isoformat(),
                     "message": (
                         f"إشعار فاتورة: صدرت فاتورة برقم {number} للطالب "
-                        f"{e.student.full_name} بمبلغ {total} مستحقة بتاريخ {due.isoformat()}."
+                        f"{e.student.full_name} بمبلغ {inv.total_amount} مستحقة بتاريخ {due.isoformat()}."
                     ),
                 },
                 target_phone=phone,
