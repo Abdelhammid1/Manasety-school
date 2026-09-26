@@ -61,10 +61,17 @@
           </button>
         </form>
         {% endif %}
+        {# Ticket D (2026-09-26) — dashboard now offers both flows.
+           Same backend handler, different UX. #}
+        <a href="{{ url_for('lms.bank_new') }}"
+           class="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-container-lowest text-primary hover:bg-surface-container-low transition-all font-label-lg text-label-lg shadow-md hover:shadow-lg">
+          <span class="material-symbols-outlined text-[20px] text-secondary">flash_on</span>
+          <span>فورم سريع</span>
+        </a>
         <a href="{{ url_for('lms.bank_smart_new') }}"
            class="flex items-center gap-2 px-6 py-3 rounded-xl bg-surface-container-lowest text-primary hover:bg-surface-container-low transition-all font-label-lg text-label-lg shadow-md hover:shadow-lg">
           <span class="material-symbols-outlined text-[20px] text-secondary">add_circle</span>
-          <span>إضافة سؤال ذكي</span>
+          <span>إضافة سؤال متقدم</span>
         </a>
       </div>
     </div>

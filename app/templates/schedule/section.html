@@ -87,7 +87,15 @@
             {% for d in days %}
             {% set slot = grid.get((d.id, p.id)) %}
             <td class="p-2 align-top" style="min-width:160px">
-              {% if slot %}
+              {# Ticket C (2026-09-26) — break rows show a static
+                 "استراحة" tile in every column and offer no add
+                 form or slot assignment. #}
+              {% if p.is_break %}
+              <div class="p-3 rounded-lg bg-surface-container-high text-center text-on-surface-variant font-label-md">
+                <span class="material-symbols-outlined text-sm block mx-auto mb-1">free_breakfast</span>
+                استراحة
+              </div>
+              {% elif slot %}
               <div class="p-3 rounded-lg bg-primary-container/10 border-2 border-primary/30 relative group">
                 <div class="font-label-lg text-label-lg text-primary font-bold">{{ slot.subject.name }}</div>
                 <div class="font-label-xs text-label-xs text-on-surface-variant truncate">{{ slot.teacher.full_name }}</div>

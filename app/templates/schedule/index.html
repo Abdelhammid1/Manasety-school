@@ -16,11 +16,30 @@
         {% if sections %} · <b>{{ sections|length }}</b> فصل{% endif %}
       </p>
     </div>
-    <a href="{{ url_for('schedule.settings') }}"
-       class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors flex items-center gap-2">
-      <span class="material-symbols-outlined text-lg">tune</span>
-      <span>إعدادات الجدول</span>
-    </a>
+    <div class="flex items-center gap-space-sm flex-wrap">
+      {# Ticket B (2026-09-26) — expose the auto_generate endpoint
+         that already exists on the backend but had no UI entry.
+         Only render when there's an active year (the route would
+         409 otherwise) and only for users with schedule.edit —
+         same-permission as the neighbouring settings button. #}
+      {% if year and (current_user.is_authenticated and current_user.can and current_user.can('schedule', 'edit')) %}
+      <form method="post" action="{{ url_for('schedule.auto_generate') }}"
+            onsubmit="return confirm('سيتم حذف الجدول الحالي بالكامل وإعادة توليده تلقائيًا. هل أنت متأكد؟');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit"
+                class="h-11 px-5 rounded-xl text-on-primary font-label-lg text-label-lg font-bold flex items-center gap-2 shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-lg">auto_awesome</span>
+          <span>توليد تلقائي</span>
+        </button>
+      </form>
+      {% endif %}
+      <a href="{{ url_for('schedule.settings') }}"
+         class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">tune</span>
+        <span>إعدادات الجدول</span>
+      </a>
+    </div>
   </div>
 
   {% if not year %}

@@ -31,6 +31,11 @@
   <form method="post" action="{{ post_url }}" id="bankForm"
         class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {# Ticket D (2026-09-26) — passage_id auto-fill so the "أضف سؤالًا"
+       link on passage_edit.html actually ties the new question to
+       that passage. Was silently dropped before. #}
+    <input type="hidden" name="passage_id"
+           value="{{ (item.passage_id if item and item.passage_id else '') or request.args.get('passage_id', '') }}">
 
     <!-- Kind + points row -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">

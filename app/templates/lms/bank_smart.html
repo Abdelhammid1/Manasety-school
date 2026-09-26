@@ -3,12 +3,12 @@
    so this template is a visual upgrade of bank_form.html, not a fork
    of the backend. #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}إضافة سؤال ذكي — منصتي{% endblock %}
+{% block title %}إضافة سؤال متقدم — منصتي{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('lms.qbank_dashboard') }}" class="hover:text-primary">بنك الأسئلة</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <span class="text-primary font-bold">إضافة سؤال ذكي جديد</span>
+  <span class="text-primary font-bold">إضافة سؤال متقدم جديد</span>
 {% endblock %}
 {% block page_content %}
 <div class="w-full max-w-[1400px] mx-auto space-y-space-lg pb-28">
@@ -21,7 +21,7 @@
           <span class="material-symbols-outlined text-2xl" style="font-variation-settings: 'FILL' 1;">auto_awesome</span>
         </div>
         <div class="flex flex-col">
-          <h1 class="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">إضافة وتأليف سؤال ذكي جديد</h1>
+          <h1 class="font-headline-md text-headline-md text-primary font-extrabold tracking-tight">إضافة وتأليف سؤال متقدم جديد</h1>
           <p class="font-body-sm text-body-sm text-on-surface-variant">محرر متقدم يدعم الصيغ الرياضية، وسوم مهارات بلوم، والمعايير المعتمدة</p>
         </div>
       </div>
@@ -395,6 +395,59 @@
         <input type="text" name="tags" id="tags"
                placeholder="مثال: تفاضل, تطبيق, بلوم-تحليل, الوحدة-3"
                class="h-12 px-space-md rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"/>
+      </div>
+    </section>
+
+    {# Ticket D (2026-09-26) — extras section that used to only exist
+       on the classic form. Passage id auto-fills from ?passage_id=X
+       when the form was opened from passage_edit's "add question"
+       button. All six BankQuestion columns are already read by
+       _bank_save; only the inputs were missing. #}
+    <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md">
+      <div class="flex items-center gap-space-sm pb-space-sm border-b border-surface-container-low">
+        <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
+          <span class="material-symbols-outlined text-xl">tune</span>
+        </span>
+        <h2 class="font-headline-sm text-headline-sm font-bold text-on-surface">6. تفاصيل إضافية</h2>
+      </div>
+
+      <input type="hidden" name="passage_id"
+             value="{{ request.args.get('passage_id', '') }}">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md font-bold text-on-surface" for="internal_label">وسم داخلي (لا يظهر للطالب)</label>
+          <input type="text" name="internal_label" id="internal_label"
+                 placeholder="مثال: مراجعة نهائية 1447"
+                 class="h-12 px-space-md rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary">
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md font-bold text-on-surface" for="visibility">مشاركة السؤال</label>
+          <select name="visibility" id="visibility"
+                  class="h-12 px-space-md rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary">
+            <option value="private" selected>خاص بي</option>
+            <option value="shared">مشاركة مع المدرسة</option>
+            <option value="public">عام</option>
+          </select>
+        </div>
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="font-label-md font-bold text-on-surface" for="explanation_video_url">رابط فيديو الشرح</label>
+          <input type="url" name="explanation_video_url" id="explanation_video_url"
+                 placeholder="https://…"
+                 class="h-12 px-space-md rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary">
+        </div>
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="font-label-md font-bold text-on-surface" for="hint_text">تلميح للطالب</label>
+          <textarea name="hint_text" id="hint_text" rows="2"
+                    placeholder="جملة توضيحية يراها الطالب عند التعثر"
+                    class="px-space-md py-2 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+        </div>
+        <div class="flex flex-col gap-1.5 md:col-span-2">
+          <label class="font-label-md font-bold text-on-surface" for="notes">ملاحظات المؤلف (خاصة بالمدرسين)</label>
+          <textarea name="notes" id="notes" rows="2"
+                    placeholder="ملاحظات لا يراها الطالب"
+                    class="px-space-md py-2 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary"></textarea>
+        </div>
       </div>
     </section>
 
