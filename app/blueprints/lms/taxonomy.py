@@ -16,7 +16,6 @@ from ...extensions import db
 from ...models import (
     AssignmentExtension, Course, CourseAssignment, FeedbackTemplate,
     LearningObjective, Lesson, QuestionCollection, Skill, Student,
-    Subject, Unit,
 )
 from ._helpers import _parse_dt
 

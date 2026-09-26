@@ -645,10 +645,17 @@ class Skill(db.Model):
     order_index = db.Column(db.Integer, default=0, nullable=False)
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow)
 
+    # Ticket D4 audit (2026-09-26) — cascade was "all" which included
+    # delete + delete-orphan. Deleting a parent skill was therefore
+    # recursively wiping every descendant *and* every BankQuestion
+    # ↔ Skill tag row that referenced them, contradicting the FK's
+    # ondelete=SET NULL. Downgraded to the SQLAlchemy default so a
+    # parent delete detaches children (their parent_id nulls via the
+    # FK) instead of destroying them.
     children = db.relationship(
         "Skill",
         backref=db.backref("parent", remote_side=[id]),
-        cascade="all",
+        cascade="save-update, merge",
     )
 
 

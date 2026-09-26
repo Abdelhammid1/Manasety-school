@@ -812,7 +812,10 @@ def guardian_edit(guardian_id):
         g.email       = (request.form.get("email") or "").strip() or None
         g.occupation  = (request.form.get("occupation") or "").strip() or None
         g.address     = (request.form.get("address") or "").strip() or None
-        g.is_guardian = (request.form.get("is_guardian", "1") == "1")
+        # Ticket #4 audit — read without a default so an unchecked
+        # checkbox (absent from the POST) correctly demotes the row
+        # to an emergency-only contact.
+        g.is_guardian = bool(request.form.get("is_guardian"))
         db.session.commit()
         flash("تم تحديث بيانات ولي الأمر.", "success")
         return redirect(url_for("students.guardian_detail", guardian_id=g.id))
