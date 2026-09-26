@@ -540,7 +540,8 @@ def invoice_detail(invoice_id):
     )
     return render_template("finance/invoice_detail.html", inv=inv,
                            payment_methods=payment_methods,
-                           postable_accounts=postable_accounts)
+                           postable_accounts=postable_accounts,
+                           today=date.today)
 
 
 @bp.route("/invoices/<int:invoice_id>/print")
