@@ -46,7 +46,10 @@
             {{ g.full_name[:1] }}
           </div>
           <div class="flex flex-col min-w-0">
-            <h3 class="font-title-md text-primary font-bold">{{ g.full_name }}</h3>
+            <h3 class="font-title-md text-primary font-bold">
+              <a href="{{ url_for('students.guardian_detail', guardian_id=g.id) }}"
+                 class="hover:underline">{{ g.full_name }}</a>
+            </h3>
             <div class="flex items-center gap-space-sm mt-1 flex-wrap">
               {% if g.phone %}<code class="font-label-md text-outline" dir="ltr">{{ g.phone }}</code>{% endif %}
               {% if g.national_id %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs" dir="ltr">

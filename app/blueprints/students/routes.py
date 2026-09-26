@@ -484,44 +484,42 @@ def guardian_add(student_id):
         can_receive_notifications=bool(request.form.get("can_receive_notifications", "1")),
     ))
 
-    # Ticket "ربط حساب ولي الأمر" — inline account creation. The
-    # guardian modal now carries a "إنشاء حساب دخول" checkbox +
-    # username/password fields. If ticked, we spin a fresh User with
-    # role='parent', link it to the Guardian, and stamp
-    # Student.parent_user_id so the parent portal + parent app can
-    # sign in immediately without a separate admin trip.
+    # Ticket #4 (2026-09-26) — the old inline block hard-coded
+    # `role='parent'` (User has role_id, not role) and hashed the
+    # password by hand, both of which raised at runtime. Route the
+    # request through provision_user so kind→role_id, dedup and
+    # length check all reuse the same code path as teacher/student.
     if request.form.get("create_login_account"):
-        from ...models import User
-        from werkzeug.security import generate_password_hash
-        raw_username = (request.form.get("login_username") or "").strip()
-        raw_password = (request.form.get("login_password") or "").strip()
-        if len(raw_password) < 8:
-            flash("كلمة المرور مطلوبة (٨ أحرف على الأقل) لإنشاء حساب الدخول.", "warning")
+        from ...services.user_provisioning import provision_user
+        new_user, err = provision_user(
+            school_id=sid, kind="parent", full_name=guardian.full_name,
+            username=request.form.get("login_username"),
+            password=request.form.get("login_password"),
+            email=guardian.email, phone=guardian.phone,
+        )
+        if err:
+            flash(err, "warning")
         else:
-            username = raw_username or (guardian.phone or "") \
-                       or f"parent_{guardian.id}"
-            if User.query.filter_by(username=username).first():
-                flash(f"اسم المستخدم «{username}» مستخدم بالفعل — يرجى اختيار اسم آخر.",
-                      "warning")
-            else:
-                new_user = User(
-                    username=username,
-                    full_name=guardian.full_name,
-                    email=guardian.email or None,
-                    school_id=sid, role="parent", is_active=True,
-                )
-                new_user.password_hash = generate_password_hash(raw_password)
-                db.session.add(new_user); db.session.flush()
-                if hasattr(guardian, "user_id"):
-                    guardian.user_id = new_user.id
-                if student.parent_user_id is None:
-                    student.parent_user_id = new_user.id
-                flash(f"تم إنشاء حساب دخول لولي الأمر — اسم المستخدم: {username}",
-                      "success")
+            guardian.user_id = new_user.id
+            if student.parent_user_id is None:
+                student.parent_user_id = new_user.id
+            flash(f"تم إنشاء حساب دخول لولي الأمر — اسم المستخدم: {new_user.username}",
+                  "success")
 
     db.session.commit()
     flash(f"تم ربط ولي الأمر {guardian.full_name} بالطالب.", "success")
     return redirect(url_for("students.student_detail", student_id=student.id))
+
+
+def _link_return_url(link):
+    """Ticket #4 — the two link routes were hard-coded to redirect to
+    student_detail. When ?return_to=guardian is passed (from the
+    guardian detail page) redirect there instead so the admin stays
+    on the guardian screen."""
+    if (request.args.get("return_to") or request.form.get("return_to")) == "guardian":
+        return url_for("students.guardian_detail",
+                       guardian_id=link.guardian_id)
+    return url_for("students.student_detail", student_id=link.student_id)
 
 
 @bp.route("/guardian-links/<int:link_id>/update", methods=["POST"])
@@ -541,7 +539,7 @@ def guardian_link_update(link_id):
     link.can_receive_notifications = bool(request.form.get("can_receive_notifications"))
     db.session.commit()
     flash("تم تحديث صلاحيات ولي الأمر.", "success")
-    return redirect(url_for("students.student_detail", student_id=link.student_id))
+    return redirect(_link_return_url(link))
 
 
 @bp.route("/guardian-links/<int:link_id>/delete", methods=["POST"])
@@ -550,10 +548,10 @@ def guardian_link_update(link_id):
 def guardian_link_delete(link_id):
     from ...models import StudentGuardian
     link = _get_scoped_by_student(StudentGuardian, link_id)
-    sid = link.student_id
+    redirect_to = _link_return_url(link)
     db.session.delete(link); db.session.commit()
     flash("تم إلغاء ربط ولي الأمر بالطالب.", "success")
-    return redirect(url_for("students.student_detail", student_id=sid))
+    return redirect(redirect_to)
 
 
 # ---------- Ticket #1 (2026-09-25) — inline account panel ----------
@@ -623,6 +621,41 @@ def guardian_account_reset_password(guardian_id):
     db.session.commit()
     flash("تم تعيين كلمة المرور الجديدة لولي الأمر.", "success")
     return redirect(url_for("students.guardians_list"))
+
+
+@bp.route("/guardians/<int:guardian_id>/account/create",
+          methods=["POST"], endpoint="guardian_account_create")
+@login_required
+@require_permission("students", "edit")
+def guardian_account_create(guardian_id):
+    """Ticket #4 (2026-09-26) — spin a User for a Guardian created
+    without one (guardian_mode=new / guardian_add without checkbox).
+    Uses provision_user so it inherits the same dedup + length rules
+    as every other account creation in the app."""
+    g = _get_guardian(guardian_id)
+    if g.user_id:
+        flash("ولي الأمر لديه حساب بالفعل.", "warning")
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+    from ...services.user_provisioning import provision_user
+    new_user, err = provision_user(
+        school_id=_sid(), kind="parent", full_name=g.full_name,
+        username=request.form.get("username"),
+        password=request.form.get("password"),
+        email=g.email, phone=g.phone,
+    )
+    if err:
+        flash(err, "danger")
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+    g.user_id = new_user.id
+    # If any of the linked students still has no parent_user_id,
+    # take this new account as the default.
+    for link in g.student_links:
+        if link.student and not link.student.parent_user_id:
+            link.student.parent_user_id = new_user.id
+    db.session.commit()
+    flash(f"تم إنشاء حساب دخول لولي الأمر — اسم المستخدم: {new_user.username}",
+          "success")
+    return redirect(url_for("students.guardian_detail", guardian_id=g.id))
 
 
 @bp.route("/guardians/<int:guardian_id>/account/toggle",
@@ -739,6 +772,118 @@ def guardian_new():
 
     return render_template("students/guardian_form.html",
                            form={}, students=students_pool)
+
+
+# ---------- Ticket #4 (2026-09-26) — guardian detail / edit / delete ----------
+
+@bp.route("/guardians/<int:guardian_id>", endpoint="guardian_detail")
+@login_required
+@require_permission("students", "view")
+def guardian_detail(guardian_id):
+    g = _get_guardian(guardian_id)
+    students_pool = (
+        Student.query.filter_by(school_id=_sid())
+        .order_by(Student.full_name).limit(1000).all()
+    )
+    return render_template("students/guardian_detail.html",
+                           guardian=g, students=students_pool)
+
+
+@bp.route("/guardians/<int:guardian_id>/edit",
+          methods=["GET", "POST"], endpoint="guardian_edit")
+@login_required
+@require_permission("students", "edit")
+def guardian_edit(guardian_id):
+    g = _get_guardian(guardian_id)
+    students_pool = (
+        Student.query.filter_by(school_id=_sid())
+        .order_by(Student.full_name).limit(1000).all()
+    )
+    if request.method == "POST":
+        full_name = (request.form.get("full_name") or "").strip()
+        if not full_name:
+            flash("اسم ولي الأمر مطلوب.", "danger")
+            return render_template("students/guardian_form.html",
+                                   guardian=g, form=request.form,
+                                   students=students_pool)
+        g.full_name   = full_name
+        g.phone       = (request.form.get("phone") or "").strip() or None
+        g.national_id = (request.form.get("national_id") or "").strip() or None
+        g.email       = (request.form.get("email") or "").strip() or None
+        g.occupation  = (request.form.get("occupation") or "").strip() or None
+        g.address     = (request.form.get("address") or "").strip() or None
+        g.is_guardian = (request.form.get("is_guardian", "1") == "1")
+        db.session.commit()
+        flash("تم تحديث بيانات ولي الأمر.", "success")
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+
+    return render_template("students/guardian_form.html",
+                           guardian=g, form={}, students=students_pool)
+
+
+@bp.route("/guardians/<int:guardian_id>/delete",
+          methods=["POST"], endpoint="guardian_delete")
+@login_required
+@require_permission("students", "delete")
+def guardian_delete(guardian_id):
+    """Hard-delete a guardian — only when nothing points at them. The
+    Soft-Delete initiative scoped `StudentGuardian` (the link table)
+    but NOT `Guardian` itself, so this stays a plain DELETE."""
+    g = _get_guardian(guardian_id)
+    if g.student_links:
+        flash(
+            f"لا يمكن حذف ({g.full_name}) — مرتبط بـ {len(g.student_links)} طالب. "
+            "افك الروابط أولًا.",
+            "danger",
+        )
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+    name = g.full_name
+    db.session.delete(g); db.session.commit()
+    flash(f"تم حذف ولي الأمر ({name}).", "success")
+    return redirect(url_for("students.guardians_list"))
+
+
+@bp.route("/guardians/<int:guardian_id>/link",
+          methods=["POST"], endpoint="guardian_link_new")
+@login_required
+@require_permission("students", "edit")
+def guardian_link_new(guardian_id):
+    """Attach an existing student to this guardian by id — the guardian
+    detail page uses this instead of guardian_add's phone/national_id
+    lookup, since here we already know the guardian for a fact."""
+    from ...models import StudentGuardian
+    g = _get_guardian(guardian_id)
+    stu_id = request.form.get("student_id", type=int)
+    if not stu_id:
+        flash("اختر طالبًا للربط.", "danger")
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+    student = Student.query.filter_by(id=stu_id, school_id=_sid()).first()
+    if not student:
+        flash("الطالب غير موجود في هذه المدرسة.", "danger")
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+    existing = StudentGuardian.query.filter_by(
+        student_id=student.id, guardian_id=g.id,
+    ).first()
+    if existing:
+        flash(f"{student.full_name} مرتبط بالفعل.", "warning")
+        return redirect(url_for("students.guardian_detail", guardian_id=g.id))
+    db.session.add(StudentGuardian(
+        student_id=student.id, guardian_id=g.id,
+        relationship=(request.form.get("relationship") or "أب").strip(),
+        is_primary=bool(request.form.get("is_primary")),
+        is_emergency_contact=bool(request.form.get("is_emergency_contact")),
+        can_pickup_student=bool(request.form.get("can_pickup_student")),
+        can_view_academic_data=bool(request.form.get("can_view_academic_data", "1")),
+        can_view_financial_data=bool(request.form.get("can_view_financial_data")),
+        can_receive_notifications=bool(request.form.get("can_receive_notifications", "1")),
+    ))
+    # Guardian may cover several students; only patch parent_user_id
+    # when it's currently empty so we never trample a hand-set one.
+    if g.user_id and not student.parent_user_id:
+        student.parent_user_id = g.user_id
+    db.session.commit()
+    flash(f"تم ربط {student.full_name} بولي الأمر.", "success")
+    return redirect(url_for("students.guardian_detail", guardian_id=g.id))
 
 
 @bp.route("/<int:student_id>/edit", methods=["GET", "POST"])

@@ -1,11 +1,15 @@
-{# Ticket #8 — standalone Guardian add form. #}
+{# Ticket #4 (2026-09-26) — the same template now covers both add and
+   edit. When `guardian` is passed the form pre-fills from it and
+   the account / children sections are hidden (edit those from the
+   detail page instead). #}
 {% extends "partials/stitch_base.html" %}
-{% block title %}ولي أمر جديد{% endblock %}
+{% set is_edit = guardian is defined and guardian %}
+{% block title %}{{ 'تعديل ولي أمر' if is_edit else 'ولي أمر جديد' }}{% endblock %}
 {% block topbar_crumb %}
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
   <a href="{{ url_for('students.guardians_list') }}" class="hover:text-primary">أولياء الأمور</a>
   <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
-  <span class="text-primary font-bold">إضافة</span>
+  <span class="text-primary font-bold">{{ 'تعديل' if is_edit else 'إضافة' }}</span>
 {% endblock %}
 
 {% block page_content %}
@@ -16,9 +20,11 @@
          class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:outline-none focus:ring-2 focus:ring-primary/20">
 </div>
 {% endmacro %}
+{% set F = guardian if is_edit else form %}
+{% macro val(field) %}{{ (F[field] if is_edit else form.get(field)) or '' }}{% endmacro %}
 
 <div class="max-w-4xl mx-auto flex flex-col gap-space-md">
-  <h1 class="font-headline-lg text-primary">إضافة ولي أمر</h1>
+  <h1 class="font-headline-lg text-primary">{{ 'تعديل بيانات ولي الأمر' if is_edit else 'إضافة ولي أمر' }}</h1>
 
   <form method="post" class="flex flex-col gap-space-lg">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -28,18 +34,17 @@
         <span class="material-symbols-outlined">supervisor_account</span>البيانات الشخصية
       </h2>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
-        {{ fld('full_name', 'الاسم الكامل', value=form.get('full_name'), required=True) }}
-        {{ fld('phone', 'الجوال', kind='tel', value=form.get('phone'), ph='+9665...') }}
-        {{ fld('national_id', 'الرقم القومي', value=form.get('national_id')) }}
-        {{ fld('email', 'البريد الإلكتروني', kind='email', value=form.get('email')) }}
-        {{ fld('occupation', 'المهنة', value=form.get('occupation')) }}
-        {{ fld('address', 'العنوان', value=form.get('address')) }}
+        {{ fld('full_name',   'الاسم الكامل',     value=val('full_name'),   required=True) }}
+        {{ fld('phone',       'الجوال', kind='tel', value=val('phone'), ph='+9665...') }}
+        {{ fld('national_id', 'الرقم القومي',     value=val('national_id')) }}
+        {{ fld('email',       'البريد الإلكتروني', kind='email', value=val('email')) }}
+        {{ fld('occupation',  'المهنة',           value=val('occupation')) }}
+        {{ fld('address',     'العنوان',          value=val('address')) }}
       </div>
-      {# Ticket S12 — differentiate a real ولي أمر from an emergency
-         contact. Emergency-only rows stay hidden from the guardians
-         listing + invoices + academic permissions. #}
       <label class="mt-space-sm flex items-center gap-2 cursor-pointer">
-        <input type="checkbox" name="is_guardian" value="1" checked class="w-5 h-5 accent-primary">
+        <input type="checkbox" name="is_guardian" value="1"
+               {% if (is_edit and F.is_guardian) or (not is_edit) %}checked{% endif %}
+               class="w-5 h-5 accent-primary">
         <span class="font-label-md text-on-surface font-bold">هو ولي أمر رسمي (مش مجرد جهة اتصال للطوارئ)</span>
       </label>
       <p class="font-label-xs text-outline mt-1">
@@ -47,6 +52,7 @@
       </p>
     </section>
 
+    {% if not is_edit %}
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
         <span class="material-symbols-outlined">key</span>حساب دخول ولي الأمر
@@ -91,9 +97,15 @@
         {% endfor %}
       </div>
     </section>
+    {% else %}
+    <p class="font-label-sm text-outline text-center">
+      لتعديل الأبناء المرتبطين أو حساب الدخول، عد إلى
+      <a href="{{ url_for('students.guardian_detail', guardian_id=guardian.id) }}" class="text-primary font-bold underline">صفحة ولي الأمر</a>.
+    </p>
+    {% endif %}
 
     <div class="flex items-center justify-end gap-space-sm">
-      <a href="{{ url_for('students.guardians_list') }}"
+      <a href="{% if is_edit %}{{ url_for('students.guardian_detail', guardian_id=guardian.id) }}{% else %}{{ url_for('students.guardians_list') }}{% endif %}"
          class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
@@ -103,6 +115,7 @@
   </form>
 </div>
 
+{% if not is_edit %}
 <script>
   (function(){
     var cb = document.getElementById('createAcctG');
@@ -110,4 +123,5 @@
     if (cb && wr) cb.addEventListener('change', function(){ wr.style.display = cb.checked ? '' : 'none'; });
   })();
 </script>
+{% endif %}
 {% endblock %}

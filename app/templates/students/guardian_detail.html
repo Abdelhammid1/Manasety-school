@@ -1,0 +1,246 @@
+{# Ticket #4 (2026-09-26) — standalone guardian detail page. Covers
+   the four asks: profile info + account panel + linked children +
+   edit/delete actions. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ guardian.full_name }} — ولي الأمر{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('students.guardians_list') }}" class="hover:text-primary">أولياء الأمور</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ guardian.full_name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto flex flex-col gap-space-md">
+
+  {# ── Hero ─────────────────────────────────────────────────────── #}
+  <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
+           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+    <div class="relative z-10 p-space-lg flex items-center gap-space-md flex-wrap">
+      <div class="w-20 h-20 rounded-2xl bg-white/15 flex items-center justify-center font-headline-lg font-extrabold shrink-0">
+        {{ guardian.full_name[:1] }}
+      </div>
+      <div class="flex flex-col flex-1 min-w-0">
+        <h1 class="font-headline-lg text-on-primary">{{ guardian.full_name }}</h1>
+        <div class="flex items-center gap-2 mt-1 flex-wrap">
+          {% if guardian.is_guardian %}
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/20 font-label-md font-bold">
+            <span class="material-symbols-outlined text-sm">verified_user</span>ولي أمر رسمي
+          </span>
+          {% else %}
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/80 font-label-md font-bold">
+            <span class="material-symbols-outlined text-sm">e911_emergency</span>جهة اتصال طوارئ فقط
+          </span>
+          {% endif %}
+          {% if guardian.phone %}
+          <code class="font-label-md text-white/80" dir="ltr">{{ guardian.phone }}</code>
+          {% endif %}
+        </div>
+      </div>
+      <a href="{{ url_for('students.guardian_edit', guardian_id=guardian.id) }}"
+         class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
+        <span class="material-symbols-outlined text-lg">edit</span><span>تعديل</span>
+      </a>
+      <form method="post" action="{{ url_for('students.guardian_delete', guardian_id=guardian.id) }}"
+            onsubmit="return confirm('حذف ولي الأمر نهائيًا؟ لا يمكن التراجع.');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit"
+                class="h-11 px-5 rounded-xl bg-error-container text-on-error-container font-label-lg font-bold flex items-center gap-2">
+          <span class="material-symbols-outlined text-lg">delete</span><span>حذف</span>
+        </button>
+      </form>
+    </div>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+
+    {# ── Left col — profile fields ─────────────────────────────── #}
+    <div class="lg:col-span-2 flex flex-col gap-space-md">
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h2 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+          <span class="material-symbols-outlined">person</span>البيانات الشخصية
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+          {% for label, val, ltr in [
+            ('الاسم الكامل',    guardian.full_name,       False),
+            ('الرقم القومي',    guardian.national_id or '—', True),
+            ('الجوال',          guardian.phone or '—',    True),
+            ('جوال بديل',       guardian.phone_alt or '—', True),
+            ('البريد',          guardian.email or '—',    True),
+            ('المهنة',          guardian.occupation or '—', False),
+            ('العنوان',         guardian.address or '—',  False),
+          ] %}
+          <div class="flex flex-col">
+            <span class="font-label-md text-on-surface-variant">{{ label }}</span>
+            <span class="font-body-md text-on-surface font-semibold" {% if ltr %}dir="ltr"{% endif %}>{{ val }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      {# ── Linked children ────────────────────────────────────── #}
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <div class="flex items-center justify-between flex-wrap gap-space-sm mb-space-md">
+          <h2 class="font-title-md text-primary font-bold flex items-center gap-2">
+            <span class="material-symbols-outlined">school</span>الأبناء المرتبطون
+            <span class="font-label-md text-outline font-normal">({{ guardian.student_links|length }})</span>
+          </h2>
+          <button type="button" onclick="document.getElementById('linkForm').classList.toggle('hidden')"
+                  class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
+                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+            <span class="material-symbols-outlined text-lg">person_add</span><span>ربط طالب</span>
+          </button>
+        </div>
+
+        {# Inline link form #}
+        <form id="linkForm" method="post" action="{{ url_for('students.guardian_link_new', guardian_id=guardian.id) }}"
+              class="hidden mb-space-md p-space-md rounded-xl bg-surface-container-low grid grid-cols-1 md:grid-cols-4 gap-space-sm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <select name="student_id" required class="h-10 px-3 rounded-lg bg-surface-container-lowest md:col-span-2">
+            <option value="">— اختر طالبًا —</option>
+            {% for s in students %}
+            <option value="{{ s.id }}">{{ s.full_name }} ({{ s.permanent_code }})</option>
+            {% endfor %}
+          </select>
+          <select name="relationship" class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+            <option value="أب">أب</option>
+            <option value="أم">أم</option>
+            <option value="جد">جد</option>
+            <option value="عم">عم/خال</option>
+            <option value="وصي">وصي شرعي</option>
+          </select>
+          <button type="submit" class="h-10 px-4 rounded-xl bg-primary text-on-primary font-label-lg font-bold">ربط</button>
+        </form>
+
+        {% if guardian.student_links %}
+        <div class="flex flex-col gap-space-sm">
+          {% for link in guardian.student_links %}
+          {% set s = link.student %}
+          <details class="rounded-xl bg-surface-container-low overflow-hidden">
+            <summary class="p-space-md cursor-pointer list-none flex items-center gap-space-sm">
+              <div class="w-10 h-10 rounded-full bg-primary-fixed text-primary flex items-center justify-center font-bold">
+                {{ s.full_name[:1] }}
+              </div>
+              <div class="flex flex-col flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <a href="{{ url_for('students.student_detail', student_id=s.id) }}"
+                     class="font-label-lg text-primary font-bold hover:underline">{{ s.full_name }}</a>
+                  {% if link.relationship %}<span class="font-label-xs text-outline">({{ link.relationship }})</span>{% endif %}
+                  {% if link.is_primary %}<span class="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-label-xs font-bold">أساسي</span>{% endif %}
+                  {% if link.is_emergency_contact %}<span class="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-label-xs font-bold">للطوارئ</span>{% endif %}
+                  {% if link.can_pickup_student %}<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-label-xs">استلام</span>{% endif %}
+                  {% if link.can_view_academic_data %}<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-label-xs">أكاديمي</span>{% endif %}
+                  {% if link.can_view_financial_data %}<span class="px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-label-xs">مالي</span>{% endif %}
+                </div>
+                <code class="font-label-xs text-outline" dir="ltr">{{ s.permanent_code }}</code>
+              </div>
+              <span class="material-symbols-outlined text-primary">expand_more</span>
+            </summary>
+
+            <form method="post" action="{{ url_for('students.guardian_link_update', link_id=link.id) }}?return_to=guardian"
+                  class="p-space-md pt-0 border-t border-outline-variant flex flex-col gap-space-sm">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-space-sm">
+                <div class="flex flex-col gap-1">
+                  <label class="font-label-md text-on-surface font-bold">صلة القرابة</label>
+                  <input name="relationship" value="{{ link.relationship or '' }}"
+                         class="h-10 px-3 rounded-lg bg-surface-container-lowest">
+                </div>
+              </div>
+              <div class="grid grid-cols-2 md:grid-cols-3 gap-space-sm">
+                {% for key, lbl in [
+                  ('is_primary', 'أساسي'),
+                  ('is_emergency_contact', 'للطوارئ'),
+                  ('can_pickup_student', 'يستلم الطالب'),
+                  ('can_view_academic_data', 'يرى الأكاديمي'),
+                  ('can_view_financial_data', 'يرى المالي'),
+                  ('can_receive_notifications', 'يستقبل الإشعارات'),
+                ] %}
+                <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-lowest cursor-pointer">
+                  <input type="checkbox" name="{{ key }}" value="1"
+                         {% if link[key] %}checked{% endif %}
+                         class="w-4 h-4 accent-primary">
+                  <span class="font-label-sm text-on-surface">{{ lbl }}</span>
+                </label>
+                {% endfor %}
+              </div>
+              <div class="flex items-center gap-space-sm justify-end">
+                <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+              </div>
+            </form>
+
+            <form method="post" action="{{ url_for('students.guardian_link_delete', link_id=link.id) }}?return_to=guardian"
+                  class="px-space-md pb-space-md"
+                  onsubmit="return confirm('فك الربط بين ولي الأمر والطالب؟');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button type="submit" class="text-error font-label-sm hover:underline">
+                <span class="material-symbols-outlined text-sm align-middle">link_off</span>
+                فك الربط
+              </button>
+            </form>
+          </details>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-center text-outline p-space-md">لا يوجد أبناء مرتبطون بعد.</p>
+        {% endif %}
+      </section>
+    </div>
+
+    {# ── Right col — account panel (same pattern as Ticket #1 bullet 5) #}
+    <aside class="flex flex-col gap-space-md">
+      <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+        <h3 class="font-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
+          <span class="material-symbols-outlined">key</span>حساب الدخول
+        </h3>
+        {% if guardian.user %}
+        <div class="p-2 rounded-lg bg-secondary-container/40 flex items-center gap-3 mb-space-md">
+          <div class="w-10 h-10 rounded-full bg-secondary text-on-secondary flex items-center justify-center font-bold">
+            {{ guardian.user.username[:1]|upper }}
+          </div>
+          <div class="flex flex-col flex-1 min-w-0">
+            <code class="font-label-md text-on-surface font-bold" dir="ltr">{{ guardian.user.username }}</code>
+            <span class="font-label-xs font-bold {% if guardian.user.is_active %}text-emerald-600{% else %}text-error{% endif %}">
+              {{ 'نشط' if guardian.user.is_active else 'معطّل' }}
+            </span>
+          </div>
+        </div>
+
+        <form method="post" action="{{ url_for('students.guardian_account_reset_password', guardian_id=guardian.id) }}"
+              class="flex flex-col gap-2 mb-space-sm">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <label class="font-label-sm text-on-surface-variant">تعيين كلمة مرور جديدة</label>
+          <div class="flex items-center gap-2">
+            <input name="password" type="password" required minlength="8" placeholder="٨ أحرف على الأقل"
+                   class="flex-1 h-10 px-3 rounded-lg bg-surface-container-low">
+            <button type="submit" class="h-10 px-4 rounded-lg bg-primary text-on-primary font-label-md font-bold">حفظ</button>
+          </div>
+        </form>
+
+        <form method="post" action="{{ url_for('students.guardian_account_toggle', guardian_id=guardian.id) }}"
+              onsubmit="return confirm('{% if guardian.user.is_active %}تعطيل حساب ولي الأمر؟{% else %}تفعيل حساب ولي الأمر؟{% endif %}');">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit"
+                  class="w-full h-10 rounded-lg font-label-md font-bold
+                         {% if guardian.user.is_active %}bg-error-container text-on-error-container{% else %}bg-emerald-100 text-emerald-800{% endif %}">
+            {{ 'تعطيل الحساب' if guardian.user.is_active else 'تفعيل الحساب' }}
+          </button>
+        </form>
+        {% else %}
+        <p class="text-outline font-label-md mb-space-sm">لا يوجد حساب مربوط.</p>
+        <form method="post" action="{{ url_for('students.guardian_account_create', guardian_id=guardian.id) }}"
+              class="flex flex-col gap-2">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input name="username" placeholder="اسم المستخدم (اختياري)"
+                 class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <input name="password" type="password" required minlength="8" placeholder="كلمة المرور (٨ أحرف على الأقل)"
+                 class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <button type="submit" class="h-10 rounded-lg bg-primary text-on-primary font-label-md font-bold">إنشاء حساب</button>
+        </form>
+        {% endif %}
+      </section>
+    </aside>
+
+  </div>
+</div>
+{% endblock %}
