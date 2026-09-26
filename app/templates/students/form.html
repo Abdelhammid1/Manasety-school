@@ -52,7 +52,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
         {{ field('full_name', 'الاسم الرباعي', F.full_name if F else '', required=True) }}
         {{ field('national_id', 'رقم الهوية الوطنية', F.national_id if F else '', ph='١٢٣٤٥٦٧٨٩٠') }}
-        {{ field('dob', 'تاريخ الميلاد', F.dob.strftime('%Y-%m-%d') if F and F.dob else '', kind='date') }}
+        {{ field('dob', 'تاريخ الميلاد', (F.dob if F.dob is string else F.dob.strftime('%Y-%m-%d')) if F and F.dob else '', kind='date') }}
         {% call field('gender', 'الجنس', kind='select') %}
           <select name="gender" class="w-full h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
             <option value="">—</option>
