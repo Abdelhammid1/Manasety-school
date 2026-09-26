@@ -149,27 +149,20 @@ def post_invoice_to_ledger(invoice: Invoice, *, entry_date: Optional[_date_cls] 
     if discount_amt > 0:
         d_acc = _discount_account_for(invoice.school_id)
         if d_acc is not None:
-            # A discount reduces net revenue by shifting DR to the
-            # discount account (contra-revenue). To keep DR==CR when the
-            # revenue lines above already include the *pre-discount*
-            # amounts, we add both a DR on discount and a CR on the same
-            # account… but the simpler symmetric form is: DR discount
-            # (positive amount) + CR the corresponding revenue lines
-            # (already included above). Instead we lower AR by the
-            # discount: reduce the first DR line and post a matching CR
-            # on the discount account so DR==CR holds.
-            lines[0] = (ar.id, total - discount_amt, Decimal(0),
-                        f"ذمم — {invoice.enrollment.student.full_name}")
+            # Hotfix (2026-09-26) — Item 5. `invoice.total_amount` is
+            # already NET of the discount (see create_invoice line
+            # 1097: `total -= amount` before storing). And
+            # `_revenue_lines_by_fee_type` deliberately skips negative
+            # InvoiceLine rows (line 99), so the revenue CR is GROSS
+            # of the discount. That leaves CR ahead of DR by
+            # discount_amt — the fix is a single DR to the discount
+            # account. The previous code additionally reduced the AR
+            # line by discount_amt (a second subtraction on an already-
+            # net total, understating the student's balance) and cut
+            # the revenue line by the same amount (masking gross
+            # revenue). Both were wrong in the same way the tax bug
+            # was wrong (commit 037f4b2).
             lines.append((d_acc.id, discount_amt, Decimal(0), "خصم"))
-            # Now we must lower the total revenue by discount_amt so that
-            # DR (net) equals CR (sum of positive rev lines). Take it
-            # off the largest revenue line to keep the split intact.
-            rev_lines = [l for l in lines if l[2] > 0]
-            rev_lines.sort(key=lambda x: -x[2])
-            if rev_lines:
-                head = rev_lines[0]
-                idx = lines.index(head)
-                lines[idx] = (head[0], head[1], head[2] - discount_amt, head[3])
 
     je = post_journal(
         school_id=invoice.school_id,

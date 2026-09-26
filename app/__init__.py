@@ -75,6 +75,14 @@ def create_app(config_class=Config):
     def index():
         return render_template("landing.html")
 
+    # Hotfix (2026-09-26) — invoice_detail.html was calling `today()`
+    # from Jinja without any route passing it, so every invoice view
+    # crashed with 500. Rather than patching each route to inject it,
+    # register it once here as a template global so ANY template can
+    # ask for the current date without help from the view.
+    from datetime import date as _date_cls
+    app.jinja_env.globals["today"] = _date_cls.today
+
     @app.context_processor
     def inject_globals():
         # Base branding vars — always available in every template.
