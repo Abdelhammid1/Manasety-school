@@ -44,11 +44,26 @@ class AssessmentComponent(SoftDeleteMixin, db.Model):
     rubric_id = db.Column(db.Integer, db.ForeignKey("rubrics.id", ondelete="SET NULL"),
                           nullable=True, index=True)
 
+    # Ticket #16 (2026-09-27) — optional per-grade scoping. NULL means
+    # "shared across all grades that teach this subject" (default,
+    # backward compatible). A concrete grade_id restricts the
+    # component to that grade only, so different levels can carry
+    # different weight distributions for the same subject/term.
+    grade_id = db.Column(db.Integer, db.ForeignKey("grades.id", ondelete="SET NULL"),
+                         nullable=True, index=True)
+
     term = db.relationship("Term")
     subject = db.relationship("Subject")
+    grade = db.relationship("Grade")
 
     __table_args__ = (
-        db.UniqueConstraint("term_id", "subject_id", "name", name="uq_component_term_subject_name"),
+        # Unique per (term, subject, grade, name) — the extra grade_id
+        # dimension lets the same component name coexist across grades.
+        # NULLs behave differently per dialect (SQLite treats them as
+        # distinct; PG's default index allows multiple NULLs); either
+        # way this doesn't break the "grade_id NULL = shared" contract.
+        db.UniqueConstraint("term_id", "subject_id", "grade_id", "name",
+                            name="uq_component_term_subject_grade_name"),
     )
 
 

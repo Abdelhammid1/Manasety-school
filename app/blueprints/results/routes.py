@@ -178,9 +178,11 @@ def components():
             if src_type not in ("manual", "lms_quiz", "lms_assignment"):
                 src_type = "manual"
             src_id = request.form.get("source_id", type=int) or None
+            # Ticket #16 (2026-09-27) — optional per-grade scoping.
             comp = AssessmentComponent(
                 school_id=_sid(),
                 term_id=term_id, subject_id=subject_id,
+                grade_id=request.form.get("grade_id", type=int) or None,
                 name=request.form["name"].strip(),
                 max_score=Decimal(request.form["max_score"]),
                 source_type=src_type,
@@ -218,12 +220,21 @@ def components():
             .filter(Course.school_id == _sid(), Course.subject_id == subject_id)
             .order_by(CourseAssignment.title).all()
         )
+    # Ticket #16 — grade picker for the "add component" form. Scoped
+    # to grades that teach the current subject via subject_grades.
+    grades = []
+    if subject_id:
+        from ...models import Subject as _Sub
+        subj = _Sub.query.filter_by(id=subject_id, school_id=_sid()).first()
+        if subj:
+            grades = sorted(subj.grades, key=lambda g: (g.order_index or 0, g.name))
     return render_template(
         "results/components.html",
         year=year, terms=terms, subjects=subjects,
         term_id=term_id, subject_id=subject_id,
         components=components_list, total=total,
         lms_quizzes=lms_quizzes, lms_assignments=lms_assignments,
+        grades=grades,
     )
 
 
@@ -316,9 +327,27 @@ def grade_sheet(section_id, term_id, subject_id):
         ).all()
     }
 
-    components = (
+    # Ticket #16 (2026-09-27) — prefer grade-specific components when
+    # any exist for this (term, subject, section.grade); otherwise
+    # fall back to shared (grade_id IS NULL) components.
+    from sqlalchemy import or_
+    _grade_specific = (
         AssessmentComponent.query.filter_by(
             school_id=_sid(), term_id=term.id, subject_id=subject.id,
+            grade_id=section.grade_id,
+        ).count()
+    )
+    _comp_grade_filter = (
+        AssessmentComponent.grade_id == section.grade_id
+        if _grade_specific
+        else AssessmentComponent.grade_id.is_(None)
+    )
+    components = (
+        AssessmentComponent.query.filter(
+            AssessmentComponent.school_id == _sid(),
+            AssessmentComponent.term_id == term.id,
+            AssessmentComponent.subject_id == subject.id,
+            _comp_grade_filter,
         ).order_by(AssessmentComponent.id).all()
     )
     enrollments = (
@@ -712,9 +741,23 @@ def _compute_year(enrollment, terms, subjects, rule: PassRule):
         subject_incomplete = False
         term_scores = []
         for term in terms:
-            comps = AssessmentComponent.query.filter_by(
-                term_id=term.id, subject_id=subject.id
+            # Ticket #16 (2026-09-27) — include components scoped to
+            # the enrollment's grade OR shared across all grades
+            # (grade_id IS NULL). A grade-specific override takes
+            # priority: if any grade-scoped component exists for
+            # this (term, subject, grade), skip the shared ones for
+            # this cell to avoid double-counting.
+            grade_specific = AssessmentComponent.query.filter_by(
+                term_id=term.id, subject_id=subject.id,
+                grade_id=enrollment.grade_id,
             ).all()
+            if grade_specific:
+                comps = grade_specific
+            else:
+                comps = AssessmentComponent.query.filter_by(
+                    term_id=term.id, subject_id=subject.id,
+                    grade_id=None,
+                ).all()
             if not comps:
                 continue
             entries = GradeEntry.query.filter(

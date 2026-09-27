@@ -254,6 +254,14 @@ class AssignmentQuestion(SoftDeleteMixin, db.Model):
         db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
+    # Ticket #12 (2026-09-27) — per-question rubric override. When
+    # non-NULL, the essay grader uses this Rubric instead of the
+    # CourseAssignment.rubric_id fallback so each question inside a
+    # mixed-content assignment can be graded on its own criteria.
+    rubric_id = db.Column(
+        db.Integer, db.ForeignKey("rubrics.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
 
     version   = db.Column(db.Integer, default=1, nullable=False)   # ticket 19
     is_locked = db.Column(db.Boolean, default=False, nullable=False)
@@ -377,6 +385,13 @@ class Question(SoftDeleteMixin, db.Model):
     # delete so a bank cleanup doesn't wipe live quiz history).
     source_bank_id = db.Column(
         db.Integer, db.ForeignKey("lms_bank_questions.id", ondelete="SET NULL"),
+        nullable=True, index=True,
+    )
+    # Ticket #12 (2026-09-27) — per-question rubric override, same as
+    # AssignmentQuestion. Falls back to Quiz.rubric_id if that field
+    # ever gets added, and to any assignment-level default meanwhile.
+    rubric_id = db.Column(
+        db.Integer, db.ForeignKey("rubrics.id", ondelete="SET NULL"),
         nullable=True, index=True,
     )
 

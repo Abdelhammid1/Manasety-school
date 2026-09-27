@@ -16,6 +16,20 @@ from ...models import (
 )
 
 
+def effective_rubric_id(question, parent) -> int | None:
+    """Ticket #12 (2026-09-27) — resolve which Rubric a specific
+    question is graded against. `question` may be an
+    AssignmentQuestion or a Question (Quiz row) — both now carry
+    an optional per-question `rubric_id`. `parent` is the
+    CourseAssignment (or Quiz) that owns the question. Per-question
+    override wins; parent's rubric is the fallback. Returns None
+    when neither is set (essay graded manually)."""
+    q_rid = getattr(question, "rubric_id", None)
+    if q_rid:
+        return q_rid
+    return getattr(parent, "rubric_id", None)
+
+
 @bp.route("/submissions/<int:submission_id>/rubric-grade", methods=["GET", "POST"],
           endpoint="submission_rubric_grade")
 @login_required

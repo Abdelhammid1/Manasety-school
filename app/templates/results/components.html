@@ -65,6 +65,14 @@
             <span class="material-symbols-outlined">assignment</span>
           </div>
           <span class="font-label-lg text-label-lg text-on-surface font-bold">{{ c.name }}</span>
+          {# Ticket #16 (2026-09-27) — visible grade scope badge. #}
+          {% if c.grade %}
+          <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">
+            <span class="material-symbols-outlined text-xs">stairs</span>{{ c.grade.name }}
+          </span>
+          {% else %}
+          <span class="font-label-xs text-outline">كل الصفوف</span>
+          {% endif %}
         </div>
         <div class="flex items-center gap-space-sm">
           <span class="font-title-md text-title-md text-primary font-bold tabular-nums">/{{ c.max_score }}</span>
@@ -91,7 +99,7 @@
       <input type="hidden" name="action" value="add">
       <input type="hidden" name="term_id" value="{{ term_id }}">
       <input type="hidden" name="subject_id" value="{{ subject_id }}">
-      <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-space-md items-end">
+      <div class="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-space-md items-end">
         <div class="flex flex-col gap-1.5">
           <label class="font-label-md text-on-surface font-bold">اسم المكوّن</label>
           <input name="name" required placeholder="مثال: اختبار قصير" class="h-12 px-4 rounded-xl bg-surface-container-low">
@@ -99,6 +107,18 @@
         <div class="flex flex-col gap-1.5">
           <label class="font-label-md text-on-surface font-bold">الدرجة القصوى</label>
           <input name="max_score" type="number" min="1" max="100" step="0.5" value="10" required class="h-12 px-4 text-center rounded-xl bg-surface-container-low tabular-nums">
+        </div>
+        {# Ticket #16 (2026-09-27) — optional per-grade scoping. #}
+        <div class="flex flex-col gap-1.5">
+          <label class="font-label-md text-on-surface font-bold">الصف
+            <span class="font-label-xs text-outline">(اختياري)</span>
+          </label>
+          <select name="grade_id" class="h-12 px-3 rounded-xl bg-surface-container-low">
+            <option value="">— كل الصفوف (افتراضي) —</option>
+            {% for g in grades %}
+            <option value="{{ g.id }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
         </div>
       </div>
 

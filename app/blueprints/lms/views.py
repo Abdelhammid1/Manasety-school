@@ -378,6 +378,38 @@ def assignment_question_delete(qid):
     return redirect(url_for("lms.assignment_questions", aid=aid))
 
 
+_PICKER_FILTER_KEYS = (
+    "subject_id", "grade_id", "year_id", "term_id",
+    "unit_id", "lesson_id", "difficulty", "kind",
+    "tag", "q", "internal_label", "cognitive_level",
+    "skill_id", "objective_id", "source", "picker_defaulted",
+)
+
+
+def _picker_defaults_redirect(parent_course, endpoint, **route_kwargs):
+    """Ticket #13 (2026-09-27) — first time the picker is opened
+    with NO filter parameters at all, redirect to the same URL
+    pre-populated with the parent Course's subject_id + grade_id
+    so the initial view is already scoped. The one-shot
+    `picker_defaulted=1` marker keeps the redirect from looping
+    when the user later clears all filters manually."""
+    if request.method != "GET":
+        return None
+    if any(k in request.args for k in _PICKER_FILTER_KEYS):
+        return None
+    if not parent_course:
+        return None
+    args = {}
+    if parent_course.subject_id:
+        args["subject_id"] = parent_course.subject_id
+    if parent_course.grade_id:
+        args["grade_id"] = parent_course.grade_id
+    if not args:
+        return None
+    args["picker_defaulted"] = 1
+    return redirect(url_for(endpoint, **route_kwargs, **args))
+
+
 @bp.route("/assignments/<int:aid>/pick", methods=["GET", "POST"],
           endpoint="assignment_pick_from_bank")
 @login_required
@@ -386,6 +418,10 @@ def assignment_pick_from_bank(aid):
     into AssignmentQuestion + AssignmentChoice rows for this assignment.
     Duplicate-safe on source_bank_id."""
     a = CourseAssignment.query.get_or_404(aid)
+    _r = _picker_defaults_redirect(
+        a.course, "lms.assignment_pick_from_bank", aid=a.id)
+    if _r is not None:
+        return _r
 
     if request.method == "POST":
         picked_ids = [int(x) for x in request.form.getlist("bank_ids") if x.isdigit()]
@@ -2736,6 +2772,10 @@ def quiz_pick_from_bank(qid):
     re-run the picker.
     """
     quiz = Quiz.query.get_or_404(qid)
+    _r = _picker_defaults_redirect(
+        quiz.course, "lms.quiz_pick_from_bank", qid=quiz.id)
+    if _r is not None:
+        return _r
 
     if request.method == "POST":
         picked_ids = [int(x) for x in request.form.getlist("bank_ids") if x.isdigit()]
