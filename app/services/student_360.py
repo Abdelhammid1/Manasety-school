@@ -53,14 +53,17 @@ def _academic_snapshot(student):
         GradeEntry.query.filter(GradeEntry.enrollment_id.in_(eids))
         .order_by(GradeEntry.id.desc()).first()
     )
+    # Ticket #20 — GradeEntry's numeric column is `score`, not `value`
+    # (see app/models/results.py:62). The dashboard `value` label
+    # kept for the API response's readability.
     avg = (
-        db.session.query(func.avg(GradeEntry.value))
+        db.session.query(func.avg(GradeEntry.score))
         .filter(GradeEntry.enrollment_id.in_(eids)).scalar()
     )
     active = next((e for e in student.enrollments if e.status == "active"), None)
     return {
         "last_grade": (
-            {"value": float(last_grade.value) if last_grade.value else None,
+            {"value": float(last_grade.score) if last_grade.score is not None else None,
              "recorded_at": last_grade.recorded_at.isoformat()
                             if last_grade.recorded_at else None}
             if last_grade else None

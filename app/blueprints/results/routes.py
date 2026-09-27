@@ -302,11 +302,17 @@ def grade_sheet(section_id, term_id, subject_id):
     # whole sheet` which meant approving one student's result froze
     # data entry for every other student. Now we build the set of
     # locked enrollment ids and enforce per row on both display + POST.
+    #
+    # Ticket #17 (2026-09-27) — defensive status filter. Only a
+    # YearResult that actually carries an approved outcome (pass /
+    # fail) should lock. Any pending row or historical draft that
+    # somehow ended up in the table stays out of the lock set.
     locked_enrollment_ids = {
         yr.enrollment_id for yr in
         YearResult.query.join(Enrollment).filter(
             Enrollment.section_id == section.id,
             Enrollment.year_id == section.year_id,
+            YearResult.status.in_(("pass", "fail")),
         ).all()
     }
 

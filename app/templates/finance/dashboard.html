@@ -64,12 +64,26 @@
         <span class="font-title-md font-bold">أعمار الديون</span>
         <span class="mr-auto font-label-sm text-outline">تفاصيل →</span>
       </div>
+      {# Ticket #23-ب (2026-09-27) — aging_report returns a flat
+         dict {current, d30, d60, d90, d90p} → Decimal. The old
+         `for bucket in aging.buckets` iterated dict KEYS (strings)
+         and blew up on `bucket.days_max`. Render an explicit
+         ordered list instead so both label and severity colour
+         are settled in one place. #}
+      {% set _AGING_ROWS = [
+        ('current', 'حالية (لم يحل ميعاد السداد)',  0),
+        ('d30',     '١–٣٠ يوم متأخر',              30),
+        ('d60',     '٣١–٦٠ يوم متأخر',             60),
+        ('d90',     '٦١–٩٠ يوم متأخر',             90),
+        ('d90p',    'أكثر من ٩٠ يوم',              120),
+      ] %}
       {% if aging.buckets %}
       <div class="space-y-2">
-        {% for bucket in aging.buckets %}
+        {% for key, label, days_max in _AGING_ROWS %}
+        {% set amount = aging.buckets[key] %}
         <div class="flex items-center justify-between">
-          <span class="font-label-md">{{ bucket.label }}</span>
-          <span class="font-mono font-bold {% if bucket.days_max > 90 %}text-rose-600{% elif bucket.days_max > 30 %}text-amber-600{% else %}text-primary{% endif %}">{{ '{:,.2f}'.format(bucket.total) }}</span>
+          <span class="font-label-md">{{ label }}</span>
+          <span class="font-mono font-bold {% if days_max > 90 %}text-rose-600{% elif days_max > 30 %}text-amber-600{% else %}text-primary{% endif %}">{{ '{:,.2f}'.format(amount) }}</span>
         </div>
         {% endfor %}
       </div>

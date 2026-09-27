@@ -24,6 +24,16 @@ def _sid():
     return current_user.school_id
 
 
+def _active_year():
+    """Ticket #23-أ (2026-09-27) — used by budgets_home and its
+    sibling routes; previously referenced but never defined here,
+    which made /finance/budgets crash with NameError. Copies the
+    signature from the sibling blueprints (attendance/api/academic)."""
+    return AcademicYear.query.filter_by(
+        school_id=_sid(), status="active",
+    ).first()
+
+
 def _get(model, oid):
     obj = model.query.filter_by(id=oid, school_id=_sid()).first()
     if not obj:

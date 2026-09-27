@@ -15,11 +15,9 @@
 {% set diff_colors = {'easy':'bg-[#ECFDF5] text-[#065F46]', 'medium':'bg-tertiary-fixed text-on-tertiary-fixed-variant', 'hard':'bg-error-container text-on-error-container'} %}
 
 {% block page_content %}
-<form method="post" action="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}" id="pickForm"
-      class="flex flex-col w-full gap-space-md">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="flex flex-col w-full gap-space-md">
 
-  <!-- Hero -->
+  <!-- Hero — outside the POST form so the layout stays intact -->
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <div class="flex items-start justify-between gap-space-md flex-wrap">
       <div>
@@ -32,7 +30,11 @@
       <div class="flex items-center gap-space-sm">
         <a href="{{ url_for('lms.quiz_questions', qid=quiz.id) }}"
            class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
-        <button type="submit" id="addBtn" disabled
+        {# Ticket #14 (2026-09-27) — the submit button is INSIDE the
+           POST form below via `form="pickForm"` so the browser
+           associates the click with the correct form even though
+           it lives outside the <form> tag. #}
+        <button type="submit" id="addBtn" form="pickForm" disabled
                 class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md opacity-40"
                 style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
           <span class="material-symbols-outlined">library_add</span>
@@ -42,64 +44,66 @@
     </div>
   </section>
 
-  <!-- Filters -->
+  <!-- Filters — SEPARATE GET form, no longer nested inside the POST
+       picker form (HTML forbids nested forms, which was silently
+       closing the picker form and stripping every checkbox from the
+       POST body). -->
   <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
-      {# We keep filters as a separate GET form so the picker checkbox
-         state and the query string don't collide. #}
-      <div class="col-span-full">
-        <form method="get" action="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}"
-              class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
-          <div class="flex flex-col gap-1">
-            <label class="font-label-md text-on-surface font-bold">المادة</label>
-            <select name="subject_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
-              <option value="">— الكل —</option>
-              {% for s in subjects %}<option value="{{ s.id }}" {% if selected.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-label-md text-on-surface font-bold">الصف</label>
-            <select name="grade_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
-              <option value="">— الكل —</option>
-              {% for g in grades %}<option value="{{ g.id }}" {% if selected.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-label-md text-on-surface font-bold">النوع</label>
-            <select name="kind" class="h-10 px-3 rounded-lg bg-surface-container-low">
-              <option value="">— الكل —</option>
-              {% for k, lbl in kind_labels.items() %}<option value="{{ k }}" {% if selected.kind == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-label-md text-on-surface font-bold">الصعوبة</label>
-            <select name="difficulty" class="h-10 px-3 rounded-lg bg-surface-container-low">
-              <option value="">— الكل —</option>
-              {% for k, lbl in diff_labels.items() %}<option value="{{ k }}" {% if selected.difficulty == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
-            </select>
-          </div>
-          <div class="flex flex-col gap-1 md:col-span-2">
-            <label class="font-label-md text-on-surface font-bold">بحث نصي</label>
-            <input name="q" value="{{ selected.q }}" placeholder="ابحث داخل نص السؤال…"
-                   class="h-10 px-3 rounded-lg bg-surface-container-low">
-          </div>
-          <div class="flex flex-col gap-1">
-            <label class="font-label-md text-on-surface font-bold">وسم</label>
-            <input name="tag" value="{{ selected.tag }}" placeholder="مثال: ضرب"
-                   class="h-10 px-3 rounded-lg bg-surface-container-low">
-          </div>
-          <div class="flex items-end justify-end gap-2">
-            <a href="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}"
-               class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
-            <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
-                    style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
-              <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
-            </button>
-          </div>
-        </form>
+    <form method="get" action="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}"
+          class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">المادة</label>
+        <select name="subject_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for s in subjects %}<option value="{{ s.id }}" {% if selected.subject_id == s.id %}selected{% endif %}>{{ s.name }}</option>{% endfor %}
+        </select>
       </div>
-    </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الصف</label>
+        <select name="grade_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for g in grades %}<option value="{{ g.id }}" {% if selected.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">النوع</label>
+        <select name="kind" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for k, lbl in kind_labels.items() %}<option value="{{ k }}" {% if selected.kind == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">الصعوبة</label>
+        <select name="difficulty" class="h-10 px-3 rounded-lg bg-surface-container-low">
+          <option value="">— الكل —</option>
+          {% for k, lbl in diff_labels.items() %}<option value="{{ k }}" {% if selected.difficulty == k %}selected{% endif %}>{{ lbl }}</option>{% endfor %}
+        </select>
+      </div>
+      <div class="flex flex-col gap-1 md:col-span-2">
+        <label class="font-label-md text-on-surface font-bold">بحث نصي</label>
+        <input name="q" value="{{ selected.q }}" placeholder="ابحث داخل نص السؤال…"
+               class="h-10 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="font-label-md text-on-surface font-bold">وسم</label>
+        <input name="tag" value="{{ selected.tag }}" placeholder="مثال: ضرب"
+               class="h-10 px-3 rounded-lg bg-surface-container-low">
+      </div>
+      <div class="flex items-end justify-end gap-2">
+        <a href="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}"
+           class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
+        <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
+        </button>
+      </div>
+    </form>
   </section>
+
+  {# The picker POST form now wraps ONLY the checkboxes + bulk buttons. #}
+  <form method="post" action="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}" id="pickForm"
+        class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
   <!-- Bulk actions -->
   {% if items %}
@@ -159,7 +163,8 @@
     </div>
     {% endfor %}
   </section>
-</form>
+  </form>
+</div>
 
 <script>
   const checks = () => document.querySelectorAll('.bank-pick:not([disabled])');

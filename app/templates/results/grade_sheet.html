@@ -155,7 +155,15 @@
                          data-row="{{ e.id }}"
                          onchange="recomputeRow({{ e.id }}); recomputeClassAvg();"
                          oninput="colorCell(this)"
-                         {% if locked or row_locked %}disabled{% endif %}
+                         {# Ticket #17 (2026-09-27) — cell only
+                            disables when THIS row is approved.
+                            The sheet-wide `locked` used to OR in
+                            here but it's redundant (when all rows
+                            are locked, every row_locked is True
+                            anyway) and it disguised the per-row
+                            gate. `locked` is kept as the display
+                            badge above. #}
+                         {% if row_locked %}disabled{% endif %}
                          placeholder="—"
                          class="score-cell w-20 h-9 text-center font-label-lg text-label-lg rounded-lg border-2 border-transparent bg-surface-container-low focus:bg-surface-container-lowest focus:border-primary/40 focus:outline-none transition-colors">
                 </td>

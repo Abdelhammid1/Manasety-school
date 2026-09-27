@@ -15,8 +15,7 @@
 {% set diff_colors = {'easy':'bg-[#ECFDF5] text-[#065F46]', 'medium':'bg-tertiary-fixed text-on-tertiary-fixed-variant', 'hard':'bg-error-container text-on-error-container'} %}
 
 {% block page_content %}
-<form method="post" action="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}" class="flex flex-col w-full gap-space-md">
-  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="flex flex-col w-full gap-space-md">
 
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <div class="flex items-start justify-between gap-space-md flex-wrap">
@@ -30,7 +29,13 @@
       <div class="flex items-center gap-space-sm">
         <a href="{{ url_for('lms.assignment_questions', aid=assignment.id) }}"
            class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
-        <button type="submit" id="addBtn" disabled
+        {# Ticket #14 (2026-09-27) — same fix as bank_picker.html.
+           Nested <form> was silently closing the POST form and
+           stripping every bank_ids checkbox from the submission.
+           Submit button now uses form="pickForm" so the browser
+           associates it with the outer POST form even though the
+           button lives outside the <form> tag in the source. #}
+        <button type="submit" id="addBtn" form="pickForm" disabled
                 class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md opacity-40"
                 style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
           <span class="material-symbols-outlined">library_add</span>
@@ -40,6 +45,7 @@
     </div>
   </section>
 
+  <!-- Filter form — SEPARATE GET form, no longer nested. -->
   <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
     <form method="get" action="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}"
           class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-space-sm items-end">
@@ -85,6 +91,9 @@
     </form>
   </section>
 
+  <form method="post" action="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}" id="pickForm"
+        class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
   <section class="flex flex-col gap-space-sm">
     {% for it in items %}
       {% set is_attached = it.id in already %}
@@ -120,7 +129,8 @@
     </div>
     {% endfor %}
   </section>
-</form>
+  </form>
+</div>
 
 <script>
   const btn = document.getElementById('addBtn'); const countEl = document.getElementById('count');
