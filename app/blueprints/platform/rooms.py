@@ -40,6 +40,32 @@ def room_new():
     return redirect(url_for("platform.rooms_list"))
 
 
+@bp.route("/rooms/<int:room_id>/edit", methods=["POST"], endpoint="room_edit")
+@login_required
+@require_permission("sections", "edit")
+def room_edit(room_id):
+    """Ticket #21 (2026-09-27) — inline edit of a room's identity
+    fields. Slot bookings and audit trail are untouched; only the
+    name/code/type/capacity/notes change here."""
+    r = Room.query.filter_by(
+        id=room_id, school_id=current_user.school_id,
+    ).first_or_404()
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        flash("اسم القاعة مطلوب.", "danger")
+        return redirect(url_for("platform.rooms_list"))
+    r.name = name
+    r.code = (request.form.get("code") or "").strip() or None
+    cap = request.form.get("capacity", type=int)
+    r.capacity = cap if cap and cap > 0 else None
+    rt = (request.form.get("room_type") or "").strip()
+    if rt:
+        r.room_type = rt
+    db.session.commit()
+    flash(f"تم تحديث بيانات القاعة ({r.name}).", "success")
+    return redirect(url_for("platform.rooms_list"))
+
+
 @bp.route("/rooms/<int:room_id>/toggle", methods=["POST"], endpoint="room_toggle")
 @login_required
 @require_permission("sections", "edit")

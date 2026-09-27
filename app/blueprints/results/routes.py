@@ -694,11 +694,22 @@ def _subjects_for_grade(grade_id: int):
 
 
 def _compute_year(enrollment, terms, subjects, rule: PassRule):
-    """Compute the year result for one enrollment based on current grades."""
+    """Compute the year result for one enrollment based on current grades.
+
+    Ticket #18 (2026-09-27) — a subject with missing GradeEntry rows
+    used to be stored as `(subject, Decimal(0))` in `subj_scores`
+    and then counted BOTH in the failed-subjects list AND against
+    the weighted average — so an unfinished student displayed as
+    "0.0 معدل / كل المواد راسبة" instead of "—". Incomplete
+    subjects are now excluded from `failed` and from the average
+    denominator; only the `incomplete` status flag reflects the
+    missing data."""
     subj_scores = []
+    incomplete_subjects = set()   # subject.id → excluded from failed/avg
     incomplete = False
 
     for subject in subjects:
+        subject_incomplete = False
         term_scores = []
         for term in terms:
             comps = AssessmentComponent.query.filter_by(
@@ -712,6 +723,7 @@ def _compute_year(enrollment, terms, subjects, rule: PassRule):
             ).all()
             if len(entries) < len(comps):
                 incomplete = True
+                subject_incomplete = True
                 term_scores.append((term, None))
             else:
                 # Ticket B2 — NORMALIZE to a 0..100 percentage before
@@ -747,20 +759,32 @@ def _compute_year(enrollment, terms, subjects, rule: PassRule):
         else:
             year_subject_score = Decimal(0)
             incomplete = True
+            subject_incomplete = True
         subj_scores.append((subject, year_subject_score))
+        if subject_incomplete:
+            incomplete_subjects.add(subject.id)
 
     # Ticket A2 — weighted GPA. Read the (subject_id, grade_id) weight
     # from subject_grades; default 1.0 when no explicit row exists.
     # An unweighted schedule (all rows at 1.0) reduces to the plain
     # arithmetic mean, so this stays backwards-compatible.
+    #
+    # Ticket #18 — build the weight sum over ONLY completed subjects
+    # so a fully-incomplete student ends up with average = 0 AND the
+    # `incomplete` flag set, rather than a bogus 0.0 average dragged
+    # down by zero-scored placeholder rows for missing data.
+    complete_pairs = [
+        (s, sc) for s, sc in subj_scores
+        if s.id not in incomplete_subjects
+    ]
     weights = _subject_weight_map(
         school_id=enrollment.school_id,
         grade_id=enrollment.grade_id,
-        subject_ids=[s.id for s, _ in subj_scores],
+        subject_ids=[s.id for s, _ in complete_pairs],
     )
     weighted_sum = Decimal(0)
     weight_tot   = Decimal(0)
-    for s, sc in subj_scores:
+    for s, sc in complete_pairs:
         w = weights.get(s.id, Decimal("1"))
         weighted_sum += Decimal(str(sc)) * w
         weight_tot   += w
@@ -778,7 +802,12 @@ def _compute_year(enrollment, terms, subjects, rule: PassRule):
     overall_th = rule.overall_pass_threshold or Decimal(1)
     if overall_th < Decimal(1):
         overall_th = Decimal(1)
-    failed = [(s, sc) for s, sc in subj_scores if sc < subj_th]
+    # Ticket #18 — only complete subjects can be counted as "failed";
+    # an unfinished one is neither pass nor fail yet.
+    failed = [
+        (s, sc) for s, sc in subj_scores
+        if s.id not in incomplete_subjects and sc < subj_th
+    ]
 
     if incomplete:
         status = "incomplete"

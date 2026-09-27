@@ -45,7 +45,7 @@
       </thead>
       <tbody>
         {% for r in rooms %}
-        <tr class="border-t border-outline-variant">
+        <tr class="border-t border-outline-variant" id="room-row-{{ r.id }}">
           <td class="px-4 py-3 font-label-lg text-primary font-bold">
             <a href="{{ url_for('platform.room_detail', room_id=r.id) }}" class="hover:underline">{{ r.name }}</a>
           </td>
@@ -62,11 +62,50 @@
             </form>
           </td>
           <td class="px-4 py-3 text-center">
-            <form method="post" action="{{ url_for('platform.room_delete', room_id=r.id) }}" onsubmit="return confirm('حذف {{ r.name|e }}؟')" class="inline">
-              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button type="submit" class="w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container inline-flex items-center justify-center">
-                <span class="material-symbols-outlined text-sm">delete</span>
+            <div class="inline-flex items-center gap-1">
+              {# Ticket #21 (2026-09-27) — inline edit toggle. #}
+              <button type="button" onclick="document.getElementById('room-edit-{{ r.id }}').classList.toggle('hidden')"
+                      class="w-8 h-8 rounded-lg bg-surface-container-low text-primary hover:bg-surface-container inline-flex items-center justify-center"
+                      title="تعديل">
+                <span class="material-symbols-outlined text-sm">edit</span>
               </button>
+              <form method="post" action="{{ url_for('platform.room_delete', room_id=r.id) }}" onsubmit="return confirm('حذف {{ r.name|e }}؟')" class="inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container inline-flex items-center justify-center">
+                  <span class="material-symbols-outlined text-sm">delete</span>
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <tr id="room-edit-{{ r.id }}" class="hidden bg-surface-container-low">
+          <td colspan="6" class="px-4 py-3">
+            <form method="post" action="{{ url_for('platform.room_edit', room_id=r.id) }}"
+                  class="grid grid-cols-1 md:grid-cols-5 gap-space-sm items-end">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <div class="flex flex-col gap-1">
+                <label class="font-label-md font-bold">الاسم</label>
+                <input name="name" required value="{{ r.name }}" class="h-11 px-3 rounded-lg bg-surface-container-lowest">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="font-label-md font-bold">الكود</label>
+                <input name="code" dir="ltr" value="{{ r.code or '' }}" class="h-11 px-3 rounded-lg bg-surface-container-lowest">
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="font-label-md font-bold">النوع</label>
+                <select name="room_type" class="h-11 px-3 rounded-lg bg-surface-container-lowest">
+                  {% for k, lbl in type_labels.items() %}
+                  <option value="{{ k }}" {% if r.room_type == k %}selected{% endif %}>{{ lbl }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="flex flex-col gap-1">
+                <label class="font-label-md font-bold">السعة</label>
+                <input name="capacity" type="number" min="1" value="{{ r.capacity or '' }}"
+                       class="h-11 px-3 text-center rounded-lg bg-surface-container-lowest tabular-nums">
+              </div>
+              <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+                      style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">حفظ</button>
             </form>
           </td>
         </tr>

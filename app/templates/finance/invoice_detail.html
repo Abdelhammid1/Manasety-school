@@ -103,6 +103,54 @@
       </div>
     </div>
     {% endif %}
+
+    {# Ticket #22 (2026-09-27) — visible payment log. Every real
+       Payment row that hit the ledger now shows here with date,
+       amount, method and reference. Before this, the invoice only
+       reflected paid_amount as an aggregate; a bookkeeper couldn't
+       tell how many partial payments made up the total or which
+       method each came through. #}
+    {% if inv.payments %}
+    <div class="mt-space-lg">
+      <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-2">
+        <span class="material-symbols-outlined">receipt_long</span>سجل المدفوعات
+      </h3>
+      <div class="overflow-x-auto rounded-xl bg-surface-container-low">
+        <table class="min-w-full text-right font-body-md">
+          <thead class="text-on-surface-variant font-label-md bg-surface-container">
+            <tr>
+              <th class="p-2">التاريخ</th>
+              <th class="p-2">الطريقة</th>
+              <th class="p-2 text-center tabular-nums">المبلغ</th>
+              <th class="p-2">المرجع</th>
+              <th class="p-2 font-label-xs">ملاحظات</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in inv.payments|sort(attribute='payment_date') %}
+            <tr class="border-t border-outline-variant {% if p.is_refund %}bg-error-container/20{% endif %}">
+              <td class="p-2 tabular-nums" dir="ltr">{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '—' }}</td>
+              <td class="p-2 font-label-sm">
+                {% if p.is_refund %}
+                <span class="inline-flex items-center gap-1 text-error font-bold">
+                  <span class="material-symbols-outlined text-sm">undo</span>استرداد
+                </span>
+                {% else %}
+                {{ p.method or '—' }}
+                {% endif %}
+              </td>
+              <td class="p-2 text-center tabular-nums font-bold {% if p.is_refund %}text-error{% else %}text-primary{% endif %}">
+                {{ '{:,.2f}'.format(p.amount) }}
+              </td>
+              <td class="p-2 font-label-sm" dir="ltr">{{ p.reference or '—' }}</td>
+              <td class="p-2 font-label-xs text-outline">{{ p.notes or '' }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
   </section>
 
   <!-- Payment entry / actions -->

@@ -135,6 +135,35 @@
       </div>
     </div>
 
+    {# Ticket #22 (2026-09-27) — the print copy carries the same
+       payment log as the on-screen invoice so a printed / PDF
+       receipt shows every partial payment. #}
+    {% if inv.payments %}
+    <div style="margin-top:24px">
+      <div style="font-weight:bold;margin-bottom:6px;font-size:13px">سجل المدفوعات</div>
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="background:#F3F4F6">
+            <th style="padding:6px;text-align:right;border:1px solid #E5E7EB">التاريخ</th>
+            <th style="padding:6px;text-align:right;border:1px solid #E5E7EB">الطريقة</th>
+            <th style="padding:6px;text-align:center;border:1px solid #E5E7EB">المبلغ</th>
+            <th style="padding:6px;text-align:right;border:1px solid #E5E7EB">المرجع</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in inv.payments|sort(attribute='payment_date') %}
+          <tr>
+            <td style="padding:6px;border:1px solid #E5E7EB" dir="ltr">{{ p.payment_date.strftime('%Y-%m-%d') if p.payment_date else '—' }}</td>
+            <td style="padding:6px;border:1px solid #E5E7EB">{% if p.is_refund %}استرداد{% else %}{{ p.method or '—' }}{% endif %}</td>
+            <td style="padding:6px;border:1px solid #E5E7EB;text-align:center{% if p.is_refund %};color:#DC2626{% endif %}">{{ "%.2f"|format(p.amount) }}</td>
+            <td style="padding:6px;border:1px solid #E5E7EB" dir="ltr">{{ p.reference or '—' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
     {% if school and school.invoice_footer_text %}
     <div style="margin-top:24px;padding:10px 14px;background:#F7F8FA;border-radius:6px;color:#374151;font-size:12px;line-height:1.7;white-space:pre-wrap">{{ school.invoice_footer_text }}</div>
     {% endif %}
