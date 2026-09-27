@@ -378,11 +378,17 @@ def assignment_question_delete(qid):
     return redirect(url_for("lms.assignment_questions", aid=aid))
 
 
+# Every filter key `_bank_query` reads. If ANY of them is present in
+# the request, the picker treats it as an intentional filter and
+# skips the auto-scope-to-parent redirect. Audit fix — nafis_level
+# and outcome_id were missing, so a `?nafis_level=g3` URL was
+# clobbered by the parent-course defaults.
 _PICKER_FILTER_KEYS = (
     "subject_id", "grade_id", "year_id", "term_id",
     "unit_id", "lesson_id", "difficulty", "kind",
     "tag", "q", "internal_label", "cognitive_level",
-    "skill_id", "objective_id", "source", "picker_defaulted",
+    "skill_id", "objective_id", "source",
+    "nafis_level", "outcome_id",
 )
 
 
@@ -390,9 +396,10 @@ def _picker_defaults_redirect(parent_course, endpoint, **route_kwargs):
     """Ticket #13 (2026-09-27) — first time the picker is opened
     with NO filter parameters at all, redirect to the same URL
     pre-populated with the parent Course's subject_id + grade_id
-    so the initial view is already scoped. The one-shot
-    `picker_defaulted=1` marker keeps the redirect from looping
-    when the user later clears all filters manually."""
+    so the initial view is already scoped. Once the user changes
+    any filter (or clicks "إعادة" to clear them and come back to
+    the bare URL), the redirect fires again — matching the
+    ticket's "always default to parent scope on entry" behaviour."""
     if request.method != "GET":
         return None
     if any(k in request.args for k in _PICKER_FILTER_KEYS):
@@ -406,7 +413,6 @@ def _picker_defaults_redirect(parent_course, endpoint, **route_kwargs):
         args["grade_id"] = parent_course.grade_id
     if not args:
         return None
-    args["picker_defaulted"] = 1
     return redirect(url_for(endpoint, **route_kwargs, **args))
 
 
