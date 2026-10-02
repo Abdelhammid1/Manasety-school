@@ -14,6 +14,13 @@ PERMISSION_MODULES = [
     # keeps the read/write on invoices, chart of accounts, journal;
     # `finance_transactions` gates the money-moving buttons on top.
     "finance_transactions",
+    # Playwright-tour fix (2026-10-02) — the LMS blueprint
+    # (/lms/bank, /lms/quizzes, /lms/assignments, /lms/taxonomy)
+    # was gating on `require_permission("lms", ...)` but the module
+    # was never listed here, so the "all" permission scheme used by
+    # the admin role never granted it and /lms/taxonomy returned
+    # 403 for every user including admins.
+    "lms",
 ]
 PERMISSION_ACTIONS = ["view", "add", "edit", "delete"]
 

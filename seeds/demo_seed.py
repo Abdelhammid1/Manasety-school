@@ -134,18 +134,30 @@ def seed():
 
         # ── Roles ────────────────────────────────────────────────────────
         print("Seeding roles + permissions...")
-        FULL_PERMS = {m: ["view","add","edit","delete"] for m in [
-            "users","roles","academic_years","terms","grades","sections",
-            "students","teachers","schedule","attendance","results",
-            "finance","expenses","payroll","portal",
-        ]}
+        # Playwright-tour fix (2026-10-02) — kept in sync with
+        # app.models.user.PERMISSION_MODULES; was missing `lms` so
+        # the admin couldn't open /lms/taxonomy, and
+        # `finance_transactions` was omitted so admins couldn't post
+        # payments without a role tweak.
+        from app.models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
+        FULL_PERMS = {m: list(PERMISSION_ACTIONS) for m in PERMISSION_MODULES}
         TEACHER_PERMS = {
             "students":["view"], "teachers":["view"],
             "schedule":["view"], "attendance":["view","add","edit"],
             "results":["view","add","edit"], "portal":["view","add","edit"],
+            # Playwright-tour fix — teachers build bank questions,
+            # quizzes and assignments; they need read + write on the
+            # LMS module. Delete stays admin-only.
+            "lms": ["view", "add", "edit"],
         }
-        PARENT_PERMS = {"students":["view"], "finance":["view"]}
-        STUDENT_PERMS = {"students":["view"]}
+        # Playwright-tour audit (2026-10-02) — a parent/student with
+        # `students.view` could list EVERY student in the school,
+        # not just their own kids. Both roles should see only their
+        # own portal; the parent portal and student portal already
+        # scope by request.user. Removed the global `students.view`
+        # from both.
+        PARENT_PERMS  = {"portal": ["view"], "finance": ["view"]}
+        STUDENT_PERMS = {"portal": ["view"]}
 
         admin_role   = Role(school_id=school.id, name="admin",   name_ar="مدير النظام", is_system=True, permissions=FULL_PERMS)
         teacher_role = Role(school_id=school.id, name="teacher", name_ar="معلم",        is_system=True, permissions=TEACHER_PERMS)

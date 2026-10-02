@@ -72,7 +72,7 @@
         <!-- Login Form — real POST to /auth/login -->
         <form method="post" action="{{ url_for('auth.login') }}" class="flex flex-col gap-4" novalidate>
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input type="hidden" name="role_hint" id="roleHint" value="student">
+          <input type="hidden" name="role_hint" id="roleHint" value="{{ role_hint or 'student' }}">
 
           <!-- Username -->
           <div class="flex flex-col gap-1.5 text-right">
@@ -80,6 +80,7 @@
             <div class="relative flex items-center">
               <span class="material-symbols-outlined absolute right-3.5 text-outline text-xl pointer-events-none">account_circle</span>
               <input id="usernameInput" name="username" type="text" required autofocus autocomplete="username"
+                     value="{{ prev_username or '' }}"
                      placeholder="مثال: s.ahmed@schools.edu.sa" dir="ltr"
                      class="w-full h-12 pr-11 pl-4 rounded-xl bg-surface-container-low text-on-surface font-body-md text-body-md placeholder:text-outline/70 focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-secondary transition-all text-right">
             </div>
@@ -184,10 +185,14 @@
     if(p.type==='password'){p.type='text';e.textContent='visibility_off';}
     else{p.type='password';e.textContent='visibility';}
   }
-  // Preselect the default role (student)
+  // Preselect the role that the server told us about (defaults
+  // to student). After a failed login the server re-posts the
+  // user's chosen role so they don't have to re-click the tab.
   document.addEventListener('DOMContentLoaded', () => {
-    const first = document.querySelector('#roleTabs .role-btn');
-    if (first) selectRole(first);
+    const want = document.getElementById('roleHint').value || 'student';
+    const target = document.querySelector(`#roleTabs .role-btn[data-role="${want}"]`)
+                 || document.querySelector('#roleTabs .role-btn');
+    if (target) selectRole(target);
   });
 </script>
 {% endblock %}

@@ -44,6 +44,9 @@ DEFAULT_ROLES = [
     ("teacher",          "معلم",          False, [
         ("attendance", PERMISSION_ACTIONS), ("results", ["view", "add", "edit"]),
         ("schedule", ["view"]), ("portal", PERMISSION_ACTIONS),
+        # Playwright-tour fix (2026-10-02) — bank/quizzes/assignments
+        # live under /lms and gate on the `lms` module.
+        ("lms", ["view", "add", "edit"]),
     ]),
     ("accountant",       "محاسب",         False, [
         ("finance", PERMISSION_ACTIONS),

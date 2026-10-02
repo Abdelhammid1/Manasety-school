@@ -8,6 +8,23 @@ from ...extensions import db
 from ...models import User
 
 
+_VALID_ROLE_HINTS = {"student", "teacher", "parent", "admin"}
+
+
+def _render_login(status: int = 200):
+    """Playwright-tour fix (2026-10-02) — preserve role_hint and
+    username across a failed submit so the user doesn't have to
+    re-pick the tab and re-type their username on every retry."""
+    role_hint = (request.form.get("role_hint") or "student").strip()
+    if role_hint not in _VALID_ROLE_HINTS:
+        role_hint = "student"
+    username = (request.form.get("username") or "").strip()
+    return render_template(
+        "auth/login.html",
+        role_hint=role_hint, prev_username=username,
+    ), status
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -18,12 +35,12 @@ def login():
 
         if not user or not user.is_active:
             flash("بيانات الدخول غير صحيحة.", "danger")
-            return render_template("auth/login.html"), 401
+            return _render_login(401)
 
         if user.is_locked():
             remaining = int((user.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
             flash(f"تم قفل الحساب مؤقتًا. حاول بعد {remaining} دقيقة.", "warning")
-            return render_template("auth/login.html"), 423
+            return _render_login(423)
 
         if not user.check_password(password):
             user.failed_attempts += 1
@@ -37,7 +54,7 @@ def login():
             else:
                 flash("بيانات الدخول غير صحيحة.", "danger")
             db.session.commit()
-            return render_template("auth/login.html"), 401
+            return _render_login(401)
 
         user.failed_attempts = 0
         user.locked_until = None
@@ -46,7 +63,10 @@ def login():
         login_user(user, remember=bool(request.form.get("remember")))
         return redirect(url_for("dashboard.home"))
 
-    return render_template("auth/login.html")
+    return render_template(
+        "auth/login.html",
+        role_hint="student", prev_username="",
+    )
 
 
 @bp.route("/logout")

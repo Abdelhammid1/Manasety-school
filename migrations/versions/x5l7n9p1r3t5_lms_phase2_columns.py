@@ -140,18 +140,26 @@ def upgrade():
 
     # Swap the old (assignment_id, student_id) unique for the new
     # 3-tuple that includes attempt_number so max_attempts > 1 works.
-    if _has_constraint(bind, "lms_submissions", "uq_submission_assignment_student"):
-        op.drop_constraint(
-            "uq_submission_assignment_student",
-            "lms_submissions", type_="unique",
-        )
-    if not _has_constraint(bind, "lms_submissions",
-                            "uq_submission_assignment_student_attempt"):
-        op.create_unique_constraint(
-            "uq_submission_assignment_student_attempt",
-            "lms_submissions",
-            ["assignment_id", "student_id", "attempt_number"],
-        )
+    #
+    # Playwright-tour fix (2026-10-02) — SQLite can't ALTER
+    # constraints at all, so a bare op.drop_constraint /
+    # op.create_unique_constraint pair raises
+    # "No support for ALTER of constraints in SQLite dialect".
+    # Wrapping both in a single batch_alter_table recreates the
+    # table once and keeps the swap atomic on both PG and SQLite.
+    with op.batch_alter_table("lms_submissions") as batch:
+        if _has_constraint(bind, "lms_submissions",
+                           "uq_submission_assignment_student"):
+            batch.drop_constraint(
+                "uq_submission_assignment_student",
+                type_="unique",
+            )
+        if not _has_constraint(bind, "lms_submissions",
+                                "uq_submission_assignment_student_attempt"):
+            batch.create_unique_constraint(
+                "uq_submission_assignment_student_attempt",
+                ["assignment_id", "student_id", "attempt_number"],
+            )
 
 
 def downgrade():
