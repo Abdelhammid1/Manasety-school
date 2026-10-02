@@ -137,36 +137,122 @@ def period_delete(period_id):
 
 # ---------- T-5.2 / T-5.4 Section schedule ----------
 
+def _student_section_id(user):
+    """Playwright-tour fix (2026-10-02) — resolve the active-year
+    section for a logged-in student by their linked Student row.
+    Returns None when the user isn't a student, has no active
+    enrollment, or no active year is set."""
+    try:
+        from ...models import Student, Enrollment, AcademicYear
+    except Exception:
+        return None
+    year = AcademicYear.query.filter_by(
+        school_id=user.school_id, status="active"
+    ).first()
+    if year is None:
+        return None
+    stu = Student.query.filter_by(
+        school_id=user.school_id, user_id=user.id,
+    ).first()
+    if stu is None:
+        return None
+    enr = Enrollment.query.filter_by(
+        student_id=stu.id, year_id=year.id, status="active",
+    ).first()
+    return enr.section_id if enr else None
+
+
+def _child_section_ids(user):
+    """Same resolution for a parent viewing their children — returns
+    (child_full_name, section_id) tuples for each kid who has an
+    active enrollment in the active year."""
+    try:
+        from ...models import Student, Enrollment, AcademicYear
+    except Exception:
+        return []
+    year = AcademicYear.query.filter_by(
+        school_id=user.school_id, status="active"
+    ).first()
+    if year is None:
+        return []
+    kids = Student.query.filter_by(
+        school_id=user.school_id, parent_user_id=user.id,
+    ).all()
+    out = []
+    for stu in kids:
+        enr = Enrollment.query.filter_by(
+            student_id=stu.id, year_id=year.id, status="active",
+        ).first()
+        if enr:
+            out.append((stu.full_name, enr.section_id))
+    return out
+
+
 @bp.route("")
 @login_required
-@require_permission("schedule", "view")
 def index():
-    year = _active_year()
-    sections = []
-    teachers = []
-    if year:
-        sections = (
-            Section.query.filter_by(school_id=_sid(), year_id=year.id)
-            .join(Grade)
-            .order_by(Grade.order_index, Section.name)
+    """Playwright-tour fix (2026-10-02) — role-aware entry.
+    - Admin / teacher with `schedule.view` → the section picker
+      (the admin behaviour this route always had).
+    - Student → auto-redirect to their own section's schedule.
+    - Parent → auto-redirect when they have exactly one child,
+      otherwise render a lightweight child picker.
+    Everyone else keeps hitting the usual 403."""
+    if current_user.can("schedule", "view"):
+        year = _active_year()
+        sections = []
+        if year:
+            sections = (
+                Section.query.filter_by(school_id=_sid(), year_id=year.id)
+                .join(Grade)
+                .order_by(Grade.order_index, Section.name)
+                .all()
+            )
+        teachers = (
+            Teacher.query.filter_by(school_id=_sid(), is_active=True)
+            .order_by(Teacher.full_name)
             .all()
         )
-    teachers = (
-        Teacher.query.filter_by(school_id=_sid(), is_active=True)
-        .order_by(Teacher.full_name)
-        .all()
-    )
-    return render_template(
-        "schedule/index.html", year=year, sections=sections, teachers=teachers
-    )
+        return render_template(
+            "schedule/index.html", year=year, sections=sections, teachers=teachers
+        )
+
+    sid = _student_section_id(current_user)
+    if sid is not None:
+        return redirect(url_for("schedule.section_schedule", section_id=sid))
+
+    kids = _child_section_ids(current_user)
+    if len(kids) == 1:
+        return redirect(
+            url_for("schedule.section_schedule", section_id=kids[0][1])
+        )
+    if kids:
+        return render_template(
+            "schedule/portal_picker.html", children=kids,
+        )
+
+    abort(403)
 
 
 @bp.route("/section/<int:section_id>", methods=["GET", "POST"])
 @login_required
-@require_permission("schedule", "view")
 def section_schedule(section_id):
     section = _get(Section, section_id)
     year = section.year
+    # Playwright-tour fix (2026-10-02) — admin/teacher pass via the
+    # `schedule.view` perm as before; a student may view their own
+    # section only; a parent may view any of their active-year
+    # children's sections. Everyone else 403.
+    _is_own_section = (
+        _student_section_id(current_user) == section.id
+        or any(sid == section.id for _n, sid in _child_section_ids(current_user))
+    )
+    if not current_user.can("schedule", "view") and not _is_own_section:
+        abort(403)
+    # Writes stay admin-only — a student/parent viewer gets a
+    # read-only render.
+    if request.method == "POST" and not current_user.can("schedule", "edit"):
+        abort(403)
     days = Day.query.filter_by(school_id=_sid(), is_active=True).order_by(Day.order_index).all()
     periods = (
         Period.query.filter_by(school_id=_sid()).order_by(Period.order_index).all()

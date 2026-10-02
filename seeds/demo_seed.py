@@ -324,9 +324,13 @@ def seed():
             db.session.add(s); students.append(s)
         db.session.flush()
 
-        # First student is linked to demo parent/student users
+        # First student is linked to demo parent/student users.
+        # Playwright-tour fix (2026-10-02) — also tie the Student
+        # row to the student login user so Student.user_id lookups
+        # work (schedule portal, student_360, etc).
         demo_student = students[0]
         demo_student.parent_user_id = u_parent.id
+        demo_student.user_id = u_student.id
         demo_student.full_name = u_student.full_name  # sync so student login shows their profile
         # Distribute students across sections
         for i, stu in enumerate(students):

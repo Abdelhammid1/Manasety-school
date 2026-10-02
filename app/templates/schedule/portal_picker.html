@@ -1,0 +1,39 @@
+{# Playwright-tour fix (2026-10-02) — picker shown to a parent with
+   more than one enrolled child so they can pick whose schedule to
+   open. Single-child parents and students skip this screen via the
+   route-level redirect. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}جدول أولادي — منصتي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">جدول أولادي</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md max-w-[800px]">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">اختَر الطالب</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      كلّ طفل يملك جدولًا خاصًا بفصله. اختَر من هنا لعرض جدوله.
+    </p>
+  </section>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    {% for name, section_id in children %}
+    <a href="{{ url_for('schedule.section_schedule', section_id=section_id) }}"
+       class="p-space-lg rounded-2xl bg-surface-container-lowest border-2 border-outline-variant hover:border-primary transition-all shadow-sm group">
+      <div class="flex items-center gap-3">
+        <div class="w-12 h-12 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
+          <span class="material-symbols-outlined text-2xl">school</span>
+        </div>
+        <div class="flex flex-col flex-1 min-w-0">
+          <span class="font-title-md text-primary font-bold">{{ name }}</span>
+          <span class="font-label-sm text-outline">عرض الجدول</span>
+        </div>
+        <span class="material-symbols-outlined text-primary group-hover:-translate-x-1 transition-transform">arrow_back</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}
