@@ -52,7 +52,9 @@
           <span class="material-symbols-outlined text-secondary">fact_check</span>
           حضور الأسبوع
         </h3>
-        <a href="{{ url_for('attendance.index') }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
+        {# Playwright-tour fix (2026-10-02) — attendance.index gates
+           on `attendance.view` which a parent doesn't hold; dropping
+           the broken link so this card stays a read-only summary. #}
       </div>
       <div class="flex justify-between gap-2 mt-2" dir="rtl">
         {% for day in week_attendance %}
@@ -114,7 +116,9 @@
         <span class="material-symbols-outlined text-secondary">grade</span>
         آخر الدرجات
       </h3>
-      <a href="{{ url_for('results.grades_index') }}" class="font-label-md text-label-md text-secondary hover:underline">كل الدرجات</a>
+      {# Playwright-tour fix (2026-10-02) — results.grades_index
+         gates on results.view; dropping the broken link until a
+         parent-portal grades route exists. #}
     </div>
     <div class="grid grid-cols-1 md:grid-cols-3 gap-space-sm">
       {% for g in latest_grades %}

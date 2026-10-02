@@ -408,6 +408,14 @@ def invoices_list():
     )
     if year:
         q = q.filter(Enrollment.year_id == year.id)
+    # Playwright-tour fix (2026-10-02) — a parent holds finance.view
+    # so they can see "fees + invoices" for their own kids, but the
+    # unfiltered query above was handing them every family's bill
+    # in the school. Scope to Student.parent_user_id for anyone
+    # without the stronger finance.edit perm (admin/accountant keep
+    # the full school view).
+    if not current_user.can("finance", "edit"):
+        q = q.filter(Student.parent_user_id == current_user.id)
     invoices = q.limit(500).all()
     return render_template("finance/invoices_list.html", invoices=invoices, year=year)
 
@@ -537,6 +545,14 @@ def invoice_new():
 @require_permission("finance", "view")
 def invoice_detail(invoice_id):
     inv = _get(Invoice, invoice_id)
+    # Playwright-tour fix (2026-10-02) — same scope rule as
+    # invoices_list: a parent may read only their own kids'
+    # invoices. Without this guard a parent could GET any
+    # invoice_id directly via the URL.
+    if not current_user.can("finance", "edit"):
+        if inv.enrollment is None or inv.enrollment.student is None \
+                or inv.enrollment.student.parent_user_id != current_user.id:
+            abort(403)
     from ...models import PaymentMethod
     payment_methods = (
         PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
