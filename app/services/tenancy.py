@@ -293,16 +293,22 @@ def _resolve_by_slug(slug: str, *, host: str, reason: str) -> ResolvedTenant:
     if school is None:
         return ResolvedTenant("unknown", host=host, slug=slug_norm,
                               reason=f"{reason}:slug_not_found")
+    # Fail-closed status check — only `active` passes. The ticket enum
+    # is {active, suspended, archived}; a strict allow-list protects
+    # us against future lifecycle values (`trial`, `pending`, …) that
+    # land in the DB before the resolver learns about them, and
+    # against row drift from a half-applied migration. Security review
+    # (2026-10-12) flagged the previous blacklist as fail-open.
+    if school.status == "active":
+        return ResolvedTenant("tenant", school=school, slug=slug_norm,
+                              host=host, reason=reason)
     if school.status == "suspended":
         return ResolvedTenant("suspended", host=host, slug=slug_norm,
                               school=school, reason=f"{reason}:suspended")
-    if school.status == "archived":
-        # Archived behaves like unknown — never leak existence.
-        return ResolvedTenant("unknown", host=host, slug=slug_norm,
-                              reason=f"{reason}:archived")
-    # status == "active"
-    return ResolvedTenant("tenant", school=school, slug=slug_norm,
-                          host=host, reason=reason)
+    # archived — and any unexpected value — looks like unknown so we
+    # never leak whether a slug exists in a non-active state.
+    return ResolvedTenant("unknown", host=host, slug=slug_norm,
+                          reason=f"{reason}:status_{school.status}")
 
 
 # ──────────────────────────────────────────────────────────────────────

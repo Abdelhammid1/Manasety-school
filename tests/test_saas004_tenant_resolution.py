@@ -150,6 +150,28 @@ def test_resolve_archived_school_looks_like_unknown(app_with_schools):
         assert r.kind == "unknown"
 
 
+def test_resolve_fails_closed_on_unknown_status(app_with_schools):
+    """Security review (2026-10-12) — if `status` ever drifts to a
+    value the resolver doesn't recognise (future `trial`, half-
+    applied migration, hand-edited row), it MUST NOT be treated as
+    active. Fail closed and look like `unknown`."""
+    with app_with_schools.app_context():
+        from app.extensions import db
+        from app.models import School
+        from app.services.tenancy import resolve_host
+        s = School.query.filter_by(slug="susp").first()
+        original = s.status
+        try:
+            s.status = "trial"            # a value never defined in SCHOOL_STATUSES
+            db.session.commit()
+            r = resolve_host("susp.manasety.ai")
+            assert r.kind == "unknown"    # fail-closed, not "tenant"
+            assert r.school is None
+        finally:
+            s.status = original
+            db.session.commit()
+
+
 def test_resolve_rejects_multi_level_subdomain(app_with_schools):
     with app_with_schools.app_context():
         from app.services.tenancy import resolve_host
