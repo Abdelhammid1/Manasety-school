@@ -11,6 +11,17 @@ class School(db.Model):
     phone = db.Column(db.String(32))
     address = db.Column(db.String(255))
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+
+    # ─── SAAS-003 (2026-10-12) — tenant identity ─────────────────────
+    # `slug` is the subdomain for this school: slug.manasety.ai.
+    # DB-level unique index + CHECK on the regex live in the migration,
+    # not here, so a hand-written INSERT can't bypass them. `status`
+    # is lifecycle state, independent of billing — the subscription
+    # layer that will land later carries its own fields.
+    slug   = db.Column(db.String(63), nullable=False,
+                        unique=True, index=True)
+    status = db.Column(db.String(16), default="active",
+                        server_default="active", nullable=False)
     # Ticket 8 — attendance display mode. Governs which UI the school
     # sees on the attendance screen.
     #   daily        → one status per day (legacy)
