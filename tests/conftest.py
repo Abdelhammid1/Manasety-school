@@ -63,15 +63,23 @@ def pytest_configure(config):
 def app():
     """Session-scoped Flask app in testing mode. Preserves whatever
     DATABASE_URL the operator set (the DB guard above makes sure it
-    isn't a prod name)."""
+    isn't a prod name).
+
+    Tenancy is wired to `log` mode with BASE_DOMAIN=manasety.ai so
+    SAAS-006's cross-tenant checks engage during tests. Individual
+    cases that need a different mode override `app.config` directly."""
     os.environ["APP_ENV"] = "testing"
-    # Clear a cached module if an earlier test file imported it.
     for mod in list(sys.modules):
         if mod == "app" or mod.startswith("app."):
             sys.modules.pop(mod, None)
     import importlib
     app_mod = importlib.import_module("app")
-    return app_mod.create_app()
+    app = app_mod.create_app()
+    app.config["BASE_DOMAIN"] = "manasety.ai"
+    app.config["PLATFORM_HOSTS"] = ["lms.manasety.ai"]
+    app.config["LEGACY_HOSTS"] = {"school.manasety.ai": "demo"}
+    app.config["TENANT_RESOLUTION_MODE"] = "log"
+    return app
 
 
 # ─── Two-school factory ──────────────────────────────────────────────
@@ -236,11 +244,18 @@ def two_schools(app) -> Iterator[dict]:
 
 @pytest.fixture
 def login_as(app):
-    """Return `login(client, user)` — pushes the Flask-Login session
-    cookie so subsequent requests are authenticated as that user.
-    Avoids reaching into /auth/login's CSRF for every test."""
-    def _login(client, user):
-        with client.session_transaction() as sess:
+    """Return `login(client, user, base_url=None)` — pushes the
+    Flask-Login session cookie so subsequent requests are authenticated
+    as that user. Avoids reaching into /auth/login's CSRF for every
+    test.
+
+    When `base_url` is passed, the session cookie is scoped to that
+    host — required when tests use `base_url="http://alpha.manasety.ai"`
+    on their actual requests, otherwise Werkzeug stores the cookie
+    under `localhost` and no subsequent host-scoped request sees it."""
+    def _login(client, user, base_url=None):
+        kwargs = {"base_url": base_url} if base_url else {}
+        with client.session_transaction(**kwargs) as sess:
             sess["_user_id"] = str(user.id)
             sess["_fresh"] = True
     return _login

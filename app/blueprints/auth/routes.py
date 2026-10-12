@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 
-from flask import current_app, flash, redirect, render_template, request, session, url_for
+from flask import current_app, flash, g, redirect, render_template, request, session, url_for
 from flask_login import login_required, login_user, logout_user
 
 from . import bp
@@ -25,13 +25,50 @@ def _render_login(status: int = 200):
     ), status
 
 
+def _request_tenant():
+    """SAAS-006 — the tenant the host resolver attached to this
+    request, or None if resolution is in `off` mode. Everything
+    tenant-scoped in this file branches on this one call so the
+    off / log / enforce transition is uniform.
+
+    Returns the ResolvedTenant instance (kind in {tenant, platform,
+    unknown, suspended, malformed}) or None."""
+    return getattr(g, "tenant_resolved", None)
+
+
+def _lookup_user_for_login(username: str) -> User | None:
+    """SAAS-006 — scope the user lookup to the tenant of the request
+    whenever one is set. Pre-SAAS-004 (resolution off) this falls
+    back to the global lookup so the dev DB with a single tenant
+    keeps working."""
+    tenant = _request_tenant()
+    if tenant is not None and tenant.kind == "tenant" and tenant.school is not None:
+        return (
+            User.query
+            .filter_by(school_id=tenant.school.id, username=username)
+            .first()
+        )
+    # Resolution off → preserve legacy single-tenant behaviour.
+    return User.query.filter_by(username=username).first()
+
+
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         username = (request.form.get("username") or "").strip()
         password = request.form.get("password") or ""
 
-        user = User.query.filter_by(username=username).first()
+        # SAAS-006 — the platform host (lms.manasety.ai) does NOT
+        # accept school-user logins. Super-admin login lives in a
+        # separate Epic; for now, point school users at their
+        # own subdomain so a password submitted here can't match a
+        # school admin by accident.
+        tenant = _request_tenant()
+        if tenant is not None and tenant.kind == "platform":
+            flash("ادخل من عنوان مدرستك: schoolname.manasety.ai", "warning")
+            return _render_login(401)
+
+        user = _lookup_user_for_login(username)
 
         if not user or not user.is_active:
             flash("بيانات الدخول غير صحيحة.", "danger")
@@ -97,12 +134,37 @@ def forgot():
             flash("يرجى إدخال البريد الإلكتروني أو رقم الجوال.", "danger")
             return render_template("auth/forgot.html", channel=channel)
         # Anti-enumeration: always advance to OTP even if no user matched.
+        #
+        # SAAS-006 — scope every candidate lookup to the current
+        # tenant when one is resolved. email / phone have no unique
+        # index at the DB level, so a bare `.first()` could pick an
+        # account in another school and silently send ITS OTP via
+        # ITS SMTP settings. Reject multi-match within the same
+        # tenant too — never choose arbitrarily.
+        tenant = _request_tenant()
         user = None
+        base_q = User.query
+        if tenant is not None and tenant.kind == "tenant" and tenant.school is not None:
+            base_q = base_q.filter_by(school_id=tenant.school.id)
+
+        def _one_or_none(q):
+            """Return the single match or None if 0/many."""
+            rows = q.limit(2).all()
+            if len(rows) == 1:
+                return rows[0]
+            if len(rows) > 1:
+                current_app.logger.warning(
+                    "OTP ambiguous — multiple users share identifier "
+                    "within tenant; refusing to pick."
+                )
+            return None
+
         if "@" in target:
-            user = User.query.filter_by(email=target).first()
+            user = _one_or_none(base_q.filter_by(email=target))
         else:
-            user = (User.query.filter_by(phone=target).first()
-                    or User.query.filter_by(username=target).first())
+            user = _one_or_none(base_q.filter_by(phone=target))
+            if user is None:
+                user = _one_or_none(base_q.filter_by(username=target))
         code = _gen_otp()
         session["otp_code"] = code
         session["otp_target"] = target

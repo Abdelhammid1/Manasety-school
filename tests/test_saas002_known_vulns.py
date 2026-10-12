@@ -17,15 +17,9 @@ R3  — a session cookie minted on school A keeps a logged-in user
 
 from __future__ import annotations
 
-import pytest
-
 
 # ─── R1 ───────────────────────────────────────────────────────────────
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R1 — login still filters by username alone; see SAAS-006.",
-)
 def test_r1_login_is_tenant_scoped(app, two_schools):
     """A `admin / <password-of-A>` login submitted on school B's host
     MUST fail. Today it succeeds because the user lookup ignores the
@@ -44,14 +38,14 @@ def test_r1_login_is_tenant_scoped(app, two_schools):
         # Correct behaviour (after SAAS-006): fail — no such credential
         # on school B. Current behaviour: succeeds because the lookup
         # finds A's admin by username.
-        r = c.get("/auth/login", base_url=f"https://{B['school'].slug}.manasety.ai")
+        r = c.get("/auth/login", base_url=f"http://{B['school'].slug}.manasety.ai")
         import re
         tok = re.search(
             rb'name="csrf_token" value="([^"]+)"', r.data,
         ).group(1).decode()
         resp = c.post(
             "/auth/login",
-            base_url=f"https://{B['school'].slug}.manasety.ai",
+            base_url=f"http://{B['school'].slug}.manasety.ai",
             data={
                 "csrf_token": tok,
                 "role_hint": "admin",
@@ -67,10 +61,6 @@ def test_r1_login_is_tenant_scoped(app, two_schools):
 
 # ─── R2 ───────────────────────────────────────────────────────────────
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R2 — password-reset lookup searches every school; see SAAS-006.",
-)
 def test_r2_password_reset_is_tenant_scoped(app, two_schools):
     """Two schools can share an email address. A `forgot` request on
     school A must NEVER send an OTP targeted at school B's user —
@@ -86,38 +76,36 @@ def test_r2_password_reset_is_tenant_scoped(app, two_schools):
         A["users"]["admin"].set_password("alpha-admin-pw-12345")
         B["users"]["admin"].set_password("beta-admin-pw-12345")
         db.session.commit()
+        expected_user_id = A["users"]["admin"].id
 
+    tenant_host = f"http://{A['school'].slug}.manasety.ai"
     with app.test_client() as c:
-        r = c.get("/auth/forgot", base_url=f"https://{A['school'].slug}.manasety.ai")
+        r = c.get("/auth/forgot", base_url=tenant_host)
         import re
         tok_m = re.search(rb'name="csrf_token" value="([^"]+)"', r.data)
         tok = tok_m.group(1).decode() if tok_m else ""
         resp = c.post(
             "/auth/forgot",
-            base_url=f"https://{A['school'].slug}.manasety.ai",
+            base_url=tenant_host,
             data={"csrf_token": tok, "channel": "email", "target": shared_email},
         )
 
-        with c.session_transaction() as sess:
+        # Must pass base_url so the test client reads the session cookie
+        # scoped to the tenant host (not the default localhost cookie jar).
+        with c.session_transaction(base_url=tenant_host) as sess:
             otp_user_id = sess.get("otp_user_id")
 
     # Correct behaviour (post SAAS-006): the OTP must point at A's
-    # user, not B's. Today it picks the first row that matches, which
+    # user, not B's. Pre-fix: picks the first row that matches, which
     # could be either.
-    assert otp_user_id == A["users"]["admin"].id, (
+    assert otp_user_id == expected_user_id, (
         f"R2 fix should scope reset to tenant A's user "
-        f"({A['users']['admin'].id}); got {otp_user_id}"
+        f"({expected_user_id}); got {otp_user_id}"
     )
 
 
 # ─── R3 ───────────────────────────────────────────────────────────────
 
-@pytest.mark.xfail(
-    strict=True,
-    reason="R3 — a session cookie from one tenant is honoured on another; "
-           "see SAAS-006. Verified by checking that A's school name is "
-           "NOT returned when the same cookie is replayed on B's host.",
-)
 def test_r3_session_cookie_cannot_cross_tenants(app, two_schools, login_as):
     """Log in as school A's admin, then issue a request on school B's
     host with the same cookie. Must NOT render A's data on B's host —
@@ -125,37 +113,53 @@ def test_r3_session_cookie_cannot_cross_tenants(app, two_schools, login_as):
     scopes the response to B's school name (never A's)."""
     A = two_schools["A"]
     B = two_schools["B"]
-    a_name = A["school"].name
-    b_slug = B["school"].slug
+    a_host = f"http://{A['school'].slug}.manasety.ai"
+    b_host = f"http://{B['school'].slug}.manasety.ai"
 
     with app.test_client() as c:
-        login_as(c, A["users"]["admin"])
+        # Mint the session on A's host so Werkzeug stores the cookie
+        # under alpha.manasety.ai. R3 then forces the SAME cookie onto
+        # B's host via explicit cookie copy.
+        login_as(c, A["users"]["admin"], base_url=a_host)
 
-        # Baseline: on A's host the admin dashboard renders A's name.
+        # Baseline: on A's host, admin can hit /dashboard (200).
         r_on_a = c.get(
             "/dashboard",
-            base_url=f"https://{A['school'].slug}.manasety.ai",
-            follow_redirects=True,
+            base_url=a_host,
+            follow_redirects=False,
         )
         assert r_on_a.status_code == 200, (
             f"baseline failed — admin can't open own dashboard: "
             f"{r_on_a.status_code}"
         )
-        assert a_name.encode() in r_on_a.data, (
-            "baseline failed — A's dashboard doesn't name school A."
+
+        # Replay the same session cookie against B's host. We copy the
+        # cookie onto beta's host explicitly, otherwise the test client
+        # would send no cookie at all (it's scoped to alpha).
+        session_cookie = c.get_cookie("session", domain=f"{A['school'].slug}.manasety.ai")
+        assert session_cookie is not None, "no session cookie minted on A"
+        c.set_cookie(
+            "session", session_cookie.value,
+            domain=f"{B['school'].slug}.manasety.ai",
         )
 
-        # Replay the same cookie against B's host.
         r_on_b = c.get(
             "/dashboard",
-            base_url=f"https://{b_slug}.manasety.ai",
-            follow_redirects=True,
+            base_url=b_host,
+            follow_redirects=False,
         )
-        # Correct behaviour (post SAAS-006): A's data must NOT appear
-        # in a response served on B's host. Either we're logged out
-        # (redirected to /auth/login) or the response is scoped to B.
-        assert a_name.encode() not in r_on_b.data, (
-            f"R3 fix must stop a cookie minted on {A['school'].slug} "
-            f"from rendering {A['school'].slug}'s data on "
-            f"{b_slug}'s host; A's name leaked into the body."
+        # Correct behaviour (post SAAS-006): the cross-tenant kill hook
+        # logs the user out and 302s them to /auth/login on B's host
+        # (or 401/403 if a stricter denial is wired later). Anything
+        # that renders A's dashboard HTML (200 to /dashboard) is a leak.
+        assert r_on_b.status_code in (302, 401, 403), (
+            f"R3 fix should log the user out or deny the request on "
+            f"the foreign tenant; got {r_on_b.status_code}"
         )
+        # The redirect must land on the login page, not back into any
+        # authenticated surface.
+        if r_on_b.status_code == 302:
+            assert "/auth/login" in (r_on_b.headers.get("Location") or ""), (
+                f"R3 fix should redirect to /auth/login on cross-tenant "
+                f"replay; got Location={r_on_b.headers.get('Location')}"
+            )

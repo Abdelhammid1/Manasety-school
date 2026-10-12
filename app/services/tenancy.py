@@ -18,7 +18,9 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from typing import Final, Iterator, Optional
 
-from flask import Flask, abort, current_app, g, request, render_template
+from flask import (
+    Flask, abort, current_app, g, redirect, render_template, request, url_for,
+)
 
 
 # Decision D8 — reserved subdomains that no tenant may claim.
@@ -409,6 +411,41 @@ def init_app(app: Flask) -> None:
             ), 403
         # unknown / malformed / archived — never disclose which.
         abort(404)
+
+    # ─── SAAS-006 — cross-tenant session kill ─────────────────────
+    # Runs AFTER the resolver has stamped g.tenant. If a logged-in
+    # user carries school_id != the host's tenant, drop them to the
+    # login page on the current host instead of letting them see a
+    # dashboard scoped to a tenant they don't belong to. Defence-in-
+    # depth above the host-only cookie policy from D5.
+    @app.before_request
+    def _kill_cross_tenant_session():
+        resolved = getattr(g, "tenant_resolved", None)
+        if resolved is None or resolved.kind != "tenant" or resolved.school is None:
+            return None
+        try:
+            from flask_login import current_user, logout_user
+        except Exception:
+            return None
+        if not getattr(current_user, "is_authenticated", False):
+            return None
+        user_school_id = getattr(current_user, "school_id", None)
+        if user_school_id is None:
+            return None
+        if int(user_school_id) == int(resolved.school.id):
+            return None
+        # Mismatch — tear down the session before any view sees it.
+        app.logger.warning(
+            "tenancy — dropped cross-tenant session: user_school=%s "
+            "host_tenant=%s path=%s",
+            user_school_id, resolved.school.id, request.path,
+        )
+        logout_user()
+        # Preserve the attempted path only when it isn't the login
+        # loop itself.
+        if request.path != url_for("auth.login"):
+            return redirect(url_for("auth.login"))
+        return None
 
     # Expose on app for introspection (tests / debug).
     app.extensions.setdefault("manasety", {})["tenancy_installed"] = True
