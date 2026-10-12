@@ -25,6 +25,12 @@ def create_app(config_class=Config):
     bcrypt.init_app(app)
     csrf.init_app(app)
 
+    # SAAS-004 — resolve the tenant from the request Host before any
+    # view runs. Mode defaults to `off` (no behaviour change) and is
+    # flipped to `log` / `enforce` via TENANT_RESOLUTION_MODE env.
+    from .services import tenancy as _tenancy
+    _tenancy.init_app(app)
+
     # Global soft-delete filter — every SELECT on a SoftDeleteMixin
     # class transparently appends `deleted_at IS NULL`. See
     # app/services/soft_delete.py for the escape hatch.

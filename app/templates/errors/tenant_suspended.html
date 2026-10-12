@@ -1,0 +1,21 @@
+{# SAAS-004 — shown when a request lands on a school whose status
+   is `suspended`. The school exists so we can greet it by name,
+   but the response is 403 so no further routing happens. #}
+{% extends "partials/stitch_base.html" %}
+{% set shell_hidden = True %}
+{% block title %}الحساب موقوف — منصتي{% endblock %}
+{% block focus_content %}
+<main class="w-full min-h-screen bg-surface flex items-center justify-center p-space-xl">
+  <div class="max-w-md w-full bg-surface-container-lowest rounded-2xl p-space-xl shadow-md text-center">
+    <div class="w-20 h-20 mx-auto rounded-2xl bg-error-container flex items-center justify-center text-on-error-container">
+      <span class="material-symbols-outlined text-4xl">block</span>
+    </div>
+    <h1 class="font-headline-lg text-error font-extrabold mt-space-md">الحساب موقوف</h1>
+    <p class="font-body-md text-on-surface-variant mt-space-sm">
+      حساب
+      {% if school %}<strong class="text-primary">{{ school.name }}</strong>{% else %}هذه المدرسة{% endif %}
+      موقوف مؤقتًا. تواصل مع إدارة منصتي لإعادة التفعيل.
+    </p>
+  </div>
+</main>
+{% endblock %}

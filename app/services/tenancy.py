@@ -1,17 +1,24 @@
-"""SAAS-003 (2026-10-12) — tenant identity helpers.
+"""SAAS-003/004 (2026-10-12) — tenant identity + host resolution.
 
-Shared slug validation + the reserved-subdomain list that both the
-model layer and (later) SAAS-004's host resolver will read from.
-Kept in one place so the two never drift.
+SAAS-003 lives at the top (slug validator + reserved list + status
+enum) — SAAS-004 extends it with the request-time Host resolver,
+the TenantContext ContextVar and the `before_request` hook that
+drops onto `g.tenant` / `g.is_platform`.
 
-This file is intentionally minimal today — the full tenant
-resolution middleware lands in SAAS-004 and extends this module.
+Both halves share one module so slug rules and reserved labels
+never drift between the model layer and the host middleware.
 """
 
 from __future__ import annotations
 
+import logging
+import os
 import re
-from typing import Final
+from contextlib import contextmanager
+from contextvars import ContextVar
+from typing import Final, Iterator, Optional
+
+from flask import Flask, abort, current_app, g, request, render_template
 
 
 # Decision D8 — reserved subdomains that no tenant may claim.
@@ -62,15 +69,12 @@ def normalize_slug(raw: str | None) -> str:
     return (raw or "").strip().lower()
 
 
-def validate_slug(raw: str | None) -> str:
-    """Return the normalized slug or raise SlugValidationError.
-
-    Rules:
-      - 1..63 characters total
-      - [a-z0-9-] only, must start and end alphanumeric
-      - not in RESERVED_SLUGS (checked case-insensitively via
-        normalize_slug)
-    """
+def validate_slug_format(raw: str | None) -> str:
+    """Format-only check: shape + length + character set. Does NOT
+    reject reserved slugs. Used by the host resolver (which must
+    accept the already-provisioned `demo` tenant) and by any other
+    code that only needs to confirm the slug could legally exist in
+    the DB."""
     slug = normalize_slug(raw)
     if not slug:
         raise SlugValidationError("الاسم المختصر مطلوب.")
@@ -81,6 +85,16 @@ def validate_slug(raw: str | None) -> str:
             "الاسم المختصر يسمح فقط بالحروف الصغيرة والأرقام والشرطة، "
             "ولا يبدأ ولا ينتهي بشرطة."
         )
+    return slug
+
+
+def validate_slug(raw: str | None) -> str:
+    """Full validator — format AND reserved-list. Use at CREATION
+    time (admin creates a new school) so no new tenant can claim a
+    reserved subdomain. The existing `demo` tenant was provisioned
+    before this list existed and is grandfathered via
+    `validate_slug_format` in the resolver."""
+    slug = validate_slug_format(raw)
     if slug in RESERVED_SLUGS:
         raise SlugValidationError(
             f"الاسم المختصر «{slug}» محجوز ولا يمكن استخدامه."
@@ -92,3 +106,303 @@ def validate_slug(raw: str | None) -> str:
 # CHECK constraint. Keep this list as the single source of truth so
 # a future lifecycle addition (e.g. `trial`) only edits one place.
 SCHOOL_STATUSES: Final[tuple[str, ...]] = ("active", "suspended", "archived")
+
+
+# ══════════════════════════════════════════════════════════════════════
+# SAAS-004 (2026-10-12) — Host resolver + TenantContext
+# ══════════════════════════════════════════════════════════════════════
+
+# Modes:
+#   off     — no behaviour change; g.tenant stays unset.
+#   log     — resolver runs and logs would-be rejections, but never
+#             blocks. Safe to turn on in production before DNS is
+#             ready: nothing 404s / 403s, we just learn what *would*
+#             happen under enforce.
+#   enforce — resolver runs AND rejects unknown / suspended / malformed
+#             hosts. The target state once DevOps lands wildcard DNS,
+#             SSL and the server_name block.
+TENANT_RESOLUTION_MODES: Final[tuple[str, ...]] = ("off", "log", "enforce")
+
+# Only a-z, 0-9, dot and hyphen are allowed in a hostname label.
+# Everything outside that set is a parse failure (which, under
+# `enforce`, becomes a 404).
+_HOST_SAFE_RE = re.compile(r"^[a-z0-9.\-]+$")
+
+_log = logging.getLogger(__name__)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Config helpers — pulled through current_app so tests can override
+# ──────────────────────────────────────────────────────────────────────
+
+def _cfg_mode() -> str:
+    """Current resolution mode. Reads from Flask config, falls back
+    to the TENANT_RESOLUTION_MODE env var, then to `off` so
+    pre-existing code behaves exactly as before by default."""
+    val = (current_app.config.get("TENANT_RESOLUTION_MODE")
+           or os.environ.get("TENANT_RESOLUTION_MODE")
+           or "off").strip().lower()
+    return val if val in TENANT_RESOLUTION_MODES else "off"
+
+
+def _cfg_base_domain() -> str:
+    return (current_app.config.get("BASE_DOMAIN") or "").strip().lower()
+
+
+def _cfg_platform_hosts() -> frozenset[str]:
+    raw = current_app.config.get("PLATFORM_HOSTS") or ()
+    return frozenset(h.strip().lower() for h in raw if h and h.strip())
+
+
+def _cfg_legacy_hosts() -> dict[str, str]:
+    """Map {legacy_host → slug}. Keeps the Flutter apps that bake
+    `school.manasety.ai` into their URLs working during the transition."""
+    raw = current_app.config.get("LEGACY_HOSTS") or {}
+    return {k.strip().lower(): v.strip().lower() for k, v in raw.items()}
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Host normalisation
+# ──────────────────────────────────────────────────────────────────────
+
+def normalize_host(raw: str | None) -> str:
+    """Lowercase, strip port, strip trailing dot, strip whitespace.
+
+    Returns empty string for anything that would already fail parsing
+    downstream — the caller treats that as "unknown host" per mode.
+    An IPv6 literal (begins with `[`) returns empty because this
+    product is served on hostnames, not literal IPs.
+    """
+    if not raw:
+        return ""
+    h = raw.strip().lower()
+    if not h or h.startswith("["):
+        return ""
+    # Strip port.
+    if ":" in h:
+        host, _, port = h.rpartition(":")
+        # If the "host" half is actually empty (:443 alone) or the
+        # port half isn't numeric, the whole thing is garbage.
+        if not host or not port.isdigit():
+            return ""
+        h = host
+    # Strip trailing dot (FQDN form).
+    if h.endswith("."):
+        h = h[:-1]
+    if not h or not _HOST_SAFE_RE.match(h):
+        return ""
+    return h
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Resolver — returns a ResolvedTenant dataclass-ish namespace
+# ──────────────────────────────────────────────────────────────────────
+
+class ResolvedTenant:
+    """What the resolver attaches to Flask's `g` object.
+
+    Attributes:
+      kind     — "tenant" | "platform" | "unknown" | "suspended" | "malformed"
+      school   — School row if kind == "tenant", else None
+      slug     — resolved slug string (always set when kind == "tenant")
+      host     — the normalized host we matched against
+      reason   — short English code useful for logs / tests
+    """
+
+    __slots__ = ("kind", "school", "slug", "host", "reason")
+
+    def __init__(self, kind: str, *, school=None, slug: str = "",
+                 host: str = "", reason: str = "") -> None:
+        self.kind = kind
+        self.school = school
+        self.slug = slug
+        self.host = host
+        self.reason = reason
+
+    @property
+    def is_platform(self) -> bool:
+        return self.kind == "platform"
+
+    @property
+    def ok(self) -> bool:
+        return self.kind in ("tenant", "platform")
+
+
+def resolve_host(host_header: str | None) -> ResolvedTenant:
+    """Pure function: given a raw Host header, classify it.
+
+    Does NOT read from `g` or `request`; the before_request wrapper
+    does that. Separate so tests can hit it directly across hundreds
+    of hostnames without spinning a test client."""
+    host = normalize_host(host_header)
+    if not host:
+        return ResolvedTenant("malformed", host=host or "", reason="empty_or_bad_chars")
+
+    # Platform first — matching one of PLATFORM_HOSTS short-circuits
+    # before any lookup so the admin console doesn't need a schools row.
+    if host in _cfg_platform_hosts():
+        return ResolvedTenant("platform", host=host, reason="platform_host")
+
+    # Legacy maps are explicit tenant aliases (school.manasety.ai → demo).
+    legacy = _cfg_legacy_hosts()
+    if host in legacy:
+        slug = legacy[host]
+        return _resolve_by_slug(slug, host=host, reason="legacy_map")
+
+    # Expect exactly `<slug>.<base>` — one subdomain level, nothing more.
+    base = _cfg_base_domain()
+    if base and host.endswith("." + base):
+        label = host[: -(len(base) + 1)]
+        # Multi-level (`a.b.manasety.ai`) and spoof-y (`demo.manasety.ai.evil.com`)
+        # fall through here because the second check sees a dot inside `label`.
+        if "." in label or not label:
+            return ResolvedTenant("unknown", host=host, reason="non_single_label")
+        return _resolve_by_slug(label, host=host, reason="subdomain")
+
+    # Dev convenience: `*.localhost` acts like `*.<base>` so pytest
+    # test clients and local browsers work without touching DNS.
+    if host.endswith(".localhost"):
+        label = host[: -len(".localhost")]
+        if "." in label or not label:
+            return ResolvedTenant("unknown", host=host, reason="non_single_label")
+        return _resolve_by_slug(label, host=host, reason="dev_subdomain")
+
+    # Bare `localhost` or anything else → unknown. Dev callers can
+    # set TENANT_DEV_SLUG to force a tenant on a single-host setup.
+    dev_slug = (current_app.config.get("TENANT_DEV_SLUG") or "").strip().lower()
+    if dev_slug and host in ("localhost", "127.0.0.1"):
+        return _resolve_by_slug(dev_slug, host=host, reason="dev_override")
+
+    return ResolvedTenant("unknown", host=host, reason="no_match")
+
+
+def _resolve_by_slug(slug: str, *, host: str, reason: str) -> ResolvedTenant:
+    """Look up the School row, enforce lifecycle status.
+    Deferred import so this module stays importable before models load.
+
+    Uses `validate_slug_format` not `validate_slug` — the latter
+    would reject `demo` and any other reserved label that was
+    grandfathered in before the reserved-list existed."""
+    from ..models import School
+    try:
+        slug_norm = validate_slug_format(slug)
+    except SlugValidationError:
+        return ResolvedTenant("malformed", host=host, slug=slug,
+                              reason=f"{reason}:bad_slug")
+    school = School.query.filter_by(slug=slug_norm).first()
+    if school is None:
+        return ResolvedTenant("unknown", host=host, slug=slug_norm,
+                              reason=f"{reason}:slug_not_found")
+    if school.status == "suspended":
+        return ResolvedTenant("suspended", host=host, slug=slug_norm,
+                              school=school, reason=f"{reason}:suspended")
+    if school.status == "archived":
+        # Archived behaves like unknown — never leak existence.
+        return ResolvedTenant("unknown", host=host, slug=slug_norm,
+                              reason=f"{reason}:archived")
+    # status == "active"
+    return ResolvedTenant("tenant", school=school, slug=slug_norm,
+                          host=host, reason=reason)
+
+
+# ──────────────────────────────────────────────────────────────────────
+# TenantContext — ContextVar for jobs / CLI / cron
+# ──────────────────────────────────────────────────────────────────────
+
+_tenant_cv: ContextVar[Optional[int]] = ContextVar("manasety_tenant", default=None)
+
+
+class TenantNotResolved(RuntimeError):
+    """Raised when code asks for the current tenant and nothing is in
+    scope (no request, no context manager)."""
+
+
+@contextmanager
+def tenant_context(school_id: int) -> Iterator[int]:
+    """Scope `current_tenant_id()` to the given school for the duration
+    of the with-block. Safe to nest; uses a ContextVar so concurrent
+    threads / asyncio tasks don't leak into each other."""
+    token = _tenant_cv.set(int(school_id))
+    try:
+        yield int(school_id)
+    finally:
+        _tenant_cv.reset(token)
+
+
+def current_tenant() -> ResolvedTenant | None:
+    """Return the ResolvedTenant attached by the before_request hook,
+    or None if we're outside any request (jobs should use
+    `current_tenant_id()` instead)."""
+    return getattr(g, "tenant_resolved", None)
+
+
+def current_tenant_id() -> int:
+    """Return the current tenant's school_id — from the context var
+    first (jobs), then from the resolved request tenant. Raises
+    TenantNotResolved if neither is set."""
+    cv = _tenant_cv.get()
+    if cv is not None:
+        return cv
+    resolved = current_tenant()
+    if resolved and resolved.kind == "tenant" and resolved.school is not None:
+        return int(resolved.school.id)
+    raise TenantNotResolved(
+        "No tenant in scope. Wrap job/CLI code in "
+        "`with tenant_context(school_id): ...`."
+    )
+
+
+def require_tenant() -> ResolvedTenant:
+    """For view code that MUST have a tenant (not platform)."""
+    r = current_tenant()
+    if r is None or r.kind != "tenant":
+        raise TenantNotResolved("Expected a tenant request, got none.")
+    return r
+
+
+# ──────────────────────────────────────────────────────────────────────
+# Flask hook
+# ──────────────────────────────────────────────────────────────────────
+
+def init_app(app: Flask) -> None:
+    """Register the before_request resolver on the Flask app. Call
+    once from create_app()."""
+
+    @app.before_request
+    def _resolve_tenant_from_host():
+        g.tenant_resolved = None
+        g.tenant = None
+        g.is_platform = False
+
+        mode = _cfg_mode()
+        if mode == "off":
+            return None
+
+        resolved = resolve_host(request.host)
+        g.tenant_resolved = resolved
+        g.tenant = resolved.school if resolved.kind == "tenant" else None
+        g.is_platform = resolved.is_platform
+
+        if mode == "log":
+            # Record every rejection — ops uses this to confirm the
+            # host set is complete before flipping to enforce.
+            if not resolved.ok:
+                _log.warning(
+                    "tenancy[log] would reject host=%r kind=%s reason=%s",
+                    request.host, resolved.kind, resolved.reason,
+                )
+            return None
+
+        # enforce
+        if resolved.kind == "tenant" or resolved.kind == "platform":
+            return None
+        if resolved.kind == "suspended":
+            return render_template(
+                "errors/tenant_suspended.html",
+                school=resolved.school,
+            ), 403
+        # unknown / malformed / archived — never disclose which.
+        abort(404)
+
+    # Expose on app for introspection (tests / debug).
+    app.extensions.setdefault("manasety", {})["tenancy_installed"] = True
