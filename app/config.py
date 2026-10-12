@@ -44,8 +44,48 @@ def _resolve_secret_key() -> str:
     return key or _DEV_FALLBACK_SECRET
 
 
+# ─── SAAS-007 (2026-10-12) ────────────────────────────────────────────
+# JWT_SIGNING_KEY is a SEPARATE secret from SECRET_KEY so a leak of
+# one credential doesn't compromise both the web session and the
+# mobile API at once. If unset, fall back to SECRET_KEY so single-
+# server dev continues to work — production refuses to boot with the
+# fallback, same policy as SECRET_KEY.
+_DEV_FALLBACK_JWT = "dev-jwt-change-me"
+
+
+def _resolve_jwt_signing_key(session_key: str) -> str:
+    raw = os.environ.get("JWT_SIGNING_KEY", "")
+    key = (raw or "").strip()
+    is_prod = APP_ENV not in ("development", "testing")
+    weak_or_shared = (
+        not key
+        or key == _DEV_FALLBACK_JWT
+        or len(key) < _MIN_SECRET_LEN
+        or key == session_key
+    )
+    if is_prod and weak_or_shared:
+        raise RuntimeError(
+            "JWT_SIGNING_KEY is missing, default, shorter than "
+            f"{_MIN_SECRET_LEN} characters, or identical to SECRET_KEY "
+            f"in APP_ENV={APP_ENV!r}. Mint a distinct value: `python -c "
+            "\"import secrets; print(secrets.token_urlsafe(48))\"` "
+            "and set JWT_SIGNING_KEY in the service environment file. "
+            "A separate key means a leak of one credential does not "
+            "compromise both the web session and the mobile API."
+        )
+    # Dev fallback: reuse SECRET_KEY if unset. One-server loopback-only
+    # setups don't need the split; the production gate above makes sure
+    # a real deployment can't ship with that fallback.
+    return key or session_key
+
+
 class Config:
     SECRET_KEY = _resolve_secret_key()
+    # SAAS-007 — mobile-API JWTs sign with a DIFFERENT key than the
+    # web session cookie so a leak of either credential doesn't
+    # compromise both. Resolved AFTER SECRET_KEY so the equality
+    # check can reject shared values.
+    JWT_SIGNING_KEY = _resolve_jwt_signing_key(SECRET_KEY)
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL", "postgresql://manasety:manasety@localhost:5432/manasety_lms"
     )

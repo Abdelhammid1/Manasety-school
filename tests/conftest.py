@@ -28,6 +28,15 @@ from typing import Iterator
 import pytest
 
 
+# Set APP_ENV before any test module imports `app.*`. If this runs
+# only inside the fixture, test files that `from app.services.tenancy
+# import ...` at module level fail collection when the shell lacks
+# JWT_SIGNING_KEY (SAAS-007 refuses to boot production without it).
+os.environ.setdefault("APP_ENV", "testing")
+if os.environ.get("APP_ENV") == "production":
+    os.environ["APP_ENV"] = "testing"
+
+
 # ─── Guard: refuse to run against anything named like production ─────
 
 _FORBIDDEN_DB_NAMES = {"manasety_school", "manasety_prod", "manasety_lms"}

@@ -27,13 +27,18 @@ def _reload_config(**env):
     can't silently reinject SECRET_KEY into the test environment."""
     for mod in ("app.config", "app"):
         sys.modules.pop(mod, None)
-    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY")}
+    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY")}
     try:
         for k, v in env.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+        # SAAS-007 — a production boot now needs JWT_SIGNING_KEY as
+        # well. These SAAS-001 tests only probe SECRET_KEY rules, so
+        # inject a passing JWT key unless the test overrode it.
+        if "JWT_SIGNING_KEY" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
+            os.environ["JWT_SIGNING_KEY"] = "j" * 48
         with patch("dotenv.load_dotenv", lambda *a, **k: False):
             return importlib.import_module("app.config")
     finally:
@@ -51,13 +56,16 @@ def _make_app_with(**env):
     Same load_dotenv guard as _reload_config."""
     for mod in ("app.config", "app"):
         sys.modules.pop(mod, None)
-    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY")}
+    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY")}
     try:
         for k, v in env.items():
             if v is None:
                 os.environ.pop(k, None)
             else:
                 os.environ[k] = v
+        # SAAS-007 — fulfill the JWT key requirement for prod boots.
+        if "JWT_SIGNING_KEY" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
+            os.environ["JWT_SIGNING_KEY"] = "j" * 48
         with patch("dotenv.load_dotenv", lambda *a, **k: False):
             app_mod = importlib.import_module("app")
             return app_mod.create_app()
