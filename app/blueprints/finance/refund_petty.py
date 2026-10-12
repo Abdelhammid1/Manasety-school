@@ -34,8 +34,11 @@ from ...services.accounting import post_journal
 from ...services.ledger import issue_refund, LedgerError
 
 
-def _sid():
-    return current_user.school_id
+def _sid() -> int:
+    # SAAS-005 — central tenant source of truth. One function
+    # here so no blueprint reads current_user.school_id directly.
+    from ...services.tenancy import current_school_id
+    return current_school_id()
 
 
 def _can_approve_refund(u) -> bool:

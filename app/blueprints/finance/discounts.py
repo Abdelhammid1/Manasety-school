@@ -11,8 +11,11 @@ from ...extensions import db
 from ...models import DiscountType, StudentDiscount, FeeType, Enrollment, Student
 
 
-def _sid():
-    return current_user.school_id
+def _sid() -> int:
+    # SAAS-005 — central tenant source of truth. One function
+    # here so no blueprint reads current_user.school_id directly.
+    from ...services.tenancy import current_school_id
+    return current_school_id()
 
 
 @bp.route("/discounts", endpoint="discount_types")

@@ -369,6 +369,57 @@ def require_tenant() -> ResolvedTenant:
 
 
 # ──────────────────────────────────────────────────────────────────────
+# SAAS-005 — single source of truth for `school_id`
+# ──────────────────────────────────────────────────────────────────────
+
+def current_school_id() -> int:
+    """Return the active tenant's school_id — the ONE function every
+    blueprint/service should call instead of reading
+    `current_user.school_id` directly.
+
+    Priority order:
+      1. Explicit `tenant_context(school_id)` (jobs, CLI, cron workers).
+      2. Host-resolved tenant (`g.tenant_resolved`) when the resolver
+         is `log` or `enforce`.
+      3. `g.api_user.school_id` — some mobile-API views stash the
+         authenticated user there before this runs.
+      4. `current_user.school_id` — legacy single-tenant fallback for
+         `off` mode and dev DB. Preserves behaviour until wildcard
+         DNS is live.
+
+    Raises `TenantNotResolved` when none of the above have a tenant.
+    That is intentionally strict — a view that reaches this helper
+    with no tenant in scope was ambiguous before SAAS-005 too; now
+    the ambiguity is loud instead of silent.
+    """
+    cv = _tenant_cv.get()
+    if cv is not None:
+        return int(cv)
+    resolved = current_tenant()
+    if resolved is not None and resolved.kind == "tenant" and resolved.school is not None:
+        return int(resolved.school.id)
+    # g.api_user — set by the mobile-API JWT middleware.
+    api_user = getattr(g, "api_user", None)
+    api_sid = getattr(api_user, "school_id", None) if api_user is not None else None
+    if api_sid is not None:
+        return int(api_sid)
+    # current_user — Flask-Login's proxy. Importing lazily avoids
+    # a module-import cycle during app factory wiring.
+    try:
+        from flask_login import current_user  # type: ignore
+        if current_user and getattr(current_user, "is_authenticated", False):
+            sid = getattr(current_user, "school_id", None)
+            if sid is not None:
+                return int(sid)
+    except Exception:  # noqa: BLE001
+        pass
+    raise TenantNotResolved(
+        "No tenant in scope — set tenant_context() for jobs or ensure "
+        "the request resolved to a tenant / an authenticated user."
+    )
+
+
+# ──────────────────────────────────────────────────────────────────────
 # Flask hook
 # ──────────────────────────────────────────────────────────────────────
 
