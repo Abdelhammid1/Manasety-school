@@ -8,6 +8,17 @@ def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_class)
 
+    # SAAS-001 — surface a visible warning in development/testing when
+    # the SECRET_KEY falls back to the dev sentinel. Production boot
+    # already fails hard in Config._resolve_secret_key.
+    from .config import APP_ENV as _APP_ENV, _DEV_FALLBACK_SECRET
+    if (_APP_ENV in ("development", "testing")
+            and app.config.get("SECRET_KEY") == _DEV_FALLBACK_SECRET):
+        app.logger.warning(
+            "SECRET_KEY is using the dev fallback. OK for %s only — "
+            "never deploy to production like this.", _APP_ENV,
+        )
+
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)

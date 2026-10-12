@@ -4,8 +4,48 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+# ─── SAAS-001 (2026-10-12) ────────────────────────────────────────────
+# APP_ENV decides which SECRET_KEY failures are fatal.  Values:
+#   production  → fail boot when SECRET_KEY is missing, default, or <32 chars
+#   development → allow a dev fallback (noisy warning via create_app)
+#   testing     → silent fallback for pytest/CI
+# A missing APP_ENV defaults to "production" because that is the safe
+# default — any new deployment that forgets to set it fails fast
+# instead of silently inheriting a known-weak key.
+APP_ENV = os.environ.get("APP_ENV", "production").strip().lower()
+
+_DEV_FALLBACK_SECRET = "dev-secret-change-me"
+_MIN_SECRET_LEN = 32
+
+
+def _resolve_secret_key() -> str:
+    """Return a usable SECRET_KEY or raise RuntimeError.
+
+    Production fails hard; dev/test fall back to the dev sentinel and
+    create_app surfaces a WARNING so the operator sees it. The error
+    message never prints the actual key value.
+    """
+    raw = os.environ.get("SECRET_KEY", "")
+    key = (raw or "").strip()
+    is_prod = APP_ENV not in ("development", "testing")
+    weak = (
+        not key
+        or key == _DEV_FALLBACK_SECRET
+        or len(key) < _MIN_SECRET_LEN
+    )
+    if is_prod and weak:
+        raise RuntimeError(
+            "SECRET_KEY is missing, default, or shorter than "
+            f"{_MIN_SECRET_LEN} characters in APP_ENV={APP_ENV!r}. "
+            "Generate one with `python -c \"import secrets; "
+            "print(secrets.token_urlsafe(48))\"` and set it in the "
+            "service environment file. (Value not shown.)"
+        )
+    return key or _DEV_FALLBACK_SECRET
+
+
 class Config:
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-change-me")
+    SECRET_KEY = _resolve_secret_key()
     SQLALCHEMY_DATABASE_URI = os.environ.get(
         "DATABASE_URL", "postgresql://manasety:manasety@localhost:5432/manasety_lms"
     )
@@ -26,3 +66,16 @@ class Config:
     # Ticket "Additional 3" — token protecting the /cron/tick endpoint
     # that flips overdue invoices + sends payment reminders daily.
     CRON_TOKEN = os.environ.get("CRON_TOKEN", "dev-cron-token-change-me")
+
+    # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────
+    # Hard-coded here (not read from env) so a prod deployment can't
+    # accidentally weaken them. SESSION_COOKIE_DOMAIN and SERVER_NAME
+    # are deliberately NOT set — decision D5 keeps cookies host-only
+    # so a subdomain's cookie can't leak to its siblings.
+    SESSION_COOKIE_HTTPONLY  = True
+    SESSION_COOKIE_SAMESITE  = "Lax"
+    SESSION_COOKIE_SECURE    = APP_ENV not in ("development", "testing")
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE   = APP_ENV not in ("development", "testing")
+    # SESSION_COOKIE_DOMAIN and SERVER_NAME intentionally OMITTED (D5).
