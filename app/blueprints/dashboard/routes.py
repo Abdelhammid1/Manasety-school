@@ -538,14 +538,31 @@ def _teacher_dashboard():
     def _today_periods():
         if not teacher:
             return []
-        # ScheduleSlot uses day_id (isoweekday-ish) — mirror the pattern used
-        # elsewhere by matching today's weekday name in Arabic when we can.
-        weekday_map = {0: 6, 1: 7, 2: 1, 3: 2, 4: 3, 5: 4, 6: 5}  # Mon..Sun → Sun..Sat
+        from ...models import Day, Period
+        # Saudi school week is Sun..Thu — Day.order_index maps 1→Sun, 2→Mon …
+        # Python's date.isoweekday() is 1→Mon … 7→Sun. Translate.
+        iso = today_.isoweekday()
+        iso_to_day_order = {7: 1, 1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7}
+        today_order = iso_to_day_order.get(iso)
+        if today_order is None:
+            return []
+        today_day = Day.query.filter_by(
+            school_id=sid, order_index=today_order, is_active=True,
+        ).first()
+        if today_day is None:
+            # Weekend (no Day row configured for today). Empty schedule
+            # instead of "all 10 of the teacher's weekly slots" the old
+            # unfiltered query returned.
+            return []
         rows = (
             ScheduleSlot.query
-            .filter_by(school_id=sid, teacher_id=teacher.id)
-            .order_by(ScheduleSlot.period_id.asc())
-            .limit(10)
+            .join(Period, Period.id == ScheduleSlot.period_id)
+            .filter(
+                ScheduleSlot.school_id == sid,
+                ScheduleSlot.teacher_id == teacher.id,
+                ScheduleSlot.day_id == today_day.id,
+            )
+            .order_by(Period.start_time.asc())
             .all()
         )
         return rows

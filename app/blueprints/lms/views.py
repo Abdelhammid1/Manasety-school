@@ -151,24 +151,110 @@ def _normalize_short_answer(text) -> str:
     return s
 
 
+def _visible_course_ids_for_viewer():
+    """Return the set of course_ids the current user may see on the
+    LMS hub pages — all published courses in the viewer's tenant for
+    an editor (teacher/admin), only the student's enrolled + published-
+    to-section courses otherwise.
+
+    `None` means "no restriction beyond tenant" (editor-side).
+    """
+    sid = getattr(current_user, "school_id", None)
+    if _is_teacher():
+        return None  # editor — unrestricted within tenant
+    student = _current_student()
+    if student is None:
+        return set()  # no student link → nothing visible
+    from ...models import Enrollment, CourseSection
+    section_ids = {
+        e.section_id for e in Enrollment.query.filter_by(
+            student_id=student.id, status="active",
+        ).all() if e.section_id is not None
+    }
+    if not section_ids:
+        return set()
+    return {
+        cs.course_id for cs in CourseSection.query.filter(
+            CourseSection.section_id.in_(section_ids),
+            CourseSection.is_published.is_(True),
+        ).all()
+    }
+
+
 @bp.route("/assignments", endpoint="assignments_home")
 @login_required
 def assignments_home():
-    items = (
+    """List assignments the viewer can act on.
+
+    Previously returned every CourseAssignment row in the DB — no tenant
+    scope, no publish filter, no enrollment check. A student would see
+    drafts and (in a multi-tenant deploy) assignments from other schools.
+    """
+    sid = current_user.school_id
+    visible_cids = _visible_course_ids_for_viewer()
+    q = (
         CourseAssignment.query
-        .order_by(CourseAssignment.due_at.asc().nullslast())
-        .limit(100).all()
+        .join(Course, Course.id == CourseAssignment.course_id)
+        .filter(Course.school_id == sid)
     )
-    return render_template("lms/assignments_home.html", items=items)
+    is_teacher = _is_teacher()
+    if not is_teacher:
+        # Student view: only published, only in enrolled courses, only
+        # with the course itself published.
+        if not visible_cids:
+            items = []
+        else:
+            items = (
+                q.filter(
+                    CourseAssignment.is_published.is_(True),
+                    Course.is_published.is_(True),
+                    CourseAssignment.course_id.in_(visible_cids),
+                )
+                .order_by(CourseAssignment.due_at.asc().nullslast())
+                .limit(100).all()
+            )
+    else:
+        items = q.order_by(
+            CourseAssignment.due_at.asc().nullslast()
+        ).limit(100).all()
+    return render_template(
+        "lms/assignments_home.html",
+        items=items, can_edit=is_teacher,
+    )
 
 
 @bp.route("/quizzes", endpoint="quizzes_home")
 @login_required
 def quizzes_home():
-    items = (
-        Quiz.query.order_by(Quiz.opens_at.asc().nullslast()).limit(100).all()
+    """List quizzes the viewer can act on. Same scoping rules as
+    assignments_home."""
+    sid = current_user.school_id
+    visible_cids = _visible_course_ids_for_viewer()
+    q = (
+        Quiz.query
+        .join(Course, Course.id == Quiz.course_id)
+        .filter(Course.school_id == sid)
     )
-    return render_template("lms/quizzes_home.html", items=items)
+    is_teacher = _is_teacher()
+    if not is_teacher:
+        if not visible_cids:
+            items = []
+        else:
+            items = (
+                q.filter(
+                    Quiz.is_published.is_(True),
+                    Course.is_published.is_(True),
+                    Quiz.course_id.in_(visible_cids),
+                )
+                .order_by(Quiz.opens_at.asc().nullslast())
+                .limit(100).all()
+            )
+    else:
+        items = q.order_by(Quiz.opens_at.asc().nullslast()).limit(100).all()
+    return render_template(
+        "lms/quizzes_home.html",
+        items=items, can_edit=is_teacher,
+    )
 
 
 # ─── Assignment CRUD (teacher-side) ───────────────────────────────────────

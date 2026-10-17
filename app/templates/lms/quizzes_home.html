@@ -13,10 +13,10 @@
       <h1 class="font-headline-lg text-headline-lg text-primary tracking-tight">الاختبارات والتقييمات</h1>
       <span class="font-body-sm text-body-sm text-outline">كل الاختبارات المفتوحة والمجدولة</span>
     </div>
-    {# Ticket #15 (2026-09-27) — quiz creation is per-course
-       (quiz_new lives at /lms/courses/<cid>/quizzes/new). Rather
-       than duplicate the course picker here, send the user to the
-       courses hub with a hint. #}
+    {# Teacher/admin only — quiz creation is per-course (quiz_new lives
+       at /lms/courses/<cid>/quizzes/new); the hub button sends the
+       editor to the courses picker. Students never see it. #}
+    {% if can_edit %}
     <a href="{{ url_for('courses.list_courses') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"
@@ -24,6 +24,7 @@
       <span class="material-symbols-outlined text-lg">add</span>
       <span>اختبار جديد</span>
     </a>
+    {% endif %}
   </div>
 
   {% if items %}
@@ -36,11 +37,15 @@
           <span class="material-symbols-outlined text-sm">quiz</span>
           {{ q.course.title if q.course else 'اختبار' }}
         </span>
+        {# Draft/published badge is only meaningful to editors — hide
+           for students, who never see drafts anyway. #}
+        {% if can_edit %}
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-label-xs font-bold
                      {% if q.is_published %}bg-secondary-container/40 text-secondary
                      {% else %}bg-surface-container text-on-surface-variant{% endif %}">
           {{ 'منشور' if q.is_published else 'مسودة' }}
         </span>
+        {% endif %}
       </div>
       <h3 class="font-title-md text-title-md text-on-surface font-bold">{{ q.title }}</h3>
       <div class="mt-2 flex items-center gap-space-sm text-on-surface-variant font-label-md text-label-md flex-wrap">
@@ -52,16 +57,19 @@
       </div>
       {% if q.is_published %}
       <div class="mt-3 flex items-center justify-end gap-2">
+        {# AI analysis is a teacher tool — hide from students. #}
+        {% if can_edit %}
         <a href="{{ url_for('lms.quiz_analysis', qid=q.id) }}"
            class="h-10 px-4 rounded-xl bg-fuchsia-50 text-fuchsia-800 hover:bg-fuchsia-100 font-label-lg text-label-lg font-bold flex items-center gap-2 transition-colors">
           <span class="material-symbols-outlined text-lg">insights</span>
           <span>تحليل ذكي</span>
         </a>
+        {% endif %}
         <a href="{{ url_for('lms.quiz_take', qid=q.id) }}"
            class="h-10 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
            style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
           <span class="material-symbols-outlined text-lg">play_arrow</span>
-          <span>بدء الاختبار</span>
+          <span>{{ 'معاينة' if can_edit else 'بدء الاختبار' }}</span>
         </a>
       </div>
       {% endif %}
@@ -72,12 +80,14 @@
   <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
     <span class="material-symbols-outlined text-5xl text-outline">quiz</span>
     <p class="mt-3 font-body-md text-body-md text-on-surface-variant">لا اختبارات مجدولة حالياً.</p>
+    {% if can_edit %}
     <a href="{{ url_for('courses.list_courses') }}"
        class="mt-4 inline-flex h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
       <span class="material-symbols-outlined text-lg">add</span>
       <span>ابدأ باختيار مقرر لإنشاء اختبار</span>
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

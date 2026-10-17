@@ -24,11 +24,15 @@
           <span class="material-symbols-outlined text-sm">assignment</span>
           {{ a.course.title if a.course else 'مادة' }}
         </span>
+        {# Draft/published badge only matters to editors — students
+           never see drafts anyway. #}
+        {% if can_edit %}
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-label-xs font-bold
                      {% if a.is_published %}bg-secondary-container/40 text-secondary
                      {% else %}bg-surface-container text-on-surface-variant{% endif %}">
           {{ 'منشور' if a.is_published else 'مسودة' }}
         </span>
+        {% endif %}
       </div>
       <h3 class="font-title-md text-title-md text-on-surface font-bold">{{ a.title }}</h3>
       <div class="mt-2 flex items-center gap-space-sm text-on-surface-variant font-label-md text-label-md">
