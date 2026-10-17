@@ -14,18 +14,28 @@
 
 <div class="flex flex-col w-full gap-space-md">
   <div class="flex items-center justify-between flex-wrap gap-space-md">
+    {# Admin wording ("إدارة") only when the viewer can edit. A parent
+       viewing this page from their sidebar's "الرسوم والفواتير" link
+       sees "فواتير أبنائي" (My children's invoices) instead and no
+       "فاتورة جديدة" button — parents can't create invoices anyway;
+       the server-side route is gated on finance.add. #}
+    {% set can_edit_finance = current_user.can('finance', 'edit') %}
     <div>
-      <h1 class="font-headline-lg text-headline-lg text-primary">إدارة الفواتير والرسوم</h1>
+      <h1 class="font-headline-lg text-headline-lg text-primary">
+        {{ 'إدارة الفواتير والرسوم' if can_edit_finance else 'فواتير أبنائي' }}
+      </h1>
       <p class="font-body-md text-body-md text-on-surface-variant mt-1">
         {% if year %}السنة الحالية: <b>{{ year.name }}</b>{% endif %} · <b>{{ invoices|length }}</b> فاتورة
       </p>
     </div>
+    {% if can_edit_finance %}
     <a href="{{ url_for('finance.invoice_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
       <span class="material-symbols-outlined text-xl">receipt_long</span>
       <span>فاتورة جديدة</span>
     </a>
+    {% endif %}
   </div>
 
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
