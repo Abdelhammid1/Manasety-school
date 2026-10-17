@@ -84,10 +84,12 @@
 
   <!-- Tabs / stats strip -->
   <div class="grid grid-cols-3 gap-space-sm">
+    {# Counts come from the view-filtered lists (lessons / assignments /
+       quizzes), not course.* — the view hides drafts for non-editors. #}
     {% for icon, label, count, tone in [
-        ('play_lesson', 'الدروس', course.lessons|length,     '#1E3A8A'),
-        ('assignment',  'الواجبات', course.assignments|length, '#2563EB'),
-        ('quiz',        'الاختبارات', course.quizzes|length,   '#0099CC'),
+        ('play_lesson', 'الدروس', lessons|length,     '#1E3A8A'),
+        ('assignment',  'الواجبات', assignments|length, '#2563EB'),
+        ('quiz',        'الاختبارات', quizzes|length,   '#0099CC'),
     ] %}
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm flex items-center gap-space-sm">
       <div class="w-10 h-10 rounded-lg text-white flex items-center justify-center" style="background: {{ tone }}">
@@ -259,9 +261,11 @@
       </div>
       {% endif %}
     </div>
-    {% if course.assignments %}
+    {# Iterate the view-filtered `assignments` list, not
+       course.assignments — the view strips drafts for non-editors. #}
+    {% if assignments %}
     <div class="flex flex-col gap-2">
-      {% for a in course.assignments %}
+      {% for a in assignments %}
       <div class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low group">
         <div class="w-10 h-10 rounded-lg bg-secondary-container/40 text-secondary flex items-center justify-center shrink-0">
           <span class="material-symbols-outlined">assignment</span>
@@ -326,9 +330,10 @@
       </a>
       {% endif %}
     </div>
-    {% if course.quizzes %}
+    {# Iterate the view-filtered `quizzes` list, not course.quizzes. #}
+    {% if quizzes %}
     <div class="flex flex-col gap-2">
-      {% for q in course.quizzes %}
+      {% for q in quizzes %}
       <div class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low">
         <div class="w-10 h-10 rounded-lg bg-tertiary-container/40 text-tertiary flex items-center justify-center shrink-0">
           <span class="material-symbols-outlined">quiz</span>

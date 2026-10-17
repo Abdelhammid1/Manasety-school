@@ -2881,6 +2881,17 @@ def assignment_detail(aid):
     student sees the submitted score but no per-question breakdown or
     teacher feedback. Teachers/admins always see full detail."""
     a = CourseAssignment.query.get_or_404(aid)
+    # Tenant guard — a URL-poking student from another school can't open
+    # an assignment by id.
+    if a.course is None or a.course.school_id != current_user.school_id:
+        abort(404)
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    is_teacher = role in ("admin", "teacher")
+    # Non-editors must never see a draft assignment. The template fix in
+    # courses/detail.html already stops students from DISCOVERING drafts,
+    # but a URL-poker still needs to be refused here.
+    if not is_teacher and not getattr(a, "is_published", True):
+        abort(404)
     student = _current_student()
     submission = None
     if student:
@@ -2889,8 +2900,6 @@ def assignment_detail(aid):
                 assignment_id=a.id, student_id=student.id)
             .order_by(Submission.attempt_number.desc()).first()
         )
-    role = getattr(getattr(current_user, "role", None), "name", None)
-    is_teacher = role in ("admin", "teacher")
     hide_detail = (not is_teacher) and (not a.allow_review)
     return render_template(
         "lms/assignment_detail.html",
@@ -3091,6 +3100,14 @@ def quiz_take(qid):
     hasn't started yet and the quiz has not exceeded max_attempts. Renders
     the timed quiz-taking UI."""
     quiz = Quiz.query.get_or_404(qid)
+    # Tenant guard — refuse cross-school access.
+    if quiz.course is None or quiz.course.school_id != current_user.school_id:
+        abort(404)
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    is_teacher = role in ("admin", "teacher")
+    # Non-editors can't take a draft quiz. (Teachers may preview their own.)
+    if not is_teacher and not getattr(quiz, "is_published", True):
+        abort(404)
     student = _current_student()
     if not student:
         flash("لا يمكن بدء الاختبار — الحساب غير مرتبط بطالب.", "danger")
