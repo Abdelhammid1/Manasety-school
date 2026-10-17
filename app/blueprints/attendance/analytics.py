@@ -158,8 +158,10 @@ def attendance_correlation():
         if total == 0:
             continue
         rate = round(p / total * 100, 1)
+        # Column was renamed `score` long ago; this .value reference
+        # crashed the page with AttributeError for every request.
         avg = (
-            db.session.query(func.avg(GradeEntry.value))
+            db.session.query(func.avg(GradeEntry.score))
             .filter(GradeEntry.enrollment_id == e.id)
             .scalar()
         )
