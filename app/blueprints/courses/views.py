@@ -7,10 +7,11 @@ from flask_login import login_required, current_user
 from sqlalchemy.exc import IntegrityError
 
 from . import bp
+from ..utils import require_permission
 from ...extensions import db
 from ...models import (
     Course, CourseSection, Lesson, AcademicYear, Section, Subject, Teacher,
-    Grade, Term, Unit, Assignment,
+    Grade, Term, Unit, Assignment, Student,
 )
 
 
@@ -214,13 +215,46 @@ def detail(course_id):
             .all()
         )
         teachers = rows
-    # can_edit — the template shows "add lesson / delete course / add
-    # assignment" controls only to users with lms.edit permission (admin
-    # or an assigned teacher). Students landing from the dashboard see
-    # the same page in a read-only shape.
+    # can_edit — the template shows editor controls only to users with
+    # lms.edit permission (admin or an assigned teacher). Every mutating
+    # route in this blueprint ALSO gates on the same permission so a
+    # student can't just POST to the delete URL directly.
     can_edit = bool(current_user.can("lms", "edit"))
+
+    # Non-editors (students, parents) must only reach a course that is
+    # (a) published AND (b) published to one of their active sections.
+    # URL-poking an unpublished or foreign course 404s.
+    lessons = course.lessons
+    assignments = course.assignments
+    quizzes = course.quizzes
+    if not can_edit:
+        from ...models import Enrollment
+        if not course.is_published:
+            abort(404)
+        student = Student.query.filter_by(
+            school_id=current_user.school_id, user_id=current_user.id,
+        ).first()
+        if student is None:
+            abort(403)
+        student_section_ids = {
+            e.section_id for e in Enrollment.query.filter_by(
+                student_id=student.id, status="active",
+            ).all() if e.section_id is not None
+        }
+        published_to_student = any(
+            cs.section_id in student_section_ids and cs.is_published
+            for cs in course.course_sections
+        )
+        if not published_to_student:
+            abort(404)
+        # Hide unpublished sub-items too — students must never see drafts.
+        lessons = [l for l in lessons if getattr(l, "is_published", True)]
+        assignments = [a for a in assignments if getattr(a, "is_published", True)]
+        quizzes = [q for q in quizzes if getattr(q, "is_published", True)]
+
     return render_template("courses/detail.html",
-                           course=course, lessons=course.lessons,
+                           course=course, lessons=lessons,
+                           assignments=assignments, quizzes=quizzes,
                            teachers=teachers, can_edit=can_edit)
 
 
@@ -256,6 +290,7 @@ def _course_form_options():
 
 @bp.route("/new", methods=["GET", "POST"], endpoint="new")
 @login_required
+@require_permission("lms", "edit")
 def new():
     """Create a Course.
 
@@ -316,6 +351,7 @@ def new():
 
 @bp.route("/<int:course_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
+@require_permission("lms", "edit")
 def course_delete(course_id):
     """Hard-delete a Course + its cascaded lessons/assignments/quizzes.
 
@@ -370,6 +406,7 @@ def _save_lesson_pdf(course, file_storage):
 
 @bp.route("/<int:course_id>/lessons/new", methods=["GET", "POST"], endpoint="lesson_new")
 @login_required
+@require_permission("lms", "edit")
 def lesson_new(course_id):
     course = Course.query.get_or_404(course_id)
     if request.method == "POST":
@@ -405,6 +442,7 @@ def lesson_new(course_id):
 
 @bp.route("/lessons/<int:lesson_id>/edit", methods=["GET", "POST"], endpoint="lesson_edit")
 @login_required
+@require_permission("lms", "edit")
 def lesson_edit(lesson_id):
     """Edit a lesson. Same form template as lesson_new — driven by `lesson` context."""
     lesson = _get_lesson_or_404(lesson_id)
@@ -435,6 +473,7 @@ def lesson_edit(lesson_id):
 
 @bp.route("/<int:course_id>/units/new", methods=["POST"], endpoint="unit_new")
 @login_required
+@require_permission("lms", "edit")
 def unit_new(course_id):
     """Create a Unit within a Course. Minimal form — title only from a
     modal on the course detail page. Description + reorder come later
@@ -457,6 +496,7 @@ def unit_new(course_id):
 
 @bp.route("/units/<int:unit_id>/edit", methods=["POST"], endpoint="unit_edit")
 @login_required
+@require_permission("lms", "edit")
 def unit_edit(unit_id):
     """Update the unit's title/description. POST-only — no separate form
     page; inline edit on the course detail page."""
@@ -474,6 +514,7 @@ def unit_edit(unit_id):
 
 @bp.route("/units/<int:unit_id>/delete", methods=["POST"], endpoint="unit_delete")
 @login_required
+@require_permission("lms", "edit")
 def unit_delete(unit_id):
     """Hard-delete a unit. Its lessons stay — Lesson.unit_id is set to
     NULL via the schema's ON DELETE SET NULL, so lessons fall back into
@@ -487,6 +528,7 @@ def unit_delete(unit_id):
 
 @bp.route("/lessons/<int:lesson_id>/delete", methods=["POST"], endpoint="lesson_delete")
 @login_required
+@require_permission("lms", "edit")
 def lesson_delete(lesson_id):
     lesson = _get_lesson_or_404(lesson_id)
     course_id = lesson.course_id

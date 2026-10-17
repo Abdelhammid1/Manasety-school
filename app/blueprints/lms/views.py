@@ -36,6 +36,7 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from . import bp
+from ..utils import require_permission
 from ...extensions import db
 from ...models import (
     Announcement, Course, CourseAssignment, Quiz, Question, Choice,
@@ -188,6 +189,7 @@ def _rubrics_for_subject(subject_id):
 
 @bp.route("/courses/<int:cid>/assignments/new", methods=["GET", "POST"], endpoint="assignment_new")
 @login_required
+@require_permission("lms", "edit")
 def assignment_new(cid):
     course = Course.query.get_or_404(cid)
     rubrics = _rubrics_for_subject(course.subject_id)
@@ -277,6 +279,7 @@ def assignment_analytics(aid):
 
 @bp.route("/assignments/<int:aid>/edit", methods=["GET", "POST"], endpoint="assignment_edit")
 @login_required
+@require_permission("lms", "edit")
 def assignment_edit(aid):
     a = CourseAssignment.query.get_or_404(aid)
     course = a.course
@@ -642,6 +645,7 @@ def assignment_from_template(cid):
 
 @bp.route("/assignments/<int:aid>/delete", methods=["POST"], endpoint="assignment_delete")
 @login_required
+@require_permission("lms", "edit")
 def assignment_delete(aid):
     a = CourseAssignment.query.get_or_404(aid)
     course_id = a.course_id
@@ -654,6 +658,7 @@ def assignment_delete(aid):
 
 @bp.route("/courses/<int:cid>/quizzes/new", methods=["GET", "POST"], endpoint="quiz_new")
 @login_required
+@require_permission("lms", "edit")
 def quiz_new(cid):
     course = Course.query.get_or_404(cid)
     if request.method == "POST":
@@ -697,6 +702,7 @@ def quiz_new(cid):
 
 @bp.route("/quizzes/<int:qid>/edit", methods=["GET", "POST"], endpoint="quiz_edit")
 @login_required
+@require_permission("lms", "edit")
 def quiz_edit(qid):
     q = Quiz.query.get_or_404(qid)
     course = q.course
@@ -729,6 +735,7 @@ def quiz_edit(qid):
 
 @bp.route("/quizzes/<int:qid>/delete", methods=["POST"], endpoint="quiz_delete")
 @login_required
+@require_permission("lms", "edit")
 def quiz_delete(qid):
     q = Quiz.query.get_or_404(qid)
     course_id = q.course_id
@@ -804,6 +811,7 @@ def quiz_question_update(qid):
 
 @bp.route("/questions/<int:qid>/delete", methods=["POST"], endpoint="quiz_question_delete")
 @login_required
+@require_permission("lms", "edit")
 def quiz_question_delete(qid):
     q = Question.query.get_or_404(qid)
     quiz_id = q.quiz_id
