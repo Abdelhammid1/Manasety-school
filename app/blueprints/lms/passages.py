@@ -4,12 +4,14 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import login_required, current_user
 
 from . import bp
+from ..utils import require_permission
 from ...extensions import db
 from ...models import BankQuestion, Grade, Passage, Subject
 
 
 @bp.route("/passages", endpoint="passages_home")
 @login_required
+@require_permission("lms", "edit")
 def passages_home():
     """Reading-passage library — Stitch lms_7 shell/list."""
     sid = current_user.school_id
@@ -24,12 +26,14 @@ def passages_home():
 
 @bp.route("/passages/new", methods=["GET", "POST"], endpoint="passage_new")
 @login_required
+@require_permission("lms", "edit")
 def passage_new():
     return _passage_form(None)
 
 
 @bp.route("/passages/<int:pid>", methods=["GET", "POST"], endpoint="passage_edit")
 @login_required
+@require_permission("lms", "edit")
 def passage_edit(pid):
     p = Passage.query.filter_by(
         id=pid, school_id=current_user.school_id).first_or_404()

@@ -78,7 +78,15 @@ def list_courses():
     quick pulse. The old flat course list is gone; a course card view
     remains available under /courses/grade/<gid>/term/<tid> after the
     user picks a grade and term.
+
+    Non-editors (students, parents) land here from their sidebar's
+    "مقرّراتي" link, but this hub lets them browse grades they're NOT
+    enrolled in and dangles a "+ مقرّر جديد" affordance they can't
+    use. Redirect them to the dashboard, which already lists their
+    actual enrolled courses.
     """
+    if not current_user.can("lms", "edit"):
+        return redirect(url_for("dashboard.home"))
     sid = getattr(current_user, "school_id", None)
     grades = (
         Grade.query.filter_by(school_id=sid).order_by(Grade.order_index).all()

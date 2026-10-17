@@ -1246,6 +1246,7 @@ def _bank_form_extras(item=None):
 
 @bp.route("/bank/dashboard", endpoint="qbank_dashboard")
 @login_required
+@require_permission("lms", "edit")
 def qbank_dashboard():
     """Analytics-heavy landing page for the school's question bank.
 
@@ -1445,6 +1446,7 @@ def templates_gallery():
 
 @bp.route("/assessment-templates/new", methods=["GET", "POST"], endpoint="template_new")
 @login_required
+@require_permission("lms", "edit")
 def template_new():
     """Create a template (Stitch lms_5 shell — form implemented next)."""
     if request.method == "POST":
@@ -1808,6 +1810,7 @@ def template_use(tid):
 @bp.route("/exams/blueprint/new", methods=["GET", "POST"],
           endpoint="blueprint_exam_new")
 @login_required
+@require_permission("lms", "edit")
 def blueprint_exam_new():
     """Render the exam-blueprint composer. POST handled by
     lms.blueprint_exam_create — kept as a separate endpoint so the form
@@ -2030,6 +2033,7 @@ def bank_home():
 
 @bp.route("/bank/new", methods=["GET", "POST"], endpoint="bank_new")
 @login_required
+@require_permission("lms", "edit")
 def bank_new():
     if request.method == "POST":
         return _bank_save(None)
@@ -2046,6 +2050,7 @@ def bank_new():
 
 @bp.route("/bank/smart/new", methods=["GET", "POST"], endpoint="bank_smart_new")
 @login_required
+@require_permission("lms", "edit")
 def bank_smart_new():
     """Stitch lms_2 authoring form — 5-section smart-question editor.
     Reuses `_bank_save` so the write path stays identical to the
