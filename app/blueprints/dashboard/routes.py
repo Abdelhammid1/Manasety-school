@@ -636,35 +636,86 @@ def _student_dashboard():
     from ...models import Assignment as _TA  # noqa: F401 (import parity)
     from ...models import Course
 
+    sid = current_user.school_id
     student = _safe(
-        lambda: Student.query.filter_by(user_id=current_user.id).first()
+        lambda: Student.query.filter_by(
+            school_id=sid, user_id=current_user.id,
+        ).first()
     ) if hasattr(current_user, "id") else None
-    # `user_id` isn't a modelled column on Student in the SIS schema. Fall
-    # back: the parent-user link at Student.parent_user_id exists, but the
-    # STUDENT itself is not typically a user in this SIS. If none is found,
-    # we still render with what we can derive from the logged-in user.
-    if student is None:
-        student = _safe(lambda: Student.query.filter_by(school_id=current_user.school_id).first())
+    # No fallback — a logged-in user with no Student row sees an empty
+    # dashboard, NOT the first random student in their school. The old
+    # fallback leaked another student's enrollment, grades and schedule.
+
+    # Student's active section(s) — scope assignment/quiz lookups so
+    # we never surface another section's content.
+    section_ids: list[int] = []
+    if student:
+        section_ids = _safe(
+            lambda: [
+                e.section_id for e in Enrollment.query.filter_by(
+                    student_id=student.id, status="active",
+                ).all() if e.section_id is not None
+            ],
+            [],
+        )
 
     now = datetime.utcnow()
-    # Next due assignment: any published, not yet due
-    next_assignment = _safe(
-        lambda: (
-            CourseAssignment.query
-            .filter(CourseAssignment.is_published.is_(True),
-                    (CourseAssignment.due_at.is_(None)) | (CourseAssignment.due_at > now))
-            .order_by(CourseAssignment.due_at.asc().nullslast())
-            .first()
+    # Course visibility to a section goes through lms_course_sections.
+    # Collect the course_ids this student can actually see so assignment
+    # and quiz lookups don't surface another section's content.
+    from ...models import CourseSection
+    course_ids: list[int] = []
+    if section_ids:
+        course_ids = _safe(
+            lambda: [
+                cs.course_id for cs in CourseSection.query.filter(
+                    CourseSection.section_id.in_(section_ids),
+                    CourseSection.is_published.is_(True),
+                ).all()
+            ],
+            [],
         )
-    )
-    # Next quiz opening/open
-    next_quiz = _safe(
-        lambda: (
-            Quiz.query.filter(Quiz.is_published.is_(True))
-            .order_by(Quiz.opens_at.asc().nullslast())
-            .first()
+
+    # Next due assignment — only within the student's visible courses,
+    # published, not yet due.
+    next_assignment = None
+    if student and course_ids:
+        next_assignment = _safe(
+            lambda: (
+                CourseAssignment.query
+                .join(Course, Course.id == CourseAssignment.course_id)
+                .filter(
+                    CourseAssignment.is_published.is_(True),
+                    (CourseAssignment.due_at.is_(None))
+                    | (CourseAssignment.due_at > now),
+                    Course.school_id == sid,
+                    CourseAssignment.course_id.in_(course_ids),
+                )
+                .order_by(CourseAssignment.due_at.asc().nullslast())
+                .first()
+            )
         )
-    )
+
+    # Next quiz — only the student's visible courses, and only quizzes
+    # that OPEN in the future (or are open-ended). The previous query
+    # ordered by opens_at ascending with no time filter so a quiz that
+    # opened a month ago was still shown as "upcoming".
+    next_quiz = None
+    if student and course_ids:
+        next_quiz = _safe(
+            lambda: (
+                Quiz.query
+                .join(Course, Course.id == Quiz.course_id)
+                .filter(
+                    Quiz.is_published.is_(True),
+                    (Quiz.opens_at.is_(None)) | (Quiz.opens_at >= now),
+                    Course.school_id == sid,
+                    Quiz.course_id.in_(course_ids),
+                )
+                .order_by(Quiz.opens_at.asc().nullslast())
+                .first()
+            )
+        )
     # Latest grade — last submission of this student with a score
     latest_grade = None
     if student:
@@ -679,21 +730,21 @@ def _student_dashboard():
             )
         )
 
-    # Courses list — scoped to student's active section if we can find one
+    # Courses list — reuse the course_ids we already resolved from the
+    # student's active sections via lms_course_sections. The old query
+    # used Course.section_id directly, which was removed when courses
+    # became many-to-many with sections (lms.py#39), so it always
+    # returned []: "لم يتم فتح مواد لك بعد" even for enrolled students.
     courses = []
-    if student:
-        active_enroll = _safe(
-            lambda: Enrollment.query.filter_by(
-                student_id=student.id, status="active"
-            ).order_by(Enrollment.created_at.desc()).first()
+    if student and course_ids:
+        courses = _safe(
+            lambda: Course.query.filter(
+                Course.id.in_(course_ids),
+                Course.is_published.is_(True),
+                Course.school_id == sid,
+            ).limit(8).all(),
+            [],
         )
-        if active_enroll:
-            courses = _safe(
-                lambda: Course.query.filter_by(
-                    section_id=active_enroll.section_id,
-                    is_published=True,
-                ).limit(8).all(), []
-            )
 
     return render_template(
         "dashboard/student.html",

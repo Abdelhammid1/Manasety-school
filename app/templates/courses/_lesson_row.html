@@ -28,6 +28,7 @@
        class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="عرض">
       <span class="material-symbols-outlined text-sm">play_circle</span>
     </a>
+    {% if can_edit %}
     <a href="{{ url_for('courses.lesson_edit', lesson_id=l.id) }}"
        class="w-8 h-8 rounded-lg text-primary hover:bg-primary-container/20 flex items-center justify-center" title="تعديل">
       <span class="material-symbols-outlined text-sm">edit</span>
@@ -39,5 +40,6 @@
         <span class="material-symbols-outlined text-sm">delete</span>
       </button>
     </form>
+    {% endif %}
   </div>
 </div>

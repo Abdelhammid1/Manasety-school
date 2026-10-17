@@ -191,6 +191,10 @@ def course_pick_section(grade_id, subject_id):
 @login_required
 def detail(course_id):
     course = Course.query.get_or_404(course_id)
+    # Tenant guard — a URL-poking student from another school can't open
+    # a course by id.
+    if course.school_id != current_user.school_id:
+        abort(404)
     # Ticket #2 — resolve teachers per-section via teacher.Assignment.
     # A course's teacher pool = the distinct set of teachers assigned to
     # (course.subject, section, course.year) for any of the course's sections.
@@ -210,8 +214,14 @@ def detail(course_id):
             .all()
         )
         teachers = rows
+    # can_edit — the template shows "add lesson / delete course / add
+    # assignment" controls only to users with lms.edit permission (admin
+    # or an assigned teacher). Students landing from the dashboard see
+    # the same page in a read-only shape.
+    can_edit = bool(current_user.can("lms", "edit"))
     return render_template("courses/detail.html",
-                           course=course, lessons=course.lessons, teachers=teachers)
+                           course=course, lessons=course.lessons,
+                           teachers=teachers, can_edit=can_edit)
 
 
 def _course_form_options():
