@@ -20,10 +20,15 @@
       </p>
     </div>
     <div class="flex items-center gap-space-sm">
+      {# "إسناد الفصل" is a teachers-management action — gate on the
+         same permission the target page requires so students viewing
+         their own schedule don't see a button that 403s on click. #}
+      {% if current_user.can('teachers', 'edit') %}
       <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}"
          class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
         <span class="material-symbols-outlined text-lg">assignment_ind</span><span>إسناد الفصل</span>
       </a>
+      {% endif %}
       <button type="button" onclick="window.print()"
               class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
         <span class="material-symbols-outlined text-lg">print</span><span>طباعة</span>
@@ -39,7 +44,11 @@
   {% elif not assignments %}
   <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
     <span class="material-symbols-outlined">warning</span>
+    {% if current_user.can('teachers', 'edit') %}
     <span>لا يوجد إسناد لهذا الفصل بعد. أضف الإسناد من <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="text-primary font-bold underline">صفحة الإسناد</a>.</span>
+    {% else %}
+    <span>لم يُحدَّد جدول هذا الفصل بعد — راجع إدارة المدرسة.</span>
+    {% endif %}
   </div>
   {% endif %}
 
@@ -104,6 +113,8 @@
                   <span class="material-symbols-outlined text-xs">meeting_room</span>{{ slot.room.name }}
                 </div>
                 {% endif %}
+                {# Only editors see the slot-delete affordance. #}
+                {% if current_user.can('teachers', 'edit') %}
                 <form method="post" action="{{ url_for('schedule.slot_delete', section_id=section.id, slot_id=slot.id) }}"
                       onsubmit="return confirm('حذف حصة {{ slot.subject.name }} ({{ d.name }} - {{ p.name }})؟')"
                       class="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -112,8 +123,12 @@
                     <span class="material-symbols-outlined text-sm">close</span>
                   </button>
                 </form>
+                {% endif %}
               </div>
               {% else %}
+              {# Empty-cell editor affordances — only shown to editors.
+                 Students viewing their own schedule see a blank cell. #}
+              {% if current_user.can('teachers', 'edit') %}
               {% if assignment_options %}
               <details class="rounded-lg border-2 border-dashed border-outline-variant hover:border-primary">
                 <summary class="p-3 cursor-pointer text-center text-outline hover:text-primary font-label-md list-none">
@@ -153,6 +168,9 @@
                  class="block p-3 rounded-lg border-2 border-dashed border-outline-variant text-center text-outline hover:text-primary hover:border-primary font-label-xs">
                 لا يوجد إسناد — أضف من هنا
               </a>
+              {% endif %}
+              {% else %}{# non-editor: blank cell, no affordances #}
+              <div class="p-3 rounded-lg text-center text-outline font-label-xs">—</div>
               {% endif %}
               {% endif %}
             </td>
