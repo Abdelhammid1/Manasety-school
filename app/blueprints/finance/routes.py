@@ -543,19 +543,25 @@ def invoice_new():
     )
 
 
+def _assert_invoice_viewer(inv):
+    """Shared ownership gate for /finance/invoices/<id> and its /print
+    variant. Non-editors (parents) may only touch invoices tied to
+    one of their own children's enrollments; everyone else sees
+    nothing by this route.
+    """
+    if current_user.can("finance", "edit"):
+        return
+    if inv.enrollment is None or inv.enrollment.student is None \
+            or inv.enrollment.student.parent_user_id != current_user.id:
+        abort(403)
+
+
 @bp.route("/invoices/<int:invoice_id>")
 @login_required
 @require_permission("finance", "view")
 def invoice_detail(invoice_id):
     inv = _get(Invoice, invoice_id)
-    # Playwright-tour fix (2026-10-02) — same scope rule as
-    # invoices_list: a parent may read only their own kids'
-    # invoices. Without this guard a parent could GET any
-    # invoice_id directly via the URL.
-    if not current_user.can("finance", "edit"):
-        if inv.enrollment is None or inv.enrollment.student is None \
-                or inv.enrollment.student.parent_user_id != current_user.id:
-            abort(403)
+    _assert_invoice_viewer(inv)
     from ...models import PaymentMethod
     payment_methods = (
         PaymentMethod.query.filter_by(school_id=_sid(), is_active=True)
@@ -588,6 +594,7 @@ def invoice_print(invoice_id):
     """
     from ...models import School
     inv = _get(Invoice, invoice_id)
+    _assert_invoice_viewer(inv)
     school = db.session.get(School, inv.school_id)
     download = request.args.get("download") == "1"
     if download:
