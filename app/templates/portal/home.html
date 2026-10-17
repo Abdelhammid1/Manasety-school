@@ -11,10 +11,16 @@
   <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary p-space-lg"
            style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
     <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
+    {# Strip the honorific prefix ("أ.") before picking the first-name
+       token — teacher seed names come as "أ. فيصل الغامدي", so
+       `.split()[0]` by itself returned the title ("أ.") and the
+       greeting rendered as "أهلاً أ. أ." instead of "أهلاً أ. فيصل". #}
+    {% set _parts = teacher.full_name.split() %}
+    {% set _first = (_parts[1] if _parts|length > 1 and _parts[0] in ('أ.','أ','د.','د','م.','م','أستاذ','أستاذة') else _parts[0]) if _parts else teacher.full_name %}
     <div class="relative flex items-center gap-space-md flex-wrap">
-      <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center font-headline-md font-extrabold">{{ teacher.full_name[:1] }}</div>
+      <div class="w-16 h-16 rounded-2xl bg-white/15 flex items-center justify-center font-headline-md font-extrabold">{{ _first[:1] }}</div>
       <div class="flex flex-col flex-1 min-w-0">
-        <h1 class="font-headline-lg text-headline-lg tracking-tight">أهلاً أ. {{ teacher.full_name.split()[0] }}</h1>
+        <h1 class="font-headline-lg text-headline-lg tracking-tight">أهلاً أ. {{ _first }}</h1>
         <p class="font-body-md opacity-90">{{ teacher.specialization }}{% if year %} · {{ year.name }}{% endif %}</p>
       </div>
       <a href="{{ url_for('portal.materials') }}" class="h-11 px-5 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
