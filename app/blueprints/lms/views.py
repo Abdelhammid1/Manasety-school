@@ -80,6 +80,50 @@ def _school_scope(query, model):
     return query
 
 
+def _is_teacher() -> bool:
+    role = getattr(getattr(current_user, "role", None), "name", None)
+    return role in ("admin", "teacher")
+
+
+def _assert_can_view_course_item(course):
+    """Guard a per-item view (assignment, quiz, lesson) for non-editors.
+
+    Rules (match courses.detail):
+      * course must belong to the current user's school → else 404
+      * for non-editors (students/parents):
+          - course.is_published must be True
+          - the viewer must have a Student row linked to this user
+          - that Student must have an active Enrollment in a section
+            where the course has a published CourseSection row
+
+    Aborts 404 on any failure so a URL-poker can't distinguish between
+    "doesn't exist", "another school's", or "not published to me".
+    """
+    if course is None or course.school_id != current_user.school_id:
+        abort(404)
+    if _is_teacher():
+        return
+    if not getattr(course, "is_published", False):
+        abort(404)
+    student = _current_student()
+    if student is None:
+        abort(403)
+    from ...models import Enrollment
+    section_ids = {
+        e.section_id for e in Enrollment.query.filter_by(
+            student_id=student.id, status="active",
+        ).all() if e.section_id is not None
+    }
+    if not section_ids:
+        abort(404)
+    published_to_student = any(
+        cs.section_id in section_ids and cs.is_published
+        for cs in course.course_sections
+    )
+    if not published_to_student:
+        abort(404)
+
+
 # ─── Short-answer normalization (ticket P1-11) ─────────────────────────
 # Compare student answers and answer keys after collapsing whitespace,
 # unifying Arabic ↔ Latin digits, dropping tashkeel, folding case, and
@@ -2881,15 +2925,13 @@ def assignment_detail(aid):
     student sees the submitted score but no per-question breakdown or
     teacher feedback. Teachers/admins always see full detail."""
     a = CourseAssignment.query.get_or_404(aid)
-    # Tenant guard — a URL-poking student from another school can't open
-    # an assignment by id.
-    if a.course is None or a.course.school_id != current_user.school_id:
-        abort(404)
-    role = getattr(getattr(current_user, "role", None), "name", None)
-    is_teacher = role in ("admin", "teacher")
-    # Non-editors must never see a draft assignment. The template fix in
-    # courses/detail.html already stops students from DISCOVERING drafts,
-    # but a URL-poker still needs to be refused here.
+    # Enforce the full student-visibility rule (tenant + course publish +
+    # enrollment in a section the course is published to). Non-editors
+    # who aren't in an enrolled section 404 the same way they would on
+    # /courses/<cid>.
+    _assert_can_view_course_item(a.course)
+    is_teacher = _is_teacher()
+    # Non-editors must never see a draft assignment itself.
     if not is_teacher and not getattr(a, "is_published", True):
         abort(404)
     student = _current_student()
@@ -2917,6 +2959,11 @@ def assignment_submit(aid):
     Deadline is enforced: if past due AND allow_late is False → 400.
     """
     a = CourseAssignment.query.get_or_404(aid)
+    # Same visibility rule as the GET side — a student who can't SEE
+    # the assignment must not be able to POST a submission to it either.
+    _assert_can_view_course_item(a.course)
+    if not _is_teacher() and not getattr(a, "is_published", True):
+        abort(404)
     student = _current_student()
     if not student:
         flash("لا يمكن التسليم — الحساب غير مرتبط بطالب.", "danger")
@@ -3100,13 +3147,9 @@ def quiz_take(qid):
     hasn't started yet and the quiz has not exceeded max_attempts. Renders
     the timed quiz-taking UI."""
     quiz = Quiz.query.get_or_404(qid)
-    # Tenant guard — refuse cross-school access.
-    if quiz.course is None or quiz.course.school_id != current_user.school_id:
-        abort(404)
-    role = getattr(getattr(current_user, "role", None), "name", None)
-    is_teacher = role in ("admin", "teacher")
+    _assert_can_view_course_item(quiz.course)
     # Non-editors can't take a draft quiz. (Teachers may preview their own.)
-    if not is_teacher and not getattr(quiz, "is_published", True):
+    if not _is_teacher() and not getattr(quiz, "is_published", True):
         abort(404)
     student = _current_student()
     if not student:
@@ -3237,6 +3280,11 @@ def quiz_submit(qid):
     leave essay ungraded for the teacher, and stamp the attempt.
     """
     quiz = Quiz.query.get_or_404(qid)
+    # Match the GET-side gate on quiz_take — a student who can't take
+    # the quiz must not be able to submit answers to it either.
+    _assert_can_view_course_item(quiz.course)
+    if not _is_teacher() and not getattr(quiz, "is_published", True):
+        abort(404)
     student = _current_student()
     if not student:
         abort(400)
