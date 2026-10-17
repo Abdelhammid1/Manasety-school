@@ -11,8 +11,11 @@
 {% endblock %}
 
 {% block page_content %}
-{% set active_e = None %}
-{% for e in student.enrollments %}{% if e.status == 'active' %}{% set active_e = e %}{% endif %}{% endfor %}
+{# Jinja scoping — a `{% set %}` inside `{% for %}` doesn't leak back
+   out, so the old template always ended with active_e=None and every
+   student profile showed "غير مقيد للسنة الحالية" even for actively
+   enrolled students. selectattr|first picks the row without the loop. #}
+{% set active_e = student.enrollments | selectattr('status','equalto','active') | list | first %}
 {# Ticket C — post-enrollment CTA. `new_enrollment_id` comes from the
    view; 0 when the URL didn't carry ?new_enrollment_id=… #}
 

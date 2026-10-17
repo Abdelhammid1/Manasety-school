@@ -38,6 +38,11 @@ def _sections_unmarked_today(sid: int, yid: int, cap: int = 8):
     Implementation is a Python-side anti-join — a single SELECT of every
     enrollment_id that WAS marked today, then filter sections whose active
     enrollments don't intersect that set. Small N — fine at school scale.
+
+    Previously iterated `sec.enrollments` which raised AttributeError
+    (no backref on Section) — `_safe()` swallowed every call to [] so
+    the dashboard permanently said "0 sections unmarked / all recorded"
+    no matter the real state. Querying Enrollment directly fixes it.
     """
     today = date.today()
     marked_ids = {
@@ -46,6 +51,22 @@ def _sections_unmarked_today(sid: int, yid: int, cap: int = 8):
         .filter(Attendance.school_id == sid, Attendance.date == today)
         .all()
     }
+    # Build {section_id: [enrollment_ids]} for every active enrollment
+    # in the year in a single query — cheaper than lazy-loading per
+    # section and avoids the missing backref.
+    enroll_rows = (
+        db.session.query(Enrollment.section_id, Enrollment.id)
+        .filter(
+            Enrollment.school_id == sid,
+            Enrollment.year_id == yid,
+            Enrollment.status == "active",
+        )
+        .all()
+    )
+    by_section: dict[int, set[int]] = {}
+    for sec_id, enr_id in enroll_rows:
+        by_section.setdefault(sec_id, set()).add(enr_id)
+
     sections = (
         Section.query.filter_by(school_id=sid, year_id=yid)
         .join(Grade, Grade.id == Section.grade_id)
@@ -54,17 +75,16 @@ def _sections_unmarked_today(sid: int, yid: int, cap: int = 8):
     )
     rows = []
     for sec in sections:
-        active_enrolls = [e for e in sec.enrollments if e.status == "active"]
-        if not active_enrolls:
+        active_ids = by_section.get(sec.id, set())
+        if not active_ids:
             continue
-        active_ids = {e.id for e in active_enrolls}
         if active_ids & marked_ids:
             continue
         rows.append({
             "section_id": sec.id,
             "section_name": sec.name,
             "grade_name": sec.grade.name if sec.grade else "—",
-            "students_count": len(active_enrolls),
+            "students_count": len(active_ids),
         })
         if len(rows) >= cap:
             break
