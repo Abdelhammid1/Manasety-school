@@ -154,8 +154,15 @@
   </section>
 
   <!-- Payment entry / actions -->
+  {# Finance editor affordances — only visible to users with
+     finance.edit (admin/finance staff). A parent viewing their own
+     invoice from the sidebar should NOT see the cashier
+     register-payment / refund / void workflow. The server-side routes
+     already gate on finance.add / finance.edit; this just hides the
+     UI so it's not a confusing dead end. #}
+  {% set can_edit_finance = current_user.can('finance', 'edit') %}
   <aside class="flex flex-col gap-space-md">
-    {% if inv.status != 'paid' or (inv.total_amount - inv.paid_amount) > 0 %}
+    {% if can_edit_finance and (inv.status != 'paid' or (inv.total_amount - inv.paid_amount) > 0) %}
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
         <span class="material-symbols-outlined">payments</span>تسجيل دفعة
@@ -229,7 +236,7 @@
     </section>
     {% endif %}
 
-    {% if inv.paid_amount > 0 %}
+    {% if can_edit_finance and inv.paid_amount > 0 %}
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <details>
         <summary class="font-title-md text-title-md text-error font-bold flex items-center gap-2 cursor-pointer">
@@ -256,7 +263,7 @@
     {% endif %}
 
     {# Ticket "Additional 2" — Void button, only when nothing was paid. #}
-    {% if inv.paid_amount <= 0 and inv.status != 'cancelled' %}
+    {% if can_edit_finance and inv.paid_amount <= 0 and inv.status != 'cancelled' %}
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <details>
         <summary class="font-title-md text-title-md text-error font-bold flex items-center gap-2 cursor-pointer">
