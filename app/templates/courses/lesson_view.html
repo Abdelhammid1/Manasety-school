@@ -38,9 +38,26 @@
           <span>فتح المصدر</span>
         </a>
       </div>
-      {% else %}
+      {% elif lesson.kind == 'text' %}
       <div class="h-24 bg-gradient-to-l from-primary via-primary-container to-secondary flex items-end p-space-md">
         <span class="text-on-primary font-headline-sm text-headline-sm font-bold">درس نصّي</span>
+      </div>
+      {% else %}
+      {# Video / PDF / embed / link lesson missing its media_url —
+         previously fell through to the "درس نصّي" banner which lied
+         about the kind. Show an accurate placeholder so a student
+         knows the content hasn't been attached yet. #}
+      <div class="p-space-lg bg-surface-container-low border border-dashed border-outline-variant rounded-xl m-space-md flex items-center gap-space-sm text-on-surface-variant">
+        <span class="material-symbols-outlined text-3xl text-outline">report</span>
+        <div class="flex flex-col">
+          <span class="font-title-sm text-primary font-bold">
+            {{ {'video':'لم يُرفَق فيديو لهذا الدرس بعد.',
+                'pdf':'لم يُرفَق ملف PDF لهذا الدرس بعد.',
+                'embed':'لم يُضَف محتوى مُضمَّن لهذا الدرس بعد.',
+                'link':'لم يُضَف رابط لهذا الدرس بعد.'}.get(lesson.kind, 'المحتوى غير متوفر.') }}
+          </span>
+          <span class="font-label-md text-label-md">راجع نص الشرح أدناه، أو عُد لاحقاً.</span>
+        </div>
       </div>
       {% endif %}
     </div>
@@ -125,6 +142,11 @@
       </ul>
     </div>
 
+    {# Personal note-pad — only for learners (student/parent). Teachers
+       and admins author the content, they don't need a per-lesson
+       scratchpad on the viewer; it was out of place in their UX. #}
+    {% set _is_learner = not current_user.can('lms', 'edit') %}
+    {% if _is_learner %}
     <div class="bg-surface-container-lowest rounded-2xl shadow-sm p-space-md">
       <div class="flex items-center justify-between mb-2">
         <h3 class="font-title-md text-title-md text-primary font-bold">دفتر ملاحظاتي</h3>
@@ -136,14 +158,17 @@
                 class="w-full px-3 py-2 rounded-lg bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors font-body-md text-body-md"></textarea>
       <p class="mt-2 font-label-xs text-label-xs text-outline">تُحفظ الملاحظات محلياً على متصفحك (خاصة بك).</p>
     </div>
+    {% endif %}
   </aside>
 </div>
 
+{% if _is_learner %}
 <script>
 (function(){
   const KEY = 'notes:lesson:' + {{ lesson.id }};
   const el = document.getElementById('lessonNotes');
   const hint = document.getElementById('noteSaveHint');
+  if (!el) return;
   try { el.value = localStorage.getItem(KEY) || ''; } catch(_){}
   let timer;
   el.addEventListener('input', () => {
@@ -157,4 +182,5 @@
   });
 })();
 </script>
+{% endif %}
 {% endblock %}
