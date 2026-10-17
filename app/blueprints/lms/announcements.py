@@ -40,7 +40,13 @@ def _load_own_announcement(aid):
 
 
 def _linked_section_ids():
-    """Section discovery for the 'my_section' feed filter."""
+    """Section discovery for the 'my_section' feed filter.
+
+    Students were missing from the role branches so a student clicking
+    the "فصلي" tab got 0 announcements even though their section had
+    some — the filter resolved to an empty section_ids list, which
+    the caller then AND'd into the query.
+    """
     from ...models import Assignment as TeachingAssignment, Enrollment, Student
     role_name = getattr(getattr(current_user, "role", None), "name", None)
     ids = set()
@@ -58,6 +64,16 @@ def _linked_section_ids():
                 Enrollment.status == "active",
             ).all():
                 ids.add(e.section_id)
+    elif role_name == "student":
+        me = Student.query.filter_by(
+            school_id=current_user.school_id, user_id=current_user.id,
+        ).first()
+        if me:
+            for e in Enrollment.query.filter_by(
+                student_id=me.id, status="active",
+            ).all():
+                if e.section_id is not None:
+                    ids.add(e.section_id)
     return list(ids)
 
 
