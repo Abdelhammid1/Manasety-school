@@ -87,14 +87,15 @@ def test_normalize_host(raw, expected):
 @pytest.fixture
 def app_with_schools():
     """Seed three schools: demo (active), susp (suspended), arch
-    (archived). The dev SQLite DB already has `demo`; we add the
-    other two in-session and tear them down."""
+    (archived). Seeds `demo` too — the old fixture relied on the
+    dev SQLite having one, which is no longer the case after
+    SAAS-002's DB guard forced tests onto a throwaway test DB."""
     app = _fresh_app(APP_ENV="testing", SECRET_KEY=None)
     with app.app_context():
         from app.extensions import db
         from app.models import School
         extras = []
-        for slug, status in [("susp", "suspended"), ("arch", "archived")]:
+        for slug, status in [("demo", "active"), ("susp", "suspended"), ("arch", "archived")]:
             if not School.query.filter_by(slug=slug).first():
                 s = School(
                     code=f"TEST-{slug}", name=f"test-{slug}",

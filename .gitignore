@@ -50,3 +50,4 @@ mobile/*/android/key.properties
 backups/
 db_backups/
 audit-*.txt
+tests/_test.db

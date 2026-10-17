@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import os
 import sys
+from pathlib import Path
 from typing import Iterator
 
 import pytest
@@ -36,17 +37,32 @@ os.environ.setdefault("APP_ENV", "testing")
 if os.environ.get("APP_ENV") == "production":
     os.environ["APP_ENV"] = "testing"
 
+# Point the tests at a dedicated SQLite file next to this conftest so
+# the SAAS-002 guard can safely stop writes against the dev DB. The
+# file is created on first run and migrated to current head.
+# If the operator already set DATABASE_URL / TEST_DATABASE_URL, respect it.
+if not os.environ.get("DATABASE_URL") and not os.environ.get("TEST_DATABASE_URL"):
+    _test_db_path = (Path(__file__).parent / "_test.db").resolve()
+    os.environ["DATABASE_URL"] = f"sqlite:///{_test_db_path.as_posix()}"
+
 
 # ─── Guard: refuse to run against anything named like production ─────
 
+# Postgres DBs — direct name match.
 _FORBIDDEN_DB_NAMES = {"manasety_school", "manasety_prod", "manasety_lms"}
+# SQLite file names — the dev stack uses instance/manasety.db by
+# default. Running tests against it pollutes the dev DB with fixture
+# leftovers (orphan Employee rows, duplicate admin users, etc.).
+# Discovered the hard way after the 2-school SAAS fixture dumped
+# half a dozen hex-tagged users into the dev DB.
+_FORBIDDEN_DB_FILENAMES = {"manasety.db"}
 
 
 def _db_name(uri: str) -> str:
-    """Extract the DB name from a SQLAlchemy URI, best-effort."""
+    """Extract the DB name (postgres) or filename (sqlite) from a
+    SQLAlchemy URI, best-effort."""
     if not uri:
         return ""
-    # Postgres: ...@host:port/dbname?...
     tail = uri.rsplit("/", 1)[-1]
     return tail.split("?", 1)[0]
 
@@ -54,13 +70,16 @@ def _db_name(uri: str) -> str:
 def pytest_configure(config):
     uri = os.environ.get("DATABASE_URL", "") or os.environ.get("TEST_DATABASE_URL", "")
     name = _db_name(uri).lower()
-    # SQLite file paths pass through — only PostgreSQL names are
-    # dangerous because the dev DB there is the same server.
-    if name in _FORBIDDEN_DB_NAMES:
+    is_sqlite = uri.lower().startswith("sqlite")
+    forbidden = (name in _FORBIDDEN_DB_NAMES) or (
+        is_sqlite and name in _FORBIDDEN_DB_FILENAMES
+    )
+    if forbidden:
         pytest.exit(
-            f"SAAS-002 refuses to run against DB name {name!r} — it is "
-            "a reserved production/dev name. Set DATABASE_URL (or "
+            f"SAAS-002 refuses to run against DB {name!r} — it is a "
+            "reserved production/dev target. Set DATABASE_URL (or "
             "TEST_DATABASE_URL) to a separate test database, e.g. "
+            "sqlite:///:memory: for a quick throwaway, or "
             "postgresql://user:pw@localhost:5432/manasety_test.",
             returncode=2,
         )
@@ -84,6 +103,28 @@ def app():
     import importlib
     app_mod = importlib.import_module("app")
     app = app_mod.create_app()
+    # Second guard — now that config is resolved (incl. .env loading),
+    # check the EFFECTIVE DB URI. pytest_configure can't see this
+    # because it runs before dotenv kicks in.
+    effective = (app.config.get("SQLALCHEMY_DATABASE_URI") or "").strip()
+    _eff_name = _db_name(effective).lower()
+    _is_sqlite = effective.lower().startswith("sqlite")
+    if (_eff_name in _FORBIDDEN_DB_NAMES) or (
+        _is_sqlite and _eff_name in _FORBIDDEN_DB_FILENAMES
+    ):
+        pytest.exit(
+            f"SAAS-002 refuses to run against DB {_eff_name!r} resolved "
+            f"from app config — set DATABASE_URL in the environment "
+            "(or TEST_DATABASE_URL) to a separate test database. "
+            "Example: `DATABASE_URL=sqlite:///./_test.db pytest ...`.",
+            returncode=2,
+        )
+    # Create tables for the throwaway sqlite file on first use. SAAS
+    # tests expect every model to exist; without this bootstrap the
+    # first fixture insert fails with "no such table".
+    with app.app_context():
+        from app.extensions import db
+        db.create_all()
     app.config["BASE_DOMAIN"] = "manasety.ai"
     app.config["PLATFORM_HOSTS"] = ["lms.manasety.ai"]
     app.config["LEGACY_HOSTS"] = {"school.manasety.ai": "demo"}
