@@ -639,6 +639,7 @@ def assignment_pick_from_bank(aid):
 
 @bp.route("/templates", endpoint="template_home")
 @login_required
+@require_permission("lms", "edit")
 def template_home():
     """Assignment-templates library — school-scoped list with filters."""
     sid = current_user.school_id
@@ -1361,6 +1362,7 @@ def qbank_dashboard():
 
 @bp.route("/assessment-templates", endpoint="templates_gallery")
 @login_required
+@require_permission("lms", "edit")
 def templates_gallery():
     """AssessmentTemplate gallery — grouped by subject (Stitch lms_3)."""
     sid = current_user.school_id
@@ -1971,6 +1973,7 @@ def blueprint_exam_create():
 
 @bp.route("/bank", endpoint="bank_home")
 @login_required
+@require_permission("lms", "edit")
 def bank_home():
     """Bank browser — two tabs (School / NAFIS), same page, same filters.
 
