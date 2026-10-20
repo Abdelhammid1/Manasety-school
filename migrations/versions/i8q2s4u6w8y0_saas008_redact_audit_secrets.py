@@ -73,11 +73,17 @@ def upgrade():
         if not rows:
             break
         for rid, old, new in rows:
+            vals = {}
             r_old, r_new = _redact(old), _redact(new)
-            if r_old != old or r_new != new:
+            if r_old != old:
+                vals["old_value"] = r_old
+            if r_new != new:
+                vals["new_value"] = r_new
+            # Only touch the column that changed, so an untouched SQL NULL
+            # is never rewritten as a JSON 'null'.
+            if vals:
                 bind.execute(
-                    audit_logs.update().where(audit_logs.c.id == rid)
-                    .values(old_value=r_old, new_value=r_new))
+                    audit_logs.update().where(audit_logs.c.id == rid).values(**vals))
                 changed += 1
         last_id = rows[-1][0]
     after = bind.execute(sa.select(sa.func.count()).select_from(audit_logs)).scalar()
