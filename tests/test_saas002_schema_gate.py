@@ -34,28 +34,16 @@ TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     # ─── LMS ──────────────────────────────────────────────────
     "lms_questions":        ("lms_quizzes",        "FK quiz_id"),
     "lms_choices":          ("lms_questions",      "FK question_id → quiz"),
-    "lms_quizzes":          ("lms_courses",        "FK course_id → school"),
     "lms_quiz_attempts":    ("lms_quizzes",        "FK quiz_id"),
     "lms_answers":          ("lms_quiz_attempts",  "FK attempt_id"),
     "lms_submissions":      ("lms_assignments",    "FK assignment_id"),
-    "lms_assignments":      ("lms_courses",        "FK course_id → school"),
     "lms_assignment_questions": ("lms_assignments","FK assignment_id"),
     "lms_assignment_choices": ("lms_assignment_questions", "FK question_id"),
     "lms_assignment_answers": ("lms_submissions",  "FK submission_id"),
     "lms_assignment_extensions": ("lms_assignments","FK assignment_id"),
-    "lms_assessment_template_questions": ("lms_assessment_templates", "FK template_id → school"),
-    "lms_assignment_template_questions": ("lms_assignment_templates", "FK template_id"),
     "lms_assignment_template_choices":   ("lms_assignment_template_questions", "FK question_id"),
     "lms_attempt_flagged_questions": ("lms_quiz_attempts", "FK attempt_id"),
-    "lms_bank_choices":     ("lms_bank_questions", "FK question_id → school"),
-    "lms_bank_question_tags":        ("lms_bank_questions", "many-to-many"),
-    "lms_bank_question_skills":      ("lms_bank_questions", "many-to-many"),
-    "lms_bank_question_objectives":  ("lms_bank_questions", "many-to-many"),
-    "lms_bank_question_collection_items": ("lms_bank_questions", "membership"),
-    "lms_question_stats":   ("lms_bank_questions", "FK bank_question_id → school"),
     "lms_lessons":          ("lms_courses",        "FK course_id"),
-    "lms_units":            ("lms_courses",        "FK course_id"),
-    "lms_course_sections":  ("lms_courses",        "FK course_id"),
 
     # ─── Academic / results ───────────────────────────────────
 

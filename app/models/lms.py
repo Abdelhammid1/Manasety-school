@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from sqlalchemy.sql import false as sa_false, true as sa_true
 
 from ..extensions import db
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 
 
 def _utcnow():
@@ -72,6 +72,7 @@ class CourseSection(db.Model):
     represents a "publish" of the course to a specific section, with
     is_published gating student visibility per-section."""
     __tablename__ = "lms_course_sections"
+    school_id = inherited_school_id("lms_courses", "course_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     course_id  = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
@@ -94,6 +95,7 @@ class Unit(SoftDeleteMixin, db.Model):
     Lesson.unit_id is nullable, so pre-existing lessons show up under a
     virtual "no unit" bucket until a teacher tags them."""
     __tablename__ = "lms_units"
+    school_id = inherited_school_id("lms_courses", "course_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
@@ -132,6 +134,7 @@ class Lesson(SoftDeleteMixin, db.Model):
 
 class CourseAssignment(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_assignments"
+    school_id = inherited_school_id("lms_courses", "course_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
@@ -309,6 +312,7 @@ class AssignmentAnswer(db.Model):
 
 class Quiz(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_quizzes"
+    school_id = inherited_school_id("lms_courses", "course_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
@@ -605,6 +609,7 @@ class BankQuestion(SoftDeleteMixin, db.Model):
 
 lms_bank_question_tags = db.Table(
     "lms_bank_question_tags",
+    inherited_school_id("lms_bank_questions", "question_id"),  # SAAS-020
     db.Column("question_id",
               db.Integer,
               db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
@@ -637,6 +642,7 @@ class BankTag(db.Model):
 
 lms_bank_question_skills = db.Table(
     "lms_bank_question_skills",
+    inherited_school_id("lms_bank_questions", "question_id"),  # SAAS-020
     db.Column("question_id", db.Integer,
               db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
               primary_key=True),
@@ -677,6 +683,7 @@ class Skill(db.Model):
 # ─── Phase-2 ticket #3 — Learning Objectives (per Lesson) + M:N ────
 lms_bank_question_objectives = db.Table(
     "lms_bank_question_objectives",
+    inherited_school_id("lms_bank_questions", "question_id"),  # SAAS-020
     db.Column("question_id", db.Integer,
               db.ForeignKey("lms_bank_questions.id", ondelete="CASCADE"),
               primary_key=True),
@@ -743,6 +750,7 @@ class SubjectPrerequisite(db.Model):
 # never edited by the teacher.
 class QuestionStats(db.Model):
     __tablename__ = "lms_question_stats"
+    school_id = inherited_school_id("lms_bank_questions", "bank_question_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     bank_question_id = db.Column(
@@ -800,6 +808,7 @@ class AssignmentExtension(db.Model):
 # ─── Phase-2 ticket #28 — Question collections (folders) + M:N ─────
 lms_bank_question_collection_items = db.Table(
     "lms_bank_question_collection_items",
+    inherited_school_id("lms_question_collections", "collection_id"),  # SAAS-020
     db.Column("collection_id", db.Integer,
               db.ForeignKey("lms_question_collections.id", ondelete="CASCADE"),
               primary_key=True),
@@ -844,6 +853,7 @@ class FeedbackTemplate(db.Model):
 
 class BankChoice(db.Model):
     __tablename__ = "lms_bank_choices"
+    school_id = inherited_school_id("lms_bank_questions", "question_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(
@@ -893,6 +903,7 @@ class AssignmentTemplate(SoftDeleteMixin, db.Model):
 
 class AssignmentTemplateQuestion(db.Model):
     __tablename__ = "lms_assignment_template_questions"
+    school_id = inherited_school_id("lms_assignment_templates", "template_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     template_id = db.Column(
@@ -973,6 +984,7 @@ class AssessmentTemplate(db.Model):
 
 class AssessmentTemplateItem(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_assessment_template_questions"
+    school_id = inherited_school_id("lms_assessment_templates", "template_id")  # SAAS-020
 
     id = db.Column(db.Integer, primary_key=True)
     template_id = db.Column(
