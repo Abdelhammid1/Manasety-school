@@ -53,6 +53,9 @@ def create_app(config_class=Config):
     # Must run AFTER models are imported so the classes exist.
     from .services import audit
     audit.install()
+    # SAAS-022 — refuse flushes that link rows across schools.
+    from .services import tenant_guard
+    tenant_guard.install(app)
 
     from .blueprints.auth import bp as auth_bp
     from .blueprints.dashboard import bp as dashboard_bp

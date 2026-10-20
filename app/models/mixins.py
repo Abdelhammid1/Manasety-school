@@ -11,6 +11,8 @@ or `Model.query.execution_options(include_deleted=True)`.
 
 from datetime import datetime, timezone
 
+from sqlalchemy.orm import declared_attr
+
 from ..extensions import db
 
 
@@ -131,4 +133,26 @@ def inherited_school_id(parent_table: str, fk_column: str, *more: tuple[str, str
     return db.Column(
         "school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True,
         default=_school_of_parent(((parent_table, fk_column),) + tuple(more)),
+        # read by services.tenant_guard to predict the default's value
+        info={"tenant_parents": ((parent_table, fk_column),) + tuple(more)},
     )
+
+
+# ─── SAAS-022 — root tables ──────────────────────────────────────────
+
+def _current_tenant_school():
+    from ..services.tenancy import current_school_id
+    return current_school_id()
+
+
+class TenantOwnedMixin:
+    """`school_id NOT NULL` filled from the current tenant (request host,
+    user, or tenant_context()). Outside any tenant it raises
+    TenantNotResolved instead of writing NULL or a default school.
+    For new school-owned root tables; child tables use
+    inherited_school_id() so they always match their parent."""
+
+    @declared_attr
+    def school_id(cls):
+        return db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False,
+                         index=True, default=_current_tenant_school)
