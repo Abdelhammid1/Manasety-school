@@ -415,3 +415,30 @@ def test_static_uploads_blocked_by_resolved_path(files_app, two_schools):
         probe.unlink()
         if created:
             os.rmdir(up)
+
+
+@pytest.mark.parametrize("trick", [
+    "{a}/..\..\{b}\v.png", "{a}/..%2f{b}%2fv.png", "{a}/./../{b}/v.png",
+    "{a}//../{b}/v.png", "{a}/C:v.png",
+])
+def test_legacy_migration_rejects_path_tricks(files_app, two_schools, tmp_path, trick):
+    """A value that only *looks* like the owner's old directory must be
+    judged on the path it resolves to — never moved out of B's folder."""
+    from app.blueprints.files import migrate_static_uploads
+    from app.extensions import db
+    from app.models import Student
+    A, B = two_schools["A"], two_schools["B"]
+    static = tmp_path / "static"
+    victim = static / "uploads" / "students" / str(B["student"].id) / "v.png"
+    victim.parent.mkdir(parents=True)
+    victim.write_bytes(PNG)
+    (static / "uploads" / "students" / str(A["student"].id)).mkdir(parents=True)
+    rel = trick.format(a=A["student"].id, b=B["student"].id)
+    with files_app.app_context():
+        a = db.session.get(Student, A["student"].id)
+        a.photo_url = f"/static/uploads/students/{rel}"
+        db.session.commit()
+        rep = migrate_static_uploads(static)["students.photo_url"]
+        assert rep["moved"] == 0 and rep["foreign_path"] == 1, rep
+        db.session.remove()
+    assert victim.exists()

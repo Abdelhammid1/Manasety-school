@@ -237,28 +237,45 @@ def migrate_static_uploads(static_folder) -> dict:
             select(model).where(getattr(model, col).like("/static/uploads/%"))
             .execution_options(include_deleted=True)).scalars().all()
         candidates += [(target, r) for r in rows]
-    def in_layout(target, r):
-        want_dir, want_prefix = target[5](r)
-        p = PurePosixPath(rel_of(getattr(r, target[1])))
-        return str(p.parent) == want_dir and p.name.startswith(want_prefix)             and ".." not in p.parts
+    import os
 
-    # Duplicates are counted among layout-valid rows only, so a foreign
-    # URL someone typed can't block the owner's file from migrating.
-    refs = Counter(rel_of(getattr(r, t[1])) for t, r in candidates if in_layout(t, r))
+    def canonical(target, r):
+        """The resolved file this row may claim, or None when the stored
+        value is not exactly the old layout for this row's owner. The
+        decision is made on the resolved path (no string tricks such as
+        backslashes, drive letters, %-escapes or dot segments)."""
+        rel = rel_of(getattr(r, target[1]))
+        if any(ch in rel for ch in ("\\", ":", "%", "\x00")):
+            return None
+        parts = PurePosixPath(rel).parts
+        if any(p in ("", ".", "..") for p in parts):
+            return None
+        want_dir, want_prefix = target[5](r)
+        src = (static_root / rel).resolve()
+        expected_dir = (static_root / want_dir).resolve()
+        if os.path.normcase(str(src.parent)) != os.path.normcase(str(expected_dir)):
+            return None
+        if not src.name.startswith(want_prefix):
+            return None
+        return src
+
+    # One canonical key for both the duplicate count and the move.
+    # Counted among layout-valid rows only, so a foreign URL someone
+    # typed can't block the owner's file from migrating.
+    keyed = [(t, r, canonical(t, r)) for t, r in candidates]
+    refs = Counter(os.path.normcase(str(src)) for _, _, src in keyed if src is not None)
 
     report = {}
-    for target, r in candidates:
+    for target, r, src in keyed:
         model, col, kind, school_of, owner_of, _ = target
         stats = report.setdefault(f"{model.__tablename__}.{col}",
                                   {"moved": 0, "missing": 0, "foreign_path": 0, "ambiguous": 0})
-        rel = rel_of(getattr(r, col))
-        if not in_layout(target, r):
+        if src is None:
             stats["foreign_path"] += 1
             continue
-        if refs[rel] > 1:
+        if refs[os.path.normcase(str(src))] > 1:
             stats["ambiguous"] += 1
             continue
-        src = (static_root / rel).resolve()
         school_id = school_of(r)
         if static_root not in src.parents or not src.is_file() or school_id is None:
             stats["missing"] += 1
