@@ -131,6 +131,29 @@ WHATSAPP_PROVIDER=stub
 
 > **توليد SECRET_KEY قوي**: نفّذ `python3 -c "import secrets; print(secrets.token_hex(32))"` وانسخ الناتج.
 
+#### إعدادات تعدد المدارس (SAAS-024)
+
+| المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |
+|---|---|---|---|
+| `TENANT_RESOLUTION_MODE` | `off` / `log` / `enforce` | `off` | `off` |
+| `BASE_DOMAIN` | اسم نطاق | `manasety.ai` | الإقلاع بيفشل |
+| `PLATFORM_HOSTS` | hosts مفصولة بفواصل | `lms.manasety.ai` | مفيش host منصة |
+| `LEGACY_HOSTS` | `host=slug` مفصولة بفواصل | `school.manasety.ai=demo` | مفيش أسماء قديمة |
+
+- أي host أو slug بصيغة غلط، أو host موجود في `PLATFORM_HOSTS` و`LEGACY_HOSTS` مع بعض، بيوقف الإقلاع برسالة واضحة.
+- `log` مراقبة فقط: الدخول على host المنصة بيكمل ويتسجل تحذير `tenancy[log] would reject platform login`. الرفض بيحصل في `enforce` بس.
+- في `enforce` أي host مش معروف (منه `127.0.0.1` و`localhost`) بيرجّع 404. مفيش health check ولا مستدعي داخلي بيعتمد عليهم (الـ cron الحالي على السيرفر بيضرب تطبيق تاني، و`/cron/tick` مالوش مستدعي).
+
+خطة التفعيل على الإنتاج (بعد موافقة عبدالحميد على القيم):
+
+```
+TENANT_RESOLUTION_MODE=enforce
+PLATFORM_HOSTS=
+LEGACY_HOSTS=school.manasety.ai=demo,lms.manasety.ai=demo
+```
+
+لما الـ Super Admin يتبني: `lms.manasety.ai` يتشال من `LEGACY_HOSTS` ويتحط في `PLATFORM_HOSTS`.
+
 احفظ بـ `Ctrl+O` ثم `Enter`، واخرج بـ `Ctrl+X`.
 
 ### 11) تطبيق هجرات قاعدة البيانات وزرع البيانات الأولية

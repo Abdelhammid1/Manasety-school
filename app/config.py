@@ -79,6 +79,75 @@ def _resolve_jwt_signing_key(session_key: str) -> str:
     return key or session_key
 
 
+# ─── SAAS-024 — tenancy hosts from the environment ──────────────────
+# Unset → the historical defaults. Set but empty → none (e.g.
+# PLATFORM_HOSTS= turns lms.manasety.ai back into a normal host).
+# Anything malformed refuses to boot: a typo here would silently route
+# a school's traffic to the wrong tenant or 404 it.
+_DEFAULT_BASE_DOMAIN = "manasety.ai"
+_DEFAULT_PLATFORM_HOSTS = "lms.manasety.ai"
+_DEFAULT_LEGACY_HOSTS = "school.manasety.ai=demo"
+
+
+def _env_host(raw: str, var: str) -> str:
+    from .services.tenancy import normalize_host
+    want = (raw or "").strip().lower().rstrip(".")
+    host = normalize_host(raw)
+    if not host or host != want:
+        raise RuntimeError(
+            f"{var}: {raw!r} is not a valid host name (letters, digits, "
+            "dots and hyphens only; no port, no scheme)."
+        )
+    return host
+
+
+def _resolve_base_domain(environ=os.environ) -> str:
+    raw = environ.get("BASE_DOMAIN")
+    return _env_host(_DEFAULT_BASE_DOMAIN if raw is None else raw, "BASE_DOMAIN")
+
+
+def _resolve_platform_hosts(environ=os.environ) -> list[str]:
+    raw = environ.get("PLATFORM_HOSTS")
+    raw = _DEFAULT_PLATFORM_HOSTS if raw is None else raw
+    return [_env_host(h, "PLATFORM_HOSTS") for h in raw.split(",") if h.strip()]
+
+
+def _resolve_legacy_hosts(environ=os.environ) -> dict[str, str]:
+    from .services.tenancy import SlugValidationError, validate_slug_format
+    raw = environ.get("LEGACY_HOSTS")
+    raw = _DEFAULT_LEGACY_HOSTS if raw is None else raw
+    out: dict[str, str] = {}
+    for item in raw.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        host, sep, slug = item.partition("=")
+        if not sep:
+            raise RuntimeError(
+                f"LEGACY_HOSTS: entry {item!r} must look like host=slug "
+                "(comma-separated, e.g. school.manasety.ai=demo)."
+            )
+        host = _env_host(host, "LEGACY_HOSTS")
+        try:
+            out[host] = validate_slug_format(slug)
+        except SlugValidationError:
+            raise RuntimeError(f"LEGACY_HOSTS: {slug!r} (for {host}) is not a valid slug.")
+    return out
+
+
+def _resolve_tenancy_hosts(environ=os.environ):
+    base = _resolve_base_domain(environ)
+    platform = _resolve_platform_hosts(environ)
+    legacy = _resolve_legacy_hosts(environ)
+    both = sorted(set(platform) & set(legacy))
+    if both:
+        raise RuntimeError(
+            f"{both} listed in both PLATFORM_HOSTS and LEGACY_HOSTS — a host "
+            "is either the platform console or a school alias, not both."
+        )
+    return base, platform, legacy
+
+
 class Config:
     SECRET_KEY = _resolve_secret_key()
     # SAAS-007 — mobile-API JWTs sign with a DIFFERENT key than the
@@ -106,6 +175,7 @@ class Config:
     # Ticket "Additional 3" — token protecting the /cron/tick endpoint
     # that flips overdue invoices + sends payment reminders daily.
     CRON_TOKEN = os.environ.get("CRON_TOKEN", "dev-cron-token-change-me")
+    BASE_DOMAIN, PLATFORM_HOSTS, LEGACY_HOSTS = _resolve_tenancy_hosts()
 
     # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────
     # Hard-coded here (not read from env) so a prod deployment can't

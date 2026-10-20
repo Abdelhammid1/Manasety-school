@@ -147,6 +147,11 @@ def _cfg_mode() -> str:
     return val if val in TENANT_RESOLUTION_MODES else "off"
 
 
+def resolution_mode() -> str:
+    """Public read of the effective TENANT_RESOLUTION_MODE."""
+    return _cfg_mode()
+
+
 def _cfg_base_domain() -> str:
     return (current_app.config.get("BASE_DOMAIN") or "").strip().lower()
 

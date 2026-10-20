@@ -63,10 +63,16 @@ def login():
         # separate Epic; for now, point school users at their
         # own subdomain so a password submitted here can't match a
         # school admin by accident.
+        # SAAS-024 — only `enforce` blocks; `log` is observe-only and
+        # keeps the pre-SAAS behaviour so ops can watch before flipping.
         tenant = _request_tenant()
         if tenant is not None and tenant.kind == "platform":
-            flash("ادخل من عنوان مدرستك: schoolname.manasety.ai", "warning")
-            return _render_login(401)
+            from ...services.tenancy import resolution_mode
+            if resolution_mode() == "enforce":
+                flash("ادخل من عنوان مدرستك: schoolname.manasety.ai", "warning")
+                return _render_login(401)
+            current_app.logger.warning(
+                "tenancy[log] would reject platform login host=%r", request.host)
 
         user = _lookup_user_for_login(username)
 
