@@ -155,7 +155,7 @@ def subject_report(subject_id):
             db.session.query(
                 Grade.id, Grade.name,
                 func.count(GradeEntry.id).label("entries"),
-                func.avg(GradeEntry.value).label("avg_value"),
+                func.avg(GradeEntry.score).label("avg_value"),
             )
             .join(Enrollment, Enrollment.id == GradeEntry.enrollment_id)
             .join(Grade, Grade.id == Enrollment.grade_id)
@@ -192,7 +192,7 @@ def _grade_avg(enrollment_ids):
     if not enrollment_ids:
         return None
     val = (
-        db.session.query(func.avg(GradeEntry.value))
+        db.session.query(func.avg(GradeEntry.score))
         .filter(GradeEntry.enrollment_id.in_(enrollment_ids))
         .scalar()
     )

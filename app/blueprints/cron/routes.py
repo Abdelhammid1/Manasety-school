@@ -57,7 +57,10 @@ def tick_lock():
     duplicate reminders."""
     engine = db.engine
     if engine.dialect.name == "postgresql":
-        conn = engine.connect()
+        # AUTOCOMMIT: the advisory lock is session-level, so no open
+        # transaction is needed — and an "idle in transaction" connection
+        # could be killed by idle_in_transaction_session_timeout mid-tick.
+        conn = engine.connect().execution_options(isolation_level="AUTOCOMMIT")
         try:
             got = conn.execute(text("SELECT pg_try_advisory_lock(:k)"),
                                {"k": _ADVISORY_LOCK_KEY}).scalar()

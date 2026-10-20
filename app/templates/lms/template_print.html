@@ -77,7 +77,7 @@
     <div class="field"><span>الاسم:</span><span class="dots"></span></div>
     <div class="field"><span>الشعبة:</span><span class="dots"></span></div>
     <div class="field"><span>التاريخ:</span><span class="dots"></span></div>
-    <div class="field"><span>الدرجة:</span>____ / {{ items|sum(attribute='points_override', start=0) or (items|length) }}</div>
+    <div class="field"><span>الدرجة:</span>____ / {{ items|map(attribute='points_override')|reject('none')|sum or (items|length) }}</div>
   </div>
 
   {% for it in items %}

@@ -236,25 +236,7 @@ def detail(course_id):
     assignments = course.assignments
     quizzes = course.quizzes
     if not can_edit:
-        from ...models import Enrollment
-        if not course.is_published:
-            abort(404)
-        student = Student.query.filter_by(
-            school_id=current_user.school_id, user_id=current_user.id,
-        ).first()
-        if student is None:
-            abort(403)
-        student_section_ids = {
-            e.section_id for e in Enrollment.query.filter_by(
-                student_id=student.id, status="active",
-            ).all() if e.section_id is not None
-        }
-        published_to_student = any(
-            cs.section_id in student_section_ids and cs.is_published
-            for cs in course.course_sections
-        )
-        if not published_to_student:
-            abort(404)
+        _assert_course_visible(course)
         # Hide unpublished sub-items too — students must never see drafts.
         lessons = [l for l in lessons if getattr(l, "is_published", True)]
         assignments = [a for a in assignments if getattr(a, "is_published", True)]
@@ -381,8 +363,36 @@ def course_delete(course_id):
 
 # ─── Lesson CRUD ───────────────────────────────────────────────────────
 
+def _assert_course_visible(course):
+    """Non-editors (students) may only reach a course that is published
+    AND published to one of their active sections; 404 otherwise."""
+    from ...models import Enrollment
+    if not course.is_published:
+        abort(404)
+    student = Student.query.filter_by(
+        school_id=current_user.school_id, user_id=current_user.id,
+    ).first()
+    if student is None:
+        abort(403)
+    student_section_ids = {
+        e.section_id for e in Enrollment.query.filter_by(
+            student_id=student.id, status="active",
+        ).all() if e.section_id is not None
+    }
+    if not any(cs.section_id in student_section_ids and cs.is_published
+               for cs in course.course_sections):
+        abort(404)
+
+
 def _get_lesson_or_404(lesson_id):
-    return Lesson.query.get_or_404(lesson_id)
+    """Lesson of the current school whose course still exists. The old
+    unscoped get_or_404 let any user open another school's lesson by id,
+    and a lesson of a soft-deleted course 500'd (course is None)."""
+    from ...services.tenancy import current_school_id
+    lesson = Lesson.query.filter_by(id=lesson_id, school_id=current_school_id()).first()
+    if lesson is None or lesson.course is None:
+        abort(404)
+    return lesson
 
 
 
@@ -542,4 +552,8 @@ def lesson_delete(lesson_id):
 @login_required
 def lesson_view(lesson_id):
     lesson = _get_lesson_or_404(lesson_id)
+    if not current_user.can("lms", "edit"):
+        _assert_course_visible(lesson.course)
+        if not getattr(lesson, "is_published", True):
+            abort(404)
     return render_template("courses/lesson_view.html", lesson=lesson, course=lesson.course)

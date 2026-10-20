@@ -91,11 +91,20 @@ def _parent_school(session, cache, table, pk):
     key = (table, pk)
     if key in cache:
         return cache[key]
-    for o in session.new:
-        t = getattr(inspect(o).mapper, "local_table", None)
-        if t is not None and t.name == table and getattr(o, "id", None) == pk:
-            cache[key] = (True, _effective_school(session, cache, o))
-            return cache[key]
+    pending = cache.get("__pending__")
+    if pending is None:
+        # Built once per flush: only pending objects with an explicit id
+        # can be referenced by id before the INSERT.
+        pending = {}
+        for o in session.new:
+            t = getattr(inspect(o).mapper, "local_table", None)
+            oid = getattr(o, "id", None)
+            if t is not None and oid is not None:
+                pending[(t.name, oid)] = o
+        cache["__pending__"] = pending
+    if key in pending:
+        cache[key] = (True, _effective_school(session, cache, pending[key]))
+        return cache[key]
     row = session.connection().execute(
         sa.text(f"SELECT school_id FROM {table} WHERE id = :i"), {"i": pk}).first()
     cache[key] = (False, None) if row is None else (True, row[0])

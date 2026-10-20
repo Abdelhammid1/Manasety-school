@@ -90,8 +90,11 @@
     </div>
 
     {# Navigation prev/next between lessons #}
+    {# The lesson may not be in course.lessons (e.g. a unit-only lesson);
+       then there is simply no prev/next instead of a 500. #}
     {% set lessons = course.lessons|list %}
-    {% set idx = lessons.index(lesson) %}
+    {% set ids = lessons|map(attribute='id')|list %}
+    {% set idx = ids.index(lesson.id) if lesson.id in ids else -1 %}
     <div class="flex items-center justify-between gap-space-sm">
       {% if idx > 0 %}
       <a href="{{ url_for('courses.lesson_view', lesson_id=lessons[idx-1].id) }}"
@@ -100,7 +103,7 @@
         <span>الدرس السابق</span>
       </a>
       {% else %}<span></span>{% endif %}
-      {% if idx < lessons|length - 1 %}
+      {% if idx >= 0 and idx < lessons|length - 1 %}
       <a href="{{ url_for('courses.lesson_view', lesson_id=lessons[idx+1].id) }}"
          class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">

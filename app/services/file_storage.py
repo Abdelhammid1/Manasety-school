@@ -158,7 +158,8 @@ def parse_key(key: str) -> Optional[FileKey]:
     if len(parts) != 4 or any(p in ("", ".", "..") for p in parts):
         return None
     school, kind, owner, fname = parts
-    if not (school.isdigit() and owner.isdigit()) or kind not in KINDS:
+    ascii_digits = all(p.isascii() and p.isdigit() for p in (school, owner))
+    if not ascii_digits or kind not in KINDS:
         return None
     if secure_filename(fname) != fname:
         return None
@@ -210,7 +211,7 @@ def signed_url(url: Optional[str], kind: str, owner_id: int,
 
 
 def signature_valid(key: str, exp: Optional[str], sig: Optional[str]) -> bool:
-    if not exp or not sig or not exp.isdigit() or int(exp) < time.time():
+    if not exp or not sig or not (exp.isascii() and exp.isdigit()) or int(exp) < time.time():
         return False
     return hmac.compare_digest(_sign(key, int(exp)), sig)
 
@@ -258,13 +259,14 @@ def pdf_url_fetcher(school_id: int):
 # ─── one-off import of legacy /static/uploads files ─────────────────
 
 def import_legacy_file(static_path: Path, school_id: int, kind: str, owner_id: int) -> str:
-    """Move a file that used to live under app/static into storage, so
-    no copy stays reachable through the public static view. Content
+    """Copy a file that used to live under app/static into storage. The
+    caller deletes the source only after the DB commit succeeded, so a
+    failed commit never leaves rows pointing at a moved file. Content
     and type rules are not re-applied — the old code accepted it."""
     import shutil
     name = secure_filename(static_path.name) or "file"
     key = f"{int(school_id)}/{kind}/{int(owner_id)}/{uuid.uuid4().hex[:12]}_{name}"
     dest = upload_root() / key
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(str(static_path), dest)
+    shutil.copy2(str(static_path), dest)
     return URL_PREFIX + key

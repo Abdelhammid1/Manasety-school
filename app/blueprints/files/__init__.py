@@ -266,6 +266,7 @@ def migrate_static_uploads(static_folder) -> dict:
     refs = Counter(os.path.normcase(str(src)) for _, _, src in keyed if src is not None)
 
     report = {}
+    copied = []
     for target, r, src in keyed:
         model, col, kind, school_of, owner_of, _ = target
         stats = report.setdefault(f"{model.__tablename__}.{col}",
@@ -281,8 +282,12 @@ def migrate_static_uploads(static_folder) -> dict:
             stats["missing"] += 1
             continue
         setattr(r, col, fs.import_legacy_file(src, school_id, kind, owner_of(r)))
+        copied.append(src)
         stats["moved"] += 1
     db.session.commit()
+    # Only now remove the public copies (rows already point at /files/).
+    for src in copied:
+        src.unlink(missing_ok=True)
     for target in _legacy_targets():
         report.setdefault(f"{target[0].__tablename__}.{target[1]}",
                           {"moved": 0, "missing": 0, "foreign_path": 0, "ambiguous": 0})

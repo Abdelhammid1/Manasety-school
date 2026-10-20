@@ -1,0 +1,77 @@
+{# Read-only weekly timetable for one teacher (schedule.teacher_schedule).
+   Rows = periods, columns = days; each cell shows subject + section. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}جدول {{ teacher.full_name }}{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('schedule.index') }}" class="hover:text-primary">الجدول</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ teacher.full_name }}</span>
+{% endblock %}
+
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <div class="flex items-center justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">جدول المعلم — {{ teacher.full_name }}</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        {% if year %}السنة: {{ year.name }} · {% endif %}{{ grid|length }} حصة أسبوعيًا
+      </p>
+    </div>
+    <button type="button" onclick="window.print()"
+            class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
+      <span class="material-symbols-outlined text-lg">print</span><span>طباعة</span>
+    </button>
+  </div>
+
+  {% if not year %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد سنة دراسية نشطة.</span>
+  </div>
+  {% elif not days or not periods %}
+  <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
+    <span class="material-symbols-outlined">info</span>
+    <span>لا توجد أيام/حصص معرّفة بعد.</span>
+  </div>
+  {% else %}
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
+    <div class="overflow-x-auto">
+      <table class="min-w-full">
+        <thead class="bg-surface-container-high">
+          <tr>
+            <th class="px-3 py-3 text-right font-label-lg text-primary sticky right-0 bg-surface-container-high z-10">الحصة</th>
+            {% for d in days %}
+            <th class="px-3 py-3 text-center font-label-lg text-primary">{{ d.name }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in periods %}
+          <tr class="border-t border-outline-variant">
+            <td class="px-3 py-3 sticky right-0 bg-surface-container-lowest z-10 font-label-lg text-primary font-bold whitespace-nowrap">{{ p.name }}</td>
+            {% for d in days %}
+            {% set s = grid.get((d.id, p.id)) %}
+            <td class="px-2 py-2 text-center align-top min-w-[120px]">
+              {% if s %}
+              <div class="rounded-xl bg-primary-container/20 px-2 py-2">
+                <div class="font-label-lg text-primary font-bold">{{ s.subject.name if s.subject else '—' }}</div>
+                <div class="font-label-md text-on-surface-variant">
+                  {% if s.section %}{{ s.section.grade.name }} — {{ s.section.name }}{% endif %}
+                </div>
+                {% if s.room %}<div class="font-label-sm text-outline">{{ s.room.name }}</div>{% endif %}
+              </div>
+              {% else %}
+              <span class="text-outline">—</span>
+              {% endif %}
+            </td>
+            {% endfor %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
