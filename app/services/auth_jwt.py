@@ -85,6 +85,27 @@ def _tenant_mismatch(payload: dict) -> bool:
         return True
 
 
+def user_from_bearer() -> Optional[User]:
+    """The active user behind `Authorization: Bearer <jwt>`, after every
+    check jwt_required applies (signature/expiry, active user, host
+    tenant, user's own school). None when any check fails."""
+    header = request.headers.get("Authorization", "")
+    token = header[7:] if header.startswith("Bearer ") else ""
+    payload = decode_token(token) if token else None
+    if not payload:
+        return None
+    user = db.session.get(User, payload["sub"])
+    if not user or not user.is_active or _tenant_mismatch(payload):
+        return None
+    if user.school_id is not None and payload.get("school") is not None:
+        try:
+            if int(user.school_id) != int(payload["school"]):
+                return None
+        except (TypeError, ValueError):
+            return None
+    return user
+
+
 def jwt_required(view):
     @wraps(view)
     def wrapped(*args, **kwargs):

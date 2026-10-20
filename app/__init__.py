@@ -99,7 +99,11 @@ def create_app(config_class=Config):
 
     @app.before_request
     def _no_public_uploads():
-        if request.path.startswith("/static/uploads/"):
+        # Normalise (//, ./, ../) and case-fold (Windows FS) first, so
+        # no spelling of the path reaches the static view.
+        import posixpath
+        norm = posixpath.normpath("/" + request.path.replace("\\", "/")).lower()
+        if norm == "/static/uploads" or norm.startswith("/static/uploads/"):
             abort(404)
 
     @app.route("/")

@@ -27,14 +27,8 @@ NOT_FOUND, FORBIDDEN, OK = 404, 403, 200
 def _viewer():
     if getattr(current_user, "is_authenticated", False):
         return current_user
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        from ...models import User
-        from ...services.auth_jwt import _tenant_mismatch, decode_token
-        payload = decode_token(auth[len("Bearer "):].strip())
-        if payload and not _tenant_mismatch(payload):
-            return db.session.get(User, int(payload["sub"]))
-    return None
+    from ...services.auth_jwt import user_from_bearer
+    return user_from_bearer()
 
 
 def _request_school_id(user):

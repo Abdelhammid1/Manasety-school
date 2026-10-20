@@ -737,11 +737,12 @@ def teacher_attendance_existing():
     })
 
 
-def _signed(url):
+def _signed(url, kind, owner_id):
     """SAAS-011 — the apps open files in an external browser (no JWT),
-    so stored files go out as short-lived signed URLs."""
+    so stored files go out as short-lived signed URLs, and only when the
+    file belongs to the record being returned."""
     from ...services.file_storage import signed_url
-    return signed_url(url)
+    return signed_url(url, kind, owner_id)
 
 
 @bp.route("/teacher/upload", methods=["POST"])
@@ -782,7 +783,7 @@ def teacher_upload():
     db.session.add(m)
     db.session.commit()
     return jsonify({
-        "id": m.id, "title": m.title, "file_path": _signed(rel_path),
+        "id": m.id, "title": m.title, "file_path": _signed(rel_path, "materials", section.id),
         "kind": "file", "section_name": f"{section.grade.name} / {section.name}",
     }), 201
 
@@ -861,7 +862,7 @@ def mark_notification_read(notif_id):
 def _material_dict(m):
     return {
         "id": m.id, "title": m.title, "description": m.description,
-        "kind": m.kind, "external_url": m.external_url, "file_path": _signed(m.file_path),
+        "kind": m.kind, "external_url": m.external_url, "file_path": _signed(m.file_path, "materials", m.section_id),
         "section_name": f"{m.section.grade.name} / {m.section.name}",
         "subject_name": m.subject.name,
         "created_at": m.created_at.isoformat(),
@@ -2325,7 +2326,7 @@ def student_course_detail(course_id):
             "lessons": [{
                 "id": l.id, "title": l.title, "kind": l.kind,
                 "duration_minutes": l.duration_minutes,
-                "media_url": _signed(l.media_url),
+                "media_url": _signed(l.media_url, "lessons", l.course_id),
             } for l in lessons],
         })
     orphan = (
@@ -2342,7 +2343,7 @@ def student_course_detail(course_id):
         "orphan_lessons": [{
             "id": l.id, "title": l.title, "kind": l.kind,
             "duration_minutes": l.duration_minutes,
-            "media_url": _signed(l.media_url),
+            "media_url": _signed(l.media_url, "lessons", l.course_id),
         } for l in orphan],
     })
 
@@ -2449,7 +2450,7 @@ def student_attendance():
         "date": r.date.isoformat() if r.date else None,
         "status": r.status,
         "reason": r.excuse_reason or r.notes,
-        "excuse_document": _signed(r.excuse_document),
+        "excuse_document": _signed(r.excuse_document, "excuse", r.enrollment_id),
     } for r in rows]})
 
 
@@ -2564,7 +2565,7 @@ def student_lesson_view(lid):
         "title": lesson.title,
         "kind": lesson.kind,
         "body": lesson.body,
-        "media_url": _signed(lesson.media_url),
+        "media_url": _signed(lesson.media_url, "lessons", lesson.course_id),
         "duration_minutes": lesson.duration_minutes,
     })
 
@@ -2611,7 +2612,7 @@ def student_assignment_detail(aid):
         "submission": {
             "id": sub.id,
             "body": sub.body,
-            "file_url": _signed(sub.file_url),
+            "file_url": _signed(sub.file_url, "submissions", sub.id),
             "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
             "score": float(sub.score) if sub.score is not None else None,
             "feedback": sub.feedback,
@@ -2639,7 +2640,12 @@ def student_assignment_submit(aid):
         sub = Submission(assignment_id=a.id, student_id=student.id)
         db.session.add(sub); db.session.flush()
     sub.body = data.get("body") or ""
-    sub.file_url = data.get("file_url") or ""
+    # Only external links may come from the client; stored files are
+    # created by the upload endpoints, never named by the caller.
+    file_url = (data.get("file_url") or "").strip()
+    if file_url and not file_url.lower().startswith(("https://", "http://")):
+        return _err("file_url must be an http(s) link")
+    sub.file_url = file_url
     sub.submitted_at = datetime.utcnow()
 
     # MCQ answers — { question_id: choice_id | text }

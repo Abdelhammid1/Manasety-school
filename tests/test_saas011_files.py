@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import io
-import time
 
 import pytest
 from werkzeug.datastructures import FileStorage
@@ -185,8 +184,8 @@ def test_signed_url_works_without_login_and_expires(files_app, two_schools, monk
     A, B = two_schools["A"], two_schools["B"]
     url = _store(files_app, A["school"].id, "materials", A["section"].id)
     with files_app.test_request_context(base_url=host(A)):
-        signed = fs.signed_url(url, ttl_seconds=60)
-        expired = fs.signed_url(url, ttl_seconds=-1)
+        signed = fs.signed_url(url, "materials", A["section"].id, ttl_seconds=60)
+        expired = fs.signed_url(url, "materials", A["section"].id, ttl_seconds=-1)
     with files_app.test_client() as c:
         assert c.get(signed, base_url=host(A)).status_code == 200
         assert c.get(expired, base_url=host(A)).status_code in DENIED
@@ -230,10 +229,9 @@ def test_api_material_paths_are_signed(files_app, two_schools):
     A = two_schools["A"]
     url = _store(files_app, A["school"].id, "materials", A["section"].id)
     with files_app.test_request_context(base_url=host(A)):
-        assert "sig=" in _signed(url)
-        assert _signed("https://youtu.be/x") == "https://youtu.be/x"
-        assert _signed(None) is None
-    time.sleep(0)
+        assert "sig=" in _signed(url, "materials", A["section"].id)
+        assert _signed("https://youtu.be/x", "lessons", 1) == "https://youtu.be/x"
+        assert _signed(None, "lessons", 1) is None
 
 
 def test_legacy_static_rows_are_migrated_idempotently(files_app, two_schools, tmp_path):
@@ -263,3 +261,94 @@ def test_legacy_static_rows_are_migrated_idempotently(files_app, two_schools, tm
         assert migrate_static_uploads(static)["students.photo_url"] == {"moved": 0, "missing": 1}
         assert db.session.get(Student, A["student"].id).photo_url.endswith("gone.png")
         db.session.remove()
+
+
+# ─── security review follow-ups ──────────────────────────────────────
+
+def test_stored_url_of_another_owner_is_never_signed(files_app, two_schools):
+    """Confused deputy: a record whose URL field names someone else's
+    file (e.g. a student pasting another submission's link) must not
+    get a signed URL for it."""
+    from app.services import file_storage as fs
+    A = two_schools["A"]
+    docs = _store(files_app, A["school"].id, "student_docs", A["student"].id)
+    with files_app.test_request_context(base_url=host(A)):
+        assert fs.signed_url(docs, "submissions", 1) is None
+        assert fs.signed_url(docs, "student_docs", A["student"].id + 1) is None
+        assert "sig=" in fs.signed_url(docs, "student_docs", A["student"].id)
+
+
+def test_api_submit_refuses_stored_file_keys(files_app, lms_world):
+    """A client may submit an external link, never the name of a stored
+    file (which the API would later hand back as a signed URL)."""
+    from app.extensions import db
+    from app.models import CourseAssignment, Submission, User
+    from app.services.auth_jwt import issue_token
+    A = lms_world["A"]
+    with files_app.app_context():
+        asg = CourseAssignment.query.join(Submission).filter(
+            Submission.id == lms_world["ids"]["submission"]).one()
+        asg.is_published = True
+        db.session.commit()
+        aid = asg.id
+        token = issue_token(db.session.get(User, A["users"]["student"].id))
+        db.session.remove()
+    hdr = {"Authorization": f"Bearer {token}"}
+    with files_app.test_client() as c:
+        bad = c.post(f"/api/student/assignments/{aid}/submit", base_url=host(A), headers=hdr,
+                     json={"file_url": f"/files/{A['school'].id}/student_docs/1/x.pdf"})
+        assert bad.status_code == 400
+        ok = c.post(f"/api/student/assignments/{aid}/submit", base_url=host(A), headers=hdr,
+                    json={"file_url": "https://drive.example/x"})
+        assert ok.status_code == 200, ok.get_data(as_text=True)[:200]
+
+
+@pytest.mark.parametrize("path", [
+    "/static/uploads/x.png", "/static//uploads/x.png", "/static/./uploads/x.png",
+    "/static/Uploads/x.png", "/static/UPLOADS/logos/x.png", "/static/css/../uploads/x.png",
+    "/static/uploads",
+])
+def test_static_uploads_blocked_in_every_spelling(files_app, two_schools, path):
+    with files_app.test_client() as c:
+        r = c.get(path, base_url=host(two_schools["A"]), follow_redirects=True)
+        assert r.status_code == 404
+
+
+def test_deactivated_user_jwt_cannot_download(files_app, two_schools):
+    from app.extensions import db
+    from app.models import User
+    from app.services.auth_jwt import issue_token
+    A = two_schools["A"]
+    url = _store(files_app, A["school"].id, "student_docs", A["student"].id)
+    with files_app.app_context():
+        admin = db.session.get(User, A["users"]["admin"].id)
+        token = issue_token(admin)
+        db.session.remove()
+    with files_app.test_client() as c:
+        ok = c.get(url, base_url=host(A), headers={"Authorization": f"Bearer {token}"})
+        assert ok.status_code == 200
+    with files_app.app_context():
+        admin = db.session.get(User, A["users"]["admin"].id)
+        admin.is_active = False
+        db.session.commit()
+        db.session.remove()
+    with files_app.test_client() as c:
+        r = c.get(url, base_url=host(A), headers={"Authorization": f"Bearer {token}"})
+        assert r.status_code in DENIED
+
+
+def test_legacy_migration_moves_file_out_of_static(files_app, two_schools, tmp_path):
+    from app.blueprints.files import migrate_static_uploads
+    from app.extensions import db
+    from app.models import Student
+    A = two_schools["A"]
+    old = tmp_path / "static" / "uploads" / "students" / "1" / "p.png"
+    old.parent.mkdir(parents=True)
+    old.write_bytes(PNG)
+    with files_app.app_context():
+        s = db.session.get(Student, A["student"].id)
+        s.photo_url = "/static/uploads/students/1/p.png"
+        db.session.commit()
+        migrate_static_uploads(tmp_path / "static")
+        db.session.remove()
+    assert not old.exists()

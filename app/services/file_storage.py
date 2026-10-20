@@ -187,12 +187,18 @@ def _sign(key: str, exp: int) -> str:
     return hmac.new(_sig_key(), f"{key}|{exp}".encode(), hashlib.sha256).hexdigest()
 
 
-def signed_url(url: Optional[str], ttl_seconds: int = 3600) -> Optional[str]:
-    """Return `url` with ?exp=&sig= if it is a stored file; other URLs
-    (external links, empty) pass through unchanged."""
+def signed_url(url: Optional[str], kind: str, owner_id: int,
+               ttl_seconds: int = 3600) -> Optional[str]:
+    """Return `url` with ?exp=&sig= when it is a stored file of exactly
+    this kind and owner. A stored URL pointing anywhere else (e.g. a
+    value a client wrote into its own record) is dropped, never signed.
+    External links and empty values pass through unchanged."""
     key = key_from_url(url)
     if key is None:
         return url
+    fk = parse_key(key)
+    if fk is None or fk.kind != kind or fk.owner_id != int(owner_id):
+        return None
     exp = int(time.time()) + ttl_seconds
     return f"{URL_PREFIX}{key}?exp={exp}&sig={_sign(key, exp)}"
 
@@ -227,13 +233,13 @@ def pdf_url_fetcher(school_id: int):
 # ─── one-off import of legacy /static/uploads files ─────────────────
 
 def import_legacy_file(static_path: Path, school_id: int, kind: str, owner_id: int) -> str:
-    """Copy a file that used to live under app/static into storage.
-    Content and type rules are not re-applied — the file was accepted
-    by the old code and is moved as-is."""
+    """Move a file that used to live under app/static into storage, so
+    no copy stays reachable through the public static view. Content
+    and type rules are not re-applied — the old code accepted it."""
     import shutil
     name = secure_filename(static_path.name) or "file"
     key = f"{int(school_id)}/{kind}/{int(owner_id)}/{uuid.uuid4().hex[:12]}_{name}"
     dest = upload_root() / key
     dest.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(static_path, dest)
+    shutil.move(str(static_path), dest)
     return URL_PREFIX + key
