@@ -21,6 +21,8 @@ from dataclasses import dataclass
 
 import sqlalchemy as sa
 from sqlalchemy import event, inspect
+from sqlalchemy.orm import MANYTOONE
+from sqlalchemy.orm.base import NO_VALUE
 
 from ..extensions import db
 
@@ -56,7 +58,7 @@ def edges() -> list[Edge]:
             continue
         for fk in t.foreign_keys:
             col, parent = fk.parent.name, fk.column.table.name
-            if col in _SKIP_COLUMNS or parent not in owned or parent == t.name:
+            if col in _SKIP_COLUMNS or parent not in owned:
                 continue
             if (t.name, col) in CROSS_SCHOOL_OK:
                 continue
@@ -81,66 +83,113 @@ def integrity_report(conn=None) -> dict[str, int]:
 
 # ─── ORM flush guard ────────────────────────────────────────────────
 
-def _mapper_for_table(name):
-    for m in db.Model.registry.mappers:  # type: ignore[attr-defined]
-        if getattr(m, "local_table", None) is not None and m.local_table.name == name:
-            return m.class_
-    return None
+def _parent_school(session, cache, table, pk):
+    """(found, school_id) of row `pk` in `table`. Pending objects with an
+    explicit id are looked up in the session first; otherwise raw SQL,
+    so the soft-delete filter can't hide a deleted parent of another
+    school."""
+    key = (table, pk)
+    if key in cache:
+        return cache[key]
+    for o in session.new:
+        t = getattr(inspect(o).mapper, "local_table", None)
+        if t is not None and t.name == table and getattr(o, "id", None) == pk:
+            cache[key] = (True, _effective_school(session, cache, o))
+            return cache[key]
+    row = session.connection().execute(
+        sa.text(f"SELECT school_id FROM {table} WHERE id = :i"), {"i": pk}).first()
+    cache[key] = (False, None) if row is None else (True, row[0])
+    return cache[key]
 
 
-def _parent_school(session, table, pk):
-    cls = _mapper_for_table(table)
-    if cls is not None:
-        obj = session.get(cls, pk)
-        return getattr(obj, "school_id", None) if obj is not None else None
-    return session.execute(sa.text(f"SELECT school_id FROM {table} WHERE id = :i"),
-                           {"i": pk}).scalar()
+def _loaded_parent(state, column_name):
+    """The object a MANYTOONE relationship over `column_name` currently
+    holds (NO_VALUE when not loaded/set)."""
+    for rel in state.mapper.relationships:
+        if rel.direction is MANYTOONE and                 any(l.name == column_name for l, _ in rel.local_remote_pairs):
+            return state.attrs[rel.key].loaded_value
+    return NO_VALUE
 
 
-def _effective_school(session, obj, table):
+def _column_value(state, column):
+    try:
+        key = state.mapper.get_property_by_column(column).key
+    except Exception:  # noqa: BLE001 — column not mapped on this class
+        key = column.name
+    return getattr(state.obj(), key, None)
+
+
+def _effective_school(session, cache, obj):
+    """The school_id this row has, or will get from its column default:
+    first parent with a known school (same order as inherited_school_id),
+    then the current tenant. None when nothing determines it."""
     sid = getattr(obj, "school_id", None)
     if sid is not None:
         return sid
-    # Not set yet: the inherited_school_id default will copy it from the
-    # first parent present at INSERT time — predict the same value.
-    col = table.c.school_id
+    state = inspect(obj)
+    table = state.mapper.local_table
+    col = table.c.get("school_id")
+    if col is None:
+        return None
     for parent_table, fk_col in col.info.get("tenant_parents", ()):
-        pid = getattr(obj, fk_col, None)
+        parent_obj = _loaded_parent(state, fk_col)
+        if parent_obj is not NO_VALUE and parent_obj is not None:
+            psid = _effective_school(session, cache, parent_obj)
+            if psid is not None:
+                return psid
+        pid = _column_value(state, table.c[fk_col])
         if pid is not None:
-            return _parent_school(session, parent_table, pid)
-    return None
+            found, psid = _parent_school(session, cache, parent_table, pid)
+            if found and psid is not None:
+                return psid
+    from .tenancy import TenantNotResolved, current_school_id
+    try:
+        return current_school_id()
+    except TenantNotResolved:
+        return None
 
 
-def check_instance(session, obj) -> None:
-    table = getattr(inspect(obj).mapper, "local_table", None)
+def check_instance(session, obj, cache=None) -> None:
+    cache = {} if cache is None else cache
+    state = inspect(obj)
+    table = getattr(state.mapper, "local_table", None)
     if table is None or "school_id" not in table.c:
         return
-    owned = owned_tables()
-    sid = _effective_school(session, obj, table)
+    sid = _effective_school(session, cache, obj)
     if sid is None:
-        return
+        if table.c.school_id.nullable:
+            return          # shared / catalogue row
+        raise TenantIntegrityError(f"{table.name}: cannot determine the row's school")
+    owned = owned_tables()
     for fk in table.foreign_keys:
         col, parent = fk.parent.name, fk.column.table.name
         if col in _SKIP_COLUMNS or parent not in owned or (table.name, col) in CROSS_SCHOOL_OK:
             continue
-        try:
-            attr = inspect(obj).mapper.get_property_by_column(fk.parent).key
-        except Exception:  # noqa: BLE001 — column not mapped on this class
-            attr = col
-        pid = getattr(obj, attr, None)
-        if pid is None:
-            continue
-        psid = _parent_school(session, parent, pid)
-        if psid is not None and int(psid) != int(sid):
-            raise TenantIntegrityError(
-                f"{table.name}.{col} -> {parent}: row of school {sid} "
-                f"cannot point at a {parent} row of school {psid}")
+        # Check BOTH the relationship object and the FK column: either may
+        # be the stale one until the flush syncs them.
+        candidates = []
+        parent_obj = _loaded_parent(state, col)
+        if parent_obj is not NO_VALUE and parent_obj is not None:
+            candidates.append(("object", True, _effective_school(session, cache, parent_obj)))
+        pid = _column_value(state, fk.parent)
+        if pid is not None:
+            found, psid = _parent_school(session, cache, parent, pid)
+            candidates.append((pid, found, psid))
+        for ref, found, psid in candidates:
+            if not found:
+                raise TenantIntegrityError(
+                    f"{table.name}.{col} -> {parent}: parent {ref} does not exist")
+            if psid is not None and int(psid) != int(sid):
+                raise TenantIntegrityError(
+                    f"{table.name}.{col} -> {parent}: row of school {sid} "
+                    f"cannot point at a {parent} row of school {psid}")
 
 
 def _before_flush(session, flush_context, instances):
+    cache: dict = {}
     for obj in list(session.new) + list(session.dirty):
-        if session.is_modified(obj, include_collections=False) or obj in session.new:
-            check_instance(session, obj)
+        if obj in session.new or session.is_modified(obj, include_collections=False):
+            check_instance(session, obj, cache)
 
 
 def install(app) -> None:

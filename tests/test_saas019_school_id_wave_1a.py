@@ -161,9 +161,13 @@ def test_insert_without_parent_or_tenant_is_refused(app):
     from app.extensions import db
     from app.models import InvoiceLine
     from app.services.tenancy import TenantNotResolved
+    from app.services.tenant_guard import TenantIntegrityError
     with app.app_context():
         db.session.add(InvoiceLine(invoice_id=987654, fee_type_id=1, amount=Decimal("1")))
-        with pytest.raises((TenantNotResolved, StatementError, IntegrityError)):
+        # Refused by the SAAS-022 guard first; the column default alone
+        # would raise TenantNotResolved.
+        with pytest.raises((TenantIntegrityError, TenantNotResolved, StatementError,
+                            IntegrityError)):
             db.session.flush()
         db.session.rollback()
         db.session.remove()

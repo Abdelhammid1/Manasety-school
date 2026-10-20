@@ -190,3 +190,89 @@ def test_guard_overhead_on_a_quiz_attempt(app, two_schools, capsys):
         print(f"\n[SAAS-022] 20-answer attempt commit: guard {guarded*1000:.1f} ms, "
               f"no guard {bare*1000:.1f} ms")
     assert guarded < 2.0
+
+
+# ─── security review follow-ups (fail-closed paths) ─────────────────
+
+def test_parent_set_through_relationship_is_checked(app, world):
+    """`line.fee_type = obj` leaves fee_type_id empty until flush; the
+    guard must read the relationship, not just the column."""
+    from app.extensions import db
+    from app.models import FeeType, InvoiceLine
+    from app.services.tenant_guard import TenantIntegrityError
+    A, B = world["A"], world["B"]
+    with app.app_context():
+        line = InvoiceLine(invoice_id=A["invoice"], amount=Decimal("5"))
+        line.fee_type = db.session.get(FeeType, B["fee_type"])
+        db.session.add(line)
+        with pytest.raises(TenantIntegrityError, match="fee_type_id -> fee_types"):
+            db.session.flush()
+        db.session.rollback()
+        db.session.remove()
+
+
+def test_relationship_reassigned_on_saved_row_is_checked(app, world):
+    from app.extensions import db
+    from app.models import FeeType, InvoiceLine
+    from app.services.tenant_guard import TenantIntegrityError
+    A, B = world["A"], world["B"]
+    with app.app_context():
+        line = InvoiceLine.query.filter_by(invoice_id=A["invoice"]).first()
+        assert line is not None
+        _ = line.fee_type                     # loaded: A's fee type
+        line.fee_type = db.session.get(FeeType, B["fee_type"])   # column still A's
+        with pytest.raises(TenantIntegrityError):
+            db.session.flush()
+        db.session.rollback()
+        db.session.remove()
+
+
+def test_soft_deleted_parent_of_other_school_is_still_refused(app, world):
+    from datetime import date, datetime, timezone
+    from app.extensions import db
+    from app.models import Expense, Vendor
+    from app.services.tenant_guard import TenantIntegrityError
+    A, B = world["A"], world["B"]
+    with app.app_context():
+        v = db.session.get(Vendor, B["vendor"])
+        assert v is not None
+        v.deleted_at = datetime.now(timezone.utc)
+        db.session.commit()
+        db.session.add(Expense(school_id=A["school"].id, vendor_id=B["vendor"],
+                               expense_account_id=A["account"], cash_account_id=A["account"],
+                               date=date(2026, 9, 9), amount=Decimal("1"), description="x"))
+        with pytest.raises(TenantIntegrityError, match="vendor_id -> vendors"):
+            db.session.flush()
+        db.session.rollback()
+        db.session.remove()
+
+
+def test_nonexistent_parent_is_refused(app, world):
+    from app.extensions import db
+    from app.models import InvoiceLine
+    from app.services.tenant_guard import TenantIntegrityError
+    A = world["A"]
+    with app.app_context():
+        db.session.add(InvoiceLine(invoice_id=A["invoice"], fee_type_id=987654,
+                                   amount=Decimal("1")))
+        with pytest.raises(TenantIntegrityError, match="does not exist"):
+            db.session.flush()
+        db.session.rollback()
+        db.session.remove()
+
+
+def test_self_reference_across_schools_is_refused(app, world):
+    """accounts.parent_id -> accounts: a child account under another
+    school's parent."""
+    from app.extensions import db
+    from app.models import Account
+    from app.services.tenant_guard import TenantIntegrityError, edges
+    A, B = world["A"], world["B"]
+    with app.app_context():
+        assert ("accounts", "parent_id", "accounts") in {(e.child, e.column, e.parent) for e in edges()}
+        db.session.add(Account(school_id=A["school"].id, code="9999", name="x", type="asset",
+                               parent_id=B["account"]))
+        with pytest.raises(TenantIntegrityError, match="accounts.parent_id -> accounts"):
+            db.session.flush()
+        db.session.rollback()
+        db.session.remove()
