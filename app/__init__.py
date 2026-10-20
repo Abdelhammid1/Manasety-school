@@ -1,4 +1,4 @@
-from flask import Flask, redirect, render_template, url_for
+from flask import Flask, abort, redirect, render_template, request, url_for
 
 from .config import Config
 from .extensions import db, migrate, login_manager, bcrypt, csrf
@@ -93,6 +93,14 @@ def create_app(config_class=Config):
     app.register_blueprint(platform_bp, url_prefix="/platform")
     app.register_blueprint(cron_bp, url_prefix="/cron")
     app.register_blueprint(nafis_bp, url_prefix="/nafis")
+    # SAAS-011 — uploads are served only through the checked route.
+    from .blueprints.files import bp as files_bp
+    app.register_blueprint(files_bp)
+
+    @app.before_request
+    def _no_public_uploads():
+        if request.path.startswith("/static/uploads/"):
+            abort(404)
 
     @app.route("/")
     def index():

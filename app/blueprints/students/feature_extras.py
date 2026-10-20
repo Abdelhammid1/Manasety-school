@@ -3,15 +3,12 @@
 Each route is school-scoped through _sid() and gated on the students
 "edit" permission (except sibling detection which is a "view" op)."""
 
-import os
-import uuid as _uuid
 from datetime import datetime
 
 from flask import (
     abort, current_app, flash, jsonify, redirect, request, url_for,
 )
 from flask_login import current_user, login_required
-from werkzeug.utils import secure_filename
 
 from . import bp
 from ..utils import require_permission
@@ -46,19 +43,12 @@ def student_photo_upload(student_id):
     if not f or not f.filename:
         flash("لم يتم رفع أي صورة.", "warning")
         return redirect(url_for("students.student_detail", student_id=student.id))
-    ext = f.filename.rsplit(".", 1)[-1].lower()
-    if ext not in {"png", "jpg", "jpeg", "webp", "gif"}:
-        flash(f"صيغة الصورة .{ext} غير مدعومة.", "danger")
+    from ...services import file_storage as fs
+    try:
+        student.photo_url = fs.save(f, "student_photo", student.id)
+    except fs.UploadRejected as e:
+        flash(str(e), "danger")
         return redirect(url_for("students.student_detail", student_id=student.id))
-    safe = secure_filename(f.filename)
-    unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
-    subdir = os.path.join(current_app.static_folder, "uploads",
-                         "students", str(student.id))
-    os.makedirs(subdir, exist_ok=True)
-    f.save(os.path.join(subdir, unique))
-    student.photo_url = url_for(
-        "static", filename=f"uploads/students/{student.id}/{unique}"
-    )
     db.session.commit()
     flash("تم تحديث الصورة.", "success")
     return redirect(url_for("students.student_detail", student_id=student.id))

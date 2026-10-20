@@ -8,7 +8,6 @@ Everything is auditable — deletes soft-null via Message.deleted_at.
 NotificationPreference rows control who wants alerts per channel/event.
 """
 import os
-import uuid as _uuid
 from datetime import datetime, timezone
 
 from flask import (
@@ -17,7 +16,6 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import or_, and_, desc
-from werkzeug.utils import secure_filename
 
 
 ATTACHMENT_EXTS = {"pdf", "png", "jpg", "jpeg", "gif", "webp"}
@@ -80,17 +78,12 @@ def _save_attachment(conv_id):
             "danger",
         )
         return None
-    safe = secure_filename(f.filename)
-    unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
-    subdir = os.path.join(
-        current_app.static_folder, "uploads", "messages", str(conv_id or 0),
-    )
-    os.makedirs(subdir, exist_ok=True)
-    f.save(os.path.join(subdir, unique))
-    return url_for(
-        "static",
-        filename=f"uploads/messages/{conv_id or 0}/{unique}",
-    )
+    from ...services import file_storage as fs
+    try:
+        return fs.save(f, "messages", conv_id)
+    except fs.UploadRejected as e:
+        flash(str(e), "danger")
+        return None
 
 
 def _can_message(a_user, b_user):

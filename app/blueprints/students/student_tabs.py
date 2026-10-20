@@ -7,8 +7,6 @@ Ticket #12: Behavior incidents + actions.
 Kept in a separate module to avoid ballooning routes.py — each ticket
 gets its own section so future work is easy to locate.
 """
-import os
-import uuid
 from datetime import datetime, date
 from decimal import Decimal
 
@@ -16,7 +14,6 @@ from flask import (
     abort, current_app, flash, redirect, render_template, request, url_for,
 )
 from flask_login import current_user, login_required
-from werkzeug.utils import secure_filename
 
 from . import bp
 from ..utils import require_permission
@@ -43,7 +40,6 @@ def _get_student(student_id):
     return stu
 
 
-ALLOWED_DOC_EXT = {"pdf", "doc", "docx", "png", "jpg", "jpeg", "webp", "gif"}
 
 
 # ─── Ticket #10 — Health ────────────────────────────────────────────
@@ -129,23 +125,20 @@ def document_upload(student_id):
     if not file or not file.filename:
         flash("اختر ملفاً للرفع.", "danger")
         return redirect(url_for("students.documents", student_id=student.id))
-    ext = file.filename.rsplit(".", 1)[-1].lower()
-    if ext not in ALLOWED_DOC_EXT:
-        flash(f"صيغة الملف .{ext} غير مدعومة.", "danger")
+    from ...services import file_storage as fs
+    try:
+        stored = fs.save(file, "student_docs", student.id)
+    except fs.UploadRejected as e:
+        flash(str(e), "danger")
         return redirect(url_for("students.documents", student_id=student.id))
-    safe = secure_filename(file.filename)
-    unique = f"{uuid.uuid4().hex[:12]}_{safe}"
-    subdir = os.path.join(current_app.static_folder, "uploads", "student_docs", str(student.id))
-    os.makedirs(subdir, exist_ok=True)
-    path = os.path.join(subdir, unique)
-    file.save(path)
+    stored_key = fs.parse_key(fs.key_from_url(stored) or "")
 
     doc = StudentDocument(
         school_id=_sid(), student_id=student.id,
         document_type=(request.form.get("document_type") or "other").strip(),
         title=(request.form.get("title") or "").strip() or None,
-        file_path=url_for("static", filename=f"uploads/student_docs/{student.id}/{unique}"),
-        file_size=os.path.getsize(path),
+        file_path=stored,
+        file_size=stored_key.path.stat().st_size if stored_key else None,
         mime_type=file.mimetype,
         document_number=(request.form.get("document_number") or "").strip() or None,
         issue_date=_parse_date(request.form.get("issue_date")),
@@ -169,14 +162,11 @@ def document_delete(doc_id):
         id=doc_id, school_id=_sid()).first_or_404()
     sid = doc.student_id
     # Try to remove the file too (best-effort).
+    from ...services import file_storage as fs
     try:
-        static_dir = current_app.static_folder or ""
-        rel = doc.file_path.replace("/static/", "", 1)
-        p = os.path.join(static_dir, rel)
-        if os.path.isfile(p):
-            os.remove(p)
-    except Exception:
-        pass
+        fs.delete(doc.file_path)
+    except OSError:
+        current_app.logger.warning("could not remove document file %s", doc.id)
     db.session.delete(doc); db.session.commit()
     flash("تم حذف المستند.", "success")
     return redirect(url_for("students.documents", student_id=sid))

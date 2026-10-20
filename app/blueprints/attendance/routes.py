@@ -1,6 +1,6 @@
 from datetime import datetime, date, timedelta
 
-from flask import abort, flash, redirect, render_template, request, url_for
+from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from sqlalchemy import func
 
@@ -34,32 +34,19 @@ def _get(model, oid):
 
 def _save_excuse_file(record, enrollment_id):
     """Ticket T8 — persist an uploaded excuse document alongside the
-    attendance row. Stored under `static/uploads/attendance/<eid>/`.
+    attendance row via services.file_storage (kind "excuse").
 
     Silently skips when no file is uploaded or the file is empty.
     Overwrites `record.excuse_document` when a new file is uploaded on
     a re-save."""
-    import os
-    from flask import current_app, url_for
-    from werkzeug.utils import secure_filename
+    from ...services import file_storage as fs
     f = request.files.get(f"excuse_file_{enrollment_id}")
     if not f or not f.filename:
         return
-    ext = f.filename.rsplit(".", 1)[-1].lower()
-    if ext not in {"pdf", "png", "jpg", "jpeg", "webp"}:
+    try:
+        record.excuse_document = fs.save(f, "excuse", enrollment_id)
+    except fs.UploadRejected:
         return
-    import uuid as _uuid
-    safe = secure_filename(f.filename)
-    unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
-    subdir = os.path.join(
-        current_app.static_folder, "uploads", "attendance", str(enrollment_id)
-    )
-    os.makedirs(subdir, exist_ok=True)
-    path = os.path.join(subdir, unique)
-    f.save(path)
-    record.excuse_document = url_for(
-        "static", filename=f"uploads/attendance/{enrollment_id}/{unique}"
-    )
 
 
 def _notify_absence(*, student, section, on_date, record):

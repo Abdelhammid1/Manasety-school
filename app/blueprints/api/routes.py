@@ -3,13 +3,10 @@
 All endpoints under /api/ — JWT auth via Authorization: Bearer <token>.
 Routes auto-scope to the authenticated user's school_id.
 """
-import os
-import uuid
 from datetime import datetime, date
 from decimal import Decimal
 
 from flask import current_app, g, jsonify, request
-from werkzeug.utils import secure_filename
 
 from . import bp
 from ...extensions import bcrypt, csrf, db
@@ -740,8 +737,11 @@ def teacher_attendance_existing():
     })
 
 
-ALLOWED_UPLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png"}
-MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
+def _signed(url):
+    """SAAS-011 — the apps open files in an external browser (no JWT),
+    so stored files go out as short-lived signed URLs."""
+    from ...services.file_storage import signed_url
+    return signed_url(url)
 
 
 @bp.route("/teacher/upload", methods=["POST"])
@@ -768,23 +768,11 @@ def teacher_upload():
     ).first():
         return _err("teacher not assigned to this subject in this section", 403)
 
-    ext = os.path.splitext(file.filename or "")[1].lower()
-    if ext not in ALLOWED_UPLOAD_EXTS:
-        return _err(f"unsupported file type ({ext})")
-    file.seek(0, 2)
-    size = file.tell()
-    file.seek(0)
-    if size > MAX_UPLOAD_BYTES:
-        return _err("file too large (max 10MB)", 413)
-
-    upload_dir = os.path.join(
-        current_app.root_path, "static", "uploads", "materials", str(_sid()),
-    )
-    os.makedirs(upload_dir, exist_ok=True)
-    fname = f"{uuid.uuid4().hex}{ext}"
-    fpath = os.path.join(upload_dir, fname)
-    file.save(fpath)
-    rel_path = f"/static/uploads/materials/{_sid()}/{fname}"
+    from ...services import file_storage as fs
+    try:
+        rel_path = fs.save(file, "materials", section.id)
+    except fs.UploadRejected as e:
+        return _err(str(e))
 
     m = Material(
         school_id=_sid(), teacher_id=t.id, year_id=section.year_id,
@@ -794,7 +782,7 @@ def teacher_upload():
     db.session.add(m)
     db.session.commit()
     return jsonify({
-        "id": m.id, "title": m.title, "file_path": rel_path,
+        "id": m.id, "title": m.title, "file_path": _signed(rel_path),
         "kind": "file", "section_name": f"{section.grade.name} / {section.name}",
     }), 201
 
@@ -873,7 +861,7 @@ def mark_notification_read(notif_id):
 def _material_dict(m):
     return {
         "id": m.id, "title": m.title, "description": m.description,
-        "kind": m.kind, "external_url": m.external_url, "file_path": m.file_path,
+        "kind": m.kind, "external_url": m.external_url, "file_path": _signed(m.file_path),
         "section_name": f"{m.section.grade.name} / {m.section.name}",
         "subject_name": m.subject.name,
         "created_at": m.created_at.isoformat(),
@@ -2337,7 +2325,7 @@ def student_course_detail(course_id):
             "lessons": [{
                 "id": l.id, "title": l.title, "kind": l.kind,
                 "duration_minutes": l.duration_minutes,
-                "media_url": l.media_url,
+                "media_url": _signed(l.media_url),
             } for l in lessons],
         })
     orphan = (
@@ -2354,7 +2342,7 @@ def student_course_detail(course_id):
         "orphan_lessons": [{
             "id": l.id, "title": l.title, "kind": l.kind,
             "duration_minutes": l.duration_minutes,
-            "media_url": l.media_url,
+            "media_url": _signed(l.media_url),
         } for l in orphan],
     })
 
@@ -2461,7 +2449,7 @@ def student_attendance():
         "date": r.date.isoformat() if r.date else None,
         "status": r.status,
         "reason": r.excuse_reason or r.notes,
-        "excuse_document": r.excuse_document,
+        "excuse_document": _signed(r.excuse_document),
     } for r in rows]})
 
 
@@ -2576,7 +2564,7 @@ def student_lesson_view(lid):
         "title": lesson.title,
         "kind": lesson.kind,
         "body": lesson.body,
-        "media_url": lesson.media_url,
+        "media_url": _signed(lesson.media_url),
         "duration_minutes": lesson.duration_minutes,
     })
 
@@ -2623,7 +2611,7 @@ def student_assignment_detail(aid):
         "submission": {
             "id": sub.id,
             "body": sub.body,
-            "file_url": sub.file_url,
+            "file_url": _signed(sub.file_url),
             "submitted_at": sub.submitted_at.isoformat() if sub.submitted_at else None,
             "score": float(sub.score) if sub.score is not None else None,
             "feedback": sub.feedback,

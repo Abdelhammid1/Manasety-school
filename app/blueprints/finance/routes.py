@@ -17,6 +17,7 @@ from ...models import (
     Payment, School, Section, Student, Vendor,
 )
 from ...services.accounting import post_journal
+from ...services.file_storage import pdf_url_fetcher
 from ...services.notifications import send_notification
 
 
@@ -606,7 +607,8 @@ def invoice_print(invoice_id):
                                inv=inv, school=school, download=True)
         try:
             from weasyprint import HTML
-            pdf_bytes = HTML(string=html, base_url=request.host_url).write_pdf()
+            pdf_bytes = HTML(string=html, base_url=request.host_url,
+                             url_fetcher=pdf_url_fetcher(_sid())).write_pdf()
         except Exception as e:  # noqa: BLE001
             current_app.logger.exception("WeasyPrint invoice PDF failed: %s", e)
             # Fallback: return the printable HTML so the browser can Save-as-PDF
@@ -2015,7 +2017,8 @@ def reports_export():
     )
     try:
         from weasyprint import HTML
-        pdf_bytes = HTML(string=html, base_url=request.host_url).write_pdf()
+        pdf_bytes = HTML(string=html, base_url=request.host_url,
+                             url_fetcher=pdf_url_fetcher(_sid())).write_pdf()
     except Exception as e:  # noqa: BLE001
         current_app.logger.exception("WeasyPrint PDF export failed: %s", e)
         # Fallback: return the printable HTML with a banner asking the user

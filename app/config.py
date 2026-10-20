@@ -193,6 +193,8 @@ class Config:
     # Ticket "Additional 3" — token protecting the /cron/tick endpoint
     # that flips overdue invoices + sends payment reminders daily.
     CRON_TOKEN = _resolve_cron_token()
+    # SAAS-011 — uploaded files, outside app/static. Default: instance/uploads.
+    UPLOAD_ROOT = os.environ.get("UPLOAD_ROOT") or None
     BASE_DOMAIN, PLATFORM_HOSTS, LEGACY_HOSTS = _resolve_tenancy_hosts()
 
     # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────

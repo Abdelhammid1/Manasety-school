@@ -385,31 +385,23 @@ def _get_lesson_or_404(lesson_id):
     return Lesson.query.get_or_404(lesson_id)
 
 
-LESSON_PDF_EXTS = {".pdf"}
 
 
 def _save_lesson_pdf(course, file_storage):
-    """Save an uploaded lesson PDF into static/uploads/lessons/.
+    """Save an uploaded lesson PDF via services.file_storage (kind "lessons").
 
     Returns the URL to store in `lesson.media_url`, or None + flashes on
     validation failure. Filenames are randomised so admins can re-upload
     without cache issues.
     """
-    import os, secrets
-    from flask import current_app
-    from werkzeug.utils import secure_filename
+    from ...services import file_storage as fs
     if not file_storage or not file_storage.filename:
         return None
-    name = secure_filename(file_storage.filename)
-    ext = os.path.splitext(name)[1].lower()
-    if ext not in LESSON_PDF_EXTS:
-        flash("امتداد الملف غير مدعوم — ارفع ملف PDF.", "danger")
+    try:
+        return fs.save(file_storage, "lessons", course.id)
+    except fs.UploadRejected as e:
+        flash(str(e), "danger")
         return None
-    upload_root = os.path.join(current_app.static_folder, "uploads", "lessons")
-    os.makedirs(upload_root, exist_ok=True)
-    fname = f"c{course.id}-{secrets.token_hex(6)}{ext}"
-    file_storage.save(os.path.join(upload_root, fname))
-    return url_for("static", filename=f"uploads/lessons/{fname}")
 
 
 @bp.route("/<int:course_id>/lessons/new", methods=["GET", "POST"], endpoint="lesson_new")

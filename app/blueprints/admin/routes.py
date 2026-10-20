@@ -1,8 +1,5 @@
-import os
-import secrets
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
-from werkzeug.utils import secure_filename
 
 from . import bp
 from ..utils import require_permission
@@ -11,7 +8,6 @@ from ...models import Role, User, AuditLog, School
 from ...models.user import PERMISSION_MODULES, PERMISSION_ACTIONS
 
 
-LOGO_ALLOWED_EXTS = {".png", ".jpg", ".jpeg", ".svg", ".webp"}
 
 # Ticket #1 (2026-09-25) — /admin/users and /admin/roles are for the
 # school's administrative staff only. teacher / student / parent users
@@ -27,23 +23,18 @@ ADMIN_ROLE_NAMES = frozenset({
 def _save_school_logo(school, file_storage):
     """Ticket #2 — save a logo file uploaded from the settings form.
 
-    Writes into `static/uploads/logos/<school-id>-<random>.<ext>` and
-    returns the URL that should be stored in `school.logo_url`.
+    Stored via services.file_storage (kind "logo"); returns the
+    /files/ URL that should be stored in `school.logo_url`.
     Returns None on validation failure (message flashed by caller).
     """
+    from ...services import file_storage as fs
     if not file_storage or not file_storage.filename:
         return None
-    name = secure_filename(file_storage.filename)
-    ext = os.path.splitext(name)[1].lower()
-    if ext not in LOGO_ALLOWED_EXTS:
-        flash("امتداد ملف الشعار غير مدعوم — استخدم PNG/JPG/SVG/WebP.", "danger")
+    try:
+        return fs.save(file_storage, "logo", school.id)
+    except fs.UploadRejected as e:
+        flash(f"ملف الشعار: {e}", "danger")
         return None
-    upload_root = os.path.join(current_app.static_folder, "uploads", "logos")
-    os.makedirs(upload_root, exist_ok=True)
-    fname = f"{school.id}-{secrets.token_hex(6)}{ext}"
-    dest = os.path.join(upload_root, fname)
-    file_storage.save(dest)
-    return url_for("static", filename=f"uploads/logos/{fname}")
 
 
 # ---------- Ticket 6 — Audit log viewer ----------

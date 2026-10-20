@@ -1,14 +1,11 @@
 """Ticket S3 — Previous Schools CRUD (student's academic history
 before joining Manasety)."""
 
-import os
-import uuid as _uuid
 
 from flask import (
     abort, current_app, flash, redirect, request, url_for,
 )
 from flask_login import current_user, login_required
-from werkzeug.utils import secure_filename
 
 from . import bp
 from ..utils import require_permission
@@ -54,20 +51,11 @@ def previous_school_add(student_id):
     # Optional attached transcript / school certificate.
     f = request.files.get("document")
     if f and f.filename:
-        ext = f.filename.rsplit(".", 1)[-1].lower()
-        if ext in {"pdf", "png", "jpg", "jpeg", "webp"}:
-            safe = secure_filename(f.filename)
-            unique = f"{_uuid.uuid4().hex[:12]}_{safe}"
-            subdir = os.path.join(
-                current_app.static_folder, "uploads",
-                "students", str(student.id), "previous",
-            )
-            os.makedirs(subdir, exist_ok=True)
-            f.save(os.path.join(subdir, unique))
-            row.document_url = url_for(
-                "static",
-                filename=f"uploads/students/{student.id}/previous/{unique}",
-            )
+        from ...services import file_storage as fs
+        try:
+            row.document_url = fs.save(f, "previous_school", student.id)
+        except fs.UploadRejected as e:
+            flash(f"لم يُحفظ المرفق: {e}", "warning")
     db.session.commit()
     flash("تمت إضافة المدرسة السابقة.", "success")
     return redirect(url_for("students.student_detail", student_id=student.id))

@@ -2,7 +2,6 @@
 + auto-grader. No static demo data — every list, form, and result comes from
 real DB rows scoped to the current user's school (and, where applicable, their
 Student record)."""
-import os
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -33,7 +32,6 @@ from flask import (
     abort, current_app, flash, jsonify, redirect, render_template, request, url_for,
 )
 from flask_login import login_required, current_user
-from werkzeug.utils import secure_filename
 
 from . import bp
 from ..utils import require_permission
@@ -49,11 +47,6 @@ from ...models import (
 )
 
 
-ALLOWED_SUBMISSION_EXT = {
-    "pdf", "doc", "docx", "png", "jpg", "jpeg", "zip", "txt",
-    # Phase-2 ticket #20 — expanded to image/audio/video kinds.
-    "gif", "webp", "mp3", "wav", "m4a", "ogg", "mp4", "webm", "mov",
-}
 
 
 def _current_student():
@@ -3112,20 +3105,18 @@ def assignment_submit(aid):
             submission.submission_kind = "link"
 
     # Optional file upload — capped by app.config['MAX_CONTENT_LENGTH'] and
-    # by our whitelist. Saved under app/static/uploads/submissions/<aid>/.
+    # by the storage whitelist + content sniffing (services.file_storage).
     file = request.files.get("attachment")
     if file and file.filename:
+        from ...services import file_storage as fs
         ext = file.filename.rsplit(".", 1)[-1].lower()
-        if ext not in ALLOWED_SUBMISSION_EXT:
-            flash(f"صيغة الملف .{ext} غير مدعومة.", "danger")
+        db.session.flush()   # the submission id owns the stored file
+        try:
+            submission.file_url = fs.save(file, "submissions", submission.id)
+        except fs.UploadRejected as e:
+            db.session.rollback()
+            flash(str(e), "danger")
             return redirect(url_for("lms.assignment_detail", aid=a.id))
-        safe = secure_filename(file.filename)
-        unique = f"{uuid.uuid4().hex[:12]}_{safe}"
-        subdir = os.path.join(current_app.static_folder, "uploads", "submissions", str(a.id))
-        os.makedirs(subdir, exist_ok=True)
-        path = os.path.join(subdir, unique)
-        file.save(path)
-        submission.file_url = url_for("static", filename=f"uploads/submissions/{a.id}/{unique}")
         # Auto-classify from the extension if the teacher didn't set one.
         if not submission.submission_kind:
             if ext in ("png", "jpg", "jpeg", "gif", "webp"):
