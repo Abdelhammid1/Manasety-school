@@ -92,14 +92,14 @@ def send_report(student_id: int, start=None, end=None) -> int:
     return sent
 
 
-def send_reports_for_active_students():
-    """Cron entry point — call once a month from the scheduler.
+def send_reports_for_school(school_id: int):
+    """Cron entry point — once a month, per school (SAAS-010).
 
-    Iterates every active enrolment in every school; skips duplicate
-    students (a student in multiple enrolments still gets one report)."""
+    Iterates the school's active enrolments; skips duplicate students
+    (a student in multiple enrolments still gets one report)."""
     seen = set()
     total_sent = 0
-    for e in Enrollment.query.filter_by(status="active").all():
+    for e in Enrollment.query.filter_by(school_id=school_id, status="active").all():
         if e.student_id in seen:
             continue
         seen.add(e.student_id)

@@ -79,6 +79,24 @@ def _resolve_jwt_signing_key(session_key: str) -> str:
     return key or session_key
 
 
+# ─── SAAS-010 — CRON_TOKEN gets the SECRET_KEY policy ───────────────
+_DEV_CRON_TOKEN = "dev-cron-token-change-me"
+
+
+def _resolve_cron_token(environ=os.environ, app_env=None) -> str:
+    app_env = APP_ENV if app_env is None else app_env
+    key = (environ.get("CRON_TOKEN") or "").strip()
+    is_prod = app_env not in ("development", "testing")
+    if is_prod and (not key or key == _DEV_CRON_TOKEN or len(key) < _MIN_SECRET_LEN):
+        raise RuntimeError(
+            "CRON_TOKEN is missing, default, or shorter than "
+            f"{_MIN_SECRET_LEN} characters in APP_ENV={app_env!r}. Mint one "
+            "with `python -c \"import secrets; print(secrets.token_urlsafe(48))\"`. "
+            "(Value not shown.)"
+        )
+    return key or _DEV_CRON_TOKEN
+
+
 # ─── SAAS-024 — tenancy hosts from the environment ──────────────────
 # Unset → the historical defaults. Set but empty → none (e.g.
 # PLATFORM_HOSTS= turns lms.manasety.ai back into a normal host).
@@ -174,7 +192,7 @@ class Config:
     FCM_SERVICE_ACCOUNT_PATH = os.environ.get("FCM_SERVICE_ACCOUNT_PATH")
     # Ticket "Additional 3" — token protecting the /cron/tick endpoint
     # that flips overdue invoices + sends payment reminders daily.
-    CRON_TOKEN = os.environ.get("CRON_TOKEN", "dev-cron-token-change-me")
+    CRON_TOKEN = _resolve_cron_token()
     BASE_DOMAIN, PLATFORM_HOSTS, LEGACY_HOSTS = _resolve_tenancy_hosts()
 
     # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────

@@ -1,108 +1,156 @@
-"""Daily cron endpoint — pinged by an external scheduler (crontab).
+"""Daily cron — SAAS-010.
 
-Guarded by the CRON_TOKEN config value (Bearer token) so it can't be
-hit from a normal browser. Runs every school through:
-  · update_overdue_invoices — flips due_date<today unpaid invoices
-    to status='overdue' so the aging report + reminder logic downstream
-    have accurate state.
+`run_tick()` processes every ACTIVE school (by id), each one inside
+`tenant_context(school.id)` and its own try/except, so one school's
+failure never stops or rolls back another's. A single run at a time:
+Postgres advisory lock (process lock on SQLite dev/test).
 
-The endpoint is CSRF-exempt: it takes a token in a header, not a
-session cookie, so there's no CSRF to protect against.
+Entry points:
+  * `flask cron-tick`  — preferred; run from the server's crontab.
+  * POST/GET /cron/tick with `Authorization: Bearer <CRON_TOKEN>`
+    for an external scheduler. `?token=` is refused (it ends up in
+    access logs).
+
+Transaction boundaries per school: the four ledger steps don't
+commit themselves, so they commit together; attendance_rules and
+risk_score each commit internally; the monthly report runs last.
+A failure rolls back only the not-yet-committed part of that school.
 """
+from __future__ import annotations
+
+import hmac
+import json
+import sys
+import threading
+from contextlib import contextmanager
 from datetime import date
 
+import click
 from flask import current_app, jsonify, request
+from sqlalchemy import text
 
 from . import bp
 from ...extensions import csrf, db
 from ...models import School
+from ...services.attendance_pdf_report import send_reports_for_school
+from ...services.attendance_rules import run_for_school as run_rules
 from ...services.ledger import (
     generate_recurring_invoices,
+    send_installment_reminders,
     send_payment_reminders,
     update_overdue_invoices,
 )
-# Ticket T5 — pull the monthly attendance report sender in so the
-# daily `tick` can fan it out on the 1st of every month.
-from ...services.attendance_pdf_report import (
-    send_reports_for_active_students,
-)
-# Ticket T3 / T4 — rules engine + risk score recomputation.
-from ...services.attendance_rules import run_for_school as run_rules
 from ...services.risk_score import run_for_school as run_risk
+from ...services.tenancy import tenant_context
+
+_ADVISORY_LOCK_KEY = 0x6D6E7374  # "mnst"
+_local_lock = threading.Lock()
+
+
+class TickAlreadyRunning(Exception):
+    pass
+
+
+@contextmanager
+def tick_lock():
+    """One tick at a time, so two schedulers firing together can't send
+    duplicate reminders."""
+    engine = db.engine
+    if engine.dialect.name == "postgresql":
+        conn = engine.connect()
+        try:
+            got = conn.execute(text("SELECT pg_try_advisory_lock(:k)"),
+                               {"k": _ADVISORY_LOCK_KEY}).scalar()
+            if not got:
+                raise TickAlreadyRunning()
+            try:
+                yield
+            finally:
+                conn.execute(text("SELECT pg_advisory_unlock(:k)"),
+                             {"k": _ADVISORY_LOCK_KEY})
+        finally:
+            conn.close()
+    else:
+        if not _local_lock.acquire(blocking=False):
+            raise TickAlreadyRunning()
+        try:
+            yield
+        finally:
+            _local_lock.release()
+
+
+def run_school_tick(school_id: int, today: date) -> dict:
+    out: dict = {}
+    with tenant_context(school_id):
+        # Recurring first so today's new invoices can flip overdue in
+        # the same tick; reminders then read the fresh state.
+        out["recurring"] = generate_recurring_invoices(school_id, today=today)
+        out["overdue_flipped"] = update_overdue_invoices(school_id, today=today)
+        out["reminders"] = send_payment_reminders(school_id, today=today)
+        out["installment_reminders"] = send_installment_reminders(school_id)
+        db.session.commit()
+        out["attendance_rules_triggered"] = run_rules(school_id, today=today)
+        out["risk_scores_updated"] = run_risk(school_id, today=today)
+        if today.day == 1:
+            out["attendance_reports_sent"] = send_reports_for_school(school_id)
+        db.session.commit()
+    return out
+
+
+def run_tick(today: date | None = None) -> dict:
+    today = today or date.today()
+    results: dict[int, dict] = {}
+    with tick_lock():
+        school_ids = [sid for (sid,) in db.session.query(School.id)
+                      .filter(School.status == "active").order_by(School.id)]
+        for sid in school_ids:
+            try:
+                results[sid] = {"status": "ok", **run_school_tick(sid, today)}
+            except Exception as e:
+                db.session.rollback()
+                current_app.logger.exception("cron tick failed for school %s", sid)
+                # Type only — never the message or stack (may hold data).
+                results[sid] = {"status": "failed", "error": type(e).__name__}
+    return {
+        "ok": all(r["status"] == "ok" for r in results.values()),
+        "today": today.isoformat(),
+        "schools": results,
+    }
 
 
 def _authorised() -> bool:
-    """Accept `Authorization: Bearer <token>` OR `?token=<token>`."""
-    expected = current_app.config.get("CRON_TOKEN")
-    if not expected:
+    """Bearer token only, constant-time compare. A token in the query
+    string is refused even when correct."""
+    if "token" in request.args:
         return False
+    expected = current_app.config.get("CRON_TOKEN") or ""
     auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        supplied = auth[len("Bearer "):].strip()
-    else:
-        supplied = request.args.get("token", "").strip()
-    return bool(supplied) and supplied == expected
+    if not expected or not auth.startswith("Bearer "):
+        return False
+    supplied = auth[len("Bearer "):].strip()
+    return hmac.compare_digest(supplied.encode(), expected.encode())
 
 
 @bp.route("/tick", methods=["POST", "GET"])
 @csrf.exempt
 def tick():
-    """Sweep every school. Idempotent — running twice on the same day
-    is harmless (no invoice flips overdue → overdue)."""
     if not _authorised():
         return jsonify(ok=False, reason="unauthorised"), 401
-    from ...services.ledger import send_installment_reminders
-    today = date.today()
-    overdue_by_school: dict[int, int] = {}
-    reminders_by_school: dict[int, dict] = {}
-    installment_reminders: dict[int, dict] = {}
-    recurring_by_school: dict[int, dict] = {}
-    for s in School.query.all():
-        # Order matters — generate recurring FIRST so newly-issued
-        # invoices with today's issue_date can flip overdue later this
-        # tick if their due dates already lapsed. Then flip overdue.
-        # Reminders read the fresh state.
-        recurring_by_school[s.id] = generate_recurring_invoices(s.id, today=today)
-        overdue_by_school[s.id] = update_overdue_invoices(s.id, today=today)
-        reminders_by_school[s.id] = send_payment_reminders(s.id, today=today)
-        # Ticket "تذكير قبل الاستحقاق" — email each parent T-N days
-        # before an installment's due date, one shot per installment.
-        installment_reminders[s.id] = send_installment_reminders(s.id)
-    # Ticket T3 — sweep every school for cumulative-threshold rule
-    # matches. The per-write hook (in attendance.mark) already fires
-    # `consecutive` rules; this cron sweep catches cumulative rules
-    # + any back-dated absences that landed since the last sweep.
-    rules_by_school = {}
-    risk_by_school  = {}
-    for s in School.query.all():
-        try:
-            rules_by_school[s.id] = run_rules(s.id, today=today)
-        except Exception:
-            current_app.logger.exception("attendance rule cron failed for school %s", s.id)
-            rules_by_school[s.id] = -1
-        try:
-            risk_by_school[s.id] = run_risk(s.id, today=today)
-        except Exception:
-            current_app.logger.exception("risk score cron failed for school %s", s.id)
-            risk_by_school[s.id] = -1
-    # Ticket T5 — fan out the monthly attendance report once a month
-    # (fires on the 1st of the month). Doesn't need a per-school
-    # loop because send_reports_for_active_students walks every
-    # active enrollment across every school in one pass.
-    attendance_reports_sent = 0
-    if today.day == 1:
-        try:
-            attendance_reports_sent = send_reports_for_active_students()
-        except Exception:
-            current_app.logger.exception("attendance report cron failed")
-    db.session.commit()
-    return jsonify(
-        ok=True, today=today.isoformat(),
-        recurring=recurring_by_school,
-        overdue_flipped=overdue_by_school,
-        reminders=reminders_by_school,
-        installment_reminders=installment_reminders,
-        attendance_reports_sent=attendance_reports_sent,
-        attendance_rules_triggered=rules_by_school,
-        risk_scores_updated=risk_by_school,
-    )
+    try:
+        return jsonify(run_tick())
+    except TickAlreadyRunning:
+        return jsonify(ok=False, reason="already_running"), 409
+
+
+@bp.cli.command("cron-tick")
+@click.option("--date", "on_date", default=None, help="Run as if today were YYYY-MM-DD.")
+def cron_tick_command(on_date):
+    """Run the daily tick locally (no HTTP, no token)."""
+    try:
+        result = run_tick(date.fromisoformat(on_date) if on_date else None)
+    except TickAlreadyRunning:
+        click.echo(json.dumps({"ok": False, "reason": "already_running"}))
+        sys.exit(2)
+    click.echo(json.dumps(result, ensure_ascii=False, default=str))
+    if not result["ok"]:
+        sys.exit(1)
