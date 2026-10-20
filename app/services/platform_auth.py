@@ -91,11 +91,27 @@ def provisioning_uri(secret: str, email: str) -> str:
     return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name=ISSUER)
 
 
-def verify_totp(secret: str | None, code: str | None) -> bool:
+def verify_totp(secret: str | None, code: str | None, user=None) -> bool:
+    """Check a 6-digit code (+-1 time-step). With `user`, a code whose
+    time-step is not newer than the last accepted one is refused
+    (no replay) and the accepted step is recorded."""
+    import time as _time
     code = (code or "").strip().replace(" ", "")
     if not secret or not code.isdigit() or len(code) != 6:
         return False
-    return pyotp.TOTP(secret).verify(code, valid_window=1)
+    totp = pyotp.TOTP(secret)
+    now = _time.time()
+    for offset in (-1, 0, 1):
+        t = now + offset * totp.interval
+        if hmac.compare_digest(totp.at(t), code):
+            counter = totp.timecode(datetime.fromtimestamp(t, tz=timezone.utc))
+            if user is not None:
+                last = user.totp_last_counter
+                if last is not None and counter <= last:
+                    return False
+                user.totp_last_counter = counter
+            return True
+    return False
 
 
 def qr_svg(data: str) -> str:

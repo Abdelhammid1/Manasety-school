@@ -1,0 +1,53 @@
+{% extends "superadmin/base.html" %}
+{% block title %}الباقات{% endblock %}
+{% block content %}
+<h1>الباقات</h1>
+<p class="sub">الحدود الفاضية = بلا حد. الموديولات مفصولة بفواصل، أو * لكل الموديولات.</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الكود</th><th>الاسم</th><th>طلاب</th><th>مستخدمون</th><th>تخزين MB</th><th>الموديولات</th><th>السعر</th><th>الدورة</th><th>تجربة</th><th>اشتراكات حالية</th><th>الحالة</th></tr></thead>
+    <tbody>
+    {% for p in plans %}
+      <tr>
+        <td class="mono">{{ p.code }}</td><td>{{ p.name_ar }}</td>
+        <td class="num">{{ p.max_students if p.max_students is not none else '∞' }}</td>
+        <td class="num">{{ p.max_users if p.max_users is not none else '∞' }}</td>
+        <td class="num">{{ p.max_storage_mb if p.max_storage_mb is not none else '∞' }}</td>
+        <td class="mono">{{ (p.modules or [])|join(', ') }}</td>
+        <td class="num"><bdi>{{ p.price_amount if p.price_amount is not none else '—' }} {{ p.currency or '' }}</bdi></td>
+        <td>{{ p.billing_cycle }}</td><td class="num">{{ p.trial_days }}</td>
+        <td class="num">{{ in_use.get(p.id, 0) }}</td>
+        <td>{% if can_edit %}<form method="post" action="{{ url_for('superadmin.plan_toggle', plan_id=p.id) }}" style="margin:0">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn ghost" type="submit">{{ 'إيقاف' if p.is_active else 'تفعيل' }}</button></form>
+            {% else %}{{ 'نشطة' if p.is_active else 'موقوفة' }}{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if can_edit %}
+<h2>باقة جديدة</h2>
+<form class="card" method="post" action="{{ url_for('superadmin.plan_new') }}">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row">
+    <div><label>الكود</label><input name="code" dir="ltr" required></div>
+    <div><label>الاسم بالعربي</label><input name="name_ar" required></div>
+    <div><label>الاسم بالإنجليزي</label><input name="name_en" dir="ltr"></div>
+  </div>
+  <div class="row">
+    <div><label>حد الطلاب</label><input name="max_students" inputmode="numeric"></div>
+    <div><label>حد المستخدمين</label><input name="max_users" inputmode="numeric"></div>
+    <div><label>حد التخزين MB</label><input name="max_storage_mb" inputmode="numeric"></div>
+  </div>
+  <div class="row">
+    <div><label>السعر</label><input name="price_amount" inputmode="decimal" dir="ltr"></div>
+    <div><label>العملة</label><input name="currency" dir="ltr" placeholder="EGP"></div>
+    <div><label>دورة الفوترة</label><select name="billing_cycle">{% for c in cycles %}<option>{{ c }}</option>{% endfor %}</select></div>
+    <div><label>أيام التجربة</label><input name="trial_days" inputmode="numeric"></div>
+  </div>
+  <label>الموديولات</label><input name="modules" dir="ltr" placeholder="students, attendance, finance">
+  <button class="btn block" type="submit">إنشاء</button>
+</form>
+{% endif %}
+{% endblock %}

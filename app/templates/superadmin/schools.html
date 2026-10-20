@@ -3,9 +3,18 @@
 {% block content %}
 <h1>المدارس</h1>
 <p class="sub">{{ items|length }} مدرسة — أعداد وإحصاءات فقط.</p>
+<form method="get" class="row" style="margin-bottom:12px">
+  <div><label for="state">حالة الاشتراك</label>
+    <select id="state" name="state"><option value="">الكل</option>
+      {% for s in states %}<option value="{{ s }}" {% if s == state_filter %}selected{% endif %}>{{ {'trial':'تجربة','active':'نشط','grace':'فترة سماح','expired':'منتهي','not_started':'لم يبدأ','no_subscription':'بدون اشتراك','suspended':'موقوفة','archived':'مؤرشفة'}[s] }}</option>{% endfor %}
+    </select></div>
+  <div><label for="sort">الترتيب</label>
+    <select id="sort" name="sort"><option value="">بالرقم</option><option value="ends_on" {% if sort == 'ends_on' %}selected{% endif %}>بتاريخ نهاية الاشتراك</option></select></div>
+  <div style="flex:0 0 auto"><button class="btn" type="submit">تطبيق</button></div>
+</form>
 <div class="card table-wrap">
   <table>
-    <thead><tr><th>#</th><th>المدرسة</th><th>slug</th><th>الكود</th><th>الحالة</th><th>الطلاب</th><th>المستخدمون النشطون</th><th>آخر دخول</th><th>الملفات</th><th>أُنشئت</th></tr></thead>
+    <thead><tr><th>#</th><th>المدرسة</th><th>slug</th><th>الكود</th><th>الحالة</th><th>الاشتراك</th><th>ينتهي</th><th>الطلاب</th><th>المستخدمون النشطون</th><th>آخر دخول</th><th>الملفات</th><th>أُنشئت</th></tr></thead>
     <tbody>
     {% for it in items %}{% set s = it.school %}
       <tr>
@@ -14,6 +23,8 @@
         <td class="mono">{{ s.slug }}</td>
         <td class="mono">{{ s.code }}</td>
         <td><span class="chip {{ s.status }}">{{ {'active':'نشطة','suspended':'موقوفة','archived':'مؤرشفة'}.get(s.status, s.status) }}</span></td>
+        <td><span class="chip {{ it.state.state }}">{{ {'trial':'تجربة','active':'نشط','grace':'فترة سماح','expired':'منتهي','not_started':'لم يبدأ','no_subscription':'بدون اشتراك','suspended':'موقوفة','archived':'مؤرشفة'}[it.state.state] }}</span></td>
+        <td class="num"><bdi>{{ it.ends_on or '—' }}</bdi></td>
         <td class="num">{{ it.students }}</td>
         <td class="num">{{ it.active_users }}</td>
         <td class="num"><bdi>{{ it.last_login.strftime('%Y-%m-%d %H:%M') if it.last_login else '—' }}</bdi></td>
@@ -21,7 +32,7 @@
         <td class="num">{{ s.created_at.strftime('%Y-%m-%d') if s.created_at else '—' }}</td>
       </tr>
     {% else %}
-      <tr><td colspan="10">لا توجد مدارس.</td></tr>
+      <tr><td colspan="12">لا توجد مدارس.</td></tr>
     {% endfor %}
     </tbody>
   </table>

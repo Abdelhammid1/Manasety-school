@@ -25,6 +25,23 @@ SUPERADMIN_ROUTES = {
     "superadmin.home": {"GET"},
     "superadmin.schools": {"GET"},
     "superadmin.school_detail": {"GET"},
+    # SAAS-026
+    "superadmin.plans": {"GET"},
+    "superadmin.plan_new": {"POST"},
+    "superadmin.plan_edit": {"POST"},
+    "superadmin.plan_toggle": {"POST"},
+    "superadmin.subscription_renew": {"POST"},
+    "superadmin.subscription_extend": {"POST"},
+    "superadmin.subscription_change_plan": {"POST"},
+    "superadmin.subscription_trial": {"POST"},
+}
+# Writes allowed in the console, per ticket. Anything else must be GET.
+CONSOLE_WRITES = {
+    "superadmin.login", "superadmin.totp", "superadmin.totp_setup", "superadmin.logout",
+    "superadmin.password",                                            # SAAS-025
+    "superadmin.plan_new", "superadmin.plan_edit", "superadmin.plan_toggle",
+    "superadmin.subscription_renew", "superadmin.subscription_extend",
+    "superadmin.subscription_change_plan", "superadmin.subscription_trial",   # SAAS-026
 }
 
 
@@ -75,6 +92,12 @@ def puser(papp):
         db.session.remove()
 
 
+def _next_code(secret):
+    """A code for the NEXT time-step: the one just used to log in can't
+    be replayed (SAAS-025 review), and +1 step is inside the window."""
+    return pyotp.TOTP(secret).at(time.time() + 30)
+
+
 def _login(c, info, code=None):
     r = c.post("/superadmin/login", base_url=CONSOLE,
                data={"email": info["email"], "password": info["password"]})
@@ -103,13 +126,14 @@ def test_single_alembic_head():
     assert len(ScriptDirectory.from_config(cfg).get_heads()) == 1
 
 
-def test_platform_tables_have_no_school_id(app):
+def test_platform_tables_are_not_tenant_owned(app):
     from app.extensions import db
     from app.services.tenant_guard import PLATFORM_TABLES, owned_tables
     with app.app_context():
-        for t in PLATFORM_TABLES:
+        for t in ("platform_users", "platform_recovery_codes", "platform_audit_logs"):
             assert "school_id" not in db.metadata.tables[t].c
-            assert t not in owned_tables()
+        for t in PLATFORM_TABLES:
+            assert t in db.metadata.tables and t not in owned_tables()
 
 
 def test_production_requires_platform_enc_key():
@@ -146,8 +170,7 @@ def test_every_superadmin_route_is_classified(app):
     for ep, methods in actual.items():
         assert methods == SUPERADMIN_ROUTES[ep], ep
         if "POST" in methods:
-            assert ep in {"superadmin.login", "superadmin.totp", "superadmin.totp_setup",
-                          "superadmin.logout", "superadmin.password"}, ep
+            assert ep in CONSOLE_WRITES, ep
 
 
 @pytest.mark.parametrize("path", ["/superadmin/login", "/superadmin/schools", "/superadmin/schools/1"])
@@ -330,7 +353,7 @@ def test_cli_created_user_must_change_password(papp, puser):
         new = secrets.token_urlsafe(16)
         short = c.post("/superadmin/password", base_url=CONSOLE, data={
             "current_password": info["password"], "new_password": "short1", "confirm_password": "short1",
-            "code": pyotp.TOTP(info["secret"]).now()})
+            "code": _next_code(info["secret"])})
         assert short.status_code == 400
         notp = c.post("/superadmin/password", base_url=CONSOLE, data={
             "current_password": info["password"], "new_password": new, "confirm_password": new,
@@ -338,7 +361,7 @@ def test_cli_created_user_must_change_password(papp, puser):
         assert notp.status_code == 400
         ok = c.post("/superadmin/password", base_url=CONSOLE, data={
             "current_password": info["password"], "new_password": new, "confirm_password": new,
-            "code": pyotp.TOTP(info["secret"]).now()})
+            "code": _next_code(info["secret"])})
         assert ok.status_code == 302
         assert c.get("/superadmin/schools", base_url=CONSOLE).status_code == 200
 
@@ -432,19 +455,19 @@ def test_school_list_query_count_is_constant(papp, two_schools, puser):
     from world import purge_schools
     info = puser()
 
+    client = papp.test_client()
+    _login(client, info)
+    with papp.app_context():
+        engine = db.engine
+
     def count_queries():
         n = {"q": 0}
-        with papp.app_context():
-            engine = db.engine
 
         def before(*_a, **_k):
             n["q"] += 1
         event.listen(engine, "before_cursor_execute", before)
         try:
-            with papp.test_client() as c:
-                _login(c, info)
-                n["q"] = 0
-                assert c.get("/superadmin/schools", base_url=CONSOLE).status_code == 200
+            assert client.get("/superadmin/schools", base_url=CONSOLE).status_code == 200
         finally:
             event.remove(engine, "before_cursor_execute", before)
         return n["q"]
@@ -513,3 +536,80 @@ def test_console_pages_send_security_headers(papp, puser):
     assert r.headers["Cache-Control"] == "no-store"
     assert r.headers["X-Frame-Options"] == "DENY"
     assert r.headers["Referrer-Policy"] == "no-referrer"
+
+
+# ─── security review follow-ups ──────────────────────────────────────
+
+def test_totp_code_cannot_be_replayed(papp, puser):
+    info = puser()
+    code = pyotp.TOTP(info["secret"]).now()
+    with papp.test_client() as c:
+        assert _login(c, info, code=code).status_code == 302
+    with papp.test_client() as c:
+        assert _login(c, info, code=code).status_code == 401
+
+
+def test_three_wrong_totp_codes_reset_to_password_step(papp, puser):
+    info = puser()
+    with papp.test_client() as c:
+        c.post("/superadmin/login", base_url=CONSOLE,
+               data={"email": info["email"], "password": info["password"]})
+        for _ in range(2):
+            assert c.post("/superadmin/login/totp", base_url=CONSOLE,
+                          data={"code": "000000"}).status_code == 401
+        r = c.post("/superadmin/login/totp", base_url=CONSOLE, data={"code": "000000"})
+        assert r.status_code == 302 and r.headers["Location"].endswith("/superadmin/login")
+        r = c.post("/superadmin/login/totp", base_url=CONSOLE,
+                   data={"code": pyotp.TOTP(info["secret"]).now()})
+        assert r.status_code == 302 and r.headers["Location"].endswith("/superadmin/login")
+
+
+def test_locked_account_cannot_use_the_totp_step(papp, puser):
+    from app.extensions import db
+    from app.models import PlatformUser
+    from app.services import platform_auth as pa
+    from datetime import timedelta
+    info = puser()
+    with papp.test_client() as c:
+        c.post("/superadmin/login", base_url=CONSOLE,
+               data={"email": info["email"], "password": info["password"]})
+        with papp.app_context():
+            u = db.session.get(PlatformUser, info["id"])
+            u.locked_until = pa.utcnow() + timedelta(minutes=15)
+            db.session.commit()
+            db.session.remove()
+        r = c.post("/superadmin/login/totp", base_url=CONSOLE,
+                   data={"code": pyotp.TOTP(info["secret"]).now()})
+        assert r.status_code == 302 and r.headers["Location"].endswith("/superadmin/login")
+        assert c.get("/superadmin/schools", base_url=CONSOLE).status_code == 302
+
+
+def test_attempts_while_locked_do_not_extend_the_lock(papp, puser):
+    from app.extensions import db
+    from app.models import PlatformUser
+    info = puser()
+    with papp.test_client() as c:
+        for _ in range(5):
+            c.post("/superadmin/login", base_url=CONSOLE,
+                   data={"email": info["email"], "password": "nope-nope-nope"})
+        with papp.app_context():
+            first = db.session.get(PlatformUser, info["id"]).locked_until
+            db.session.remove()
+        for _ in range(5):
+            c.post("/superadmin/login", base_url=CONSOLE,
+                   data={"email": info["email"], "password": "nope-nope-nope"})
+        with papp.app_context():
+            u = db.session.get(PlatformUser, info["id"])
+            assert u.locked_until == first and u.failed_attempts == 5
+            db.session.remove()
+
+
+def test_logout_revokes_the_users_other_sessions(papp, puser):
+    info = puser()
+    first, other = papp.test_client(), papp.test_client()
+    _login(first, info)
+    _login(other, info, code=_next_code(info["secret"]))
+    assert other.get("/superadmin/schools", base_url=CONSOLE).status_code == 200
+    first.post("/superadmin/logout", base_url=CONSOLE)
+    r = other.get("/superadmin/schools", base_url=CONSOLE)
+    assert r.status_code == 302 and r.headers["Location"].endswith("/superadmin/login")

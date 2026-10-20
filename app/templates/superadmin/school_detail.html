@@ -1,5 +1,68 @@
 {% extends "superadmin/base.html" %}
-{% block title %}{{ school.name }}{% endblock %}
+{% block title %}{{ school.name }}
+<h2>الاشتراك</h2>
+<div class="card">
+  {% if current %}
+  <p><span class="chip {{ state.state }}">{{ {'trial':'تجربة','active':'نشط','grace':'فترة سماح','expired':'منتهي','not_started':'لم يبدأ','no_subscription':'بدون اشتراك','suspended':'موقوفة','archived':'مؤرشفة'}[state.state] }}</span>
+     الباقة <b>{{ current.plan.name_ar if current.plan else current.plan_id }}</b>
+     · من <bdi>{{ current.starts_on }}</bdi> إلى <bdi>{{ current.ends_on or 'مفتوح' }}</bdi>
+     {% if state.days_left is not none %}· متبقي <b>{{ state.days_left }}</b> يوم{% endif %}
+     {% if state.grace_days_left is not none %}· متبقي في السماح <b>{{ state.grace_days_left }}</b> يوم{% endif %}
+  </p>
+  {% else %}
+  <p><span class="chip no_subscription">بدون اشتراك</span></p>
+  {% endif %}
+  {% if over %}<div class="warn">المدرسة فوق حد الباقة في: {{ over|join('، ') }} (الفرض في SAAS-030).</div>{% endif %}
+  {% if can_edit %}
+  <div class="actions">
+    <form method="post" action="{{ url_for('superadmin.subscription_renew', school_id=school.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>تجديد</h3>
+      <div class="row"><div><label>عدد الشهور</label><input name="months" inputmode="numeric"></div>
+        <div><label>أو تاريخ نهاية</label><input name="ends_on" type="date"></div></div>
+      <label>السبب</label><input name="reason">
+      <button class="btn block" type="submit">تجديد</button>
+    </form>
+    <form method="post" action="{{ url_for('superadmin.subscription_extend', school_id=school.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>تمديد</h3>
+      <label>عدد الأيام</label><input name="days" inputmode="numeric" required>
+      <label>السبب (إجباري)</label><input name="reason" required>
+      <button class="btn block" type="submit">تمديد</button>
+    </form>
+    <form method="post" action="{{ url_for('superadmin.subscription_change_plan', school_id=school.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>تغيير الباقة</h3>
+      <label>الباقة</label><select name="plan_id">{% for p in plans %}<option value="{{ p.id }}">{{ p.name_ar }} ({{ p.code }})</option>{% endfor %}</select>
+      <label>السبب</label><input name="reason">
+      <button class="btn block" type="submit">تغيير</button>
+    </form>
+    <form method="post" action="{{ url_for('superadmin.subscription_trial', school_id=school.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>بدء تجربة</h3>
+      <div class="row"><div><label>الباقة</label><select name="plan_id">{% for p in plans %}<option value="{{ p.id }}">{{ p.name_ar }}</option>{% endfor %}</select></div>
+        <div><label>الأيام</label><input name="days" inputmode="numeric" placeholder="الافتراضي"></div></div>
+      <label>السبب</label><input name="reason">
+      <button class="btn block" type="submit">بدء التجربة</button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+
+<h2>سجل الاشتراك</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>التاريخ</th><th>الحدث</th><th>من</th><th>إلى</th><th>السبب</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr><td class="num"><bdi>{{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '' }}</bdi></td>
+          <td>{{ e.kind }}</td><td class="mono">{{ e.from_value or '—' }}</td><td class="mono">{{ e.to_value or '—' }}</td>
+          <td style="white-space:normal">{{ e.reason or '' }}</td></tr>
+    {% else %}<tr><td colspan="5">لا توجد أحداث.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}
 {% block content %}
 <p><a href="{{ url_for('superadmin.schools') }}">→ كل المدارس</a></p>
 <h1>{{ school.name }}</h1>

@@ -38,6 +38,11 @@ class PlatformUser(UserMixin, db.Model):
     password_changed_at = db.Column(db.DateTime(timezone=True))
     totp_secret_encrypted = db.Column(db.Text)
     totp_enabled = db.Column(db.Boolean, nullable=False, default=False)
+    # Last accepted TOTP time-step: a code can never be accepted twice.
+    totp_last_counter = db.Column(db.BigInteger)
+    # Bumped on logout / password change / TOTP enrolment; a session
+    # carrying an older value is dead (server-side revocation).
+    session_version = db.Column(db.Integer, nullable=False, default=1)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
 
     is_platform_user = True
@@ -88,3 +93,82 @@ class PlatformAuditLog(db.Model):
     user_agent = db.Column(db.String(255))
     meta = db.Column(db.JSON)
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow, index=True)
+
+
+# ─── SAAS-026 — plans and subscriptions ──────────────────────────────
+# Platform tables: school_subscriptions / school_subscription_events
+# carry a school_id that POINTS at a school; they don't belong to it.
+
+BILLING_CYCLES = ("monthly", "yearly", "custom")
+SUBSCRIPTION_EVENT_KINDS = ("created", "renewed", "extended", "plan_changed",
+                            "trial_started", "state_changed", "reminder_sent")
+
+
+class Plan(db.Model):
+    __tablename__ = "plans"
+    __table_args__ = (
+        db.CheckConstraint("billing_cycle IN ('monthly', 'yearly', 'custom')",
+                           name="ck_plans_billing_cycle"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    code = db.Column(db.String(64), nullable=False, unique=True)
+    name_ar = db.Column(db.String(128), nullable=False)
+    name_en = db.Column(db.String(128))
+    max_students = db.Column(db.Integer)       # NULL = unlimited
+    max_users = db.Column(db.Integer)
+    max_storage_mb = db.Column(db.Integer)
+    modules = db.Column(db.JSON, nullable=False, default=list)
+    price_amount = db.Column(db.Numeric(12, 2))
+    currency = db.Column(db.String(8))
+    billing_cycle = db.Column(db.String(16), nullable=False, default="monthly")
+    trial_days = db.Column(db.Integer, nullable=False, default=0)
+    is_active = db.Column(db.Boolean, nullable=False, default=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class SchoolSubscription(db.Model):
+    __tablename__ = "school_subscriptions"
+    __table_args__ = (
+        db.CheckConstraint("ends_on IS NULL OR ends_on >= starts_on",
+                           name="ck_school_subscriptions_dates"),
+        db.Index("uq_school_subscriptions_current", "school_id", unique=True,
+                 postgresql_where=db.text("is_current"), sqlite_where=db.text("is_current = 1")),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    plan_id = db.Column(db.Integer, db.ForeignKey("plans.id"), nullable=False)
+    starts_on = db.Column(db.Date, nullable=False)
+    ends_on = db.Column(db.Date)                    # NULL = open-ended
+    trial_ends_on = db.Column(db.Date)
+    grace_days = db.Column(db.Integer, nullable=False, default=14)
+    auto_renew = db.Column(db.Boolean, nullable=False, default=False)   # informational
+    is_current = db.Column(db.Boolean, nullable=False, default=True)
+    notes = db.Column(db.Text)
+    created_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    plan = db.relationship("Plan")
+
+
+class SchoolSubscriptionEvent(db.Model):
+    __tablename__ = "school_subscription_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    kind = db.Column(db.String(32), nullable=False, index=True)
+    from_value = db.Column(db.String(255))
+    to_value = db.Column(db.String(255))
+    reason = db.Column(db.Text)
+    platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow, index=True)
+
+
+class PlatformSetting(db.Model):
+    __tablename__ = "platform_settings"
+
+    key = db.Column(db.String(64), primary_key=True)
+    value = db.Column(db.Text)
+    updated_by = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)

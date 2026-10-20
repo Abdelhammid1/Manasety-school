@@ -35,10 +35,30 @@ def current_platform_user():
     return None
 
 
-def end_platform_session():
+def end_platform_session(revoke_user=None):
+    """Clear this browser's console session; with `revoke_user`, also
+    kill every other session of that user (bumps session_version)."""
+    if revoke_user is not None:
+        revoke_user.session_version = (revoke_user.session_version or 1) + 1
     logout_user()
     for k in [k for k in session if k.startswith("sa_")]:
         session.pop(k, None)
+
+
+def require_platform_role(*roles):
+    """Allow only these platform roles (403 otherwise). SAAS-036 turns
+    this into the full role × route matrix."""
+    from functools import wraps
+
+    def deco(view):
+        @wraps(view)
+        def wrapped(*a, **kw):
+            user = current_platform_user()
+            if user is None or user.role not in roles:
+                abort(403)
+            return view(*a, **kw)
+        return wrapped
+    return deco
 
 
 @bp.before_request
@@ -49,6 +69,10 @@ def _gate():
         return None
     user = current_platform_user()
     if user is None:
+        return redirect(url_for("superadmin.login"))
+    if session.get("sa_ver") != user.session_version:
+        # Revoked server-side (logout elsewhere, password / TOTP change).
+        end_platform_session()
         return redirect(url_for("superadmin.login"))
     from flask import current_app
     now = time.time()
@@ -94,6 +118,8 @@ def install_platform_host_guard(app) -> None:
         abort(404)
 
 
-from . import auth      # noqa: E402,F401
-from . import schools   # noqa: E402,F401
-from . import cli       # noqa: E402,F401
+from . import auth           # noqa: E402,F401
+from . import schools        # noqa: E402,F401
+from . import plans          # noqa: E402,F401  SAAS-026
+from . import subscriptions  # noqa: E402,F401  SAAS-026
+from . import cli            # noqa: E402,F401

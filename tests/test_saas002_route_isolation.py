@@ -314,6 +314,24 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
         "test_harness_catches_leaky_canary proves the harness flags it",
     "saas012_canary.scoped":
         "SAAS-012 canary twin — correctly scoped, test-app only",
+    "superadmin.plan_edit":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-025/026 console tests",
+    "superadmin.plan_toggle":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-025/026 console tests",
+    "superadmin.subscription_renew":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-025/026 console tests",
+    "superadmin.subscription_extend":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-025/026 console tests",
+    "superadmin.subscription_change_plan":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-025/026 console tests",
+    "superadmin.subscription_trial":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-025/026 console tests",
     "superadmin.school_detail":
         "SAAS-025 platform console (no school tenant): 404 on every school host "
         "and when resolution is off — covered by tests/test_saas025_platform.py",
@@ -476,6 +494,13 @@ FORM_ID_MATRIX: dict[str, Entry] = {
         form=lambda A, B: {"grade_id": B["grade"].id, "name": "HACK-new"},
         snapshot=_section_count_for_grade,
     ),
+}
+
+# Console endpoints whose form ids point at PLATFORM tables (plans), not
+# school data — no tenant to cross. Reason recorded per endpoint.
+FORM_ID_PLATFORM: dict[str, str] = {
+    "superadmin.subscription_change_plan": "plan_id → plans (platform table, SAAS-026)",
+    "superadmin.subscription_trial": "plan_id → plans (platform table, SAAS-026)",
 }
 
 FORM_ID_PENDING: tuple[str, ...] = (
@@ -661,7 +686,7 @@ def test_cross_tenant_session_is_killed(enforce_app, two_schools, login_as):
 
 def test_every_form_id_endpoint_is_classified(app):
     found = discover_form_id_endpoints(app)
-    pending = set(FORM_ID_PENDING)
+    pending = set(FORM_ID_PENDING) | set(FORM_ID_PLATFORM)
     unclassified = sorted(ep for ep in found
                           if ep not in FORM_ID_MATRIX and ep not in pending)
     assert not unclassified, (
