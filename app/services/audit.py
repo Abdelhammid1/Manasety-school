@@ -9,6 +9,7 @@ Intentionally NOT installed on every table — the trade-off is that
 low-value tables (session logs, cache, etc.) would drown the audit
 log. Add a class here when a new sensitive model appears.
 """
+import re
 from datetime import datetime, timezone
 from decimal import Decimal
 from sqlalchemy import event, inspect
@@ -39,6 +40,39 @@ _WATCHED = [
     # "what the schedule looked like last week".
     ScheduleSlot,
 ]
+
+
+# ─── SAAS-008 — secret redaction ─────────────────────────────────────
+# Every value written to audit_logs goes through redact() inside
+# _record, so create / update pre-image / delete snapshots are all
+# covered by one choke point. Name-based so a future secret column
+# (api_token, webhook_secret, …) is hidden by default.
+REDACTED = "[REDACTED]"
+_SECRET_NAMES = frozenset({"password_hash", "smtp_password_encrypted"})
+_SECRET_NAME_RE = re.compile(r"password|(?:^|_)(?:token|secret|key)$", re.IGNORECASE)
+# Belt-and-braces: a bcrypt hash under an unexpected key is still hidden.
+_BCRYPT_RE = re.compile(r"^\$2[abxy]\$\d{2}\$")
+
+
+def is_secret_field(name) -> bool:
+    if not isinstance(name, str):
+        return False
+    return name.lower() in _SECRET_NAMES or bool(_SECRET_NAME_RE.search(name))
+
+
+def redact(value):
+    """Return a copy of `value` with secret fields replaced by REDACTED.
+    The key is kept so a reader can still see the field changed."""
+    if isinstance(value, dict):
+        return {
+            k: (REDACTED if is_secret_field(k) else redact(v))
+            for k, v in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [redact(v) for v in value]
+    if isinstance(value, str) and _BCRYPT_RE.match(value):
+        return REDACTED
+    return value
 
 
 def _serialize(obj):
@@ -82,8 +116,8 @@ def _record(connection, action, target, before=None):
     connection.execute(AuditLog.__table__.insert().values(
         school_id=school_id, user_id=user_id,
         action=action, entity_type=entity_type, entity_id=entity_id,
-        old_value=before,
-        new_value=_serialize(target) if action != "delete" else None,
+        old_value=redact(before),
+        new_value=redact(_serialize(target)) if action != "delete" else None,
         ip_address=ip, user_agent=ua,
         created_at=datetime.now(timezone.utc),
     ))

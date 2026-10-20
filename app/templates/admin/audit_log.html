@@ -75,11 +75,11 @@
       <div class="p-space-md pt-0 border-t border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-space-md">
         <div>
           <div class="font-label-md text-outline font-bold mb-1">قبل التعديل</div>
-          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ e.old_value|tojson(indent=2) if e.old_value else '—' }}</pre>
+          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ redacted[e.id][0]|tojson(indent=2) if e.old_value else '—' }}</pre>
         </div>
         <div>
           <div class="font-label-md text-outline font-bold mb-1">بعد التعديل</div>
-          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ e.new_value|tojson(indent=2) if e.new_value else '—' }}</pre>
+          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ redacted[e.id][1]|tojson(indent=2) if e.new_value else '—' }}</pre>
         </div>
         {% if e.ip_address or e.user_agent %}
         <div class="md:col-span-2 flex items-center gap-space-sm flex-wrap text-outline font-label-xs">

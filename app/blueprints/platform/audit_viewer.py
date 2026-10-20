@@ -16,6 +16,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import AuditLog, User
+from ...services.audit import REDACTED, redact
 
 
 def _sid() -> int:
@@ -83,7 +84,8 @@ def audit_log_viewer():
     for r in rows:
         row_diffs.append({
             "row":  r,
-            "diff": _compute_diff(r.old_value or {}, r.new_value or {}),
+            "diff": _compute_diff(redact(r.old_value) or {},
+                                  redact(r.new_value) or {}),
         })
 
     # Filter dropdown data.
@@ -124,7 +126,7 @@ def audit_log_export():
             r.created_at.isoformat() if r.created_at else "",
             (r.user.full_name if r.user else ""),
             r.action, r.entity_type, r.entity_id or "",
-            _json_str(r.old_value), _json_str(r.new_value),
+            _json_str(redact(r.old_value)), _json_str(redact(r.new_value)),
             r.ip_address or "", (r.user_agent or "")[:200],
         ])
     fname = f"audit_log_{(filters['start'] or '')}_{(filters['end'] or '')}.csv"
@@ -148,7 +150,9 @@ def _compute_diff(old, new):
     for k in sorted(keys):
         ov = old.get(k)
         nv = new.get(k)
-        if ov != nv:
+        # A redacted field changed on update shows REDACTED on both
+        # sides; its presence in the pre-image is the signal it changed.
+        if ov != nv or (k in old and ov == REDACTED):
             out[k] = (ov, nv)
     return out
 

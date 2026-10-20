@@ -182,10 +182,10 @@ def school_settings():
 @require_permission("users", "view")   # admin-tier permission reuse
 def audit_log():
     """School-wide audit trail. Filterable by user + entity type."""
-    q = AuditLog.query
     sid = current_user.school_id
-    if sid:
-        q = q.filter((AuditLog.school_id == sid) | (AuditLog.school_id.is_(None)))
+    # Strict tenant scope: NULL-school rows are not "global", they are
+    # rows nobody can attribute, so no school's admin should see them.
+    q = AuditLog.query.filter(AuditLog.school_id == sid)
     user_id = request.args.get("user_id", type=int)
     entity_type = (request.args.get("entity_type") or "").strip()
     action = (request.args.get("action") or "").strip()
@@ -194,11 +194,14 @@ def audit_log():
     if action: q = q.filter(AuditLog.action == action)
     entries = q.order_by(AuditLog.created_at.desc()).limit(300).all()
 
-    types = [t[0] for t in db.session.query(AuditLog.entity_type).distinct().all()]
+    types = [t[0] for t in db.session.query(AuditLog.entity_type)
+             .filter(AuditLog.school_id == sid).distinct().all()]
     users = User.query.filter_by(school_id=sid).order_by(User.full_name).all()
+    from ...services.audit import redact
+    redacted = {e.id: (redact(e.old_value), redact(e.new_value)) for e in entries}
     return render_template(
         "admin/audit_log.html",
-        entries=entries, entity_types=sorted(types), users=users,
+        entries=entries, redacted=redacted, entity_types=sorted(types), users=users,
         selected={"user_id": user_id, "entity_type": entity_type, "action": action},
     )
 
