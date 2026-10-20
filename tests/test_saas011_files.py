@@ -183,7 +183,8 @@ def test_signed_url_works_without_login_and_expires(files_app, two_schools, monk
     from app.services import file_storage as fs
     A, B = two_schools["A"], two_schools["B"]
     url = _store(files_app, A["school"].id, "materials", A["section"].id)
-    with files_app.test_request_context(base_url=host(A)):
+    from app.services.tenancy import tenant_context
+    with files_app.test_request_context(base_url=host(A)), tenant_context(A["school"].id):
         signed = fs.signed_url(url, "materials", A["section"].id, ttl_seconds=60)
         expired = fs.signed_url(url, "materials", A["section"].id, ttl_seconds=-1)
     with files_app.test_client() as c:
@@ -228,7 +229,8 @@ def test_api_material_paths_are_signed(files_app, two_schools):
     from app.blueprints.api.routes import _signed
     A = two_schools["A"]
     url = _store(files_app, A["school"].id, "materials", A["section"].id)
-    with files_app.test_request_context(base_url=host(A)):
+    from app.services.tenancy import tenant_context
+    with files_app.test_request_context(base_url=host(A)), tenant_context(A["school"].id):
         assert "sig=" in _signed(url, "materials", A["section"].id)
         assert _signed("https://youtu.be/x", "lessons", 1) == "https://youtu.be/x"
         assert _signed(None, "lessons", 1) is None
@@ -241,24 +243,25 @@ def test_legacy_static_rows_are_migrated_idempotently(files_app, two_schools, tm
     from app.models import Student
     A = two_schools["A"]
     static = tmp_path / "static"
-    (static / "uploads" / "students" / "1").mkdir(parents=True)
-    (static / "uploads" / "students" / "1" / "old.png").write_bytes(PNG)
+    sid = A["student"].id
+    (static / "uploads" / "students" / str(sid)).mkdir(parents=True)
+    (static / "uploads" / "students" / str(sid) / "old.png").write_bytes(PNG)
     with files_app.app_context():
         s = db.session.get(Student, A["student"].id)
-        s.photo_url = "/static/uploads/students/1/old.png"
+        s.photo_url = f"/static/uploads/students/{sid}/old.png"
         db.session.commit()
         first = migrate_static_uploads(static)
-        assert first["students.photo_url"] == {"moved": 1, "missing": 0}
+        assert first["students.photo_url"]["moved"] == 1
         new = db.session.get(Student, A["student"].id).photo_url
         assert new.startswith(f"/files/{A['school'].id}/student_photo/{A['student'].id}/")
         stored = Path(files_app.config["UPLOAD_ROOT"]) / new[len("/files/"):]
         assert stored.read_bytes() == PNG
-        assert migrate_static_uploads(static)["students.photo_url"] == {"moved": 0, "missing": 0}
+        assert migrate_static_uploads(static)["students.photo_url"]["moved"] == 0
 
         s = db.session.get(Student, A["student"].id)
-        s.photo_url = "/static/uploads/students/1/gone.png"
+        s.photo_url = f"/static/uploads/students/{sid}/gone.png"
         db.session.commit()
-        assert migrate_static_uploads(static)["students.photo_url"] == {"moved": 0, "missing": 1}
+        assert migrate_static_uploads(static)["students.photo_url"]["missing"] == 1
         assert db.session.get(Student, A["student"].id).photo_url.endswith("gone.png")
         db.session.remove()
 
@@ -272,7 +275,8 @@ def test_stored_url_of_another_owner_is_never_signed(files_app, two_schools):
     from app.services import file_storage as fs
     A = two_schools["A"]
     docs = _store(files_app, A["school"].id, "student_docs", A["student"].id)
-    with files_app.test_request_context(base_url=host(A)):
+    from app.services.tenancy import tenant_context
+    with files_app.test_request_context(base_url=host(A)), tenant_context(A["school"].id):
         assert fs.signed_url(docs, "submissions", 1) is None
         assert fs.signed_url(docs, "student_docs", A["student"].id + 1) is None
         assert "sig=" in fs.signed_url(docs, "student_docs", A["student"].id)
@@ -342,13 +346,72 @@ def test_legacy_migration_moves_file_out_of_static(files_app, two_schools, tmp_p
     from app.extensions import db
     from app.models import Student
     A = two_schools["A"]
-    old = tmp_path / "static" / "uploads" / "students" / "1" / "p.png"
+    old = tmp_path / "static" / "uploads" / "students" / str(A["student"].id) / "p.png"
     old.parent.mkdir(parents=True)
     old.write_bytes(PNG)
     with files_app.app_context():
         s = db.session.get(Student, A["student"].id)
-        s.photo_url = "/static/uploads/students/1/p.png"
+        s.photo_url = f"/static/uploads/students/{A['student'].id}/p.png"
         db.session.commit()
         migrate_static_uploads(tmp_path / "static")
         db.session.remove()
     assert not old.exists()
+
+
+def test_legacy_migration_refuses_foreign_and_shared_paths(files_app, two_schools, tmp_path):
+    """A URL pointing outside the row owner's old directory, or a file
+    referenced by two rows, is reported and never moved."""
+    from app.blueprints.files import migrate_static_uploads
+    from app.extensions import db
+    from app.models import Student
+    A, B = two_schools["A"], two_schools["B"]
+    static = tmp_path / "static"
+    victim = static / "uploads" / "students" / str(B["student"].id) / "v.png"
+    victim.parent.mkdir(parents=True)
+    victim.write_bytes(PNG)
+    with files_app.app_context():
+        a = db.session.get(Student, A["student"].id)
+        a.photo_url = f"/static/uploads/students/{B['student'].id}/v.png"   # not A's dir
+        db.session.commit()
+        rep = migrate_static_uploads(static)["students.photo_url"]
+        assert rep["foreign_path"] == 1 and rep["moved"] == 0
+        b = db.session.get(Student, B["student"].id)
+        b.photo_url = f"/static/uploads/students/{B['student'].id}/v.png"
+        db.session.commit()
+        rep = migrate_static_uploads(static)["students.photo_url"]
+        assert rep["moved"] == 1      # B's own row is unambiguous once A's is foreign
+        db.session.remove()
+    assert not victim.exists()
+
+
+def test_signed_url_refuses_other_schools_key(files_app, two_schools):
+    from app.services import file_storage as fs
+    A, B = two_schools["A"], two_schools["B"]
+    url = _store(files_app, A["school"].id, "materials", A["section"].id)
+    from app.services.tenancy import tenant_context
+    with files_app.test_request_context(base_url=host(B)), tenant_context(B["school"].id):
+        assert fs.signed_url(url, "materials", A["section"].id) is None
+    with files_app.test_request_context(base_url=host(B)):
+        assert fs.signed_url(url, "materials", A["section"].id) is None  # no tenant
+
+
+def test_static_uploads_blocked_by_resolved_path(files_app, two_schools):
+    """Even when the request string doesn't look like /static/uploads,
+    a static request that resolves inside it is refused."""
+    import os
+    from pathlib import Path
+    up = Path(files_app.static_folder, "uploads")
+    created = not up.exists()
+    up.mkdir(exist_ok=True)
+    probe = up / "probe_saas011.txt"
+    probe.write_text("x")
+    try:
+        with files_app.test_client() as c:
+            for path in ("/static/uploads/probe_saas011.txt",
+                         "/static/css/../uploads/probe_saas011.txt"):
+                r = c.get(path, base_url=host(two_schools["A"]), follow_redirects=True)
+                assert r.status_code == 404, path
+    finally:
+        probe.unlink()
+        if created:
+            os.rmdir(up)

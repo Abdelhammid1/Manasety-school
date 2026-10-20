@@ -196,8 +196,14 @@ def signed_url(url: Optional[str], kind: str, owner_id: int,
     key = key_from_url(url)
     if key is None:
         return url
+    from .tenancy import TenantNotResolved
     fk = parse_key(key)
-    if fk is None or fk.kind != kind or fk.owner_id != int(owner_id):
+    try:
+        school = _current_school()
+    except TenantNotResolved:
+        return None
+    if fk is None or fk.kind != kind or fk.owner_id != int(owner_id) \
+            or fk.school_id != school:
         return None
     exp = int(time.time()) + ttl_seconds
     return f"{URL_PREFIX}{key}?exp={exp}&sig={_sign(key, exp)}"

@@ -179,7 +179,11 @@ def download(key):
 # ─── `flask files-migrate-static` ───────────────────────────────────
 
 def _legacy_targets():
-    """(model, column, kind, school_id(row), owner_id(row))."""
+    """(model, column, kind, school_id(row), owner_id(row), legacy_dir(row)).
+
+    legacy_dir is where the OLD upload code wrote that row's file, so a
+    URL a client typed into its own record can't claim someone else's
+    file. None = match by filename prefix instead (logos, lessons)."""
     from ...models import (
         Attendance, Course, Lesson, Material, Message, Conversation,
         PreviousSchool, School, Student, StudentDocument, Submission,
@@ -189,45 +193,82 @@ def _legacy_targets():
         return lambda r: getattr(db.session.get(model, getattr(r, fk)), "school_id", None)
 
     return [
-        (School, "logo_url", "logo", lambda r: r.id, lambda r: r.id),
-        (Material, "file_path", "materials", lambda r: r.school_id, lambda r: r.section_id),
-        (Attendance, "excuse_document", "excuse", lambda r: r.school_id, lambda r: r.enrollment_id),
-        (Lesson, "media_url", "lessons", via(Course, "course_id"), lambda r: r.course_id),
-        (Submission, "file_url", "submissions", via(Student, "student_id"), lambda r: r.id),
+        (School, "logo_url", "logo", lambda r: r.id, lambda r: r.id,
+         lambda r: ("uploads/logos", f"{r.id}-")),
+        (Material, "file_path", "materials", lambda r: r.school_id, lambda r: r.section_id,
+         lambda r: (f"uploads/materials/{r.school_id}", "")),
+        (Attendance, "excuse_document", "excuse", lambda r: r.school_id,
+         lambda r: r.enrollment_id, lambda r: (f"uploads/attendance/{r.enrollment_id}", "")),
+        (Lesson, "media_url", "lessons", via(Course, "course_id"), lambda r: r.course_id,
+         lambda r: ("uploads/lessons", f"c{r.course_id}-")),
+        (Submission, "file_url", "submissions", via(Student, "student_id"), lambda r: r.id,
+         lambda r: (f"uploads/submissions/{r.assignment_id}", "")),
         (Message, "attachment_path", "messages", via(Conversation, "conversation_id"),
-         lambda r: r.conversation_id),
-        (Student, "photo_url", "student_photo", lambda r: r.school_id, lambda r: r.id),
+         lambda r: r.conversation_id,
+         lambda r: (f"uploads/messages/{r.conversation_id}", "")),
+        (Student, "photo_url", "student_photo", lambda r: r.school_id, lambda r: r.id,
+         lambda r: (f"uploads/students/{r.id}", "")),
         (PreviousSchool, "document_url", "previous_school", via(Student, "student_id"),
-         lambda r: r.student_id),
+         lambda r: r.student_id, lambda r: (f"uploads/students/{r.student_id}/previous", "")),
         (StudentDocument, "file_path", "student_docs", lambda r: r.school_id,
-         lambda r: r.student_id),
+         lambda r: r.student_id, lambda r: (f"uploads/student_docs/{r.student_id}", "")),
     ]
 
 
 def migrate_static_uploads(static_folder) -> dict:
-    """Idempotent: rows already pointing at /files/ are untouched; a row
-    whose old file is missing is left as-is and counted as missing."""
-    from pathlib import Path
+    """Idempotent move of /static/uploads/... rows into UPLOAD_ROOT.
+
+    A row is moved only when its file sits exactly where the old code
+    would have written it for that row's owner, and no other row (in
+    any table) points at the same file. Everything else is left as-is
+    and reported (missing / foreign_path / ambiguous)."""
+    from collections import Counter
+    from pathlib import Path, PurePosixPath
     from sqlalchemy import select
     static_root = Path(static_folder).resolve()
-    report = {}
-    for model, col, kind, school_of, owner_of in _legacy_targets():
-        column = getattr(model, col)
+
+    def rel_of(value):
+        return value[len("/static/"):].split("?", 1)[0]
+
+    candidates = []
+    for target in _legacy_targets():
+        model, col = target[0], target[1]
         rows = db.session.execute(
-            select(model).where(column.like("/static/uploads/%"))
+            select(model).where(getattr(model, col).like("/static/uploads/%"))
             .execution_options(include_deleted=True)).scalars().all()
-        moved = missing = 0
-        for r in rows:
-            rel = getattr(r, col)[len("/static/"):].split("?", 1)[0]
-            src = (static_root / rel).resolve()
-            school_id = school_of(r)
-            if static_root not in src.parents or not src.is_file() or school_id is None:
-                missing += 1
-                continue
-            setattr(r, col, fs.import_legacy_file(src, school_id, kind, owner_of(r)))
-            moved += 1
-        db.session.commit()
-        report[f"{model.__tablename__}.{col}"] = {"moved": moved, "missing": missing}
+        candidates += [(target, r) for r in rows]
+    def in_layout(target, r):
+        want_dir, want_prefix = target[5](r)
+        p = PurePosixPath(rel_of(getattr(r, target[1])))
+        return str(p.parent) == want_dir and p.name.startswith(want_prefix)             and ".." not in p.parts
+
+    # Duplicates are counted among layout-valid rows only, so a foreign
+    # URL someone typed can't block the owner's file from migrating.
+    refs = Counter(rel_of(getattr(r, t[1])) for t, r in candidates if in_layout(t, r))
+
+    report = {}
+    for target, r in candidates:
+        model, col, kind, school_of, owner_of, _ = target
+        stats = report.setdefault(f"{model.__tablename__}.{col}",
+                                  {"moved": 0, "missing": 0, "foreign_path": 0, "ambiguous": 0})
+        rel = rel_of(getattr(r, col))
+        if not in_layout(target, r):
+            stats["foreign_path"] += 1
+            continue
+        if refs[rel] > 1:
+            stats["ambiguous"] += 1
+            continue
+        src = (static_root / rel).resolve()
+        school_id = school_of(r)
+        if static_root not in src.parents or not src.is_file() or school_id is None:
+            stats["missing"] += 1
+            continue
+        setattr(r, col, fs.import_legacy_file(src, school_id, kind, owner_of(r)))
+        stats["moved"] += 1
+    db.session.commit()
+    for target in _legacy_targets():
+        report.setdefault(f"{target[0].__tablename__}.{target[1]}",
+                          {"moved": 0, "missing": 0, "foreign_path": 0, "ambiguous": 0})
     return report
 
 

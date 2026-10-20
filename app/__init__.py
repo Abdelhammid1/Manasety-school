@@ -99,12 +99,21 @@ def create_app(config_class=Config):
 
     @app.before_request
     def _no_public_uploads():
-        # Normalise (//, ./, ../) and case-fold (Windows FS) first, so
-        # no spelling of the path reaches the static view.
+        # Two layers: the normalised, case-folded request path, and the
+        # real path the static view would open (catches spellings the
+        # filesystem treats as equal, e.g. trailing dots on Windows).
+        import os
         import posixpath
+        from pathlib import Path
         norm = posixpath.normpath("/" + request.path.replace("\\", "/")).lower()
         if norm == "/static/uploads" or norm.startswith("/static/uploads/"):
             abort(404)
+        if request.endpoint == "static" and app.static_folder:
+            fname = (request.view_args or {}).get("filename") or ""
+            uploads = os.path.normcase(str(Path(app.static_folder, "uploads").resolve()))
+            real = os.path.normcase(str(Path(app.static_folder, fname).resolve()))
+            if real == uploads or real.startswith(uploads + os.sep):
+                abort(404)
 
     @app.route("/")
     def index():
