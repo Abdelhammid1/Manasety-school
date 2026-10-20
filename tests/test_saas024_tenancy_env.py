@@ -18,8 +18,9 @@ from app.config import (
 def test_unset_env_keeps_current_defaults():
     base, platform, legacy = _resolve_tenancy_hosts({})
     assert base == "manasety.ai"
-    assert platform == ["lms.manasety.ai"]
-    assert legacy == {"school.manasety.ai": "demo"}
+    assert platform == ["console.manasety.ai"]
+    # SAAS-038: no legacy alias unless the environment sets one.
+    assert legacy == {}
 
 
 def test_empty_platform_hosts_means_none():
@@ -29,11 +30,11 @@ def test_empty_platform_hosts_means_none():
 
 def test_values_are_parsed_and_normalised():
     env = {"BASE_DOMAIN": "Example.TEST", "PLATFORM_HOSTS": "ops.example.test, admin.example.test",
-           "LEGACY_HOSTS": "school.manasety.ai=demo, LMS.manasety.ai=Demo"}
+           "LEGACY_HOSTS": "old.manasety.ai=demo, LMS.manasety.ai=Demo"}
     base, platform, legacy = _resolve_tenancy_hosts(env)
     assert base == "example.test"
     assert platform == ["ops.example.test", "admin.example.test"]
-    assert legacy == {"school.manasety.ai": "demo", "lms.manasety.ai": "demo"}
+    assert legacy == {"old.manasety.ai": "demo", "lms.manasety.ai": "demo"}
 
 
 def test_empty_legacy_hosts_means_none():
@@ -41,9 +42,9 @@ def test_empty_legacy_hosts_means_none():
 
 
 @pytest.mark.parametrize("env, needle", [
-    ({"LEGACY_HOSTS": "school.manasety.ai"}, "host=slug"),
-    ({"LEGACY_HOSTS": "school.manasety.ai=-bad-"}, "not a valid slug"),
-    ({"LEGACY_HOSTS": "school.manasety.ai=Has Space"}, "not a valid slug"),
+    ({"LEGACY_HOSTS": "old.manasety.ai"}, "host=slug"),
+    ({"LEGACY_HOSTS": "old.manasety.ai=-bad-"}, "not a valid slug"),
+    ({"LEGACY_HOSTS": "old.manasety.ai=Has Space"}, "not a valid slug"),
     ({"LEGACY_HOSTS": "bad host!=demo"}, "not a valid host"),
     ({"PLATFORM_HOSTS": "lms.manasety.ai:8080"}, "not a valid host"),
     ({"PLATFORM_HOSTS": "https://lms.manasety.ai"}, "not a valid host"),
@@ -66,14 +67,14 @@ def test_base_domain_default():
 @pytest.fixture
 def hosts_app(app, two_schools, monkeypatch):
     monkeypatch.setitem(app.config, "WTF_CSRF_ENABLED", False)
-    monkeypatch.setitem(app.config, "PLATFORM_HOSTS", ["lms.manasety.ai"])
+    monkeypatch.setitem(app.config, "PLATFORM_HOSTS", ["console.manasety.ai"])
     monkeypatch.setitem(app.config, "LEGACY_HOSTS", {"old.manasety.ai": "alpha"})
     return app
 
 
 HOSTS = {
     "tenant": "http://alpha.manasety.ai",
-    "platform": "http://lms.manasety.ai",
+    "platform": "http://console.manasety.ai",
     "legacy": "http://old.manasety.ai",
     "unknown": "http://nosuch.manasety.ai",
 }
@@ -117,10 +118,10 @@ def test_legacy_host_resolves_and_logs_in_under_enforce(hosts_app, monkeypatch):
     monkeypatch.setitem(hosts_app.config, "PLATFORM_HOSTS", [])
     monkeypatch.setitem(hosts_app.config, "LEGACY_HOSTS", {"lms.manasety.ai": "alpha"})
     with hosts_app.test_client() as c:
-        assert _login(c, HOSTS["platform"], "t_alpha").status_code == 302
+        assert _login(c, "http://lms.manasety.ai", "t_alpha").status_code == 302
         # and a beta user can't log in through alpha's alias
     with hosts_app.test_client() as c:
-        assert _login(c, HOSTS["platform"], "t_beta").status_code == 401
+        assert _login(c, "http://lms.manasety.ai", "t_beta").status_code == 401
 
 
 def test_tenant_host_login_is_tenant_scoped_in_log_mode(hosts_app, monkeypatch):
@@ -132,10 +133,10 @@ def test_tenant_host_login_is_tenant_scoped_in_log_mode(hosts_app, monkeypatch):
 
 
 def test_mobile_api_on_legacy_host_under_enforce(hosts_app, monkeypatch):
-    """Regression: the Flutter apps hard-code school.manasety.ai/api."""
+    """Regression: the mobile API keeps working on a legacy alias host."""
     monkeypatch.setitem(hosts_app.config, "TENANT_RESOLUTION_MODE", "enforce")
-    monkeypatch.setitem(hosts_app.config, "LEGACY_HOSTS", {"school.manasety.ai": "alpha"})
+    monkeypatch.setitem(hosts_app.config, "LEGACY_HOSTS", {"lms.manasety.ai": "alpha"})
     with hosts_app.test_client() as c:
-        r = c.post("/api/auth/login", base_url="http://school.manasety.ai",
+        r = c.post("/api/auth/login", base_url="http://lms.manasety.ai",
                    json={"username": "t_alpha", "password": "test-password-12345"})
     assert r.status_code == 200, (r.status_code, r.get_data(as_text=True)[:200])

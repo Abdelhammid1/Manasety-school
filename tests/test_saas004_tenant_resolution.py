@@ -42,10 +42,10 @@ def _fresh_app(**env):
         # per-case without constructing a dedicated Config subclass.
         app.config["BASE_DOMAIN"] = env.get("BASE_DOMAIN", "manasety.ai")
         app.config["PLATFORM_HOSTS"] = env.get(
-            "PLATFORM_HOSTS", ["lms.manasety.ai"],
+            "PLATFORM_HOSTS", ["console.manasety.ai"],
         )
         app.config["LEGACY_HOSTS"] = env.get(
-            "LEGACY_HOSTS", {"school.manasety.ai": "demo"},
+            "LEGACY_HOSTS", {"lms.manasety.ai": "demo"},
         )
         app.config["TENANT_RESOLUTION_MODE"] = env.get(
             "TENANT_RESOLUTION_MODE", "off",
@@ -122,7 +122,7 @@ def test_resolve_tenant_host(app_with_schools):
 def test_resolve_platform_host(app_with_schools):
     with app_with_schools.app_context():
         from app.services.tenancy import resolve_host
-        r = resolve_host("lms.manasety.ai")
+        r = resolve_host("console.manasety.ai")
         assert r.kind == "platform"
         assert r.school is None
         assert r.is_platform is True
@@ -191,7 +191,7 @@ def test_resolve_rejects_spoof_suffix(app_with_schools):
 def test_legacy_host_maps_to_demo(app_with_schools):
     with app_with_schools.app_context():
         from app.services.tenancy import resolve_host
-        r = resolve_host("school.manasety.ai")
+        r = resolve_host("lms.manasety.ai")
         assert r.kind == "tenant"
         assert r.slug == "demo"
         assert r.reason.startswith("legacy_map")

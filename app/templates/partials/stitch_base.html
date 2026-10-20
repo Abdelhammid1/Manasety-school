@@ -16,8 +16,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
   <meta name="description" content="{% block description %}منصتي — منصة التعلم الذكية للمدارس{% endblock %}">
+  <meta name="application-name" content="منصتي">
+  <meta name="theme-color" content="#1E3A8A">
+  {# Open Graph / Twitter — URLs come from the request host (SAAS-038). #}
+  <meta property="og:site_name" content="منصتي">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="{{ self.title() }} — منصتي">
+  <meta property="og:description" content="منصتي — منصة التعلم الذكية للمدارس">
+  <meta property="og:image" content="{{ url_for('static', filename='img/og-default.png', _external=True) }}">
+  <meta property="og:url" content="{{ request.base_url }}">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="canonical" href="{{ request.base_url }}">
 
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
 
   {# Fonts — self-hosted Manasety + Google Plus Jakarta Sans + Material Symbols #}

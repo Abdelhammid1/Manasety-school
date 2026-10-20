@@ -27,6 +27,8 @@ AppIcons.zip
 stitch_manasety_rtl_arabic_lms*.zip
 
 # Flutter build artifacts
+# mobile/ belongs to a separate system and is not part of this repo (SAAS-038).
+/mobile/
 mobile/*/build/
 mobile/*/.dart_tool/
 mobile/*/ios/Pods/
@@ -53,3 +55,4 @@ audit-*.txt
 tests/_test.db
 
 tests/_reports/
+/logos/

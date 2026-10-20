@@ -124,7 +124,7 @@ SECRET_KEY=ضع-هنا-سلسلة-عشوائية-طويلة-جدا-32-حرفًا
 DATABASE_URL=postgresql://manasety:YOUR_STRONG_PASSWORD@localhost:5432/manasety
 LOCKOUT_MAX_ATTEMPTS=5
 LOCKOUT_MINUTES=15
-DEFAULT_SCHOOL_NAME=مدرسة صالح الشريف
+DEFAULT_SCHOOL_NAME=مدرسة منصتي التجريبية
 DEFAULT_SCHOOL_CODE=SAS
 WHATSAPP_PROVIDER=stub
 ```
@@ -137,8 +137,8 @@ WHATSAPP_PROVIDER=stub
 |---|---|---|---|
 | `TENANT_RESOLUTION_MODE` | `off` / `log` / `enforce` | `off` | `off` |
 | `BASE_DOMAIN` | اسم نطاق | `manasety.ai` | الإقلاع بيفشل |
-| `PLATFORM_HOSTS` | hosts مفصولة بفواصل | `lms.manasety.ai` | مفيش host منصة |
-| `LEGACY_HOSTS` | `host=slug` مفصولة بفواصل | `school.manasety.ai=demo` | مفيش أسماء قديمة |
+| `PLATFORM_HOSTS` | hosts مفصولة بفواصل | `console.manasety.ai` | مفيش host منصة |
+| `LEGACY_HOSTS` | `host=slug` مفصولة بفواصل | مفيش أسماء قديمة | مفيش أسماء قديمة |
 
 - أي host أو slug بصيغة غلط، أو host موجود في `PLATFORM_HOSTS` و`LEGACY_HOSTS` مع بعض، بيوقف الإقلاع برسالة واضحة.
 - `log` مراقبة فقط: الدخول على host المنصة بيكمل ويتسجل تحذير `tenancy[log] would reject platform login`. الرفض بيحصل في `enforce` بس.
@@ -148,11 +148,11 @@ WHATSAPP_PROVIDER=stub
 
 ```
 TENANT_RESOLUTION_MODE=enforce
-PLATFORM_HOSTS=
-LEGACY_HOSTS=school.manasety.ai=demo,lms.manasety.ai=demo
+PLATFORM_HOSTS=console.manasety.ai
+LEGACY_HOSTS=lms.manasety.ai=demo
 ```
 
-لما الـ Super Admin يتبني: `lms.manasety.ai` يتشال من `LEGACY_HOSTS` ويتحط في `PLATFORM_HOSTS`.
+لوحة الـ Super Admin على `console.manasety.ai` (`PLATFORM_HOSTS`)، و`lms.manasety.ai` و`demo.manasety.ai` بيخدموا مدرسة الـ demo.
 
 احفظ بـ `Ctrl+O` ثم `Enter`، واخرج بـ `Ctrl+X`.
 

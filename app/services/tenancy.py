@@ -170,7 +170,7 @@ def _cfg_platform_hosts() -> frozenset[str]:
 
 def _cfg_legacy_hosts() -> dict[str, str]:
     """Map {legacy_host → slug}. Keeps the Flutter apps that bake
-    `school.manasety.ai` into their URLs working during the transition."""
+    an old host name working (e.g. lms.manasety.ai → demo)."""
     raw = current_app.config.get("LEGACY_HOSTS") or {}
     return {k.strip().lower(): v.strip().lower() for k, v in raw.items()}
 
@@ -257,7 +257,7 @@ def resolve_host(host_header: str | None) -> ResolvedTenant:
     if host in _cfg_platform_hosts():
         return ResolvedTenant("platform", host=host, reason="platform_host")
 
-    # Legacy maps are explicit tenant aliases (school.manasety.ai → demo).
+    # Legacy maps are explicit tenant aliases (e.g. lms.manasety.ai → demo).
     legacy = _cfg_legacy_hosts()
     if host in legacy:
         slug = legacy[host]

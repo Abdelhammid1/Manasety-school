@@ -10,7 +10,7 @@ Three security properties pinned here:
      served on school B's host, even if the token itself is valid
      and the user is active.
 
-  3. The legacy host `school.manasety.ai` continues to work for the
+  3. The legacy host `lms.manasety.ai` continues to work for the
      mobile apps that bake it into their configs — it resolves to
      the `demo` tenant via LEGACY_HOSTS.
 """
@@ -155,14 +155,14 @@ def test_token_signed_with_secret_key_fails_when_split(app, two_schools):
 # ─── 3. Legacy host stays live ───────────────────────────────────────
 
 def test_legacy_school_host_resolves_to_demo(app):
-    """school.manasety.ai must stay mapped to the `demo` tenant so
+    """lms.manasety.ai must stay mapped to the `demo` tenant so
     mobile apps that hardcode the URL keep working. If the demo
     tenant doesn't exist in the test DB that's fine — the mapping
     itself (resolver reason=legacy_map) is what we assert."""
     from app.services.tenancy import resolve_host
     # Must run inside an app context to read config.
     with app.app_context():
-        r = resolve_host("school.manasety.ai")
+        r = resolve_host("lms.manasety.ai")
     # Either we hit demo (reason starts with legacy_map) OR demo
     # isn't present and we end at the "unknown" branch with the
     # same reason prefix. In both cases the mapping worked.

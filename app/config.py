@@ -103,8 +103,8 @@ def _resolve_cron_token(environ=os.environ, app_env=None) -> str:
 # Anything malformed refuses to boot: a typo here would silently route
 # a school's traffic to the wrong tenant or 404 it.
 _DEFAULT_BASE_DOMAIN = "manasety.ai"
-_DEFAULT_PLATFORM_HOSTS = "lms.manasety.ai"
-_DEFAULT_LEGACY_HOSTS = "school.manasety.ai=demo"
+_DEFAULT_PLATFORM_HOSTS = "console.manasety.ai"
+_DEFAULT_LEGACY_HOSTS = ""
 
 
 def _env_host(raw: str, var: str) -> str:
@@ -143,7 +143,7 @@ def _resolve_legacy_hosts(environ=os.environ) -> dict[str, str]:
         if not sep:
             raise RuntimeError(
                 f"LEGACY_HOSTS: entry {item!r} must look like host=slug "
-                "(comma-separated, e.g. school.manasety.ai=demo)."
+                "(comma-separated, e.g. lms.manasety.ai=demo)."
             )
         host = _env_host(host, "LEGACY_HOSTS")
         try:

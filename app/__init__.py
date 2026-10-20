@@ -42,10 +42,9 @@ def create_app(config_class=Config):
     # flipped to `log` / `enforce` via TENANT_RESOLUTION_MODE env.
     from .services import tenancy as _tenancy
     _tenancy.init_app(app)
-    # SAAS-007 — LEGACY_HOSTS keeps the Flutter apps that bake
-    # `school.manasety.ai/api` into their URLs working during the
-    # transition. Set in config so prod can override per environment.
-    app.config.setdefault("LEGACY_HOSTS", {"school.manasety.ai": "demo"})
+    # LEGACY_HOSTS — explicit host → school aliases (e.g. lms.manasety.ai
+    # → demo). Empty unless the environment sets it (SAAS-024/038).
+    app.config.setdefault("LEGACY_HOSTS", {})
     app.config.setdefault("BASE_DOMAIN", "manasety.ai")
     app.config.setdefault("PLATFORM_HOSTS", ["lms.manasety.ai"])
 

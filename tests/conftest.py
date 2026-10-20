@@ -129,8 +129,8 @@ def app():
         from app.extensions import db
         db.create_all()
     app.config["BASE_DOMAIN"] = "manasety.ai"
-    app.config["PLATFORM_HOSTS"] = ["lms.manasety.ai"]
-    app.config["LEGACY_HOSTS"] = {"school.manasety.ai": "demo"}
+    app.config["PLATFORM_HOSTS"] = ["console.manasety.ai"]
+    app.config["LEGACY_HOSTS"] = {"lms.manasety.ai": "demo"}
     app.config["TENANT_RESOLUTION_MODE"] = "log"
     _register_isolation_canary(app)
     _register_request_probe(app)

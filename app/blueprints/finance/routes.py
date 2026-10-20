@@ -2011,6 +2011,7 @@ def reports_export():
     # error message so the user isn't stuck on a bare 500.
     html = render_template(
         "finance/reports_pdf.html",
+        school=db.session.get(School, _sid()),
         start=start, end=end,
         grouped=grouped, totals=totals, net_income=net_income,
         label_ar=label_ar,
