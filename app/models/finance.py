@@ -1,6 +1,6 @@
 from datetime import datetime, date
 from ..extensions import db
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 
 
 ACCOUNT_TYPES = ["asset", "liability", "equity", "revenue", "expense"]
@@ -223,6 +223,7 @@ class JournalEntry(db.Model):
 
 class JournalLine(db.Model):
     __tablename__ = "journal_lines"
+    school_id = inherited_school_id("journal_entries", "entry_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     entry_id = db.Column(db.Integer, db.ForeignKey("journal_entries.id"), nullable=False, index=True)
@@ -295,6 +296,7 @@ class Invoice(db.Model):
 
 class InvoiceLine(db.Model):
     __tablename__ = "invoice_lines"
+    school_id = inherited_school_id("invoices", "invoice_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)
@@ -312,6 +314,7 @@ class InvoiceLine(db.Model):
 
 class Installment(db.Model):
     __tablename__ = "installments"
+    school_id = inherited_school_id("invoices", "invoice_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     invoice_id = db.Column(db.Integer, db.ForeignKey("invoices.id"), nullable=False, index=True)

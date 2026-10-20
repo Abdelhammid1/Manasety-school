@@ -13,7 +13,7 @@ SQL stay portable; Arabic labels live in `*_ar` columns.
 from datetime import datetime, timezone
 
 from ..extensions import db
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 
 
 # ─── Enums (kept as short strings; no CHECK constraints — validated in app) ──
@@ -164,6 +164,7 @@ class NafisOutcomeScore(db.Model):
     both so different importers can populate what they have.
     """
     __tablename__ = "nafis_outcome_scores"
+    school_id = inherited_school_id("nafis_results", "result_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     result_id  = db.Column(db.Integer, db.ForeignKey("nafis_results.id", ondelete="CASCADE"),
@@ -244,6 +245,7 @@ class InterventionPlan(db.Model):
 class InterventionPlanOutcome(db.Model):
     """Join — which outcomes a plan targets."""
     __tablename__ = "intervention_plan_outcomes"
+    school_id = inherited_school_id("intervention_plans", "plan_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     plan_id    = db.Column(db.Integer, db.ForeignKey("intervention_plans.id", ondelete="CASCADE"),
@@ -264,6 +266,7 @@ class InterventionPlanOutcome(db.Model):
 class InterventionSession(db.Model):
     """One remedial session inside a plan — date, attendance, notes."""
     __tablename__ = "intervention_sessions"
+    school_id = inherited_school_id("intervention_plans", "plan_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     plan_id = db.Column(db.Integer, db.ForeignKey("intervention_plans.id", ondelete="CASCADE"),

@@ -1,10 +1,11 @@
 from datetime import datetime
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 from ..extensions import db
 
 
 subject_grades = db.Table(
     "subject_grades",
+    inherited_school_id("subjects", "subject_id"),  # SAAS-019
     db.Column("subject_id", db.Integer, db.ForeignKey("subjects.id"), primary_key=True),
     db.Column("grade_id",   db.Integer, db.ForeignKey("grades.id"),   primary_key=True),
     # Ticket A2 — weight (credit-hours proxy) for GPA weighting per grade.
@@ -19,6 +20,7 @@ subject_grades = db.Table(
 # own year_id — no denormalized year column needed here.
 subject_terms = db.Table(
     "subject_terms",
+    inherited_school_id("subjects", "subject_id"),  # SAAS-019
     db.Column("subject_id", db.Integer, db.ForeignKey("subjects.id"), primary_key=True),
     db.Column("term_id",    db.Integer, db.ForeignKey("terms.id"),    primary_key=True),
 )
@@ -31,6 +33,7 @@ subject_terms = db.Table(
 # assignment_confirm modal already uses.
 teacher_subjects = db.Table(
     "teacher_subjects",
+    inherited_school_id("teachers", "teacher_id"),  # SAAS-019
     db.Column("teacher_id", db.Integer, db.ForeignKey("teachers.id"), primary_key=True),
     db.Column("subject_id", db.Integer, db.ForeignKey("subjects.id"), primary_key=True),
 )

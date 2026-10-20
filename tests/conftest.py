@@ -43,6 +43,9 @@ if os.environ.get("APP_ENV") == "production":
 # If the operator already set DATABASE_URL / TEST_DATABASE_URL, respect it.
 if not os.environ.get("DATABASE_URL") and not os.environ.get("TEST_DATABASE_URL"):
     _test_db_path = (Path(__file__).parent / "_test.db").resolve()
+    # Fresh file every session: create_all() never adds columns to an
+    # existing table, so a kept file goes stale after a schema change.
+    _test_db_path.unlink(missing_ok=True)
     os.environ["DATABASE_URL"] = f"sqlite:///{_test_db_path.as_posix()}"
 
 

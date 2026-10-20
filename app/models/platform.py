@@ -8,7 +8,7 @@ would spread across seven files.
 from datetime import datetime, timezone
 from sqlalchemy.sql import true as sa_true
 from ..extensions import db
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 
 
 def _utcnow():
@@ -60,6 +60,7 @@ class StudentGuardian(SoftDeleteMixin, db.Model):
     """Join row — permissions live here, not on Guardian, so the same
     guardian can have different rights per child (rare but real)."""
     __tablename__ = "student_guardians"
+    school_id = inherited_school_id("students", "student_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     student_id  = db.Column(db.Integer, db.ForeignKey("students.id", ondelete="CASCADE"),
@@ -330,6 +331,7 @@ class BehaviorIncident(db.Model):
 
 class BehaviorAction(db.Model):
     __tablename__ = "behavior_actions"
+    school_id = inherited_school_id("behavior_incidents", "incident_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     incident_id = db.Column(
@@ -374,6 +376,7 @@ class Conversation(db.Model):
 
 class ConversationParticipant(db.Model):
     __tablename__ = "conversation_participants"
+    school_id = inherited_school_id("conversations", "conversation_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(
@@ -397,6 +400,7 @@ class ConversationParticipant(db.Model):
 
 class Message(db.Model):
     __tablename__ = "messages"
+    school_id = inherited_school_id("conversations", "conversation_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     conversation_id = db.Column(
@@ -415,6 +419,7 @@ class Message(db.Model):
 
 class NotificationPreference(db.Model):
     __tablename__ = "notification_preferences"
+    school_id = inherited_school_id("users", "user_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
@@ -468,6 +473,7 @@ class GradingScale(db.Model):
 
 class GradingScaleLevel(db.Model):
     __tablename__ = "grading_scale_levels"
+    school_id = inherited_school_id("grading_scales", "scale_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     scale_id = db.Column(
@@ -507,6 +513,7 @@ class Rubric(SoftDeleteMixin, db.Model):
 
 class RubricCriterion(SoftDeleteMixin, db.Model):
     __tablename__ = "rubric_criteria"
+    school_id = inherited_school_id("rubrics", "rubric_id")  # SAAS-019
 
     id = db.Column(db.Integer, primary_key=True)
     rubric_id = db.Column(

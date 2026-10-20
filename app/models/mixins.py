@@ -95,3 +95,35 @@ class SoftDeleteMixin:
     @property
     def is_deleted(self) -> bool:
         return self.deleted_at is not None
+
+
+# ─── SAAS-019..021 — school_id on child tables ──────────────────────
+
+def _school_of_parent(parent_table: str, fk_column: str):
+    """Column default: the school_id of the parent row this row points
+    at. Works for ORM rows AND association rows SQLAlchemy inserts on
+    its own (`secondary=` relationships), which no app code can set a
+    value on. Falls back to the current tenant; with neither, it raises
+    TenantNotResolved rather than writing NULL or a guess."""
+    from sqlalchemy import text
+
+    def default(ctx):
+        parent_id = ctx.get_current_parameters().get(fk_column)
+        if parent_id is not None:
+            sid = ctx.connection.execute(
+                text(f"SELECT school_id FROM {parent_table} WHERE id = :pid"),
+                {"pid": parent_id},
+            ).scalar()
+            if sid is not None:
+                return sid
+        from ..services.tenancy import current_school_id
+        return current_school_id()
+    return default
+
+
+def inherited_school_id(parent_table: str, fk_column: str):
+    """`school_id` column for a child table whose tenant is its parent's."""
+    return db.Column(
+        "school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True,
+        default=_school_of_parent(parent_table, fk_column),
+    )

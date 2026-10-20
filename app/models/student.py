@@ -1,6 +1,6 @@
 from datetime import datetime
 from ..extensions import db
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 
 
 ENROLLMENT_STATUSES = [
@@ -139,6 +139,7 @@ class StudentNote(db.Model):
 # ─── Ticket S11 — StudentTag (M:N) ────────────────────────────────────
 student_tag_links = db.Table(
     "student_tag_links",
+    inherited_school_id("students", "student_id"),  # SAAS-019
     db.Column("student_id", db.Integer,
               db.ForeignKey("students.id", ondelete="CASCADE"),
               primary_key=True),

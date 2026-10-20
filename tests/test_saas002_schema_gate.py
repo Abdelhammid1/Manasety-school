@@ -30,9 +30,6 @@ from __future__ import annotations
 # to add it here with a one-line reason.
 TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     # ─── Finance ──────────────────────────────────────────────
-    "invoice_lines":        ("invoices",           "FK invoice_id"),
-    "installments":         ("invoices",           "FK invoice_id"),
-    "journal_lines":        ("journal_entries",    "FK journal_entry_id"),
 
     # ─── LMS ──────────────────────────────────────────────────
     "lms_questions":        ("lms_quizzes",        "FK quiz_id"),
@@ -61,35 +58,21 @@ TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     "lms_course_sections":  ("lms_courses",        "FK course_id"),
 
     # ─── Academic / results ───────────────────────────────────
-    "grading_scale_levels": ("grading_scales",     "FK scale_id → school"),
-    "subject_grades":       ("subjects",           "FK subject_id"),
-    "subject_terms":        ("subjects",           "FK subject_id"),
 
     # ─── Rubrics ─────────────────────────────────────────────
-    "rubric_criteria":      ("rubrics",            "FK rubric_id → school"),
     "rubric_scores":        ("rubric_criteria",    "FK criterion_id → rubric → school"),
 
     # ─── Students / guardians ────────────────────────────────
-    "student_guardians":    ("students",           "FK student_id (also guardian_id → school)"),
-    "student_tag_links":    ("students",           "many-to-many via tag_id"),
 
     # ─── Behavior / intervention ─────────────────────────────
-    "behavior_actions":     ("behavior_incidents", "FK incident_id → school"),
-    "intervention_plan_outcomes":  ("intervention_plans",     "FK plan_id → school"),
-    "intervention_sessions":       ("intervention_plans",     "FK plan_id → school"),
 
     # ─── Messaging ───────────────────────────────────────────
-    "conversation_participants": ("conversations", "FK conversation_id → school"),
-    "messages":                   ("conversations","FK conversation_id → school"),
-    "notification_preferences":  ("users",         "FK user_id → school"),
 
     # ─── Teacher-subject linkage ─────────────────────────────
-    "teacher_subjects":     ("teachers",           "FK teacher_id → school"),
 
     # ─── Nafis ──────────────────────────────────────────────
     # Per-school result rows (no student_id). Whether the learning-
     # outcome catalog is shared across tenants is decision D4 (open).
-    "nafis_outcome_scores": ("nafis_results",      "FK result_id → school (also outcome_id → learning_outcomes)"),
 
     # ─── System / shared ────────────────────────────────────
     "alembic_version":      ("__shared__",         "migration metadata"),
@@ -248,7 +231,7 @@ def test_dual_parent_report(app):
     for t, refs in report.items():
         print(f"  {t}: {', '.join(refs)}")
     # Known multi-parent junctions must show up — proves the report works.
-    for t in ("student_guardians", "invoice_lines", "rubric_scores"):
+    for t in ("rubric_scores", "lms_answers", "lms_submissions"):
         assert t in report, f"{t} missing from dual_parent report"
 
 
@@ -256,7 +239,7 @@ def test_wrong_map_entry_is_caught_and_named(app, monkeypatch):
     """The FK check must fail on a bogus parent and say which table."""
     import pytest
     bad = dict(TENANT_INHERIT_MAP)
-    bad["installments"] = ("students", "deliberately wrong")
+    bad["lms_choices"] = ("students", "deliberately wrong")
     monkeypatch.setitem(globals(), "TENANT_INHERIT_MAP", bad)
-    with pytest.raises(AssertionError, match="installments"):
+    with pytest.raises(AssertionError, match="lms_choices"):
         test_inherit_map_matches_real_foreign_keys(app)
