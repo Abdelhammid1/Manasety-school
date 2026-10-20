@@ -32,23 +32,10 @@ TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     # ─── Finance ──────────────────────────────────────────────
 
     # ─── LMS ──────────────────────────────────────────────────
-    "lms_questions":        ("lms_quizzes",        "FK quiz_id"),
-    "lms_choices":          ("lms_questions",      "FK question_id → quiz"),
-    "lms_quiz_attempts":    ("lms_quizzes",        "FK quiz_id"),
-    "lms_answers":          ("lms_quiz_attempts",  "FK attempt_id"),
-    "lms_submissions":      ("lms_assignments",    "FK assignment_id"),
-    "lms_assignment_questions": ("lms_assignments","FK assignment_id"),
-    "lms_assignment_choices": ("lms_assignment_questions", "FK question_id"),
-    "lms_assignment_answers": ("lms_submissions",  "FK submission_id"),
-    "lms_assignment_extensions": ("lms_assignments","FK assignment_id"),
-    "lms_assignment_template_choices":   ("lms_assignment_template_questions", "FK question_id"),
-    "lms_attempt_flagged_questions": ("lms_quiz_attempts", "FK attempt_id"),
-    "lms_lessons":          ("lms_courses",        "FK course_id"),
 
     # ─── Academic / results ───────────────────────────────────
 
     # ─── Rubrics ─────────────────────────────────────────────
-    "rubric_scores":        ("rubric_criteria",    "FK criterion_id → rubric → school"),
 
     # ─── Students / guardians ────────────────────────────────
 
@@ -196,17 +183,19 @@ def test_inherit_map_matches_real_foreign_keys(app):
 
 
 def dual_parent_report(app) -> dict[str, list[str]]:
-    """Inheriting tables with FKs to more than one tenant-owned table
-    (direct school_id or mapped). These can join rows from two schools
-    and nothing in the DB stops it — the D10 / SAAS-019..022 targets."""
+    """School-owned tables with FKs to more than one OTHER school-owned
+    table. Each such row can join rows of two schools and nothing in the
+    DB stops it — the edges SAAS-022's guard and integrity check cover."""
     _tables, owned, fks = _fk_graph(app)
-    tenant_tables = owned | set(TENANT_INHERIT_MAP)
+    shared = {t for t, (p, _w) in TENANT_INHERIT_MAP.items() if p == "__shared__"}
+    tenant_tables = (owned | set(TENANT_INHERIT_MAP)) - shared
     out = {}
-    for child, (parent, _why) in sorted(TENANT_INHERIT_MAP.items()):
-        if parent == "__shared__" or child not in fks:
+    for child in sorted(tenant_tables):
+        if child not in fks:
             continue
         refs = sorted({f"{f['referred_table']}.{','.join(f['constrained_columns'])}"
-                       for f in fks[child] if f["referred_table"] in tenant_tables})
+                       for f in fks[child]
+                       if f["referred_table"] in tenant_tables and f["referred_table"] != child})
         if len({r.split(".")[0] for r in refs}) > 1:
             out[child] = refs
     return out

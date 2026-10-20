@@ -25,6 +25,9 @@ class Child:
     fk: str                # child column pointing at parent.id
     # other parents that must agree: ((table, child_column), ...)
     also: tuple[tuple[str, str], ...] = field(default_factory=tuple)
+    # second backfill source when the primary FK is NULL (rubric_scores
+    # belongs to a submission OR a grade entry). Also verified to agree.
+    alt: tuple[str, str] | None = None
 
 
 class WaveIntegrityError(RuntimeError):
@@ -49,17 +52,18 @@ def add_school_id(op, child: Child) -> dict:
         b.create_index(_ix(t), ["school_id"])
         b.create_foreign_key(_fk(t), "schools", ["school_id"], ["id"])
 
-    bind.execute(sa.text(
-        f"UPDATE {t} SET school_id = "
-        f"(SELECT {p}.school_id FROM {p} WHERE {p}.id = {t}.{fk}) "
-        f"WHERE school_id IS NULL"))
+    source = f"(SELECT {p}.school_id FROM {p} WHERE {p}.id = {t}.{fk})"
+    if child.alt:
+        ap, afk = child.alt
+        source = f"COALESCE({source}, (SELECT {ap}.school_id FROM {ap} WHERE {ap}.id = {t}.{afk}))"
+    bind.execute(sa.text(f"UPDATE {t} SET school_id = {source} WHERE school_id IS NULL"))
 
     nulls = bind.execute(sa.text(f"SELECT COUNT(*) FROM {t} WHERE school_id IS NULL")).scalar()
     if nulls:
         raise WaveIntegrityError(
             f"{t}: {nulls} row(s) have no school after backfill from {p}.{fk} "
             f"(orphaned or parent without school_id) — fix the data, nothing was guessed.")
-    for other, col in child.also:
+    for other, col in child.also + ((child.alt,) if child.alt else ()):
         bad = bind.execute(sa.text(
             f"SELECT COUNT(*) FROM {t} JOIN {other} o ON o.id = {t}.{col} "
             f"WHERE o.school_id IS NOT NULL AND o.school_id != {t}.school_id")).scalar()

@@ -112,6 +112,7 @@ class Unit(SoftDeleteMixin, db.Model):
 
 class Lesson(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_lessons"
+    school_id = inherited_school_id("lms_courses", "course_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     course_id = db.Column(db.Integer, db.ForeignKey("lms_courses.id", ondelete="CASCADE"),
@@ -197,6 +198,7 @@ class CourseAssignment(SoftDeleteMixin, db.Model):
 
 class Submission(db.Model):
     __tablename__ = "lms_submissions"
+    school_id = inherited_school_id("lms_assignments", "assignment_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     assignment_id = db.Column(db.Integer, db.ForeignKey("lms_assignments.id", ondelete="CASCADE"),
@@ -241,6 +243,7 @@ class AssignmentQuestion(SoftDeleteMixin, db.Model):
     `Question` model exactly so the bank picker can clone rows either
     into a Quiz or into an Assignment with the same code path."""
     __tablename__ = "lms_assignment_questions"
+    school_id = inherited_school_id("lms_assignments", "assignment_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     assignment_id = db.Column(
@@ -279,6 +282,7 @@ class AssignmentQuestion(SoftDeleteMixin, db.Model):
 
 class AssignmentChoice(db.Model):
     __tablename__ = "lms_assignment_choices"
+    school_id = inherited_school_id("lms_assignment_questions", "question_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(
@@ -292,6 +296,7 @@ class AssignmentChoice(db.Model):
 
 class AssignmentAnswer(db.Model):
     __tablename__ = "lms_assignment_answers"
+    school_id = inherited_school_id("lms_submissions", "submission_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     submission_id = db.Column(
@@ -369,6 +374,7 @@ class Quiz(SoftDeleteMixin, db.Model):
 
 class Question(SoftDeleteMixin, db.Model):
     __tablename__ = "lms_questions"
+    school_id = inherited_school_id("lms_quizzes", "quiz_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     quiz_id = db.Column(db.Integer, db.ForeignKey("lms_quizzes.id", ondelete="CASCADE"),
@@ -412,6 +418,7 @@ class Question(SoftDeleteMixin, db.Model):
 
 class Choice(db.Model):
     __tablename__ = "lms_choices"
+    school_id = inherited_school_id("lms_questions", "question_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(db.Integer, db.ForeignKey("lms_questions.id", ondelete="CASCADE"),
@@ -423,6 +430,7 @@ class Choice(db.Model):
 
 class QuizAttempt(db.Model):
     __tablename__ = "lms_quiz_attempts"
+    school_id = inherited_school_id("lms_quizzes", "quiz_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     quiz_id = db.Column(db.Integer, db.ForeignKey("lms_quizzes.id", ondelete="CASCADE"),
@@ -459,6 +467,7 @@ class QuizAttempt(db.Model):
 
 class Answer(db.Model):
     __tablename__ = "lms_answers"
+    school_id = inherited_school_id("lms_quiz_attempts", "attempt_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     attempt_id = db.Column(db.Integer, db.ForeignKey("lms_quiz_attempts.id", ondelete="CASCADE"),
@@ -770,6 +779,7 @@ class QuestionStats(db.Model):
 # ─── Phase-2 ticket #11 — flagged-questions on an attempt ──────────
 lms_attempt_flagged_questions = db.Table(
     "lms_attempt_flagged_questions",
+    inherited_school_id("lms_quiz_attempts", "attempt_id"),  # SAAS-021
     db.Column("attempt_id", db.Integer,
               db.ForeignKey("lms_quiz_attempts.id", ondelete="CASCADE"),
               primary_key=True),
@@ -783,6 +793,7 @@ lms_attempt_flagged_questions = db.Table(
 # ─── Phase-2 ticket #24 — Assignment extensions (per-student due) ──
 class AssignmentExtension(db.Model):
     __tablename__ = "lms_assignment_extensions"
+    school_id = inherited_school_id("lms_assignments", "assignment_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     assignment_id = db.Column(
@@ -929,6 +940,7 @@ class AssignmentTemplateQuestion(db.Model):
 
 class AssignmentTemplateChoice(db.Model):
     __tablename__ = "lms_assignment_template_choices"
+    school_id = inherited_school_id("lms_assignment_template_questions", "question_id")  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     question_id = db.Column(

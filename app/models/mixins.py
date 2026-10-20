@@ -99,7 +99,7 @@ class SoftDeleteMixin:
 
 # ─── SAAS-019..021 — school_id on child tables ──────────────────────
 
-def _school_of_parent(parent_table: str, fk_column: str):
+def _school_of_parent(parents):
     """Column default: the school_id of the parent row this row points
     at. Works for ORM rows AND association rows SQLAlchemy inserts on
     its own (`secondary=` relationships), which no app code can set a
@@ -108,8 +108,11 @@ def _school_of_parent(parent_table: str, fk_column: str):
     from sqlalchemy import text
 
     def default(ctx):
-        parent_id = ctx.get_current_parameters().get(fk_column)
-        if parent_id is not None:
+        params = ctx.get_current_parameters()
+        for parent_table, fk_column in parents:
+            parent_id = params.get(fk_column)
+            if parent_id is None:
+                continue
             sid = ctx.connection.execute(
                 text(f"SELECT school_id FROM {parent_table} WHERE id = :pid"),
                 {"pid": parent_id},
@@ -121,9 +124,11 @@ def _school_of_parent(parent_table: str, fk_column: str):
     return default
 
 
-def inherited_school_id(parent_table: str, fk_column: str):
-    """`school_id` column for a child table whose tenant is its parent's."""
+def inherited_school_id(parent_table: str, fk_column: str, *more: tuple[str, str]):
+    """`school_id` column for a child table whose tenant is its parent's.
+    `more` lists further (table, fk) parents tried in order when the
+    first FK is NULL (e.g. rubric_scores: submission OR grade entry)."""
     return db.Column(
         "school_id", db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True,
-        default=_school_of_parent(parent_table, fk_column),
+        default=_school_of_parent(((parent_table, fk_column),) + tuple(more)),
     )

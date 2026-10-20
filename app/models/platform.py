@@ -528,6 +528,7 @@ class RubricCriterion(SoftDeleteMixin, db.Model):
 
 class RubricScore(db.Model):
     __tablename__ = "rubric_scores"
+    school_id = inherited_school_id("lms_submissions", "submission_id", ("grade_entries", "grade_entry_id"))  # SAAS-021
 
     id = db.Column(db.Integer, primary_key=True)
     criterion_id = db.Column(
