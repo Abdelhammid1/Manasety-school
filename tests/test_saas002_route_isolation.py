@@ -1,111 +1,163 @@
-"""SAAS-002 §4.3 — Route Isolation Matrix.
+"""SAAS-002 §4.3 / SAAS-012 — Route Isolation Matrix.
 
-For every route in `app.url_map` that takes an `<int:…>` parameter,
-there has to be a test that proves a logged-in user from school A
-can't reach school B's record at that endpoint — the expected
-response is 403 or 404, never 200 and never B's data in the body.
+Every route with an `<int:…>` parameter must be either in ROUTE_MATRIX
+(attacked on every run) or in ALLOWLIST with a written reason. Pending
+endpoints are tagged with the SAAS ticket that will cover them.
 
-Covered this ticket:
-  - The *coverage* test. Every `<int:…>` endpoint must be either
-    (a) classified in `ROUTE_MATRIX` with a method of fetching a
-    valid id from school B, or (b) listed in `ALLOWLIST` with a
-    one-line reason (public endpoints, impl TODO, etc).
-  - A sweep over `ROUTE_MATRIX` that actually hits each endpoint
-    with school A's session + school B's id and asserts the gate
-    holds.
+What a matrix entry is attacked with (all under
+TENANT_RESOLUTION_MODE=enforce, on school A's host):
 
-New `<int:…>` endpoints added without being classified fail the
-coverage test. That's deliberate — SAAS-002 is the review forcing
-function the ticket describes.
+  * school A user (each listed role) + school B's ids → 403/404, no B
+    data in the body, and for writes B's snapshot is unchanged;
+  * no session at all → 302 to login or 401;
+  * multi-id rules: A's id mixed with B's id → refused;
+  * A's session presented on B's host → the SAAS-006 kill hook drops it.
+
+A URL that cannot be built from `rule.arguments` is a FAILURE. The
+only way to not run an entry is `Entry(skip="<written reason>")`.
+
+Endpoints that take an id from the form / query string are tracked
+separately (FORM_ID_MATRIX / FORM_ID_PENDING), discovered by scanning
+view source for `request.form/args/values/json …_id`.
+
+Known gaps found by this sweep are listed in KNOWN_GAPS with the
+ticket that fixes them; they run as strict xfails so a fix flips them
+red until the entry is removed.
 """
 
 from __future__ import annotations
 
+import inspect
 import re
-from typing import Callable, Iterable
+from pathlib import Path
+from typing import Iterable
 
 import pytest
 
+from isolation_harness import (
+    Entry, HarnessError, build_url, check_blocked, host, rule_for, ticket_for,
+)
 
-# ─── Which endpoints we test, and how to fetch a target id ───────────
 
-# `ROUTE_MATRIX` maps endpoint name → (http_method, fetch_id).
-# `fetch_id(bundleB)` returns a model id that belongs to school B.
-# `bundleB` is the dict yielded by the two_schools fixture for B.
-#
-# The ticket says: cover students / finance / lms / results / nafis
-# / api first; the rest live in ALLOWLIST temporarily with a reason.
+def _section_state(B):
+    from app.extensions import db
+    from app.models import Section
+    s = db.session.get(Section, B["section"].id)
+    return (s.name, s.capacity) if s else None
 
-ROUTE_MATRIX: dict[str, tuple[str, Callable[[dict], int]]] = {
-    # Phase-1 seed — one representative endpoint per high-risk blueprint.
-    # These are LIVE-TESTED on every run. Expand this list as individual
-    # endpoints graduate from ALLOWLIST into real coverage.
-    "students.student_detail":   ("GET",  lambda B: B["student"].id),
-    "students.student_edit":     ("GET",  lambda B: B["student"].id),
-    "academic.section_detail":   ("GET",  lambda B: B["section"].id),
-    "schedule.section_schedule": ("GET",  lambda B: B["section"].id),
-    "teachers.subject_edit":     ("GET",  lambda B: B["subject"].id),
-    "results.section_results":   ("GET",  lambda B: B["section"].id),
+
+def _grade_state(B):
+    from app.extensions import db
+    from app.models import Grade
+    g = db.session.get(Grade, B["grade"].id)
+    return (g.name, g.order_index) if g else None
+
+
+def _subject_state(B):
+    from app.extensions import db
+    from app.models import Subject
+    s = db.session.get(Subject, B["subject"].id)
+    return (s.name, s.is_active) if s else None
+
+
+# ─── Matrix ──────────────────────────────────────────────────────────
+
+ROUTE_MATRIX: dict[str, Entry] = {
+    # SAAS-002 seed (GET).
+    "students.student_detail":   Entry(lambda B: {"student_id": B["student"].id},
+                                       roles=("admin", "teacher")),
+    "students.student_edit":     Entry(lambda B: {"student_id": B["student"].id}),
+    "academic.section_detail":   Entry(lambda B: {"section_id": B["section"].id}),
+    "schedule.section_schedule": Entry(lambda B: {"section_id": B["section"].id},
+                                       roles=("admin", "teacher")),
+    "teachers.subject_edit":     Entry(lambda B: {"subject_id": B["subject"].id}),
+    "results.section_results":   Entry(lambda B: {"section_id": B["section"].id},
+                                       roles=("admin", "teacher")),
+
+    # SAAS-012 — writes, with a before/after snapshot of B's record.
+    "academic.section_edit": Entry(
+        lambda B: {"section_id": B["section"].id},
+        methods=("GET", "POST"),
+        form=lambda A, B: {"name": "HACKED-BY-A", "capacity": "99"},
+        snapshot=_section_state,
+    ),
+    "academic.grade_edit": Entry(
+        lambda B: {"grade_id": B["grade"].id},
+        methods=("GET", "POST"),
+        form=lambda A, B: {"name": "HACKED-BY-A", "order_index": "9"},
+        snapshot=_grade_state,
+    ),
+    "teachers.subject_toggle": Entry(
+        lambda B: {"subject_id": B["subject"].id},
+        methods=("POST",),
+        snapshot=_subject_state,
+    ),
+
+    # SAAS-012 — multi-id rules, plus an A/B mix.
+    "results.term_results": Entry(
+        lambda B: {"section_id": B["section"].id, "term_id": B["term"].id},
+        roles=("admin", "teacher"),
+        mixed=lambda A, B: {"section_id": A["section"].id, "term_id": B["term"].id},
+    ),
+    "courses.grade_term_subjects": Entry(
+        lambda B: {"grade_id": B["grade"].id, "term_id": B["term"].id},
+        mixed=lambda A, B: {"grade_id": A["grade"].id, "term_id": B["term"].id},
+    ),
 }
 
 
-# Phase-1 ALLOWLIST — every <int:…> endpoint known at 2026-10-12 that
-# is NOT in ROUTE_MATRIX. Each one is accepted temporarily with the
-# shared reason "SAAS-002 phase 1 — pending matrix entry" (the ticket
-# itself says "the rest in allowlist مؤقتة بسبب مكتوب").
-#
-# The point of the allowlist being a *snapshot* (not a wildcard) is
-# that a NEW endpoint added after 2026-10-12 will fail
-# `test_every_int_route_is_classified` until the author places it
-# in ROUTE_MATRIX or adds an explicit entry here with a real reason.
+# Gaps the sweep found; each is fixed by the named ticket. Strict xfail:
+# once fixed the test passes, xfail(strict) turns red, remove the line.
+KNOWN_GAPS: dict[tuple[str, str], str] = {}
 
-_PHASE1_PENDING: tuple[str, ...] = (
+
+# ─── Allowlist ───────────────────────────────────────────────────────
+
+# Snapshot (not a wildcard) of <int:…> endpoints still waiting for a
+# matrix entry. A new endpoint is NOT covered by this list and fails
+# the coverage test until someone classifies it.
+_PENDING: tuple[str, ...] = (
     "academic.bulk_transfer", "academic.calendar_day_delete",
-    "academic.grade_delete", "academic.grade_detail", "academic.grade_edit",
-    "academic.grade_report", "academic.section_delete", "academic.section_edit",
+    "academic.grade_delete", "academic.grade_detail",
+    "academic.grade_report", "academic.section_delete",
     "academic.subject_report", "academic.term_delete", "academic.term_edit",
     "academic.term_new", "academic.terms_list", "academic.year_close",
-    "academic.year_edit",
-    "admin.role_delete", "admin.role_edit", "admin.trash_restore",
-    "admin.user_edit", "admin.user_toggle",
+    "academic.year_edit", "admin.role_delete", "admin.role_edit",
+    "admin.trash_restore", "admin.user_edit", "admin.user_toggle",
     "api.mark_notification_read", "api.parent_child_attendance",
     "api.parent_child_invoices", "api.parent_child_materials",
     "api.parent_child_results", "api.parent_child_schedule",
-    "api.parent_pickup_release", "api.pickup_ack_api",
-    "api.qbank_set_state", "api.student_announcement_detail",
-    "api.student_assignment_detail", "api.student_assignment_submit",
-    "api.student_course_detail", "api.student_lesson_view",
-    "api.student_quiz_attempt", "api.student_quiz_submit",
-    "api.student_report_card", "api.teacher_announcement_delete",
-    "api.teacher_assignment_detail", "api.teacher_assignment_grade",
-    "api.teacher_assignment_submissions", "api.teacher_message_thread",
-    "api.teacher_quiz_stats", "api.teacher_section_schedule",
-    "api.teacher_template_add_questions", "api.teacher_template_detail",
-    "attendance.mark", "attendance.rule_trigger_resolve",
-    "attendance.section_report", "attendance.student_day_detail",
-    "attendance.student_report",
+    "api.parent_pickup_release", "api.pickup_ack_api", "api.qbank_set_state",
+    "api.student_announcement_detail", "api.student_assignment_detail",
+    "api.student_assignment_submit", "api.student_course_detail",
+    "api.student_lesson_view", "api.student_quiz_attempt",
+    "api.student_quiz_submit", "api.student_report_card",
+    "api.teacher_announcement_delete", "api.teacher_assignment_detail",
+    "api.teacher_assignment_grade", "api.teacher_assignment_submissions",
+    "api.teacher_message_thread", "api.teacher_quiz_stats",
+    "api.teacher_section_schedule", "api.teacher_template_add_questions",
+    "api.teacher_template_detail", "attendance.mark",
+    "attendance.rule_trigger_resolve", "attendance.section_report",
+    "attendance.student_day_detail", "attendance.student_report",
     "courses.course_pick_section", "courses.delete", "courses.detail",
-    "courses.grade_term_subjects", "courses.grade_terms",
-    "courses.lesson_delete", "courses.lesson_edit", "courses.lesson_new",
-    "courses.lesson_view", "courses.unit_delete", "courses.unit_edit",
-    "courses.unit_new",
-    "finance.account_statement", "finance.bank_rec_match",
-    "finance.bank_rec_unmatch", "finance.budget_delete",
-    "finance.cost_center_delete", "finance.cost_center_toggle",
-    "finance.discount_type_toggle", "finance.expense_approve",
-    "finance.expense_delete", "finance.expense_edit",
-    "finance.expense_reject", "finance.fee_type_delete",
-    "finance.fee_type_edit", "finance.fee_type_toggle",
-    "finance.invoice_detail", "finance.invoice_pay",
-    "finance.invoice_print", "finance.invoice_unvoid",
+    "courses.grade_terms", "courses.lesson_delete", "courses.lesson_edit",
+    "courses.lesson_new", "courses.lesson_view", "courses.unit_delete",
+    "courses.unit_edit", "courses.unit_new", "finance.account_statement",
+    "finance.bank_rec_match", "finance.bank_rec_unmatch",
+    "finance.budget_delete", "finance.cost_center_delete",
+    "finance.cost_center_toggle", "finance.discount_type_toggle",
+    "finance.expense_approve", "finance.expense_delete",
+    "finance.expense_edit", "finance.expense_reject",
+    "finance.fee_type_delete", "finance.fee_type_edit",
+    "finance.fee_type_toggle", "finance.invoice_detail",
+    "finance.invoice_pay", "finance.invoice_print", "finance.invoice_unvoid",
     "finance.invoice_void", "finance.payment_method_delete",
     "finance.payment_method_toggle", "finance.recurring_delete",
     "finance.recurring_toggle", "finance.refund_request_approve",
     "finance.refund_request_new", "finance.refund_request_reject",
     "finance.student_discount_approve", "finance.student_discount_reject",
-    "finance.vendor_delete", "finance.vendor_detail",
-    "finance.vendor_edit", "finance.vendor_toggle",
-    "hr.employee_advance_new", "hr.employee_delete",
+    "finance.vendor_delete", "finance.vendor_detail", "finance.vendor_edit",
+    "finance.vendor_toggle", "hr.employee_advance_new", "hr.employee_delete",
     "hr.employee_detail", "hr.employee_edit", "hr.employee_toggle",
     "hr.leave_request_approve", "hr.leave_request_reject",
     "hr.payroll_delete", "hr.payroll_detail", "hr.payroll_settle",
@@ -124,13 +176,13 @@ _PHASE1_PENDING: tuple[str, ...] = (
     "lms.collection_add", "lms.feedback_template_delete",
     "lms.objective_delete", "lms.passage_delete", "lms.passage_edit",
     "lms.quiz_analysis", "lms.quiz_delete", "lms.quiz_edit",
-    "lms.quiz_live_monitor", "lms.quiz_live_monitor_json",
-    "lms.quiz_new", "lms.quiz_pick_from_bank",
-    "lms.quiz_publish_results", "lms.quiz_question_add",
-    "lms.quiz_question_delete", "lms.quiz_question_new_version",
-    "lms.quiz_question_update", "lms.quiz_questions", "lms.quiz_result",
-    "lms.quiz_submit", "lms.quiz_take", "lms.report_section",
-    "lms.report_student", "lms.skill_delete", "lms.submission_ai_grade",
+    "lms.quiz_live_monitor", "lms.quiz_live_monitor_json", "lms.quiz_new",
+    "lms.quiz_pick_from_bank", "lms.quiz_publish_results",
+    "lms.quiz_question_add", "lms.quiz_question_delete",
+    "lms.quiz_question_new_version", "lms.quiz_question_update",
+    "lms.quiz_questions", "lms.quiz_result", "lms.quiz_submit",
+    "lms.quiz_take", "lms.report_section", "lms.report_student",
+    "lms.skill_delete", "lms.submission_ai_grade",
     "lms.submission_grade_panel", "lms.submission_grade_save",
     "lms.submission_rubric_grade", "lms.taxonomy_objective_delete",
     "lms.taxonomy_objective_edit", "lms.taxonomy_skill_delete",
@@ -138,24 +190,20 @@ _PHASE1_PENDING: tuple[str, ...] = (
     "lms.template_delete", "lms.template_detail", "lms.template_edit",
     "lms.template_item_delete", "lms.template_item_toggle_hidden",
     "lms.template_items_attach", "lms.template_items_save",
-    "lms.template_print", "lms.template_use",
-    "messaging.conversation_view", "messaging.message_delete",
-    "nafis.cycle_delete", "nafis.cycle_detail", "nafis.cycle_edit",
-    "platform.room_delete", "platform.room_detail", "platform.room_edit",
-    "platform.room_slot_save", "platform.room_slot_unbook",
-    "platform.room_toggle", "platform.user_scopes",
-    "portal.pickup_ack", "portal.pickup_release",
+    "lms.template_print", "lms.template_use", "messaging.conversation_view",
+    "messaging.message_delete", "nafis.cycle_delete", "nafis.cycle_detail",
+    "nafis.cycle_edit", "platform.room_delete", "platform.room_detail",
+    "platform.room_edit", "platform.room_slot_save",
+    "platform.room_slot_unbook", "platform.room_toggle",
+    "platform.user_scopes", "portal.pickup_ack", "portal.pickup_release",
     "results.grade_sheet", "results.recompute_ranks",
-    "results.rubric_delete", "results.rubric_edit",
-    "results.scale_delete", "results.scale_edit",
-    "results.term_results", "results.transcript_snapshot",
-    "results.transcript_view",
-    "schedule.day_delete", "schedule.period_delete",
-    "schedule.slot_delete", "schedule.slot_save",
-    "schedule.teacher_schedule",
-    "students.behavior_add", "students.behavior_home",
-    "students.document_delete", "students.document_upload",
-    "students.documents", "students.enroll",
+    "results.rubric_delete", "results.rubric_edit", "results.scale_delete",
+    "results.scale_edit", "results.transcript_snapshot",
+    "results.transcript_view", "schedule.day_delete",
+    "schedule.period_delete", "schedule.slot_delete", "schedule.slot_save",
+    "schedule.teacher_schedule", "students.behavior_add",
+    "students.behavior_home", "students.document_delete",
+    "students.document_upload", "students.documents", "students.enroll",
     "students.graduate_enrollment", "students.guardian_account_create",
     "students.guardian_account_reset_password",
     "students.guardian_account_toggle", "students.guardian_add",
@@ -171,122 +219,377 @@ _PHASE1_PENDING: tuple[str, ...] = (
     "students.student_note_add", "students.student_note_delete",
     "students.student_photo_upload", "students.student_siblings_json",
     "students.student_tag_attach", "students.student_tag_detach",
-    "students.transfer",
-    "teachers.assignment_remove", "teachers.assignment_update",
-    "teachers.section_assignments", "teachers.subject_delete",
-    "teachers.subject_toggle", "teachers.teacher_account_reset_password",
+    "students.transfer", "teachers.assignment_remove",
+    "teachers.assignment_update", "teachers.section_assignments",
+    "teachers.subject_delete", "teachers.teacher_account_reset_password",
     "teachers.teacher_account_toggle", "teachers.teacher_detail",
     "teachers.teacher_edit", "teachers.teacher_specialization",
     "teachers.teacher_toggle",
 )
 
 _PRE_AUTH_OR_SHARED: dict[str, str] = {
-    # Public pages — no id, or shared across tenants on purpose.
-    "static":                     "static-file serving, no tenant",
-    "auth.login":                 "pre-auth form, no id params",
-    "auth.logout":                "pre-auth / shared",
-    "auth.forgot":                "pre-auth",
-    "auth.otp":                   "pre-auth",
-    "auth.reset":                 "pre-auth",
-    "auth.sso":                   "pre-auth",
-    "auth.locked":                "pre-auth",
-    "dashboard.home":             "no id param, role-dispatched",
+    "static":         "static-file serving, no tenant",
+    "auth.login":     "pre-auth form, no id params",
+    "auth.logout":    "pre-auth / shared",
+    "auth.forgot":    "pre-auth",
+    "auth.otp":       "pre-auth",
+    "auth.reset":     "pre-auth",
+    "auth.sso":       "pre-auth",
+    "auth.locked":    "pre-auth",
+    "dashboard.home": "no id param, role-dispatched",
+    "saas012_canary.leaky":
+        "SAAS-012 canary — deliberately leaky, test-app only; "
+        "test_harness_catches_leaky_canary proves the harness flags it",
+    "saas012_canary.scoped":
+        "SAAS-012 canary twin — correctly scoped, test-app only",
 }
 
-
-# Final ALLOWLIST: pre-auth / shared + the phase-1 snapshot above.
 ALLOWLIST: dict[str, str] = {
     **_PRE_AUTH_OR_SHARED,
-    **{ep: "SAAS-002 phase 1 — pending matrix entry"
-       for ep in _PHASE1_PENDING},
+    **{ep: f"{ticket_for(ep)} — pending matrix entry" for ep in _PENDING},
 }
 
 
-# ─── Helpers ─────────────────────────────────────────────────────────
+# ─── Form / query-string ids ─────────────────────────────────────────
 
-_INT_PARAM_RE = re.compile(r"<int:[^>]+>")
+_FORM_ID_RE = re.compile(
+    r"request\.(?:form|args|values)\.get(?:list)?\(\s*[\"'](\w*_id)[\"']")
+_JSON_ID_RE = re.compile(r"request\.(?:get_json|json)[^\n]*?[\"'](\w*_id)[\"']")
+_NOT_AN_FK = {"national_id"}
 
 
-def _rules_with_int_param(app) -> Iterable:
-    """Yield every url_map rule that has at least one <int:…> param
-    AND accepts GET or POST (we skip pure HEAD / OPTIONS)."""
+def discover_form_id_endpoints(app) -> dict[str, list[str]]:
+    out = {}
+    for ep, fn in app.view_functions.items():
+        try:
+            src = inspect.getsource(inspect.unwrap(fn))
+        except (OSError, TypeError):
+            continue
+        ids = (set(_FORM_ID_RE.findall(src)) | set(_JSON_ID_RE.findall(src))) - _NOT_AN_FK
+        if ids:
+            out[ep] = sorted(ids)
+    return out
+
+
+def _section_count_for_grade(B):
+    from app.models import Section
+    return Section.query.filter_by(grade_id=B["grade"].id).count()
+
+
+# endpoint -> (url_params(A,B), method, query/form(A,B), snapshot(B) or None)
+FORM_ID_MATRIX: dict[str, Entry] = {
+    "students.students_list": Entry(
+        lambda B: {},
+        form=lambda A, B: {"section_id": B["section"].id},
+    ),
+    "academic.section_new": Entry(
+        lambda B: {},
+        methods=("POST",),
+        form=lambda A, B: {"grade_id": B["grade"].id, "name": "HACK-new"},
+        snapshot=_section_count_for_grade,
+    ),
+}
+
+FORM_ID_PENDING: tuple[str, ...] = (
+    "academic.bulk_transfer", "admin.audit_log", "api.qbank_questions",
+    "api.teacher_attendance_existing", "api.teacher_components",
+    "api.teacher_grades_existing", "api.teacher_students",
+    "api.teacher_templates", "api.teacher_upload", "courses.lesson_edit",
+    "courses.lesson_new", "courses.new", "finance.account_new",
+    "finance.account_suggest_code", "finance.bank_rec",
+    "finance.bank_rec_import", "finance.bank_rec_match",
+    "finance.budget_new", "finance.bulk_payment",
+    "finance.discount_type_new", "finance.expense_edit",
+    "finance.expense_new", "finance.fee_type_edit", "finance.fee_type_new",
+    "finance.invoice_new", "finance.invoice_pay", "finance.journal",
+    "finance.payment_method_new", "finance.petty_cash_issue",
+    "finance.petty_cash_settle", "finance.quick_journal_run",
+    "finance.recurring_new", "finance.refund_request_new",
+    "finance.report_general_ledger", "finance.student_discount_new",
+    "finance.treasury_transfer", "hr.employee_advance_new",
+    "hr.leave_balance_new", "hr.leave_request_new", "hr.payroll_new",
+    "hr.payroll_settle", "lms.announcement_new", "lms.assignment_edit",
+    "lms.assignment_extension_add", "lms.assignment_from_template",
+    "lms.assignment_new", "lms.assignment_pick_from_bank", "lms.bank_home",
+    "lms.objective_new", "lms.qbank_dashboard", "lms.quiz_pick_from_bank",
+    "lms.quiz_submit", "lms.skill_new", "lms.taxonomy_objective_edit",
+    "lms.taxonomy_objective_new", "lms.taxonomy_skill_edit",
+    "lms.taxonomy_skill_new", "lms.template_detail", "lms.template_home",
+    "lms.template_use", "lms.templates_gallery",
+    "messaging.conversation_new", "nafis.cycle_edit", "nafis.cycle_new",
+    "platform.room_slot_save", "platform.substitution_new",
+    "portal.pickup_call", "results.components", "results.rubric_edit",
+    "results.rubric_new", "schedule.slot_save", "students.behavior_add",
+    "students.guardian_link_new", "students.guardian_new",
+    "students.promotion", "students.student_detail", "students.student_edit",
+    "students.student_new", "students.student_tag_attach",
+    "students.student_tag_detach", "teachers.section_assignments",
+)
+
+
+# ─── Fixtures ────────────────────────────────────────────────────────
+
+@pytest.fixture
+def enforce_app(app, monkeypatch):
+    """Enforce-mode tenancy, CSRF off so a POST is judged on isolation,
+    not on a missing token (a 400 must never pass as "blocked")."""
+    monkeypatch.setitem(app.config, "TENANT_RESOLUTION_MODE", "enforce")
+    monkeypatch.setitem(app.config, "WTF_CSRF_ENABLED", False)
+    return app
+
+
+def _int_rules(app) -> Iterable:
     for rule in app.url_map.iter_rules():
-        if not _INT_PARAM_RE.search(rule.rule):
-            continue
-        methods = (rule.methods or set()) - {"HEAD", "OPTIONS"}
-        if not methods:
-            continue
-        yield rule
+        if "<int:" in rule.rule and (rule.methods or set()) - {"HEAD", "OPTIONS"}:
+            yield rule
 
 
-# ─── Coverage test — the forcing function ────────────────────────────
+def _cases(kind: str):
+    out = []
+    for ep, e in sorted(ROUTE_MATRIX.items()):
+        if kind == "attack":
+            for m in e.methods:
+                for role in e.roles:
+                    out.append(pytest.param(ep, m, role, id=f"{ep}-{m}-{role}",
+                                            marks=_gap_mark(ep, m)))
+        elif kind == "unauth":
+            for m in e.methods:
+                out.append(pytest.param(ep, m, id=f"{ep}-{m}"))
+        elif kind == "mixed" and e.mixed:
+            out.append(pytest.param(ep, id=ep, marks=_gap_mark(ep, "mixed")))
+    return out
+
+
+def _gap_mark(ep, axis):
+    reason = KNOWN_GAPS.get((ep, axis))
+    return [pytest.mark.xfail(strict=True, reason=reason)] if reason else []
+
+
+# ─── Coverage / classification ───────────────────────────────────────
 
 def test_every_int_route_is_classified(app):
-    """Every <int:…> endpoint is in ROUTE_MATRIX or ALLOWLIST."""
-    with app.app_context():
-        unclassified = []
-        for rule in _rules_with_int_param(app):
-            ep = rule.endpoint
-            if ep in ROUTE_MATRIX:
-                continue
-            if ep in ALLOWLIST:
-                continue
-            unclassified.append((ep, rule.rule))
-
-    if unclassified:
-        details = "\n  - ".join(f"{ep}  {path}" for ep, path in unclassified)
-        pytest.fail(
-            "SAAS-002 Route Isolation Matrix — the following "
-            f"<int:…> endpoint(s) are unclassified ({len(unclassified)} total). "
-            "Each one must get a line in ROUTE_MATRIX (with an id "
-            "fetcher for school B) or in ALLOWLIST (with a reason). "
-            "Dropping something into ALLOWLIST is fine for the "
-            "initial pass — the audit reviewer reads the reasons.\n"
-            f"  - {details}"
-        )
+    unclassified = [
+        (r.endpoint, r.rule) for r in _int_rules(app)
+        if r.endpoint not in ROUTE_MATRIX and r.endpoint not in ALLOWLIST
+    ]
+    assert not unclassified, (
+        "Unclassified <int:…> endpoint(s) — add each to ROUTE_MATRIX "
+        "(with an id fetcher for school B) or ALLOWLIST (with a reason):\n  - "
+        + "\n  - ".join(f"{ep}  {path}" for ep, path in unclassified)
+    )
 
 
-# ─── Isolation sweep — the actual check ──────────────────────────────
+def test_matrix_and_allowlist_do_not_overlap():
+    both = sorted(set(ROUTE_MATRIX) & set(ALLOWLIST))
+    assert not both, f"in both ROUTE_MATRIX and ALLOWLIST: {both}"
 
-@pytest.mark.parametrize("endpoint", sorted(ROUTE_MATRIX.keys()))
-def test_cross_tenant_access_blocked(app, two_schools, login_as, endpoint):
-    """School A's admin requests school B's id at `endpoint`.
-    Must be 403 or 404 — never 200 and never B's data in the body."""
-    method, fetch_id = ROUTE_MATRIX[endpoint]
-    A = two_schools["A"]
-    B = two_schools["B"]
 
-    with app.test_request_context():
-        from flask import url_for
-        try:
-            target_id = fetch_id(B)
-            # Route params use the common name of each resource ID.
-            # Try all three before falling back to the Flask-side error.
-            url = None
-            for key in (
-                "student_id", "section_id", "year_id",
-                "subject_id", "teacher_id", "course_id",
-                "quiz_id", "assignment_id", "invoice_id",
-                "role_id", "user_id",
-            ):
-                try:
-                    url = url_for(endpoint, **{key: target_id})
-                    break
-                except Exception:
-                    continue
-            if url is None:
-                pytest.skip(
-                    f"could not build URL for {endpoint!r} — add the "
-                    "correct id-param name to the attempt list."
-                )
-        except Exception as e:
-            pytest.skip(f"skipping {endpoint}: {e}")
+def test_every_pending_endpoint_names_its_ticket():
+    bad = [ep for ep in _PENDING
+           if not re.match(r"^SAAS-01[3-8] ", ALLOWLIST[ep])]
+    assert not bad, f"pending endpoints without a SAAS-013..018 ticket: {bad}"
 
+
+def test_every_allowlist_reason_is_written():
+    blank = [ep for ep, why in ALLOWLIST.items() if len(why.strip()) < 8]
+    assert not blank, f"ALLOWLIST entries without a real reason: {blank}"
+
+
+def test_skips_carry_a_written_reason():
+    for ep, e in {**ROUTE_MATRIX, **FORM_ID_MATRIX}.items():
+        if e.skip:
+            assert len(e.skip.strip()) >= 15, f"{ep}: skip reason too thin"
+
+
+def test_matrix_urls_build_for_every_entry(app, two_schools):
+    """A fetcher whose params don't match the rule fails here — the old
+    harness silently skipped these."""
+    A, B = two_schools["A"], two_schools["B"]
+    for ep, e in ROUTE_MATRIX.items():
+        if e.skip:
+            continue
+        build_url(app, ep, e.ids(B), host(A))
+        if e.mixed:
+            build_url(app, ep, e.mixed(A, B), host(A))
+
+
+def test_build_url_fails_loudly_on_wrong_params(app):
+    with pytest.raises(HarnessError):
+        build_url(app, "students.student_detail", {"section_id": 1},
+                  "http://alpha.manasety.ai")
+    with pytest.raises(HarnessError):
+        rule_for(app, "no_such.endpoint")
+
+
+# ─── Isolation sweep ─────────────────────────────────────────────────
+
+@pytest.mark.parametrize("endpoint,method,role", _cases("attack"))
+def test_cross_tenant_access_blocked(enforce_app, two_schools, login_as,
+                                     endpoint, method, role):
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    e = ROUTE_MATRIX[endpoint]
+    url = build_url(app, endpoint, e.ids(B), host(A))
     with app.test_client() as c:
-        login_as(c, A["users"]["admin"])
-        resp = c.open(url, method=method)
-        assert resp.status_code in (403, 404), (
-            f"{endpoint} returned {resp.status_code} on cross-tenant "
-            f"access; expected 403 or 404. Body preview: "
-            f"{resp.data[:200]!r}"
-        )
+        login_as(c, A["users"][role], base_url=host(A))
+        check_blocked(app, c, endpoint, e, method, url, A, B)
+
+
+@pytest.mark.parametrize("endpoint", _cases("mixed"))
+def test_mixed_tenant_ids_rejected(enforce_app, two_schools, login_as, endpoint):
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    e = ROUTE_MATRIX[endpoint]
+    assert e.mixed is not None
+    url = build_url(app, endpoint, e.mixed(A, B), host(A))
+    with app.test_client() as c:
+        login_as(c, A["users"]["admin"], base_url=host(A))
+        for m in e.methods:
+            check_blocked(app, c, endpoint, e, m, url, A, B)
+
+
+@pytest.mark.parametrize("endpoint,method", _cases("unauth"))
+def test_unauthenticated_is_not_served(enforce_app, two_schools, endpoint, method):
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    e = ROUTE_MATRIX[endpoint]
+    url = build_url(app, endpoint, e.ids(A), host(A))
+    with app.test_client() as c:
+        r = c.open(url, method=method, base_url=host(A))
+    assert r.status_code in (302, 401), f"{endpoint} {method} -> {r.status_code}"
+    if r.status_code == 302:
+        assert "/auth/login" in r.headers.get("Location", "")
+
+
+def test_cross_tenant_session_is_killed(enforce_app, two_schools, login_as):
+    """A's session cookie replayed on B's host: SAAS-006 kill hook logs
+    it out and redirects to login; B's page is never rendered."""
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    url = build_url(app, "students.student_detail",
+                    {"student_id": B["student"].id}, host(B))
+    with app.test_client() as c:
+        login_as(c, A["users"]["admin"], base_url=host(B))
+        r = c.get(url, base_url=host(B))
+        assert r.status_code == 302, r.status_code
+        assert "/auth/login" in r.headers.get("Location", "")
+        assert not any(m in r.get_data(as_text=True) for m in B["markers"])
+        with c.session_transaction(base_url=host(B)) as sess:
+            assert "_user_id" not in sess
+
+
+# ─── Form / query ids ────────────────────────────────────────────────
+
+def test_every_form_id_endpoint_is_classified(app):
+    found = discover_form_id_endpoints(app)
+    pending = set(FORM_ID_PENDING)
+    unclassified = sorted(ep for ep in found
+                          if ep not in FORM_ID_MATRIX and ep not in pending)
+    assert not unclassified, (
+        "Endpoint(s) reading an *_id from form/query/json are unclassified — "
+        "add to FORM_ID_MATRIX or FORM_ID_PENDING:\n  - "
+        + "\n  - ".join(f"{ep} {found[ep]}" for ep in unclassified)
+    )
+
+
+@pytest.mark.parametrize("endpoint", sorted(FORM_ID_MATRIX))
+def test_form_ids_from_other_school_rejected(enforce_app, two_schools,
+                                             login_as, endpoint):
+    """B's id in the body / query with A's session: no B data back, no
+    B-side effect, no crash. A form re-render (200) is an acceptable
+    rejection here — the id is not the resource being addressed."""
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    e = FORM_ID_MATRIX[endpoint]
+    url = build_url(app, endpoint, e.ids(B), host(A))
+    from isolation_harness import _snap
+    with app.test_client() as c:
+        login_as(c, A["users"]["admin"], base_url=host(A))
+        for m in e.methods:
+            before = _snap(app, e, B)
+            payload = e.form(A, B) if e.form else {}
+            if m == "GET":
+                r = c.get(url, query_string=payload, base_url=host(A))
+            else:
+                r = c.open(url, method=m, data=payload, base_url=host(A))
+            body = r.get_data(as_text=True)
+            assert r.status_code < 500, f"{endpoint}: {r.status_code}"
+            leaked = [mk for mk in B["markers"] if mk in body]
+            assert not leaked, f"{endpoint}: B data in body {leaked}"
+            assert _snap(app, e, B) == before, f"{endpoint}: B changed"
+
+
+# ─── Test of the test ────────────────────────────────────────────────
+
+def test_harness_catches_leaky_canary(enforce_app, two_schools, login_as):
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    e = Entry(lambda B: {"student_id": B["student"].id})
+    url = build_url(app, "saas012_canary.leaky", e.ids(B), host(A))
+    with app.test_client() as c:
+        login_as(c, A["users"]["admin"], base_url=host(A))
+        with pytest.raises(AssertionError, match="ISOLATION GAP"):
+            check_blocked(app, c, "saas012_canary.leaky", e, "GET", url, A, B)
+
+
+def test_harness_passes_scoped_canary(enforce_app, two_schools, login_as):
+    app = enforce_app
+    A, B = two_schools["A"], two_schools["B"]
+    e = Entry(lambda B: {"student_id": B["student"].id})
+    url = build_url(app, "saas012_canary.scoped", e.ids(B), host(A))
+    with app.test_client() as c:
+        login_as(c, A["users"]["admin"], base_url=host(A))
+        check_blocked(app, c, "saas012_canary.scoped", e, "GET", url, A, B)
+        # and the scoped twin still serves A's own student
+        own = build_url(app, "saas012_canary.scoped",
+                        {"student_id": A["student"].id}, host(A))
+        assert c.get(own, base_url=host(A)).status_code == 200
+
+
+# ─── Coverage report ─────────────────────────────────────────────────
+
+REPORT_PATH = Path(__file__).parent / "_reports" / "saas012_isolation_report.md"
+
+
+def build_coverage_report(app) -> str:
+    rules = sorted({r.endpoint for r in _int_rules(app)} - {
+        "saas012_canary.leaky", "saas012_canary.scoped"})
+    total = len(rules)
+    covered = [ep for ep in rules if ep in ROUTE_MATRIX]
+    pending = [ep for ep in rules if ep in _PENDING]
+    by_ticket: dict[str, int] = {}
+    for ep in pending:
+        by_ticket[ticket_for(ep)] = by_ticket.get(ticket_for(ep), 0) + 1
+    form_found = discover_form_id_endpoints(app)
+    form_cov = [ep for ep in form_found if ep in FORM_ID_MATRIX]
+    lines = [
+        "# SAAS-012 isolation coverage",
+        "",
+        f"- `<int:…>` endpoints: **{total}**",
+        f"- in ROUTE_MATRIX: **{len(covered)}** ({len(covered) / total:.1%})",
+        f"- pending: **{len(pending)}**",
+        f"- form/query-id endpoints: **{len(form_found)}**, "
+        f"covered **{len(form_cov)}**, pending **{len(form_found) - len(form_cov)}**",
+        f"- known gaps (strict xfail): **{len(KNOWN_GAPS)}**",
+        "",
+        "| ticket | pending <int:> endpoints | pending form-id endpoints |",
+        "|---|---|---|",
+    ]
+    form_by_ticket: dict[str, int] = {}
+    for ep in FORM_ID_PENDING:
+        form_by_ticket[ticket_for(ep)] = form_by_ticket.get(ticket_for(ep), 0) + 1
+    for t in sorted(set(by_ticket) | set(form_by_ticket)):
+        lines.append(f"| {t} | {by_ticket.get(t, 0)} | {form_by_ticket.get(t, 0)} |")
+    lines += ["", "## Covered", ""] + [f"- `{ep}`" for ep in covered]
+    if KNOWN_GAPS:
+        lines += ["", "## Known gaps", ""] + [
+            f"- `{ep}` [{axis}] — {why}" for (ep, axis), why in sorted(KNOWN_GAPS.items())]
+    return "\n".join(lines) + "\n"
+
+
+def test_coverage_report(app):
+    report = build_coverage_report(app)
+    REPORT_PATH.parent.mkdir(exist_ok=True)
+    REPORT_PATH.write_text(report, encoding="utf-8")
+    print("\n" + report)
+    assert "endpoints" in report

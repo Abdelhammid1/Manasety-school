@@ -198,9 +198,6 @@ def leaky_rows(app, two_schools):
         orphan = _insert_leaky(None, "saas008-orphan")
         _set_perms({"users": ["view"], "platform_admin": ["view"]})
         db.session.remove()
-    # two_schools yields inside its own app context, which test-client
-    # requests reuse; drop its cached Role so requests see the new perms.
-    db.session.expire_all()
     yield A
     with app.app_context():
         AuditLog.query.filter(AuditLog.id.in_(own + orphan)).delete(

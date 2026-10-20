@@ -129,7 +129,79 @@ def app():
     app.config["PLATFORM_HOSTS"] = ["lms.manasety.ai"]
     app.config["LEGACY_HOSTS"] = {"school.manasety.ai": "demo"}
     app.config["TENANT_RESOLUTION_MODE"] = "log"
+    _register_isolation_canary(app)
     return app
+
+
+def _register_isolation_canary(app) -> None:
+    """SAAS-012 "test of the test": one deliberately leaky endpoint and
+    one correctly scoped twin. The harness must flag the first and pass
+    the second. Registered before the first request (Flask forbids
+    adding routes later) and only ever in the test app."""
+    from flask import Blueprint, abort
+    from flask_login import login_required
+    from app.extensions import db
+    from app.models import Student
+    from app.services.tenancy import current_school_id
+
+    bp = Blueprint("saas012_canary", __name__, url_prefix="/__canary")
+
+    @bp.route("/leaky/<int:student_id>")
+    @login_required
+    def leaky(student_id):
+        s = db.session.get(Student, student_id)   # no tenant filter
+        if s is None:
+            abort(404)
+        return f"<p>{s.full_name} {s.permanent_code}</p>"
+
+    @bp.route("/scoped/<int:student_id>")
+    @login_required
+    def scoped(student_id):
+        s = Student.query.filter_by(
+            id=student_id, school_id=current_school_id()).first_or_404()
+        return f"<p>{s.full_name} {s.permanent_code}</p>"
+
+    app.register_blueprint(bp)
+
+
+# ─── Harness role permissions ────────────────────────────────────────
+
+def _all_permission_modules() -> list[str]:
+    """Every module name the app checks, so the harness admin is never
+    stopped by a permission gate — a 403 must mean isolation held."""
+    import re as _re
+    from app.models.user import PERMISSION_MODULES
+    mods = set(PERMISSION_MODULES)
+    pat = _re.compile(r"""(?:require_permission|\.can)\(\s*["']([a-z_]+)["']""")
+    for f in (Path(__file__).parents[1] / "app").rglob("*.py"):
+        mods.update(pat.findall(f.read_text(encoding="utf-8")))
+    for f in (Path(__file__).parents[1] / "app" / "templates").rglob("*.html"):
+        mods.update(pat.findall(f.read_text(encoding="utf-8")))
+    return sorted(mods)
+
+
+def harness_role_permissions(role: str) -> dict:
+    """Realistic grants per role. An empty dict (the old default) made
+    every cross-tenant request 403 on permissions, so the isolation
+    sweep passed without testing isolation at all."""
+    from app.models.user import PERMISSION_ACTIONS
+    if role == "admin":
+        return {m: list(PERMISSION_ACTIONS) for m in _all_permission_modules()}
+    if role == "teacher":
+        return {
+            "attendance": ["view", "add", "edit"],
+            "results":    ["view", "add", "edit"],
+            "schedule":   ["view"],
+            "portal":     ["view", "add", "edit"],
+            "students":   ["view"],
+            "teachers":   ["view"],
+            "lms":        ["view", "add", "edit", "delete"],
+        }
+    if role == "parent":
+        return {"portal": ["view"], "finance": ["view"]}
+    if role == "student":
+        return {"portal": ["view"]}
+    return {}
 
 
 # ─── Two-school factory ──────────────────────────────────────────────
@@ -170,7 +242,7 @@ def two_schools(app) -> Iterator[dict]:
         def _mk_role(school_id: int, name: str) -> Role:
             r = Role(
                 school_id=school_id, name=name, name_ar=name,
-                is_system=False, permissions={},
+                is_system=False, permissions=harness_role_permissions(name),
             )
             db.session.add(r); db.session.flush()
             created_ids["roles"].append(r.id)
@@ -199,10 +271,10 @@ def two_schools(app) -> Iterator[dict]:
             # Admin shares the username across both schools on purpose:
             # that is R1's reproduction scenario (login not tenant-aware).
             users = {
-                "admin":   _mk_user(school.id, roles["admin"].id,   "admin",   "Admin"),
-                "teacher": _mk_user(school.id, roles["teacher"].id, f"t_{slug}", "Teacher"),
-                "parent":  _mk_user(school.id, roles["parent"].id,  f"p_{slug}", "Parent"),
-                "student": _mk_user(school.id, roles["student"].id, f"s_{slug}", "Student"),
+                "admin":   _mk_user(school.id, roles["admin"].id,   "admin",   f"Admin-{slug}"),
+                "teacher": _mk_user(school.id, roles["teacher"].id, f"t_{slug}", f"Teacher-{slug}"),
+                "parent":  _mk_user(school.id, roles["parent"].id,  f"p_{slug}", f"Parent-{slug}"),
+                "student": _mk_user(school.id, roles["student"].id, f"s_{slug}", f"Student-{slug}"),
             }
             # Minimal academic cover.
             year = AcademicYear(
@@ -215,20 +287,20 @@ def two_schools(app) -> Iterator[dict]:
             created_ids["years"].append(year.id)
             term = Term(
                 school_id=school.id, year_id=year.id,
-                name="Term1", order_index=1,
+                name=f"Term1-{slug}", order_index=1,
                 start_date=date(2026, 9, 1), end_date=date(2027, 1, 31),
                 weight=50,
             )
             db.session.add(term); db.session.flush()
             created_ids["terms"].append(term.id)
             grade = Grade(
-                school_id=school.id, name="G1", order_index=1,
+                school_id=school.id, name=f"G1-{slug}", order_index=1,
             )
             db.session.add(grade); db.session.flush()
             created_ids["grades"].append(grade.id)
             section = Section(
                 school_id=school.id, year_id=year.id,
-                grade_id=grade.id, name="A", capacity=30,
+                grade_id=grade.id, name=f"Sec-{slug}", capacity=30,
             )
             db.session.add(section); db.session.flush()
             created_ids["sections"].append(section.id)
@@ -264,30 +336,50 @@ def two_schools(app) -> Iterator[dict]:
                 "subject": subject,
                 "student": student,
                 "enrollment": enr,
+                # Strings unique to this school — a cross-tenant sweep
+                # fails if any of them shows up in another school's response.
+                "markers": (
+                    f"PC-{slug}-01", f"Math-{slug}", f"Student-{slug}",
+                    f"TY-{slug}", f"Sec-{slug}", f"G1-{slug}",
+                ),
             }
 
         A = _mk_bundle("alpha", "Alpha School")
         B = _mk_bundle("beta",  "Beta School")
 
-        try:
-            yield {"A": A, "B": B}
-        finally:
+        # Load every column, then detach. Yielding while this app context
+        # is still pushed made test-client requests reuse it — and its
+        # session — so requests saw stale identity-map rows (e.g. role
+        # permissions changed elsewhere read back as the old value).
+        for bundle in (A, B):
+            for v in bundle.values():
+                for obj in (v.values() if isinstance(v, dict) else [v]):
+                    if isinstance(obj, db.Model):
+                        db.session.refresh(obj)
+        db.session.expunge_all()
+        db.session.remove()
+
+    try:
+        yield {"A": A, "B": B}
+    finally:
+        with app.app_context():
             # Teardown in reverse FK order.
+            table_map = {
+                "enrollments": Enrollment, "students": Student,
+                "subjects": Subject, "sections": Section,
+                "grades": Grade, "terms": Term, "years": AcademicYear,
+                "users": User, "roles": Role, "schools": School,
+            }
             for kind in ("enrollments", "students", "subjects", "sections",
                          "grades", "terms", "years", "users", "roles",
                          "schools"):
-                table_map = {
-                    "enrollments": Enrollment, "students": Student,
-                    "subjects": Subject, "sections": Section,
-                    "grades": Grade, "terms": Term, "years": AcademicYear,
-                    "users": User, "roles": Role, "schools": School,
-                }
                 cls = table_map[kind]
                 for row_id in created_ids[kind]:
                     row = db.session.get(cls, row_id)
                     if row is not None:
                         db.session.delete(row)
                 db.session.commit()
+            db.session.remove()
 
 
 # ─── Logged-in client factory ────────────────────────────────────────

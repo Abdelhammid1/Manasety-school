@@ -51,3 +51,5 @@ backups/
 db_backups/
 audit-*.txt
 tests/_test.db
+
+tests/_reports/

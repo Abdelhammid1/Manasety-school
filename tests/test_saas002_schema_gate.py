@@ -47,7 +47,7 @@ TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     "lms_assignment_answers": ("lms_submissions",  "FK submission_id"),
     "lms_assignment_extensions": ("lms_assignments","FK assignment_id"),
     "lms_assessment_template_questions": ("lms_assessment_templates", "FK template_id → school"),
-    "lms_assignment_template_questions": ("lms_assessment_templates", "FK template_id"),
+    "lms_assignment_template_questions": ("lms_assignment_templates", "FK template_id"),
     "lms_assignment_template_choices":   ("lms_assignment_template_questions", "FK question_id"),
     "lms_attempt_flagged_questions": ("lms_quiz_attempts", "FK attempt_id"),
     "lms_bank_choices":     ("lms_bank_questions", "FK question_id → school"),
@@ -55,7 +55,7 @@ TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     "lms_bank_question_skills":      ("lms_bank_questions", "many-to-many"),
     "lms_bank_question_objectives":  ("lms_bank_questions", "many-to-many"),
     "lms_bank_question_collection_items": ("lms_bank_questions", "membership"),
-    "lms_question_stats":   ("lms_questions",      "FK question_id → quiz → school"),
+    "lms_question_stats":   ("lms_bank_questions", "FK bank_question_id → school"),
     "lms_lessons":          ("lms_courses",        "FK course_id"),
     "lms_units":            ("lms_courses",        "FK course_id"),
     "lms_course_sections":  ("lms_courses",        "FK course_id"),
@@ -86,8 +86,10 @@ TENANT_INHERIT_MAP: dict[str, tuple[str, str]] = {
     # ─── Teacher-subject linkage ─────────────────────────────
     "teacher_subjects":     ("teachers",           "FK teacher_id → school"),
 
-    # ─── Nafis (shared bank — cross-tenant catalog) ─────────
-    "nafis_outcome_scores": ("students",           "FK student_id → school"),
+    # ─── Nafis ──────────────────────────────────────────────
+    # Per-school result rows (no student_id). Whether the learning-
+    # outcome catalog is shared across tenants is decision D4 (open).
+    "nafis_outcome_scores": ("nafis_results",      "FK result_id → school (also outcome_id → learning_outcomes)"),
 
     # ─── System / shared ────────────────────────────────────
     "alembic_version":      ("__shared__",         "migration metadata"),
@@ -171,3 +173,90 @@ def test_classification_map_has_no_phantom_entries(app):
         f"TENANT_INHERIT_MAP has {len(phantoms)} entries that don't "
         f"exist in the DB any more — clean these up: {sorted(phantoms)}"
     )
+
+
+# ─── SAAS-012 §4.7 — verify the map against the real FK graph ───────
+
+def _fk_graph(app):
+    from sqlalchemy import inspect
+    insp = inspect(_engine(app))
+    tables = set(insp.get_table_names())
+    owned = {t for t in tables if _has_school_id(app, t)}
+    fks = {t: insp.get_foreign_keys(t) for t in tables}
+    return tables, owned, fks
+
+
+def _tenant_chain(child, owned, max_depth=8):
+    """Follow TENANT_INHERIT_MAP from `child` until a table that has
+    school_id. Returns the chain, or raises with the broken link."""
+    chain = [child]
+    cur = child
+    for _ in range(max_depth):
+        if cur in owned:
+            return chain
+        parent = TENANT_INHERIT_MAP[cur][0] if cur in TENANT_INHERIT_MAP else None
+        if parent is None:
+            raise AssertionError(f"{child}: chain {chain} dead-ends at {cur}")
+        chain.append(parent)
+        cur = parent
+    raise AssertionError(f"{child}: chain {chain} too deep / cyclic")
+
+
+def test_inherit_map_matches_real_foreign_keys(app):
+    """Every mapped parent must be a real FK target of the child, and
+    following the map must reach a table carrying school_id."""
+    with app.app_context():
+        tables, owned, fks = _fk_graph(app)
+        problems = []
+        for child, (parent, _why) in sorted(TENANT_INHERIT_MAP.items()):
+            if parent == "__shared__" or child not in tables:
+                continue
+            targets = {f["referred_table"] for f in fks[child]}
+            if parent not in targets:
+                problems.append(
+                    f"{child}: mapped parent {parent!r} is not an FK target "
+                    f"(real FK targets: {sorted(targets)})")
+                continue
+            try:
+                _tenant_chain(child, owned)
+            except AssertionError as e:
+                problems.append(str(e))
+    assert not problems, "TENANT_INHERIT_MAP is wrong:\n  - " + "\n  - ".join(problems)
+
+
+def dual_parent_report(app) -> dict[str, list[str]]:
+    """Inheriting tables with FKs to more than one tenant-owned table
+    (direct school_id or mapped). These can join rows from two schools
+    and nothing in the DB stops it — the D10 / SAAS-019..022 targets."""
+    _tables, owned, fks = _fk_graph(app)
+    tenant_tables = owned | set(TENANT_INHERIT_MAP)
+    out = {}
+    for child, (parent, _why) in sorted(TENANT_INHERIT_MAP.items()):
+        if parent == "__shared__" or child not in fks:
+            continue
+        refs = sorted({f"{f['referred_table']}.{','.join(f['constrained_columns'])}"
+                       for f in fks[child] if f["referred_table"] in tenant_tables})
+        if len({r.split(".")[0] for r in refs}) > 1:
+            out[child] = refs
+    return out
+
+
+def test_dual_parent_report(app):
+    with app.app_context():
+        report = dual_parent_report(app)
+    print(f"\ndual_parent tables: {len(report)}")
+    for t, refs in report.items():
+        print(f"  {t}: {', '.join(refs)}")
+    # Known multi-parent junctions must show up — proves the report works.
+    for t in ("student_guardians", "invoice_lines", "rubric_scores"):
+        assert t in report, f"{t} missing from dual_parent report"
+
+
+def test_wrong_map_entry_is_caught_and_named(app, monkeypatch):
+    """The FK check must fail on a bogus parent and say which table."""
+    import pytest
+    bad = dict(TENANT_INHERIT_MAP)
+    bad["installments"] = ("students", "deliberately wrong")
+    monkeypatch.setitem(globals(), "TENANT_INHERIT_MAP", bad)
+    with pytest.raises(AssertionError, match="installments"):
+        test_inherit_map_matches_real_foreign_keys(app)

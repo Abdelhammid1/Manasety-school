@@ -29,8 +29,11 @@ def test_r1_login_is_tenant_scoped(app, two_schools):
     # Give A's admin a distinct password so we can tell whose it is.
     with app.app_context():
         from app.extensions import db
-        A["users"]["admin"].set_password("alpha-admin-pw-12345")
-        B["users"]["admin"].set_password("beta-admin-pw-12345")
+        from app.models import User
+        a_admin = db.session.get(User, A["users"]["admin"].id)
+        b_admin = db.session.get(User, B["users"]["admin"].id)
+        a_admin.set_password("alpha-admin-pw-12345")
+        b_admin.set_password("beta-admin-pw-12345")
         db.session.commit()
 
     with app.test_client() as c:
@@ -71,10 +74,13 @@ def test_r2_password_reset_is_tenant_scoped(app, two_schools):
     shared_email = "principal@shared.test"
     with app.app_context():
         from app.extensions import db
-        A["users"]["admin"].email = shared_email
-        B["users"]["admin"].email = shared_email
-        A["users"]["admin"].set_password("alpha-admin-pw-12345")
-        B["users"]["admin"].set_password("beta-admin-pw-12345")
+        from app.models import User
+        a_admin = db.session.get(User, A["users"]["admin"].id)
+        b_admin = db.session.get(User, B["users"]["admin"].id)
+        a_admin.email = shared_email
+        b_admin.email = shared_email
+        a_admin.set_password("alpha-admin-pw-12345")
+        b_admin.set_password("beta-admin-pw-12345")
         db.session.commit()
         expected_user_id = A["users"]["admin"].id
 
