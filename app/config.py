@@ -195,6 +195,11 @@ class Config:
     CRON_TOKEN = _resolve_cron_token()
     # SAAS-011 — uploaded files, outside app/static. Default: instance/uploads.
     UPLOAD_ROOT = os.environ.get("UPLOAD_ROOT") or None
+    # SAAS-009 — trust nginx's X-Forwarded-For / -Proto. Off by default:
+    # only turn on once gunicorn's port is unreachable from outside,
+    # otherwise any client could forge its IP.
+    TRUST_PROXY_HEADERS = os.environ.get("TRUST_PROXY_HEADERS", "").strip().lower() in (
+        "1", "true", "yes", "on")
     BASE_DOMAIN, PLATFORM_HOSTS, LEGACY_HOSTS = _resolve_tenancy_hosts()
 
     # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────

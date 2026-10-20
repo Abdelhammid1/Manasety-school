@@ -4,6 +4,17 @@ from .config import Config
 from .extensions import db, migrate, login_manager, bcrypt, csrf
 
 
+def install_proxy_fix(app):
+    """SAAS-009 — behind nginx: client IP from the LAST X-Forwarded-For
+    hop (nginx appends the real peer) and scheme from X-Forwarded-Proto.
+    x_host stays 0: tenant resolution (SAAS-004) must read the Host nginx
+    passes, never a client-supplied X-Forwarded-Host."""
+    if not app.config.get("TRUST_PROXY_HEADERS"):
+        return
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0, x_prefix=0)
+
+
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_class)
@@ -19,6 +30,7 @@ def create_app(config_class=Config):
             "never deploy to production like this.", _APP_ENV,
         )
 
+    install_proxy_fix(app)
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)

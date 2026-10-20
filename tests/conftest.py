@@ -133,7 +133,21 @@ def app():
     app.config["LEGACY_HOSTS"] = {"school.manasety.ai": "demo"}
     app.config["TENANT_RESOLUTION_MODE"] = "log"
     _register_isolation_canary(app)
+    _register_request_probe(app)
     return app
+
+
+def _register_request_probe(app) -> None:
+    """Test-only: echoes what the app believes about the request
+    (SAAS-009 proxy-header tests)."""
+    from flask import g, jsonify, request
+
+    @app.route("/__probe/request")
+    def _probe():
+        t = getattr(g, "tenant_resolved", None)
+        return jsonify(remote_addr=request.remote_addr, scheme=request.scheme,
+                       host=request.host, url_root=request.url_root,
+                       tenant=(t.school.slug if t is not None and t.school is not None else None))
 
 
 def _register_isolation_canary(app) -> None:

@@ -217,6 +217,19 @@ def signature_valid(key: str, exp: Optional[str], sig: Optional[str]) -> bool:
 
 # ─── WeasyPrint: read our own files from disk ───────────────────────
 
+def _static_file(path: str) -> Optional[Path]:
+    """Resolve "/static/<file>" to a real file inside app/static, never
+    under static/uploads. None for anything else."""
+    if not path.startswith("/static/") or current_app.static_folder is None:
+        return None
+    root = Path(current_app.static_folder).resolve()
+    target = (root / path[len("/static/"):]).resolve()
+    uploads = (root / "uploads").resolve()
+    if root not in target.parents or target == uploads or uploads in target.parents:
+        return None
+    return target if target.is_file() else None
+
+
 def pdf_url_fetcher(school_id: int):
     """WeasyPrint fetches images over HTTP without the user's session,
     which the protected route refuses. Serve /files/ keys of this
@@ -232,6 +245,12 @@ def pdf_url_fetcher(school_id: int):
             if fk is None or fk.school_id != school_id:
                 raise ValueError("file not available")
             return {"file_obj": open(fk.path, "rb"), "filename": fk.path.name}
+        # Our own CSS/images: read from disk so the PDF doesn't depend on
+        # the server reaching itself over http(s) (SAAS-009 flips the
+        # scheme of request.host_url to https).
+        static_file = _static_file(path)
+        if static_file is not None:
+            return {"file_obj": open(static_file, "rb"), "filename": static_file.name}
         return default_url_fetcher(url, *args, **kwargs)
     return fetch
 
