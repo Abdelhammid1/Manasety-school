@@ -47,6 +47,13 @@ RESERVED_SLUGS: Final[frozenset[str]] = frozenset({
     # Marketing / public
     "home", "about", "blog", "news", "press", "legal", "terms",
     "privacy", "pricing", "sales",
+    # SAAS-023 — live subdomains on the shared server (nginx, 2026-10-20)
+    "accountant", "chatwoot", "drporcelain", "easygo", "eg-uae", "lamma",
+    "lexoffice", "marsoud", "n8n", "qafer", "whitemoon",
+    # SAAS-023 — names Lamma (sister product) reserves (reserved-slugs.js)
+    "almustashar", "activefit", "elyasmin", "qaffer", "sobou", "invitation",
+    "landing", "media", "test", "preview", "contact", "faq", "school",
+    "wedding", "birthday", "create",
 })
 
 # RFC 1035-flavoured label: lowercase letters/digits/hyphen, not
