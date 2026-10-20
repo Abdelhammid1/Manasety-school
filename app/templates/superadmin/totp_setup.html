@@ -1,0 +1,16 @@
+{% extends "superadmin/base.html" %}
+{% block title %}تفعيل التحقق بخطوتين{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>تفعيل التحقق بخطوتين</h1>
+  <p class="sub">إجباري لكل حسابات المنصة. امسح الكود بتطبيق مصادقة (Google Authenticator أو غيره) ثم اكتب الرمز.</p>
+  <div class="qr">{{ qr|safe }}</div>
+  <p class="sub">أو أدخل المفتاح يدويًا: <span class="mono">{{ secret }}</span></p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="code">الرمز من التطبيق</label>
+    <input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" dir="ltr" autocomplete="one-time-code" required autofocus>
+    <button class="btn block" type="submit">تأكيد وتفعيل</button>
+  </form>
+</div>
+{% endblock %}

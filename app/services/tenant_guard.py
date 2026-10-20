@@ -29,6 +29,15 @@ from ..extensions import db
 # (child_table, fk_column) pairs allowed to reference another school's
 # row. Empty today; add with a reason when a real case appears.
 CROSS_SCHOOL_OK: frozenset[tuple[str, str]] = frozenset()
+
+# Platform (Super Admin) tables: they live outside every school, so they
+# are neither tenant-owned nor inheriting. Some carry a school_id /
+# target_school_id that POINTS at a school without belonging to it.
+# Listed explicitly — a new table that is in neither this list nor the
+# tenant world fails the schema gate (tests/test_saas002_schema_gate.py).
+PLATFORM_TABLES: frozenset[str] = frozenset({
+    "platform_users", "platform_recovery_codes", "platform_audit_logs",
+})
 # school_id is the tenant itself; deleted_by_id is soft-delete
 # bookkeeping (who pressed delete), not ownership.
 _SKIP_COLUMNS = {"school_id", "deleted_by_id"}
@@ -47,7 +56,8 @@ class Edge:
 
 def owned_tables() -> set[str]:
     return {t.name for t in db.metadata.tables.values()
-            if "school_id" in t.c and t.name != "schools"}
+            if "school_id" in t.c and t.name != "schools"
+            and t.name not in PLATFORM_TABLES}
 
 
 def edges() -> list[Edge]:

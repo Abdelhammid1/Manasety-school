@@ -1,0 +1,29 @@
+{% extends "superadmin/base.html" %}
+{% block title %}المدارس{% endblock %}
+{% block content %}
+<h1>المدارس</h1>
+<p class="sub">{{ items|length }} مدرسة — أعداد وإحصاءات فقط.</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>المدرسة</th><th>slug</th><th>الكود</th><th>الحالة</th><th>الطلاب</th><th>المستخدمون النشطون</th><th>آخر دخول</th><th>الملفات</th><th>أُنشئت</th></tr></thead>
+    <tbody>
+    {% for it in items %}{% set s = it.school %}
+      <tr>
+        <td class="num">{{ s.id }}</td>
+        <td><a href="{{ url_for('superadmin.school_detail', school_id=s.id) }}">{{ s.name }}</a></td>
+        <td class="mono">{{ s.slug }}</td>
+        <td class="mono">{{ s.code }}</td>
+        <td><span class="chip {{ s.status }}">{{ {'active':'نشطة','suspended':'موقوفة','archived':'مؤرشفة'}.get(s.status, s.status) }}</span></td>
+        <td class="num">{{ it.students }}</td>
+        <td class="num">{{ it.active_users }}</td>
+        <td class="num"><bdi>{{ it.last_login.strftime('%Y-%m-%d %H:%M') if it.last_login else '—' }}</bdi></td>
+        <td class="num"><bdi>{{ (it.storage / 1048576)|round(1) }} MB</bdi></td>
+        <td class="num">{{ s.created_at.strftime('%Y-%m-%d') if s.created_at else '—' }}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="10">لا توجد مدارس.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

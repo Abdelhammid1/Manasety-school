@@ -33,6 +33,9 @@ def issue_token(user: User, ttl_hours: int = 24) -> str:
     """
     # Deferred import avoids a module cycle at app factory time.
     from ..models import School
+    if getattr(user, "is_platform_user", False):
+        # SAAS-025 — platform users never get a mobile token.
+        raise ValueError("platform users cannot receive API tokens")
     school = db.session.get(School, user.school_id) if user.school_id else None
     payload = {
         "sub": user.id,
@@ -92,9 +95,9 @@ def user_from_bearer() -> Optional[User]:
     header = request.headers.get("Authorization", "")
     token = header[7:] if header.startswith("Bearer ") else ""
     payload = decode_token(token) if token else None
-    if not payload:
+    if not payload or not str(payload.get("sub", "")).isdigit():
         return None
-    user = db.session.get(User, payload["sub"])
+    user = db.session.get(User, int(payload["sub"]))
     if not user or not user.is_active or _tenant_mismatch(payload):
         return None
     if user.school_id is not None and payload.get("school") is not None:
@@ -112,9 +115,9 @@ def jwt_required(view):
         header = request.headers.get("Authorization", "")
         token = header[7:] if header.startswith("Bearer ") else ""
         payload = decode_token(token) if token else None
-        if not payload:
+        if not payload or not str(payload.get("sub", "")).isdigit():
             return jsonify({"error": "unauthorized"}), 401
-        user = db.session.get(User, payload["sub"])
+        user = db.session.get(User, int(payload["sub"]))
         if not user or not user.is_active:
             return jsonify({"error": "unauthorized"}), 401
         # SAAS-007 — a token minted for school A must not work on

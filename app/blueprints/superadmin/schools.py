@@ -1,0 +1,92 @@
+"""SAAS-025 — read-only school list and per-school statistics.
+
+Counts and dates only: no names of students, phones, invoices or user
+e-mails. Every cross-school read goes through platform_read_scope().
+"""
+from __future__ import annotations
+
+import os
+from pathlib import Path
+
+from flask import abort, current_app, redirect, render_template, url_for
+from sqlalchemy import func
+
+from . import bp, current_platform_user
+from ...extensions import db
+from ...models import Course, School, Section, Student, Teacher, User
+from ...services.platform_scope import platform_read_scope
+
+
+def _storage_bytes(school_id: int) -> int:
+    from ...services.file_storage import upload_root
+    root = Path(upload_root()) / str(int(school_id))
+    total = 0
+    if root.is_dir():
+        for dirpath, _dirs, files in os.walk(root):
+            for f in files:
+                try:
+                    total += (Path(dirpath) / f).stat().st_size
+                except OSError:
+                    pass
+    return total
+
+
+def _grouped(column_query):
+    return {sid: val for sid, val in column_query}
+
+
+def school_stats():
+    """{school_id: stats} for every school — one grouped query per
+    metric, independent of the number of schools."""
+    students = _grouped(db.session.query(Student.school_id, func.count(Student.id))
+                        .group_by(Student.school_id))
+    active_users = _grouped(db.session.query(User.school_id, func.count(User.id))
+                            .filter(User.is_active.is_(True)).group_by(User.school_id))
+    last_login = _grouped(db.session.query(User.school_id, func.max(User.last_login_at))
+                          .group_by(User.school_id))
+    return students, active_users, last_login
+
+
+@bp.route("/", endpoint="home")
+def home():
+    return redirect(url_for("superadmin.schools"))
+
+
+@bp.route("/schools", endpoint="schools")
+def schools():
+    user = current_platform_user()
+    with platform_read_scope("schools_listed", user):
+        rows = School.query.order_by(School.id).all()
+        students, active_users, last_login = school_stats()
+        items = [{
+            "school": s,
+            "students": students.get(s.id, 0),
+            "active_users": active_users.get(s.id, 0),
+            "last_login": last_login.get(s.id),
+            "storage": _storage_bytes(s.id),
+        } for s in rows]
+    return render_template("superadmin/schools.html", items=items)
+
+
+@bp.route("/schools/<int:school_id>", endpoint="school_detail")
+def school_detail(school_id):
+    user = current_platform_user()
+    school = db.session.get(School, school_id)
+    if school is None:
+        abort(404)
+    with platform_read_scope("school_viewed", user, school_id=school.id):
+        def count(model):
+            return db.session.query(func.count(model.id)).filter(model.school_id == school.id).scalar()
+        stats = {
+            "students": count(Student),
+            "active_users": db.session.query(func.count(User.id)).filter(
+                User.school_id == school.id, User.is_active.is_(True)).scalar(),
+            "sections": count(Section),
+            "teachers": count(Teacher),
+            "courses": count(Course),
+            "last_login": db.session.query(func.max(User.last_login_at)).filter(
+                User.school_id == school.id).scalar(),
+            "storage": _storage_bytes(school.id),
+        }
+    return render_template("superadmin/school_detail.html", school=school, stats=stats,
+                           base_domain=current_app.config.get("BASE_DOMAIN"))

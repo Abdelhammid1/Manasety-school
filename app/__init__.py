@@ -31,6 +31,9 @@ def create_app(config_class=Config):
         )
 
     install_proxy_fix(app)
+    # SAAS-025 — the platform host gets its own session cookie.
+    from .services.platform_auth import HostAwareSessionInterface
+    app.session_interface = HostAwareSessionInterface()
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
@@ -46,7 +49,7 @@ def create_app(config_class=Config):
     # → demo). Empty unless the environment sets it (SAAS-024/038).
     app.config.setdefault("LEGACY_HOSTS", {})
     app.config.setdefault("BASE_DOMAIN", "manasety.ai")
-    app.config.setdefault("PLATFORM_HOSTS", ["lms.manasety.ai"])
+    app.config.setdefault("PLATFORM_HOSTS", ["console.manasety.ai"])
 
     # Global soft-delete filter — every SELECT on a SoftDeleteMixin
     # class transparently appends `deleted_at IS NULL`. See
@@ -54,11 +57,24 @@ def create_app(config_class=Config):
     from .services.soft_delete import register as _register_soft_delete
     _register_soft_delete(app)
 
-    from .models import User
+    from .models import PlatformUser, User
 
     @login_manager.user_loader
     def load_user(user_id):
-        return db.session.get(User, int(user_id))
+        # SAAS-025 — platform users carry "p:<id>" and exist only on the
+        # platform host; school users ("<id>") never load there. An id
+        # collision can therefore never turn one kind into the other.
+        from .services.platform_auth import is_platform_host
+        uid = str(user_id)
+        on_platform = is_platform_host()
+        if uid.startswith("p:"):
+            if not on_platform or not uid[2:].isdigit():
+                return None
+            pu = db.session.get(PlatformUser, int(uid[2:]))
+            return pu if pu is not None and pu.is_active else None
+        if on_platform or not uid.isdigit():
+            return None
+        return db.session.get(User, int(uid))
 
     # Ticket 6 — install audit-log SQLAlchemy listeners once per process.
     # Must run AFTER models are imported so the classes exist.
@@ -67,6 +83,9 @@ def create_app(config_class=Config):
     # SAAS-022 — refuse flushes that link rows across schools.
     from .services import tenant_guard
     tenant_guard.install(app)
+    # SAAS-025 — the platform read-scope listener refuses school-table writes.
+    from .services import platform_scope
+    platform_scope.install()
 
     from .blueprints.auth import bp as auth_bp
     from .blueprints.dashboard import bp as dashboard_bp
@@ -110,6 +129,10 @@ def create_app(config_class=Config):
     # SAAS-011 — uploads are served only through the checked route.
     from .blueprints.files import bp as files_bp
     app.register_blueprint(files_bp)
+    # SAAS-025 — Super Admin console (platform host only).
+    from .blueprints.superadmin import bp as superadmin_bp, install_platform_host_guard
+    app.register_blueprint(superadmin_bp)
+    install_platform_host_guard(app)
 
     @app.before_request
     def _no_public_uploads():

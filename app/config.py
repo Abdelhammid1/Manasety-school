@@ -97,6 +97,34 @@ def _resolve_cron_token(environ=os.environ, app_env=None) -> str:
     return key or _DEV_CRON_TOKEN
 
 
+# ─── SAAS-025 — platform (Super Admin) secrets ──────────────────────
+
+def _resolve_platform_enc_key(session_key: str, environ=os.environ, app_env=None) -> str:
+    """Key that encrypts platform TOTP secrets. Same policy as
+    JWT_SIGNING_KEY: required and >= 32 chars in production, distinct
+    from SECRET_KEY. The value is never printed."""
+    app_env = APP_ENV if app_env is None else app_env
+    key = (environ.get("PLATFORM_ENC_KEY") or "").strip()
+    is_prod = app_env not in ("development", "testing")
+    if is_prod and (not key or len(key) < _MIN_SECRET_LEN or key == session_key):
+        raise RuntimeError(
+            "PLATFORM_ENC_KEY is missing, shorter than "
+            f"{_MIN_SECRET_LEN} characters, or identical to SECRET_KEY in "
+            f"APP_ENV={app_env!r}. Mint one with `python -c \"import secrets; "
+            "print(secrets.token_urlsafe(48))\"`. (Value not shown.)"
+        )
+    return key or f"dev-platform-key|{session_key}"
+
+
+def _env_int(name: str, default: int, environ=os.environ) -> int:
+    raw = (environ.get(name) or "").strip()
+    if not raw:
+        return default
+    if not raw.isdigit() or int(raw) <= 0:
+        raise RuntimeError(f"{name} must be a positive integer (got {raw!r}).")
+    return int(raw)
+
+
 # ─── SAAS-024 — tenancy hosts from the environment ──────────────────
 # Unset → the historical defaults. Set but empty → none (e.g.
 # PLATFORM_HOSTS= turns lms.manasety.ai back into a normal host).
@@ -201,6 +229,11 @@ class Config:
     TRUST_PROXY_HEADERS = os.environ.get("TRUST_PROXY_HEADERS", "").strip().lower() in (
         "1", "true", "yes", "on")
     BASE_DOMAIN, PLATFORM_HOSTS, LEGACY_HOSTS = _resolve_tenancy_hosts()
+    # SAAS-025 — platform console session + secrets.
+    PLATFORM_ENC_KEY = _resolve_platform_enc_key(SECRET_KEY)
+    PLATFORM_SESSION_MINUTES = _env_int("PLATFORM_SESSION_MINUTES", 30)
+    PLATFORM_SESSION_MAX_HOURS = 8
+    PLATFORM_SESSION_COOKIE_NAME = "manasety_platform"
 
     # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────
     # Hard-coded here (not read from env) so a prod deployment can't

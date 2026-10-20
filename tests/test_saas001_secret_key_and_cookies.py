@@ -27,7 +27,7 @@ def _reload_config(**env):
     can't silently reinject SECRET_KEY into the test environment."""
     for mod in ("app.config", "app"):
         sys.modules.pop(mod, None)
-    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY", "CRON_TOKEN")}
+    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY", "CRON_TOKEN", "PLATFORM_ENC_KEY")}
     try:
         for k, v in env.items():
             if v is None:
@@ -42,6 +42,9 @@ def _reload_config(**env):
         # SAAS-010 — production also requires a strong CRON_TOKEN.
         if "CRON_TOKEN" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
             os.environ["CRON_TOKEN"] = "c" * 48
+        # SAAS-025 — and a distinct PLATFORM_ENC_KEY.
+        if "PLATFORM_ENC_KEY" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
+            os.environ["PLATFORM_ENC_KEY"] = "e" * 48
         with patch("dotenv.load_dotenv", lambda *a, **k: False):
             return importlib.import_module("app.config")
     finally:
@@ -59,7 +62,7 @@ def _make_app_with(**env):
     Same load_dotenv guard as _reload_config."""
     for mod in ("app.config", "app"):
         sys.modules.pop(mod, None)
-    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY", "CRON_TOKEN")}
+    old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY", "CRON_TOKEN", "PLATFORM_ENC_KEY")}
     try:
         for k, v in env.items():
             if v is None:
@@ -72,6 +75,9 @@ def _make_app_with(**env):
         # SAAS-010 — production also requires a strong CRON_TOKEN.
         if "CRON_TOKEN" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
             os.environ["CRON_TOKEN"] = "c" * 48
+        # SAAS-025 — and a distinct PLATFORM_ENC_KEY.
+        if "PLATFORM_ENC_KEY" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
+            os.environ["PLATFORM_ENC_KEY"] = "e" * 48
         with patch("dotenv.load_dotenv", lambda *a, **k: False):
             app_mod = importlib.import_module("app")
             return app_mod.create_app()

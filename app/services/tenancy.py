@@ -54,6 +54,8 @@ RESERVED_SLUGS: Final[frozenset[str]] = frozenset({
     "almustashar", "activefit", "elyasmin", "qaffer", "sobou", "invitation",
     "landing", "media", "test", "preview", "contact", "faq", "school",
     "wedding", "birthday", "create",
+    # SAAS-025 — platform console + remaining server hosts
+    "console", "platform", "demo-admin", "elmouhamy", "qafr",
 })
 
 # RFC 1035-flavoured label: lowercase letters/digits/hyphen, not

@@ -47,11 +47,13 @@ def test_every_child_table_now_has_school_id(app):
     from sqlalchemy import inspect
     from app.extensions import db
     from test_saas002_schema_gate import TENANT_INHERIT_MAP
+    from app.services.tenant_guard import PLATFORM_TABLES
     with app.app_context():
         insp = inspect(db.engine)
         missing = [t for t in insp.get_table_names()
                    if "school_id" not in {c["name"] for c in insp.get_columns(t)}
-                   and t not in TENANT_INHERIT_MAP and not t.startswith("sqlite_")]
+                   and t not in TENANT_INHERIT_MAP and t not in PLATFORM_TABLES
+                   and not t.startswith("sqlite_")]
     assert missing == []
     assert set(TENANT_INHERIT_MAP) == {"alembic_version", "schools"}
 

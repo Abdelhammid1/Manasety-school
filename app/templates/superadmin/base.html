@@ -1,0 +1,79 @@
+{# SAAS-025 — Super Admin console shell (console.manasety.ai). Self-contained
+   styles: no CDN, so the console can run under a strict CSP later (SAAS-036). #}
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}لوحة المنصة{% endblock %} — منصتي</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+  <style>
+    @font-face{font-family:"Baloo Bhaijaan 2";src:url("{{ url_for('static', filename='fonts/BalooBhaijaan2.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
+    :root{--navy:#1E3A8A;--ink:#0f172a;--muted:#64748b;--line:#e2e8f0;--bg:#f5f7fb;--card:#fff;--ok:#065F46;--okbg:#ECFDF5;--warn:#92400E;--warnbg:#FFFBEB;--bad:#B91C1C;--badbg:#FEF2F2}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:"Baloo Bhaijaan 2",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:15px}
+    a{color:var(--navy)}
+    .top{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:800;color:var(--navy);text-decoration:none}
+    .brand img{height:34px}
+    .tag{font-size:12px;padding:2px 8px;border-radius:999px;background:#eef2ff;color:var(--navy);font-weight:700}
+    .nav{display:flex;align-items:center;gap:14px}
+    .wrap{max-width:1100px;margin:24px auto;padding:0 16px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px}
+    .narrow{max-width:420px;margin:56px auto}
+    h1{font-size:22px;margin:0 0 4px;color:var(--navy)}
+    .sub{color:var(--muted);margin:0 0 18px}
+    label{display:block;font-weight:700;margin:12px 0 6px}
+    input{width:100%;height:44px;padding:0 12px;border:1px solid var(--line);border-radius:10px;font:inherit;background:#fff}
+    input:focus{outline:2px solid #bfdbfe;border-color:var(--navy)}
+    .btn{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border:0;border-radius:10px;background:var(--navy);color:#fff;font:inherit;font-weight:800;cursor:pointer;text-decoration:none}
+    .btn.block{width:100%;margin-top:18px}
+    .btn.ghost{background:transparent;color:var(--navy);border:1px solid var(--line);height:36px}
+    .flash{padding:10px 12px;border-radius:10px;margin-bottom:12px;font-weight:700}
+    .flash.danger{background:var(--badbg);color:var(--bad)} .flash.success{background:var(--okbg);color:var(--ok)} .flash.warning,.flash.info{background:var(--warnbg);color:var(--warn)}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+    th{color:var(--muted);font-size:13px;font-weight:700}
+    td.num{font-variant-numeric:tabular-nums}
+    .chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:800}
+    .chip.active{background:var(--okbg);color:var(--ok)} .chip.suspended{background:var(--warnbg);color:var(--warn)} .chip.archived{background:#f1f5f9;color:var(--muted)}
+    .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px}
+    .stat{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+    .stat b{display:block;font-size:24px;color:var(--navy);font-variant-numeric:tabular-nums}
+    .stat span{color:var(--muted);font-size:13px}
+    .codes{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-family:ui-monospace,monospace;direction:ltr}
+    .codes div{background:#f8fafc;border:1px dashed var(--line);border-radius:8px;padding:8px;text-align:center}
+    .qr{display:flex;justify-content:center;margin:12px 0}
+    .mono{font-family:ui-monospace,monospace;direction:ltr;unicode-bidi:isolate}
+    span.mono{display:inline-block;word-break:break-all}
+    .table-wrap{overflow-x:auto}
+    @media (max-width:640px){.narrow{margin:24px auto}.top{padding:10px 16px;flex-wrap:wrap}.nav{gap:10px;font-size:14px}.nav .tag{display:none}.brand span{white-space:nowrap}}
+  </style>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="{{ url_for('superadmin.schools') if current_user.is_authenticated else url_for('superadmin.login') }}">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي">
+      <span>لوحة المنصة</span>
+    </a>
+    {% if current_user.is_authenticated and current_user.is_platform_user %}
+    <nav class="nav">
+      <a href="{{ url_for('superadmin.schools') }}">المدارس</a>
+      <a href="{{ url_for('superadmin.password') }}">كلمة المرور</a>
+      <span class="tag">{{ current_user.role }}</span>
+      <form method="post" action="{{ url_for('superadmin.logout') }}" style="margin:0">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button class="btn ghost" type="submit">خروج</button>
+      </form>
+    </nav>
+    {% endif %}
+  </header>
+  <main class="wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for cat, msg in messages %}<div class="flash {{ cat }}">{{ msg }}</div>{% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

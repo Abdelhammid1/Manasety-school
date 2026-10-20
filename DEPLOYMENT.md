@@ -144,6 +144,19 @@ WHATSAPP_PROVIDER=stub
 - `log` مراقبة فقط: الدخول على host المنصة بيكمل ويتسجل تحذير `tenancy[log] would reject platform login`. الرفض بيحصل في `enforce` بس.
 - في `enforce` أي host مش معروف (منه `127.0.0.1` و`localhost`) بيرجّع 404. مفيش health check ولا مستدعي داخلي بيعتمد عليهم (الـ cron الحالي على السيرفر بيضرب تطبيق تاني، و`/cron/tick` مالوش مستدعي).
 
+#### لوحة المنصة — Super Admin (SAAS-025)
+
+| المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |
+|---|---|---|---|
+| `PLATFORM_ENC_KEY` | سر 32 حرف أو أكتر، مختلف عن `SECRET_KEY` | الإنتاج يرفض الإقلاع (التطوير: مشتق من `SECRET_KEY`) | الإنتاج يرفض الإقلاع |
+| `PLATFORM_SESSION_MINUTES` | عدد دقائق الخمول قبل خروج جلسة اللوحة | `30` | `30` |
+| `PLATFORM_HOSTS` | hosts اللوحة | `console.manasety.ai` | مفيش لوحة |
+
+- `PLATFORM_ENC_KEY` بيشفّر أسرار TOTP لمستخدمي اللوحة. تغييره بيبطّل كل TOTP المسجّل (لازم إعادة تفعيل)، فيتعمل مرة واحدة ويتحفظ.
+- اللوحة بتشتغل بس على host المنصة ولما `TENANT_RESOLUTION_MODE` يكون `log` أو `enforce`. في `off` كل `/superadmin/*` بيرجّع 404.
+- أول مستخدم منصة: `flask platform-user-create --email you@manasety.ai --name "الاسم" --role owner` (الباسورد بيتطلب مخفي، 12 حرف على الأقل). أول دخول بيفرض تغيير الباسورد وتفعيل TOTP، وبيعرض 10 أكواد استرداد مرة واحدة.
+- جلسة اللوحة: كوكي منفصل `manasety_platform` (SameSite=Strict)، خروج بعد الخمول، وحد أقصى 8 ساعات.
+
 خطة التفعيل على الإنتاج (بعد موافقة عبدالحميد على القيم):
 
 ```

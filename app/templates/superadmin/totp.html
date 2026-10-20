@@ -1,0 +1,23 @@
+{% extends "superadmin/base.html" %}
+{% block title %}رمز التحقق{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>رمز التحقق</h1>
+  <p class="sub">اكتب الرمز المكوّن من 6 أرقام من تطبيق المصادقة.</p>
+  <form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="code">الرمز</label>
+    <input id="code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" dir="ltr" autocomplete="one-time-code" autofocus>
+    <button class="btn block" type="submit">دخول</button>
+  </form>
+  <details style="margin-top:16px">
+    <summary>استخدام كود استرداد</summary>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label for="recovery_code">كود الاسترداد</label>
+      <input id="recovery_code" name="recovery_code" dir="ltr" autocomplete="off">
+      <button class="btn block" type="submit">دخول بكود الاسترداد</button>
+    </form>
+  </details>
+</div>
+{% endblock %}

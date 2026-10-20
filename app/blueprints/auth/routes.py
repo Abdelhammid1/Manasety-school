@@ -69,8 +69,8 @@ def login():
         if tenant is not None and tenant.kind == "platform":
             from ...services.tenancy import resolution_mode
             if resolution_mode() == "enforce":
-                flash("ادخل من عنوان مدرستك: schoolname.manasety.ai", "warning")
-                return _render_login(401)
+                # SAAS-025 — the platform host is the Super Admin console.
+                return redirect(url_for("superadmin.login"))
             current_app.logger.warning(
                 "tenancy[log] would reject platform login host=%r", request.host)
 

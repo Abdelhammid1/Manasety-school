@@ -314,6 +314,9 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
         "test_harness_catches_leaky_canary proves the harness flags it",
     "saas012_canary.scoped":
         "SAAS-012 canary twin — correctly scoped, test-app only",
+    "superadmin.school_detail":
+        "SAAS-025 platform console (no school tenant): 404 on every school host "
+        "and when resolution is off — covered by tests/test_saas025_platform.py",
 }
 
 ALLOWLIST: dict[str, str] = {

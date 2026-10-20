@@ -1,0 +1,18 @@
+{% extends "superadmin/base.html" %}
+{% block title %}{{ school.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.schools') }}">→ كل المدارس</a></p>
+<h1>{{ school.name }}</h1>
+<p class="sub"><span class="mono">{{ school.slug }}.{{ base_domain }}</span> · الكود <span class="mono">{{ school.code }}</span> ·
+  <span class="chip {{ school.status }}">{{ {'active':'نشطة','suspended':'موقوفة','archived':'مؤرشفة'}.get(school.status, school.status) }}</span></p>
+<div class="grid">
+  <div class="stat"><b>{{ stats.students }}</b><span>طالب</span></div>
+  <div class="stat"><b>{{ stats.active_users }}</b><span>مستخدم نشط</span></div>
+  <div class="stat"><b>{{ stats.sections }}</b><span>فصل</span></div>
+  <div class="stat"><b>{{ stats.teachers }}</b><span>معلم</span></div>
+  <div class="stat"><b>{{ stats.courses }}</b><span>مقرر</span></div>
+  <div class="stat"><b><bdi>{{ (stats.storage / 1048576)|round(1) }} MB</bdi></b><span>حجم الملفات</span></div>
+  <div class="stat"><b style="font-size:16px"><bdi>{{ stats.last_login.strftime('%Y-%m-%d %H:%M') if stats.last_login else '—' }}</bdi></b><span>آخر دخول لأي مستخدم</span></div>
+  <div class="stat"><b style="font-size:16px">{{ school.created_at.strftime('%Y-%m-%d') if school.created_at else '—' }}</b><span>تاريخ الإنشاء</span></div>
+</div>
+{% endblock %}

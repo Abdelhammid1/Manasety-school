@@ -1,0 +1,10 @@
+{% extends "superadmin/base.html" %}
+{% block title %}أكواد الاسترداد{% endblock %}
+{% block content %}
+<div class="card narrow">
+  <h1>أكواد الاسترداد</h1>
+  <p class="sub">احفظها في مكان آمن الآن — <b>مش هتظهر تاني</b>. كل كود يشتغل مرة واحدة لو فقدت تطبيق المصادقة.</p>
+  <div class="codes">{% for c in codes %}<div>{{ c }}</div>{% endfor %}</div>
+  <a class="btn block" href="{{ url_for('superadmin.schools') }}">حفظتها، متابعة</a>
+</div>
+{% endblock %}

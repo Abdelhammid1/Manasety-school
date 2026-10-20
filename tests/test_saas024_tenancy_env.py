@@ -86,7 +86,11 @@ def test_login_page_per_mode_and_host(hosts_app, monkeypatch, mode, kind):
     monkeypatch.setitem(hosts_app.config, "TENANT_RESOLUTION_MODE", mode)
     with hosts_app.test_client() as c:
         status = c.get("/auth/login", base_url=HOSTS[kind]).status_code
-    expected = 404 if (mode == "enforce" and kind == "unknown") else 200
+    expected = 200
+    if mode == "enforce" and kind == "unknown":
+        expected = 404
+    elif mode == "enforce" and kind == "platform":
+        expected = 302     # SAAS-025: → console login
     assert status == expected, (mode, kind, status)
 
 
@@ -105,10 +109,15 @@ def test_platform_login_in_log_mode_is_not_blocked(hosts_app, monkeypatch, caplo
 
 
 def test_platform_login_in_enforce_mode_is_blocked(hosts_app, monkeypatch):
+    """A school login is never processed on the platform host; SAAS-025
+    sends it to the console login instead."""
     monkeypatch.setitem(hosts_app.config, "TENANT_RESOLUTION_MODE", "enforce")
     with hosts_app.test_client() as c:
         r = _login(c, HOSTS["platform"], "t_alpha")
-    assert r.status_code == 401
+        assert r.status_code == 302
+        assert r.headers["Location"].endswith("/superadmin/login")
+        with c.session_transaction(base_url=HOSTS["platform"]) as s:
+            assert "_user_id" not in s
 
 
 def test_legacy_host_resolves_and_logs_in_under_enforce(hosts_app, monkeypatch):

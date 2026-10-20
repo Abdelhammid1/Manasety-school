@@ -1,5 +1,8 @@
 from .school import School
 from .user import User, Role
+from .platform_admin import (
+    PlatformUser, PlatformRecoveryCode, PlatformAuditLog, PLATFORM_ROLES,
+)
 from .academic import AcademicYear, Term, Grade, Section
 from .student import (
     Student, Enrollment, TransferLog,
@@ -136,4 +139,5 @@ __all__ = [
     "InterventionPlan", "InterventionPlanOutcome", "InterventionSession",
     "NAFIS_LEVELS", "NAFIS_SUBJECTS", "NAFIS_BANDS", "NAFIS_CYCLE_STATUS",
     "GAP_SEVERITY", "GAP_SOURCE", "INTERVENTION_STATUS",
+    "PlatformUser", "PlatformRecoveryCode", "PlatformAuditLog", "PLATFORM_ROLES",
 ]

@@ -96,10 +96,11 @@ def test_every_table_is_classified(app):
     the build with a message that names it."""
     with app.app_context():
         unclassified = []
+        from app.services.tenant_guard import PLATFORM_TABLES
         for table in _list_tenant_tables(app):
             if _has_school_id(app, table):
                 continue
-            if table in TENANT_INHERIT_MAP:
+            if table in TENANT_INHERIT_MAP or table in PLATFORM_TABLES:
                 continue
             unclassified.append(table)
 
