@@ -18,7 +18,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from . import bp
-from ..utils import require_permission
+from ..utils import owned_id, require_permission
 from ...extensions import db
 from ...models import (
     Employee, LeaveBalance, LeaveRequest,
@@ -108,6 +108,7 @@ def leave_request_new():
     start = _parse_date(request.form.get("start_date"))
     end   = _parse_date(request.form.get("end_date"))
     reason = (request.form.get("reason") or "").strip() or None
+    employee_id = owned_id(Employee, employee_id)
     if not (employee_id and leave_type and start and end):
         flash("كل الحقول مطلوبة.", "danger")
         return redirect(url_for("hr.leave_requests_list"))
@@ -242,6 +243,7 @@ def leave_balance_new():
     leave_type = (request.form.get("leave_type") or "").strip()
     year = request.form.get("year", type=int) or date.today().year
     total = request.form.get("total_days", type=float) or 0
+    employee_id = owned_id(Employee, employee_id)
     if not (employee_id and leave_type and total > 0):
         flash("الموظف ونوع الإجازة والرصيد مطلوبان.", "danger")
         return redirect(url_for("hr.leave_balances_list", year=year))

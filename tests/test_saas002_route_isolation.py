@@ -28,6 +28,7 @@ red until the entry is removed.
 from __future__ import annotations
 
 import inspect
+import io
 import re
 from pathlib import Path
 from typing import Iterable
@@ -58,6 +59,30 @@ def _subject_state(B):
     from app.models import Subject
     s = db.session.get(Subject, B["subject"].id)
     return (s.name, s.is_active) if s else None
+
+
+def _row(model: str, key: str, side: str = "B"):
+    """Snapshot = the target row (all columns, soft-deleted included)
+    + both schools' ledger fingerprint. side="A" reads the peer's id,
+    for form-mixing attacks where A's own record is the one at risk."""
+    def snap(B):
+        from sqlalchemy import select
+        from app import models as M
+        from app.extensions import db
+        from world import ledger_state
+        cls = getattr(M, model)
+        rid = B["peer"][key] if side == "A" else B[key]
+        row = db.session.execute(
+            select(cls.__table__).where(cls.__table__.c.id == rid)
+        ).mappings().first()
+        return (dict(row) if row else None, ledger_state(B["pair"]))
+    return snap
+
+
+def _fin(key, model, param, methods=("POST",), form=None, roles=("admin",)):
+    return Entry(lambda B, k=key, p=param: {p: B[k]}, methods=methods,
+                 form=form, roles=roles,
+                 snapshot=_row(model, key) if any(m != "GET" for m in methods) else None)
 
 
 # ─── Matrix ──────────────────────────────────────────────────────────
@@ -103,6 +128,72 @@ ROUTE_MATRIX: dict[str, Entry] = {
         lambda B: {"grade_id": B["grade"].id, "term_id": B["term"].id},
         mixed=lambda A, B: {"grade_id": A["grade"].id, "term_id": B["term"].id},
     ),
+
+    # SAAS-013 — finance (32).
+    "finance.account_statement": _fin("account", "Account", "aid", ("GET",)),
+    "finance.bank_rec_match": _fin("bank_line", "BankStatementLine", "line_id",
+                                   form=lambda A, B: {"journal_line_id": B["journal_line"]}),
+    "finance.bank_rec_unmatch": _fin("bank_line", "BankStatementLine", "line_id"),
+    "finance.budget_delete": _fin("budget", "Budget", "bid"),
+    "finance.cost_center_delete": _fin("cost_center", "CostCenter", "cc_id"),
+    "finance.cost_center_toggle": _fin("cost_center", "CostCenter", "cc_id"),
+    "finance.discount_type_toggle": _fin("discount_type", "DiscountType", "dt_id"),
+    "finance.expense_approve": _fin("expense", "Expense", "eid"),
+    "finance.expense_delete": _fin("expense", "Expense", "exp_id"),
+    "finance.expense_edit": _fin("expense", "Expense", "exp_id", ("GET", "POST"),
+                                 form=lambda A, B: {"description": "HACK", "amount": "1",
+                                                    "date": "2026-09-05"}),
+    "finance.expense_reject": _fin("expense", "Expense", "eid",
+                                   form=lambda A, B: {"reject_reason": "HACK"}),
+    "finance.fee_type_delete": _fin("fee_type", "FeeType", "ft_id"),
+    "finance.fee_type_edit": _fin("fee_type", "FeeType", "ft_id", ("GET", "POST"),
+                                  form=lambda A, B: {"name": "HACK", "default_amount": "1"}),
+    "finance.fee_type_toggle": _fin("fee_type", "FeeType", "ft_id"),
+    "finance.invoice_detail": _fin("invoice", "Invoice", "invoice_id", ("GET",),
+                                   roles=("admin", "parent")),
+    "finance.invoice_pay": _fin("invoice", "Invoice", "invoice_id",
+                                form=lambda A, B: {"amount": "10",
+                                                   "payment_method_id": B["payment_method"]}),
+    "finance.invoice_print": _fin("invoice", "Invoice", "invoice_id", ("GET",),
+                                  roles=("admin", "parent")),
+    "finance.invoice_unvoid": _fin("invoice", "Invoice", "invoice_id"),
+    "finance.invoice_void": _fin("invoice", "Invoice", "invoice_id",
+                                 form=lambda A, B: {"reason": "HACK"}),
+    "finance.payment_method_delete": _fin("payment_method", "PaymentMethod", "pm_id"),
+    "finance.payment_method_toggle": _fin("payment_method", "PaymentMethod", "pm_id"),
+    "finance.recurring_delete": _fin("recurring", "RecurringFeeSchedule", "rid"),
+    "finance.recurring_toggle": _fin("recurring", "RecurringFeeSchedule", "rid"),
+    "finance.refund_request_approve": _fin("refund_request", "RefundRequest", "req_id"),
+    "finance.refund_request_new": _fin("invoice", "Invoice", "invoice_id",
+                                       form=lambda A, B: {"amount": "5", "reason": "HACK",
+                                                          "payment_method_id": B["payment_method"]}),
+    "finance.refund_request_reject": _fin("refund_request", "RefundRequest", "req_id",
+                                          form=lambda A, B: {"reject_reason": "HACK"}),
+    "finance.student_discount_approve": _fin("student_discount", "StudentDiscount", "sd_id"),
+    "finance.student_discount_reject": _fin("student_discount", "StudentDiscount", "sd_id"),
+    "finance.vendor_delete": _fin("vendor", "Vendor", "vendor_id"),
+    "finance.vendor_detail": _fin("vendor", "Vendor", "vendor_id", ("GET",)),
+    "finance.vendor_edit": _fin("vendor", "Vendor", "vendor_id", ("GET", "POST"),
+                                form=lambda A, B: {"name": "HACK"}),
+    "finance.vendor_toggle": _fin("vendor", "Vendor", "vendor_id"),
+
+    # SAAS-013 — HR (10).
+    "hr.employee_advance_new": _fin("employee", "Employee", "employee_id",
+                                    form=lambda A, B: {"amount": "100",
+                                                       "payment_method_id": B["payment_method"]}),
+    "hr.employee_delete": _fin("employee", "Employee", "employee_id"),
+    "hr.employee_detail": _fin("employee", "Employee", "employee_id", ("GET",)),
+    "hr.employee_edit": _fin("employee", "Employee", "employee_id", ("GET", "POST"),
+                             form=lambda A, B: {"full_name": "HACK", "job_title": "HACK"}),
+    "hr.employee_toggle": _fin("employee", "Employee", "employee_id"),
+    "hr.leave_request_approve": _fin("leave_request", "LeaveRequest", "req_id"),
+    "hr.leave_request_reject": _fin("leave_request", "LeaveRequest", "req_id",
+                                    form=lambda A, B: {"reject_reason": "HACK"}),
+    "hr.payroll_delete": _fin("payroll", "Payroll", "payroll_id"),
+    "hr.payroll_detail": _fin("payroll", "Payroll", "payroll_id", ("GET",)),
+    "hr.payroll_settle": _fin("payroll", "Payroll", "payroll_id",
+                              form=lambda A, B: {"payment_method_id": B["payment_method"],
+                                                 "amount": "100"}),
 }
 
 
@@ -142,26 +233,7 @@ _PENDING: tuple[str, ...] = (
     "courses.course_pick_section", "courses.delete", "courses.detail",
     "courses.grade_terms", "courses.lesson_delete", "courses.lesson_edit",
     "courses.lesson_new", "courses.lesson_view", "courses.unit_delete",
-    "courses.unit_edit", "courses.unit_new", "finance.account_statement",
-    "finance.bank_rec_match", "finance.bank_rec_unmatch",
-    "finance.budget_delete", "finance.cost_center_delete",
-    "finance.cost_center_toggle", "finance.discount_type_toggle",
-    "finance.expense_approve", "finance.expense_delete",
-    "finance.expense_edit", "finance.expense_reject",
-    "finance.fee_type_delete", "finance.fee_type_edit",
-    "finance.fee_type_toggle", "finance.invoice_detail",
-    "finance.invoice_pay", "finance.invoice_print", "finance.invoice_unvoid",
-    "finance.invoice_void", "finance.payment_method_delete",
-    "finance.payment_method_toggle", "finance.recurring_delete",
-    "finance.recurring_toggle", "finance.refund_request_approve",
-    "finance.refund_request_new", "finance.refund_request_reject",
-    "finance.student_discount_approve", "finance.student_discount_reject",
-    "finance.vendor_delete", "finance.vendor_detail", "finance.vendor_edit",
-    "finance.vendor_toggle", "hr.employee_advance_new", "hr.employee_delete",
-    "hr.employee_detail", "hr.employee_edit", "hr.employee_toggle",
-    "hr.leave_request_approve", "hr.leave_request_reject",
-    "hr.payroll_delete", "hr.payroll_detail", "hr.payroll_settle",
-    "lms.announcement_delete", "lms.announcement_pin",
+    "courses.unit_edit", "courses.unit_new", "lms.announcement_delete", "lms.announcement_pin",
     "lms.assignment_analytics", "lms.assignment_delete",
     "lms.assignment_detail", "lms.assignment_edit",
     "lms.assignment_extension_add", "lms.assignment_from_template",
@@ -277,7 +349,120 @@ def _section_count_for_grade(B):
 
 
 # endpoint -> (url_params(A,B), method, query/form(A,B), snapshot(B) or None)
+def _mix(key, model, param, form):
+    """A's own record in the URL, a B-owned id in the body; A's record
+    and both ledgers must be untouched."""
+    return Entry(lambda B, k=key, p=param: {p: B[k]}, methods=("POST",), form=form,
+                 mixed=lambda A, B, k=key, p=param: {p: A[k]},
+                 snapshot=_row(model, key, side="A"))
+
+
+def _xlink(model: str, *cols: tuple[str, str]):
+    """Snapshot = how many school-A rows of `model` point at each given
+    B id (col, key), + both ledgers. Any increase is a cross-tenant link."""
+    def snap(B):
+        from app import models as M
+        from world import ledger_state
+        cls = getattr(M, model)
+        a_id = B["pair"][0]
+        def bid(key):
+            v = B[key]
+            return getattr(v, "id", v)
+        counts = tuple(
+            cls.query.filter(cls.school_id == a_id, getattr(cls, col) == bid(key)).count()
+            for col, key in cols)
+        return (counts, ledger_state(B["pair"]))
+    return snap
+
+
+def _post(form, snapshot):
+    return Entry(lambda B: {}, methods=("POST",), form=form, snapshot=snapshot)
+
+
+def _get_q(form):
+    return Entry(lambda B: {}, form=form)
+
+
 FORM_ID_MATRIX: dict[str, Entry] = {
+    # SAAS-013 — creators that took an FK id from the body unchecked.
+    "finance.account_new": _post(
+        lambda A, B: {"parent_id": B["account"], "name": "x", "type": "asset", "code": "9991"},
+        _xlink("Account", ("parent_id", "account"))),
+    "finance.budget_new": _post(
+        lambda A, B: {"account_id": B["account"], "cost_center_id": B["cost_center"],
+                      "planned_amount": "1"},
+        _xlink("Budget", ("account_id", "account"), ("cost_center_id", "cost_center"))),
+    "finance.discount_type_new": _post(
+        lambda A, B: {"name": "x", "applies_to_fee_type_id": B["fee_type"]},
+        _xlink("DiscountType", ("applies_to_fee_type_id", "fee_type"))),
+    "finance.student_discount_new": _post(
+        lambda A, B: {"enrollment_id": B["enrollment"].id, "discount_type_id": A["discount_type"]},
+        _xlink("StudentDiscount", ("enrollment_id", "enrollment"))),
+    "finance.payment_method_new": _post(
+        lambda A, B: {"name": "x", "kind": "immediate_cash", "account_id": B["account"]},
+        _xlink("PaymentMethod", ("account_id", "account"))),
+    "finance.recurring_new": _post(
+        lambda A, B: {"fee_type_id": B["fee_type"], "frequency": "monthly",
+                      "day_of_period": "1", "applies_to_grade_id": B["grade"].id},
+        _xlink("RecurringFeeSchedule", ("fee_type_id", "fee_type"))),
+    "finance.bank_rec_import": _post(
+        lambda A, B: {"account_id": B["bank_account"],
+                      "statement": (io.BytesIO(b"date,desc,amount\n2026-09-05,x,10\n"),
+                                    "s.csv")},
+        _xlink("BankStatementLine", ("bank_account_id", "bank_account"))),
+    "finance.expense_new": _post(
+        lambda A, B: {"amount": "10", "date": "2026-09-05", "description": "x",
+                      "expense_account_id": A["account"],
+                      "payment_method_id": A["payment_method"],
+                      "cost_center_id": B["cost_center"]},
+        _xlink("Expense", ("cost_center_id", "cost_center"))),
+    "finance.petty_cash_issue": _post(
+        lambda A, B: {"amount": "10", "payment_method_id": A["payment_method"],
+                      "custodian_employee_id": B["employee"]},
+        _xlink("PettyCashTransaction", ("custodian_employee_id", "employee"))),
+    "finance.petty_cash_settle": _post(
+        lambda A, B: {"amount": "10", "expense_account_id": B["account"]},
+        _xlink("PettyCashTransaction", ("counter_account_id", "account"))),
+    "finance.treasury_transfer": _post(
+        lambda A, B: {"amount": "10", "from_account_id": A["account"],
+                      "to_account_id": B["account"]},
+        _xlink("JournalEntry")),   # ledger foreign_lines does the work
+    "hr.leave_request_new": _post(
+        lambda A, B: {"employee_id": B["employee"], "leave_type": "annual",
+                      "start_date": "2026-09-13", "end_date": "2026-09-14"},
+        _xlink("LeaveRequest", ("employee_id", "employee"))),
+    "hr.leave_balance_new": _post(
+        lambda A, B: {"employee_id": B["employee"], "leave_type": "annual",
+                      "total_days": "5", "year": "2026"},
+        _xlink("LeaveBalance", ("employee_id", "employee"))),
+    "finance.journal": _get_q(lambda A, B: {"account_id": B["account"]}),
+    "finance.report_general_ledger": _get_q(lambda A, B: {"account_id": B["account"]}),
+    "finance.bank_rec": _get_q(lambda A, B: {"account_id": B["bank_account"]}),
+    "finance.account_suggest_code": _get_q(lambda A, B: {"parent_id": B["account"]}),
+    # Not found by the *_id scanner (params are year_a / year_b).
+    "finance.report_year_comparison": _get_q(lambda A, B: {"year_a": B["year"].id,
+                                                           "year_b": B["year"].id}),
+
+    # SAAS-013 — second id from the body, mixed across schools.
+    "finance.bank_rec_match": _mix("bank_line", "BankStatementLine", "line_id",
+                                   lambda A, B: {"journal_line_id": B["journal_line"]}),
+    "finance.invoice_pay": _mix("invoice", "Invoice", "invoice_id",
+                                lambda A, B: {"amount": "10",
+                                              "payment_method_id": B["payment_method"]}),
+    "finance.refund_request_new": _mix("invoice", "Invoice", "invoice_id",
+                                       lambda A, B: {"amount": "5", "reason": "x",
+                                                     "payment_method_id": B["payment_method"]}),
+    "finance.expense_edit": _mix("expense", "Expense", "exp_id",
+                                 lambda A, B: {"description": "x", "amount": "50",
+                                               "date": "2026-09-02",
+                                               "vendor_id": B["vendor"],
+                                               "payment_method_id": B["payment_method"]}),
+    "hr.employee_advance_new": _mix("employee", "Employee", "employee_id",
+                                    lambda A, B: {"amount": "100",
+                                                  "payment_method_id": B["payment_method"]}),
+    "hr.payroll_settle": _mix("payroll", "Payroll", "payroll_id",
+                              lambda A, B: {"amount": "100",
+                                            "payment_method_id": B["payment_method"]}),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},
@@ -291,24 +476,15 @@ FORM_ID_MATRIX: dict[str, Entry] = {
 }
 
 FORM_ID_PENDING: tuple[str, ...] = (
+    "finance.bulk_payment",
     "academic.bulk_transfer", "admin.audit_log", "api.qbank_questions",
     "api.teacher_attendance_existing", "api.teacher_components",
     "api.teacher_grades_existing", "api.teacher_students",
     "api.teacher_templates", "api.teacher_upload", "courses.lesson_edit",
-    "courses.lesson_new", "courses.new", "finance.account_new",
-    "finance.account_suggest_code", "finance.bank_rec",
-    "finance.bank_rec_import", "finance.bank_rec_match",
-    "finance.budget_new", "finance.bulk_payment",
-    "finance.discount_type_new", "finance.expense_edit",
-    "finance.expense_new", "finance.fee_type_edit", "finance.fee_type_new",
-    "finance.invoice_new", "finance.invoice_pay", "finance.journal",
-    "finance.payment_method_new", "finance.petty_cash_issue",
-    "finance.petty_cash_settle", "finance.quick_journal_run",
-    "finance.recurring_new", "finance.refund_request_new",
-    "finance.report_general_ledger", "finance.student_discount_new",
-    "finance.treasury_transfer", "hr.employee_advance_new",
-    "hr.leave_balance_new", "hr.leave_request_new", "hr.payroll_new",
-    "hr.payroll_settle", "lms.announcement_new", "lms.assignment_edit",
+    "courses.lesson_new", "courses.new", "finance.fee_type_edit", "finance.fee_type_new",
+    "finance.invoice_new", "finance.quick_journal_run",
+    "hr.payroll_new",
+    "lms.announcement_new", "lms.assignment_edit",
     "lms.assignment_extension_add", "lms.assignment_from_template",
     "lms.assignment_new", "lms.assignment_pick_from_bank", "lms.bank_home",
     "lms.objective_new", "lms.qbank_dashboard", "lms.quiz_pick_from_bank",
@@ -401,10 +577,10 @@ def test_skips_carry_a_written_reason():
             assert len(e.skip.strip()) >= 15, f"{ep}: skip reason too thin"
 
 
-def test_matrix_urls_build_for_every_entry(app, two_schools):
+def test_matrix_urls_build_for_every_entry(app, world):
     """A fetcher whose params don't match the rule fails here — the old
     harness silently skipped these."""
-    A, B = two_schools["A"], two_schools["B"]
+    A, B = world["A"], world["B"]
     for ep, e in ROUTE_MATRIX.items():
         if e.skip:
             continue
@@ -424,10 +600,10 @@ def test_build_url_fails_loudly_on_wrong_params(app):
 # ─── Isolation sweep ─────────────────────────────────────────────────
 
 @pytest.mark.parametrize("endpoint,method,role", _cases("attack"))
-def test_cross_tenant_access_blocked(enforce_app, two_schools, login_as,
+def test_cross_tenant_access_blocked(enforce_app, world, login_as,
                                      endpoint, method, role):
     app = enforce_app
-    A, B = two_schools["A"], two_schools["B"]
+    A, B = world["A"], world["B"]
     e = ROUTE_MATRIX[endpoint]
     url = build_url(app, endpoint, e.ids(B), host(A))
     with app.test_client() as c:
@@ -436,9 +612,9 @@ def test_cross_tenant_access_blocked(enforce_app, two_schools, login_as,
 
 
 @pytest.mark.parametrize("endpoint", _cases("mixed"))
-def test_mixed_tenant_ids_rejected(enforce_app, two_schools, login_as, endpoint):
+def test_mixed_tenant_ids_rejected(enforce_app, world, login_as, endpoint):
     app = enforce_app
-    A, B = two_schools["A"], two_schools["B"]
+    A, B = world["A"], world["B"]
     e = ROUTE_MATRIX[endpoint]
     assert e.mixed is not None
     url = build_url(app, endpoint, e.mixed(A, B), host(A))
@@ -449,9 +625,9 @@ def test_mixed_tenant_ids_rejected(enforce_app, two_schools, login_as, endpoint)
 
 
 @pytest.mark.parametrize("endpoint,method", _cases("unauth"))
-def test_unauthenticated_is_not_served(enforce_app, two_schools, endpoint, method):
+def test_unauthenticated_is_not_served(enforce_app, world, endpoint, method):
     app = enforce_app
-    A, B = two_schools["A"], two_schools["B"]
+    A, B = world["A"], world["B"]
     e = ROUTE_MATRIX[endpoint]
     url = build_url(app, endpoint, e.ids(A), host(A))
     with app.test_client() as c:
@@ -493,15 +669,16 @@ def test_every_form_id_endpoint_is_classified(app):
 
 
 @pytest.mark.parametrize("endpoint", sorted(FORM_ID_MATRIX))
-def test_form_ids_from_other_school_rejected(enforce_app, two_schools,
+def test_form_ids_from_other_school_rejected(enforce_app, world,
                                              login_as, endpoint):
     """B's id in the body / query with A's session: no B data back, no
     B-side effect, no crash. A form re-render (200) is an acceptable
     rejection here — the id is not the resource being addressed."""
     app = enforce_app
-    A, B = two_schools["A"], two_schools["B"]
+    A, B = world["A"], world["B"]
     e = FORM_ID_MATRIX[endpoint]
-    url = build_url(app, endpoint, e.ids(B), host(A))
+    params = e.mixed(A, B) if e.mixed else e.ids(B)
+    url = build_url(app, endpoint, params, host(A))
     from isolation_harness import _snap
     with app.test_client() as c:
         login_as(c, A["users"]["admin"], base_url=host(A))

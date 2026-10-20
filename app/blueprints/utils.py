@@ -16,6 +16,17 @@ def require_permission(module: str, action: str = "view"):
     return decorator
 
 
+def owned_id(model, raw_id):
+    """`raw_id` if that row belongs to the current school, else None.
+    Use on every FK id that arrives in a form / query string — a bare
+    id from the client may point at another school's row."""
+    if not raw_id:
+        return None
+    from ..services.tenancy import current_school_id
+    row = model.query.filter_by(id=raw_id, school_id=current_school_id()).first()
+    return row.id if row is not None else None
+
+
 def admin_only(view):
     """Route gate for school-admin surfaces (dashboard, tenant settings).
 

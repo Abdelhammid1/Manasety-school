@@ -19,7 +19,7 @@ from .results import PassRule, AssessmentComponent, GradeEntry, YearResult
 from .finance import (
     Account, JournalEntry, JournalLine, FeeType, Invoice, InvoiceLine,
     Installment, Payment, Vendor, Expense, PaymentMethod,
-    PAYMENT_METHOD_KINDS,
+    PAYMENT_METHOD_KINDS, RECURRING_FREQUENCIES,
     RecurringFeeSchedule, RecurringInvoiceLog,
     BankStatementLine, CostCenter,
     Budget, ReceiptVoucher,
@@ -93,7 +93,7 @@ __all__ = [
     "PassRule", "AssessmentComponent", "GradeEntry", "YearResult",
     "Account", "JournalEntry", "JournalLine", "FeeType",
     "Invoice", "InvoiceLine", "Installment", "Payment",
-    "Vendor", "Expense", "PaymentMethod", "PAYMENT_METHOD_KINDS",
+    "Vendor", "Expense", "PaymentMethod", "PAYMENT_METHOD_KINDS", "RECURRING_FREQUENCIES",
     "RecurringFeeSchedule", "RecurringInvoiceLog", "BankStatementLine",
     "CostCenter", "Budget", "ReceiptVoucher",
     "RefundRequest", "PettyCashTransaction",

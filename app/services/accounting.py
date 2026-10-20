@@ -37,6 +37,13 @@ def post_journal(
     from ..models import Account
     account_ids = {aid for aid, _, _, _ in lines}
     if account_ids:
+        # Every line must post to this school's own chart of accounts.
+        # Checked before the aggregate test so its error message can
+        # never echo another school's account code or name.
+        owned = {a.id for a in Account.query.filter(
+            Account.id.in_(account_ids), Account.school_id == school_id)}
+        if owned != account_ids:
+            raise ValueError("حساب غير موجود في دليل حسابات المدرسة.")
         aggregates = Account.query.filter(
             Account.id.in_(account_ids), Account.is_postable.is_(False),
         ).all()

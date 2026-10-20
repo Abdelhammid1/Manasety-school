@@ -6,7 +6,7 @@ from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 
 from . import bp
-from ..utils import require_permission
+from ..utils import owned_id, require_permission
 from ...extensions import db
 from ...models import DiscountType, StudentDiscount, FeeType, Enrollment, Student
 
@@ -37,6 +37,10 @@ def discount_type_new():
     name = (request.form.get("name") or "").strip()
     if not name:
         flash("اسم الخصم مطلوب.", "danger")
+        return redirect(url_for("finance.discount_types"))
+    raw_ft = request.form.get("applies_to_fee_type_id", type=int) or None
+    if raw_ft and not owned_id(FeeType, raw_ft):
+        flash("نوع الرسم غير موجود.", "danger")
         return redirect(url_for("finance.discount_types"))
     d = DiscountType(
         school_id=_sid(), name=name,
@@ -83,7 +87,7 @@ def student_discounts_list():
 def student_discount_new():
     en_id = request.form.get("enrollment_id", type=int)
     dt_id = request.form.get("discount_type_id", type=int)
-    if not en_id or not dt_id:
+    if not owned_id(Enrollment, en_id) or not owned_id(DiscountType, dt_id):
         flash("اختر الطالب ونوع الخصم.", "danger")
         return redirect(url_for("finance.student_discounts"))
     sd = StudentDiscount(

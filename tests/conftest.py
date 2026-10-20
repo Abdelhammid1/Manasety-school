@@ -359,27 +359,40 @@ def two_schools(app) -> Iterator[dict]:
         db.session.expunge_all()
         db.session.remove()
 
+    school_ids = [A["school"].id, B["school"].id]
     try:
         yield {"A": A, "B": B}
     finally:
+        # Purge everything both schools own — including rows a test (or
+        # an isolation gap) created. SQLite reuses row ids, so leftovers
+        # would silently belong to the next test's schools.
+        from world import purge_schools
         with app.app_context():
-            # Teardown in reverse FK order.
-            table_map = {
-                "enrollments": Enrollment, "students": Student,
-                "subjects": Subject, "sections": Section,
-                "grades": Grade, "terms": Term, "years": AcademicYear,
-                "users": User, "roles": Role, "schools": School,
-            }
-            for kind in ("enrollments", "students", "subjects", "sections",
-                         "grades", "terms", "years", "users", "roles",
-                         "schools"):
-                cls = table_map[kind]
-                for row_id in created_ids[kind]:
-                    row = db.session.get(cls, row_id)
-                    if row is not None:
-                        db.session.delete(row)
-                db.session.commit()
+            purge_schools(school_ids)
             db.session.remove()
+
+
+@pytest.fixture
+def world(app, two_schools) -> dict:
+    """two_schools + finance/HR records in both schools (SAAS-013).
+    Ids and markers are merged into each school's bundle."""
+    from app.extensions import db
+    from world import seed_finance_hr
+    A, B = two_schools["A"], two_schools["B"]
+    with app.app_context():
+        fa, fb = seed_finance_hr(A), seed_finance_hr(B)
+        db.session.remove()
+    pair = (A["school"].id, B["school"].id)
+
+    def merge(bundle, extra, peer_extra):
+        out = {**bundle, **{k: v for k, v in extra.items() if k != "markers"}}
+        out["markers"] = tuple(bundle["markers"]) + tuple(extra["markers"])
+        out["pair"] = pair
+        # The other school's ids — for form-mixing snapshots of A's rows.
+        out["peer"] = {k: v for k, v in peer_extra.items() if k != "markers"}
+        return out
+
+    return {"A": merge(A, fa, fb), "B": merge(B, fb, fa)}
 
 
 # ─── Logged-in client factory ────────────────────────────────────────

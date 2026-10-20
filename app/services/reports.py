@@ -116,7 +116,9 @@ def balance_sheet(school_id: int, *, at=None):
 
 def general_ledger(school_id: int, account_id: int, *, start=None, end=None):
     s, e = _range(start, end)
-    account = db.session.get(Account, account_id)
+    account = Account.query.filter_by(id=account_id, school_id=school_id).first()
+    if account is None:
+        return None
     lines = (
         db.session.query(JournalLine, JournalEntry)
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
@@ -348,8 +350,11 @@ def discounts_grants(school_id: int, *, start=None, end=None):
 
 def year_comparison(school_id: int, year_a_id: int, year_b_id: Optional[int] = None):
     """Revenues and expenses for two academic years, side by side."""
-    ya = db.session.get(AcademicYear, year_a_id)
-    yb = db.session.get(AcademicYear, year_b_id) if year_b_id else None
+    def _year(yid):
+        if not yid:
+            return None
+        return AcademicYear.query.filter_by(id=yid, school_id=school_id).first()
+    ya, yb = _year(year_a_id), _year(year_b_id)
     def _totals(y):
         if not y:
             return {"revenue": Decimal(0), "expense": Decimal(0)}

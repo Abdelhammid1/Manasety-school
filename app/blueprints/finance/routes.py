@@ -9,10 +9,10 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from . import bp
-from ..utils import require_permission
+from ..utils import owned_id, require_permission
 from ...extensions import db
 from ...models import (
-    Account, AcademicYear, Enrollment, Expense, FeeType, Grade,
+    Account, AcademicYear, CostCenter, Enrollment, Expense, FeeType, Grade,
     Installment, Invoice, InvoiceLine, JournalEntry, JournalLine,
     Payment, School, Section, Student, Vendor,
 )
@@ -231,8 +231,12 @@ def account_new():
         .order_by(Account.code).all()
     )
     if request.method == "POST":
-        parent_id = int(request.form["parent_id"]) if request.form.get("parent_id") else None
-        parent = Account.query.get(parent_id) if parent_id else None
+        parent_id = request.form.get("parent_id", type=int) or None
+        parent = (Account.query.filter_by(id=parent_id, school_id=_sid()).first()
+                  if parent_id else None)
+        if parent_id and parent is None:
+            flash("الحساب الأب غير موجود.", "danger")
+            return redirect(url_for("finance.account_new"))
         # Row directly under a root (Level 1) → aggregate.
         # Row under a Level-2 aggregate → postable Level-3 leaf.
         is_postable = bool(parent and parent.parent_id is not None)
@@ -1249,7 +1253,7 @@ def bank_rec_import():
     bank account = money in, negative = CR = money out)."""
     from ...models import BankStatementLine
     import csv, io
-    account_id = request.form.get("account_id", type=int)
+    account_id = owned_id(Account, request.form.get("account_id", type=int))
     if not account_id:
         flash("اختر الحساب البنكي أولاً.", "danger")
         return redirect(url_for("finance.bank_rec"))
@@ -1364,8 +1368,11 @@ def recurring_new():
     freq = (request.form.get("frequency") or "monthly").strip()
     day = request.form.get("day_of_period", type=int) or 1
     grade_id = request.form.get("applies_to_grade_id", type=int) or None
-    if not fee_type_id:
+    if not fee_type_id or not owned_id(FeeType, fee_type_id):
         flash("اختر نوع الرسم.", "danger")
+        return redirect(url_for("finance.recurring_list"))
+    if grade_id and not owned_id(Grade, grade_id):
+        flash("الصف المختار غير موجود.", "danger")
         return redirect(url_for("finance.recurring_list"))
     if freq not in RECURRING_FREQUENCIES:
         flash("تكرار غير معروف.", "danger")
@@ -1441,6 +1448,9 @@ def payment_method_new():
         return redirect(url_for("finance.payment_methods_list"))
     if kind != "deferred" and not account_id:
         flash("لا بد من ربط طريقة الدفع بحساب (اختر أي حساب قابل للترحيل).", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
+    if account_id and not owned_id(Account, account_id):
+        flash("الحساب المختار غير موجود.", "danger")
         return redirect(url_for("finance.payment_methods_list"))
     pm = PaymentMethod(
         school_id=_sid(), name=name, kind=kind,
@@ -1646,7 +1656,11 @@ def expense_new():
         amount = Decimal(request.form["amount"])
         d = _parse_date(request.form.get("date")) or date.today()
         ex_account = _get(Account, int(request.form["expense_account_id"]))
-        cost_center_id = request.form.get("cost_center_id", type=int) or None
+        raw_cc = request.form.get("cost_center_id", type=int) or None
+        cost_center_id = owned_id(CostCenter, raw_cc)
+        if raw_cc and not cost_center_id:
+            flash("مركز التكلفة غير موجود.", "danger")
+            return redirect(url_for("finance.expense_new"))
         pm_id = request.form.get("payment_method_id", type=int)
         pm = PaymentMethod.query.filter_by(
             id=pm_id, school_id=_sid(), is_active=True,
@@ -2069,10 +2083,16 @@ def budget_new():
     if not year:
         flash("لا توجد سنة دراسية نشطة.", "danger")
         return redirect(url_for("finance.budgets_home"))
+    raw_acc = request.form.get("account_id", type=int) or None
+    raw_cc = request.form.get("cost_center_id", type=int) or None
+    acc_id, cc_id = owned_id(Account, raw_acc), owned_id(CostCenter, raw_cc)
+    if (raw_acc and not acc_id) or (raw_cc and not cc_id):
+        flash("الحساب أو مركز التكلفة غير موجود.", "danger")
+        return redirect(url_for("finance.budgets_home"))
     b = Budget(
         school_id=_sid(), year_id=year.id,
-        account_id=request.form.get("account_id", type=int) or None,
-        cost_center_id=request.form.get("cost_center_id", type=int) or None,
+        account_id=acc_id,
+        cost_center_id=cc_id,
         period=(request.form.get("period") or "annual").strip(),
         planned_amount=Decimal(request.form.get("planned_amount") or "0"),
         warn_pct=int(request.form.get("warn_pct") or 90),

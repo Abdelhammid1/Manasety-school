@@ -24,7 +24,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from . import bp
-from ..utils import require_permission
+from ..utils import owned_id, require_permission
 from ...extensions import db
 from ...models import (
     Account, Employee, Invoice, Payment, PaymentMethod,
@@ -241,6 +241,11 @@ def petty_cash_issue():
         return redirect(url_for("finance.petty_cash_home"))
     pm = PaymentMethod.query.filter_by(id=pm_id, school_id=_sid()).first_or_404()
 
+    raw_emp = request.form.get("custodian_employee_id", type=int) or None
+    custodian_id = owned_id(Employee, raw_emp)
+    if raw_emp and not custodian_id:
+        flash("الموظف غير موجود.", "danger")
+        return redirect(url_for("finance.petty_cash_home"))
     counter_account_id = pm.account_id
     if not counter_account_id:
         flash("طريقة الدفع غير مرتبطة بحساب في دليل الحسابات.", "danger")
@@ -258,7 +263,7 @@ def petty_cash_issue():
     )
     tx = PettyCashTransaction(
         school_id=_sid(), kind="issue",
-        custodian_employee_id=request.form.get("custodian_employee_id", type=int) or None,
+        custodian_employee_id=custodian_id,
         amount=amount,
         tx_date=date.today(),
         reason=(request.form.get("reason") or "").strip() or None,
@@ -288,9 +293,14 @@ def petty_cash_settle():
     if amount <= 0:
         flash("المبلغ غير صالح.", "danger")
         return redirect(url_for("finance.petty_cash_home"))
-    expense_account_id = request.form.get("expense_account_id", type=int)
+    expense_account_id = owned_id(Account, request.form.get("expense_account_id", type=int))
     if not expense_account_id:
         flash("اختر حساب المصروف.", "danger")
+        return redirect(url_for("finance.petty_cash_home"))
+    raw_emp = request.form.get("custodian_employee_id", type=int) or None
+    custodian_id = owned_id(Employee, raw_emp)
+    if raw_emp and not custodian_id:
+        flash("الموظف غير موجود.", "danger")
         return redirect(url_for("finance.petty_cash_home"))
 
     je = post_journal(
@@ -305,7 +315,7 @@ def petty_cash_settle():
     )
     tx = PettyCashTransaction(
         school_id=_sid(), kind="settle",
-        custodian_employee_id=request.form.get("custodian_employee_id", type=int) or None,
+        custodian_employee_id=custodian_id,
         amount=amount,
         tx_date=date.today(),
         reason=(request.form.get("reason") or "").strip() or None,
