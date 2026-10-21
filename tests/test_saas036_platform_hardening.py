@@ -284,7 +284,11 @@ def test_login_does_not_reveal_whether_an_email_exists(console, puser):
     c = console.test_client()
     a = c.post("/superadmin/login", base_url=CONSOLE, data={"email": info["email"], "password": "wrong-pass-123"})
     b = c.post("/superadmin/login", base_url=CONSOLE, data={"email": "nobody@nowhere.test", "password": "wrong-pass-123"})
-    assert a.status_code == b.status_code and a.data == b.data
+    # the CSRF token is timestamp-signed, so it differs across a second
+    # boundary; everything else must be byte-identical
+    import re
+    strip = lambda r: re.sub(rb'name="csrf_token" value="[^"]*"', b"", r.data)  # noqa: E731
+    assert a.status_code == b.status_code and strip(a) == strip(b)
 
 
 def test_support_enter_has_no_open_redirect(console, two_schools):
@@ -431,9 +435,15 @@ def test_a_new_owner_comes_only_from_the_server(console, monkeypatch):
     out = console.test_cli_runner().invoke(
         args=["platform-user-set-role", "--email", target_email, "--role", "owner"])
     assert out.exit_code == 0, out.output
+    assert "/superadmin/setup/" in out.output and "credentials reset" in out.output
     with console.app_context():
-        assert db.session.get(PlatformUser, tid).role == "owner"
-        db.session.get(PlatformUser, tid).role = "support"
+        promoted = db.session.get(PlatformUser, tid)
+        assert promoted.role == "owner"
+        # nothing a console owner may have set carries over
+        assert promoted.totp_enabled is False and promoted.totp_secret_encrypted is None
+        from app.models import PlatformSetupToken
+        assert PlatformSetupToken.query.filter_by(platform_user_id=tid, used_at=None).count() == 1
+        promoted.role = "support"
         db.session.commit()
         db.session.remove()
 

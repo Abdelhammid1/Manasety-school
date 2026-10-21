@@ -330,10 +330,27 @@ def platform_user_set_role(email, role):
     old, u.role = u.role, role
     psec.revoke_sessions(u.id)
     u.session_version = (u.session_version or 1) + 1
-    pa.audit("platform_user_role_cli", None, target_user_id=u.id, role=role, old_role=old)
+    link = None
+    if role == "owner" and old != "owner":
+        # Commit review: a console owner may have reset this account's
+        # password / TOTP before (and so know them). A new owner starts
+        # from zero: new password via a fresh CLI-only link, TOTP again.
+        import secrets
+        from ...models import PlatformRecoveryCode
+        u.set_password(secrets.token_urlsafe(48))
+        u.totp_secret_encrypted, u.totp_enabled, u.totp_last_counter = None, False, None
+        PlatformRecoveryCode.query.filter_by(platform_user_id=u.id).delete()
+        link = psec.issue_setup_link(u, purpose="reset")     # also kills older links
+    pa.audit("platform_user_role_cli", None, target_user_id=u.id, role=role, old_role=old,
+             credentials_reset=link is not None)
     pact.notify_owners("منصتي — تغيير دور من السيرفر", f"دور {u.email} اتغيّر من {old} إلى {role} من سطر الأوامر.")
     db.session.commit()
     click.echo(f"{u.email}: {old} -> {role}")
+    if link:
+        from flask import current_app
+        host = (current_app.config.get("PLATFORM_HOSTS") or ["console.manasety.ai"])[0]
+        click.echo("credentials reset — give this one-time link (72 h) to the person directly:")
+        click.echo(f"https://{host}/superadmin/setup/{link}")
 
 
 @bp.cli.command("platform-user-unlock")
