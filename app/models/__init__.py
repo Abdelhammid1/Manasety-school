@@ -3,7 +3,7 @@ from .user import User, Role, AccountSetupToken
 from .platform_admin import (
     PlatformUser, PlatformRecoveryCode, PlatformAuditLog, PLATFORM_ROLES,
     Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting, PlatformJob,
-    SchoolModuleOverride, SchoolLimitOverride,
+    SchoolModuleOverride, SchoolLimitOverride, SupportSession, SupportSessionEvent,
     BILLING_CYCLES, SUBSCRIPTION_EVENT_KINDS,
 )
 from .academic import AcademicYear, Term, Grade, Section
@@ -144,6 +144,6 @@ __all__ = [
     "GAP_SEVERITY", "GAP_SOURCE", "INTERVENTION_STATUS",
     "PlatformUser", "PlatformRecoveryCode", "PlatformAuditLog", "PLATFORM_ROLES",
     "Plan", "SchoolSubscription", "SchoolSubscriptionEvent", "PlatformSetting", "PlatformJob",
-    "SchoolModuleOverride", "SchoolLimitOverride",
+    "SchoolModuleOverride", "SchoolLimitOverride", "SupportSession", "SupportSessionEvent",
     "BILLING_CYCLES", "SUBSCRIPTION_EVENT_KINDS",
 ]

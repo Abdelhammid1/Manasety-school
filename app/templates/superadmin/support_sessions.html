@@ -1,0 +1,24 @@
+{% extends "superadmin/base.html" %}
+{% block title %}جلسات الدعم{% endblock %}
+{% block content %}
+<h1>جلسات الدعم</h1>
+<p class="sub">آخر 200 جلسة. كل طلب داخل الجلسة مسجّل في تفاصيلها.</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>المدرسة</th><th>الموظف</th><th>الوضع</th><th>البداية</th><th>الانتهاء</th><th>الحالة</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr>
+        <td class="num"><a href="{{ url_for('superadmin.support_session_detail', sid=r.id) }}">{{ r.id }}</a></td>
+        <td>{{ schools[r.school_id].name if r.school_id in schools else r.school_id }}</td>
+        <td><bdi>{{ r.platform_user.email if r.platform_user else '—' }}</bdi></td>
+        <td><span class="chip {{ 'active' if r.mode == 'read_only' else 'expired' }}">{{ 'قراءة' if r.mode == 'read_only' else 'كتابة' }}</span></td>
+        <td class="num"><bdi>{{ r.started_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td class="num"><bdi>{{ r.expires_at.strftime('%H:%M') }}</bdi></td>
+        <td>{{ r.end_reason or ('انتهت' if r.ended_at else 'جارية') }}</td>
+      </tr>
+    {% else %}<tr><td colspan="7">لا توجد جلسات.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

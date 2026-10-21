@@ -1,0 +1,31 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}سجل دخول الدعم{% endblock %}
+{% block page_content %}
+<div class="mt-6 flex flex-col gap-4">
+  <div>
+    <h1 class="font-headline-md text-headline-md text-navy">سجل دخول الدعم الفني</h1>
+    <p class="font-body-md text-body-md text-on-surface-variant">كل مرة فريق دعم منصتي دخل مدرستك: الوقت، المدة، الوضع، والسبب.</p>
+  </div>
+  <div class="bg-surface-container-lowest rounded-2xl border border-outline-variant/30 overflow-x-auto">
+    <table class="w-full text-right font-body-md text-body-md">
+      <thead class="bg-surface-container-low text-on-surface-variant font-label-lg text-label-lg">
+        <tr><th class="p-3">البداية</th><th class="p-3">المدة</th><th class="p-3">الوضع</th><th class="p-3">السبب</th><th class="p-3">الحالة</th></tr>
+      </thead>
+      <tbody>
+      {% for r in rows %}
+        {% set end = r.ended_at or r.expires_at %}
+        <tr class="border-t border-outline-variant/20">
+          <td class="p-3 whitespace-nowrap"><bdi>{{ r.started_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+          <td class="p-3 whitespace-nowrap">{{ ((end.replace(tzinfo=None) - r.started_at.replace(tzinfo=None)).total_seconds() // 60)|int }} دقيقة</td>
+          <td class="p-3">{{ 'قراءة فقط' if r.mode == 'read_only' else 'كتابة' }}</td>
+          <td class="p-3">{{ r.reason }}</td>
+          <td class="p-3">{{ 'انتهت' if r.ended_at else 'جارية' }}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="p-6 text-center text-on-surface-variant">لم يدخل الدعم الفني مدرستك حتى الآن.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -85,6 +85,9 @@ def provision_user(
             return None, str(e)
 
     username = (username or "").strip() or suggest_username(full_name, phone)
+    from .support_policy import username_reserved
+    if username_reserved(username):
+        return None, "اسم المستخدم محجوز."
     # De-duplicate username inside the school by appending a short tail.
     base = username
     tries = 0

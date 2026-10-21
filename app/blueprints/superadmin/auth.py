@@ -186,6 +186,9 @@ def logout():
     user = current_platform_user()
     if user is not None:
         pa.audit("logout", user)
+        # SAAS-031 — logging out of the console ends any support session.
+        from ...services.support_policy import end_for_platform_user
+        end_for_platform_user(user.id, "platform_logout")
         end_platform_session(revoke_user=user)
         db.session.commit()
     else:

@@ -42,6 +42,10 @@ SUPERADMIN_ROUTES = {
     "superadmin.school_nginx_sync": {"POST"},                       # SAAS-029
     "superadmin.school_module_set": {"POST"},                       # SAAS-030
     "superadmin.school_limits_set": {"POST"},
+    "superadmin.support_start": {"POST"},                           # SAAS-031
+    "superadmin.support_sessions": {"GET"},
+    "superadmin.support_session_detail": {"GET"},
+    "superadmin.support_revoke": {"POST"},
 }
 # Writes allowed in the console, per ticket. Anything else must be GET.
 CONSOLE_WRITES = {
@@ -53,6 +57,7 @@ CONSOLE_WRITES = {
     "superadmin.school_new_step", "superadmin.school_create",                 # SAAS-028
     "superadmin.school_nginx_sync",                                           # SAAS-029
     "superadmin.school_module_set", "superadmin.school_limits_set",           # SAAS-030
+    "superadmin.support_start", "superadmin.support_revoke",                  # SAAS-031
 }
 
 

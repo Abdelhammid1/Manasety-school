@@ -386,3 +386,31 @@ def test_api_module_gate_without_tenant_host(app, two_schools, monkeypatch):
     r = app.test_client().get(f"/api/parent/child/{A['student'].id}/invoices",
                               headers={"Authorization": f"Bearer {tok}"})
     assert r.status_code == 403 and r.json == {"error": "module_disabled", "module": "finance"}
+
+
+def test_non_staff_role_names_cannot_hide_staff(mapp, two_schools, login_as):
+    """Security review: a custom role named parent/student (or the parent
+    role given staff permissions) would hide staff from the user limit."""
+    from app.extensions import db
+    from app.models import Role
+    A = two_schools["A"]
+    c = mapp.test_client()
+    login_as(c, A["users"]["admin"], base_url=host(A))
+    parent_id = A["roles"]["parent"].id
+    r = c.post("/admin/roles/new", base_url=host(A),
+               data={"name": "student", "name_ar": "x", "perm_students_view": "on"})
+    assert "محجوز".encode() in r.data
+    with mapp.app_context():
+        before = db.session.get(Role, parent_id).permissions
+        db.session.remove()
+    r = c.post(f"/admin/roles/{parent_id}/edit", base_url=host(A),
+               data={"name": "parent", "name_ar": "ولي أمر", "perm_users_add": "on",
+                     "perm_portal_view": "on"})
+    assert "يقتصر على صلاحيات البوابة".encode() in r.data
+    with mapp.app_context():
+        assert db.session.get(Role, parent_id).permissions == before
+        db.session.remove()
+    teacher_id = A["roles"]["teacher"].id
+    r = c.post(f"/admin/roles/{teacher_id}/edit", base_url=host(A),
+               data={"name": "parent", "name_ar": "x"})
+    assert "محجوز".encode() in r.data

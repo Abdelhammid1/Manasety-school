@@ -63,6 +63,9 @@ class School(db.Model):
     # SAAS-027 kill switch: bumped on suspend; sessions / JWTs carrying an
     # older value are refused on their next request.
     auth_epoch = db.Column(db.Integer, default=0, nullable=False, server_default="0")
+    # SAAS-031 — tell the school's admins when platform support enters.
+    notify_on_support_access = db.Column(db.Boolean, default=True, nullable=False,
+                                         server_default="1")
     reminder_days_before = db.Column(db.String(32), default="7,3",
                                      nullable=False, server_default="7,3")
     notify_channels = db.Column(db.String(64), default="in_app,email",

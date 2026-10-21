@@ -44,6 +44,8 @@ PLATFORM_TABLES: frozenset[str] = frozenset({
     # SAAS-030 — console-managed exceptions (keyed by school, never
     # written from a school host)
     "school_module_overrides", "school_limit_overrides",
+    # SAAS-031
+    "support_sessions", "support_session_events",
 })
 # school_id is the tenant itself; deleted_by_id is soft-delete
 # bookkeeping (who pressed delete), not ownership.

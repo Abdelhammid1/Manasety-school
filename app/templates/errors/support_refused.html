@@ -1,0 +1,10 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}غير مسموح في جلسة الدعم{% endblock %}
+{% block page_content %}
+<div class="mt-10 max-w-lg mx-auto bg-surface-container-lowest rounded-2xl border border-outline-variant/30 p-8 text-center flex flex-col gap-3">
+  <span class="material-symbols-outlined text-5xl text-error" aria-hidden="true">block</span>
+  <h1 class="font-headline-md text-headline-md text-navy">غير مسموح</h1>
+  <p class="font-body-md text-body-md text-on-surface-variant">{{ message }}</p>
+  <a class="font-label-lg text-label-lg text-secondary" href="javascript:history.back()">رجوع</a>
+</div>
+{% endblock %}

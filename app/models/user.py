@@ -54,6 +54,11 @@ class User(UserMixin, db.Model):
     phone = db.Column(db.String(32))
     password_hash = db.Column(db.String(255), nullable=False)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # SAAS-031 — the school's platform-support identity (one per school,
+    # username __manasety_support__). Hidden from every query by the
+    # global filter in services/support_policy.py; can't log in.
+    is_platform_support = db.Column(db.Boolean, default=False, nullable=False,
+                                    server_default="0")
     failed_attempts = db.Column(db.Integer, default=0, nullable=False)
     locked_until = db.Column(db.DateTime)
     last_login_at = db.Column(db.DateTime)
@@ -62,7 +67,12 @@ class User(UserMixin, db.Model):
     role = db.relationship("Role", foreign_keys=[role_id], backref="users")
     school = db.relationship("School", backref="users")
 
-    __table_args__ = (db.UniqueConstraint("school_id", "username", name="uq_user_school_username"),)
+    __table_args__ = (
+        db.UniqueConstraint("school_id", "username", name="uq_user_school_username"),
+        db.Index("uq_users_one_support_per_school", "school_id", unique=True,
+                 sqlite_where=db.text("is_platform_support = 1"),
+                 postgresql_where=db.text("is_platform_support")),
+    )
 
     def set_password(self, password: str) -> None:
         self.password_hash = bcrypt.generate_password_hash(password).decode("utf-8")

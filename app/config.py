@@ -116,6 +116,23 @@ def _resolve_platform_enc_key(session_key: str, environ=os.environ, app_env=None
     return key or f"dev-platform-key|{session_key}"
 
 
+def _resolve_support_session_key(session_key: str, environ=os.environ, app_env=None) -> str:
+    """SAAS-031 — signs the 60-second console → school hand-off token.
+    Same policy as JWT_SIGNING_KEY (required, >= 32 chars, != SECRET_KEY
+    in production). The value is never printed."""
+    app_env = APP_ENV if app_env is None else app_env
+    key = (environ.get("SUPPORT_SESSION_KEY") or "").strip()
+    is_prod = app_env not in ("development", "testing")
+    if is_prod and (not key or len(key) < _MIN_SECRET_LEN or key == session_key):
+        raise RuntimeError(
+            "SUPPORT_SESSION_KEY is missing, shorter than "
+            f"{_MIN_SECRET_LEN} characters, or identical to SECRET_KEY in "
+            f"APP_ENV={app_env!r}. Mint one with `python -c \"import secrets; "
+            "print(secrets.token_urlsafe(48))\"`. (Value not shown.)"
+        )
+    return key or f"dev-support-key|{session_key}"
+
+
 def _env_int(name: str, default: int, environ=os.environ) -> int:
     raw = (environ.get(name) or "").strip()
     if not raw:
@@ -231,6 +248,7 @@ class Config:
     BASE_DOMAIN, PLATFORM_HOSTS, LEGACY_HOSTS = _resolve_tenancy_hosts()
     # SAAS-025 — platform console session + secrets.
     PLATFORM_ENC_KEY = _resolve_platform_enc_key(SECRET_KEY)
+    SUPPORT_SESSION_KEY = _resolve_support_session_key(SECRET_KEY)
     PLATFORM_SESSION_MINUTES = _env_int("PLATFORM_SESSION_MINUTES", 30)
     PLATFORM_SESSION_MAX_HOURS = 8
     PLATFORM_SESSION_COOKIE_NAME = "manasety_platform"

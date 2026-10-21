@@ -222,6 +222,54 @@ class SchoolLimitOverride(db.Model):
     updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
 
 
+SUPPORT_MODES = ("read_only", "write")
+
+
+class SupportSession(db.Model):
+    """SAAS-031 — one time-boxed visit of platform support to a school."""
+    __tablename__ = "support_sessions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"), nullable=False, index=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    mode = db.Column(db.String(16), nullable=False, default="read_only")
+    reason = db.Column(db.Text, nullable=False)
+    started_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    last_seen_at = db.Column(db.DateTime(timezone=True))
+    ended_at = db.Column(db.DateTime(timezone=True))
+    end_reason = db.Column(db.String(32))
+    ip = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    nonce_hash = db.Column(db.String(64))
+    nonce_used_at = db.Column(db.DateTime(timezone=True))
+
+    platform_user = db.relationship("PlatformUser")
+
+    __table_args__ = (
+        db.CheckConstraint("mode IN ('read_only','write')", name="ck_support_sessions_mode"),
+    )
+
+
+class SupportSessionEvent(db.Model):
+    """SAAS-031 — every request inside a support session. Never the body
+    or field values: method, endpoint, path (no query string), status,
+    ip, and for writes the submitted field names only."""
+    __tablename__ = "support_session_events"
+
+    id = db.Column(db.Integer, primary_key=True)
+    support_session_id = db.Column(db.Integer, db.ForeignKey("support_sessions.id"), nullable=False)
+    ts = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    method = db.Column(db.String(8), nullable=False)
+    endpoint = db.Column(db.String(128))
+    path = db.Column(db.String(512), nullable=False)
+    status = db.Column(db.Integer)
+    ip = db.Column(db.String(45))
+    field_names = db.Column(db.JSON)
+
+    __table_args__ = (db.Index("ix_support_session_events_session_ts", "support_session_id", "ts"),)
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

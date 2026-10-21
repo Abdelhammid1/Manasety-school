@@ -36,7 +36,7 @@
           {% if n %}<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-error text-white font-label-xs font-bold">{{ n }} جديد</span>{% endif %}
         </div>
         <div class="font-label-xs text-outline">
-          {% for p in c.participants %}{% if p.user_id != current_user.id %}{{ p.user.full_name }}{% if not loop.last %} ، {% endif %}{% endif %}{% endfor %}
+          {% for p in c.participants %}{% if p.user_id != current_user.id %}{{ p.user.full_name if p.user else 'دعم منصتي' }}{% if not loop.last %} ، {% endif %}{% endif %}{% endfor %}
         </div>
       </div>
       {% if c.last_message_at %}

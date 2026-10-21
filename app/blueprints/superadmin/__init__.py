@@ -40,6 +40,9 @@ def end_platform_session(revoke_user=None):
     kill every other session of that user (bumps session_version)."""
     if revoke_user is not None:
         revoke_user.session_version = (revoke_user.session_version or 1) + 1
+        # SAAS-031 security review — and every support session of theirs.
+        from ...services.support_policy import end_for_platform_user
+        end_for_platform_user(revoke_user.id, "platform_session_revoked")
     logout_user()
     for k in [k for k in session if k.startswith("sa_")]:
         session.pop(k, None)
@@ -124,4 +127,5 @@ from . import plans          # noqa: E402,F401  SAAS-026
 from . import subscriptions  # noqa: E402,F401  SAAS-026
 from . import onboarding     # noqa: E402,F401  SAAS-028
 from . import modules_limits  # noqa: E402,F401  SAAS-030
+from . import support        # noqa: E402,F401  SAAS-031
 from . import cli            # noqa: E402,F401

@@ -192,6 +192,18 @@
   {% block extra_head %}{% endblock %}
 </head>
 <body class="bg-surface font-body text-body-md text-on-surface antialiased{% block body_class %}{% endblock %}">
+  {% if support_banner %}
+  {# SAAS-031 — support session banner: always shown, can't be hidden. #}
+  <div role="alert" id="supportBanner" data-seconds="{{ support_banner.seconds_left }}"
+       style="position:sticky;top:0;z-index:100;display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;justify-content:center;padding:10px 16px;font-weight:800;color:#fff;background:{{ '#b91c1c' if support_banner.mode == 'write' else '#7c3aed' }}">
+    <span>أنت داخل كدعم منصتي على {{ support_banner.school }} — {{ 'وضع الكتابة' if support_banner.mode == 'write' else 'وضع القراءة فقط' }} — ينتهي بعد <bdi id="supportLeft">{{ support_banner.mmss }}</bdi></span>
+    <form method="post" action="{{ url_for('support.end') }}" style="margin:0">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" style="background:#fff;color:#111;border:0;border-radius:8px;padding:4px 14px;font-weight:800;cursor:pointer">إنهاء</button>
+    </form>
+  </div>
+  <script>(function(){var b=document.getElementById('supportBanner'),l=document.getElementById('supportLeft'),s=+b.dataset.seconds;setInterval(function(){if(s>0)s--;l.textContent=String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');if(!s)location.reload();},1000);})();</script>
+  {% endif %}
   {% if shell_hidden %}
     {# Focus mode — no sidebar, no topbar. Used by auth, errors, quiz-taking. #}
     {% block focus_content %}{% endblock %}
@@ -213,6 +225,12 @@
             {% endif %}
           </div>
         {% endif %}
+        {% for s in support_notices or [] %}
+          <div role="status" class="mt-4 px-4 py-3 rounded-lg font-label-lg text-label-lg bg-surface-container text-on-surface">
+            دخل فريق دعم منصتي مدرستك يوم <bdi>{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</bdi> ({{ 'قراءة فقط' if s.mode == 'read_only' else 'كتابة' }}) — السبب: {{ s.reason }}.
+            <a class="underline" href="{{ url_for('support.log') }}">سجل دخول الدعم</a>
+          </div>
+        {% endfor %}
         {% for w in limit_warnings or [] %}
           <div role="status" class="mt-4 px-4 py-3 rounded-lg font-label-lg text-label-lg {% if w.full %}bg-error-container text-on-error-container{% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %}">
             {% if w.full %}وصلت للحد الأقصى للباقة في {{ w.label }}{% else %}قربت من الحد الأقصى للباقة في {{ w.label }}{% endif %}:

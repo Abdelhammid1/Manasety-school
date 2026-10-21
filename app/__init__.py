@@ -56,6 +56,9 @@ def create_app(config_class=Config):
     # app/services/soft_delete.py for the escape hatch.
     from .services.soft_delete import register as _register_soft_delete
     _register_soft_delete(app)
+    # SAAS-031 — the platform support user is invisible to every query.
+    from .services.support_policy import register_filter as _register_support_filter
+    _register_support_filter()
 
     from .models import PlatformUser, User
 
@@ -74,7 +77,12 @@ def create_app(config_class=Config):
             return pu if pu is not None and pu.is_active else None
         if on_platform or not uid.isdigit():
             return None
-        return db.session.get(User, int(uid))
+        # SAAS-031 — the support user loads only inside a support session.
+        from .services.support_policy import is_support_request
+        user = db.session.get(User, int(uid), execution_options={"include_support": True})
+        if user is not None and user.is_platform_support and not is_support_request():
+            return None
+        return user
 
     # Ticket 6 — install audit-log SQLAlchemy listeners once per process.
     # Must run AFTER models are imported so the classes exist.
@@ -121,6 +129,11 @@ def create_app(config_class=Config):
     def _health():
         from flask import jsonify
         return jsonify(ok=True)
+
+    # SAAS-031 — support sessions (school-host side).
+    from .blueprints.support import bp as support_bp, install as _install_support
+    app.register_blueprint(support_bp)
+    _install_support(app)
 
     # SAAS-028 — /set-password/<token> for provisioned school admins.
     from .blueprints.auth.setup import bp as account_bp

@@ -1,0 +1,32 @@
+{% extends "superadmin/base.html" %}
+{% block title %}جلسة دعم #{{ row.id }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.support_sessions') }}">→ كل الجلسات</a></p>
+<h1>جلسة دعم #{{ row.id }}</h1>
+<p class="sub">{{ school.name if school else row.school_id }} · {{ 'قراءة فقط' if row.mode == 'read_only' else 'كتابة' }} ·
+  <bdi>{{ row.platform_user.email if row.platform_user else '' }}</bdi> ·
+  {{ row.end_reason or ('انتهت' if row.ended_at else 'جارية') }}</p>
+<div class="card">
+  <p><b>السبب:</b> {{ row.reason }}</p>
+  <p><b>من</b> <bdi>{{ row.started_at.strftime('%Y-%m-%d %H:%M:%S') }}</bdi> <b>حتى</b> <bdi>{{ (row.ended_at or row.expires_at).strftime('%Y-%m-%d %H:%M:%S') }}</bdi></p>
+  {% if not row.ended_at %}
+  <form method="post" action="{{ url_for('superadmin.support_revoke', sid=row.id) }}" style="margin:0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn" type="submit">إنهاء الجلسة الآن</button>
+  </form>
+  {% endif %}
+</div>
+<h2>الطلبات ({{ events|length }})</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الوقت</th><th>الطريقة</th><th>المسار</th><th>النتيجة</th><th>الحقول</th></tr></thead>
+    <tbody>
+    {% for e in events %}
+      <tr><td class="num"><bdi>{{ e.ts.strftime('%H:%M:%S') }}</bdi></td><td class="mono">{{ e.method }}</td>
+          <td class="mono">{{ e.path }}</td><td class="num">{{ e.status }}</td>
+          <td class="mono" style="white-space:normal">{{ (e.field_names or [])|join(', ') }}</td></tr>
+    {% else %}<tr><td colspan="5">لا توجد طلبات.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

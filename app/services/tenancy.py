@@ -523,7 +523,11 @@ def init_app(app: Flask) -> None:
         if resolved.blocked:
             # SAAS-027 — suspended status or a subscription that doesn't
             # allow access: one page / one JSON shape, no login form.
-            if resolved.support_bypass:
+            # SAAS-031 — except for platform support entering / inside a
+            # live support session for this very school.
+            from .support_policy import bypass_for
+            if request.endpoint == "support.enter" or bypass_for(resolved):
+                resolved.support_bypass = True
                 return None
             from .subscription_enforcement import blocked_response
             return blocked_response(resolved)

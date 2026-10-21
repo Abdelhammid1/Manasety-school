@@ -1,0 +1,26 @@
+{# SAAS-031 — included by school_detail.html (owner / support, not archived) #}
+{% if current_user.role in ('owner', 'support') and school.status != 'archived' %}
+<h2 id="support">الدخول كدعم</h2>
+<div class="card">
+  <p class="sub" style="margin:0 0 8px">بتشوف المدرسة زي مديرها بالظبط. كل طلب بيتسجّل، والمدرسة بيوصلها إشعار.</p>
+  <form method="post" action="{{ url_for('superadmin.support_start', school_id=school.id) }}" style="margin:0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="sup_reason">السبب * (10 حروف على الأقل)</label>
+    <input id="sup_reason" name="reason" required minlength="10">
+    <div class="row">
+      <div><label for="sup_mode">الوضع</label>
+        <select id="sup_mode" name="mode">
+          <option value="read_only">قراءة فقط</option>
+          {% if current_user.role == 'owner' %}<option value="write">كتابة (30 دقيقة كحد أقصى)</option>{% endif %}
+        </select></div>
+      <div><label for="sup_minutes">المدة (دقائق)</label><input id="sup_minutes" name="minutes" type="number" min="1" max="120" value="30"></div>
+      <div><label for="sup_totp">رمز التحقق (TOTP)</label><input id="sup_totp" name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="مطلوب لو آخر تحقق أقدم من 10 دقايق"></div>
+    </div>
+    {% if current_user.role == 'owner' %}
+    <label for="sup_confirm">لوضع الكتابة: اكتب اسم المدرسة بالظبط</label>
+    <input id="sup_confirm" name="confirm_name" autocomplete="off">
+    {% endif %}
+    <button class="btn" type="submit" style="margin-top:12px">دخول كدعم</button>
+  </form>
+</div>
+{% endif %}

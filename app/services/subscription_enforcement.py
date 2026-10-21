@@ -110,6 +110,8 @@ def session_epoch_is_stale(user) -> bool:
     sid = getattr(user, "school_id", None)
     if sid is None or getattr(user, "is_platform_user", False):
         return False
+    if getattr(user, "is_platform_support", False):
+        return False     # SAAS-031: checked against support_sessions instead
     # Sessions from before SAAS-027 carry no epoch: treat as 0 so nobody
     # is logged out at deploy time.
     return int(session.get("ae", 0) or 0) < _school_epoch(sid)
@@ -200,7 +202,8 @@ def install(app) -> None:
         if not has_request_context():
             return {}               # e-mail / PDF rendering from cron
         return {"subscription_banner": banner_for_request(),
-                "limit_warnings": limit_warnings_for_request()}
+                "limit_warnings": limit_warnings_for_request(),
+                "support_notices": support_notices_for_request()}
 
     if not event.contains(db.session, "before_flush", _read_only_flush_guard):
         event.listen(db.session, "before_flush", _read_only_flush_guard)
@@ -230,6 +233,8 @@ def _read_only_flush_guard(session_, _flush_context, _instances):
     if not offenders:
         return
     mode = (current_app.config.get("SUBSCRIPTION_RO_FLUSH_GUARD") or "log").lower()
+    if g.get("ro_flush_guard_enforce"):
+        mode = "enforce"          # SAAS-031: read-only support sessions
     msg = f"read-only school write via {request.method} {request.endpoint}: {sorted(set(offenders))}"
     if mode == "enforce":
         raise PermissionError(msg)
@@ -237,6 +242,16 @@ def _read_only_flush_guard(session_, _flush_context, _instances):
 
 
 # ─── banners ────────────────────────────────────────────────────────
+
+def support_notices_for_request():
+    """SAAS-031 — the school admin's in-app notice of recent support
+    visits (dashboard only; not shown to support itself)."""
+    from flask_login import current_user
+    if request.endpoint != "dashboard.home" or not getattr(current_user, "is_authenticated", False)             or getattr(current_user, "is_platform_user", False)             or getattr(current_user, "is_platform_support", False)             or getattr(getattr(current_user, "role", None), "name", None) != "admin":
+        return []
+    from .support_policy import recent_for_admin
+    return recent_for_admin(current_user.school_id)
+
 
 def limit_warnings_for_request():
     """SAAS-030 — limits at ≥ 90 %, for a school admin on the dashboard

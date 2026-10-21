@@ -100,3 +100,17 @@ def nginx_sync_command(check, dry_run, only, from_queue):
     click.echo(f"result: {res.status}")
     if res.status == "failed":
         raise SystemExit(1)
+
+
+@bp.cli.command("support-events-prune")
+@click.option("--months", type=int, default=12, show_default=True)
+def support_events_prune(months):
+    """SAAS-031 — drop support_session_events older than the retention
+    window (default 12 months). Sessions themselves are kept."""
+    from datetime import datetime, timedelta, timezone
+    from ...models import SupportSessionEvent
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30 * months)
+    n = SupportSessionEvent.query.filter(SupportSessionEvent.ts < cutoff).delete(synchronize_session=False)
+    pa.audit("support_events_pruned", None, rows=n, months=months)
+    db.session.commit()
+    click.echo(f"pruned {n} support event(s) older than {months} months")

@@ -141,6 +141,8 @@ class AuditLog(db.Model):
     new_value = db.Column(db.JSON)
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(255))
+    # SAAS-031 — actions taken inside a support session ("دعم منصتي")
+    support_session_id = db.Column(db.Integer)
     created_at = db.Column(db.DateTime(timezone=True), default=_utcnow, index=True)
 
     user = db.relationship("User")

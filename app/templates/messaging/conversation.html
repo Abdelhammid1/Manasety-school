@@ -10,7 +10,7 @@
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <h1 class="font-headline-md text-primary font-bold">{{ conversation.subject or 'محادثة' }}</h1>
     <p class="font-label-md text-outline mt-1">
-      مع: {% for p in others %}{{ p.user.full_name }}{% if not loop.last %} ، {% endif %}{% endfor %}
+      مع: {% for p in others %}{{ p.user.full_name if p.user else 'دعم منصتي' }}{% if not loop.last %} ، {% endif %}{% endfor %}
     </p>
   </section>
 

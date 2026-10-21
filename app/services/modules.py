@@ -35,7 +35,7 @@ class Module:
 
 MODULES: tuple[Module, ...] = (
     Module("core", "الأساسيات (دخول، لوحة التحكم، الإعدادات، المستخدمون، الرسائل)", core=True,
-           blueprints=("auth", "account", "dashboard", "admin", "messaging", "files"),
+           blueprints=("auth", "account", "dashboard", "admin", "messaging", "files", "support"),
            endpoints=("platform.user_scopes", "platform.audit_log"),
            api_paths=(r"^/api/auth/", r"^/api/me(/|$)", r"^/api/notifications/",
                       r"^/api/(teacher|student|parent)/home$", r"^/api/teacher/messages",

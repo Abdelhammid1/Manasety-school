@@ -251,6 +251,8 @@ def provision_school(spec: ProvisionSpec, platform_user, *, dry_run: bool = Fals
             _create_subscription(school, spec, platform_user)
             counts = _apply_template(school)
             admin, raw = _create_admin(school, spec)
+            from .support_policy import ensure_support_user
+            ensure_support_user(school)            # SAAS-031
             _record_events(school, admin, platform_user, counts)
             _after_create(school, platform_user)
         db.session.commit()

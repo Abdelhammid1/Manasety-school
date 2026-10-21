@@ -95,6 +95,12 @@ def _serialize(obj):
     return out
 
 
+def _support_session_id():
+    """SAAS-031 — set when the change was made inside a support session."""
+    from flask import g
+    return g.get("support_session_id") if has_request_context() else None
+
+
 def _record(connection, action, target, before=None):
     """Insert an audit row inline via the same connection the model
     event fired on. Writing on the raw connection avoids re-entering
@@ -123,6 +129,7 @@ def _record(connection, action, target, before=None):
         old_value=redact(before),
         new_value=redact(_serialize(target)) if action != "delete" else None,
         ip_address=ip, user_agent=ua,
+        support_session_id=_support_session_id(),
         created_at=datetime.now(timezone.utc),
     ))
 

@@ -215,16 +215,36 @@ def roles_list():
     return render_template("admin/roles_list.html", roles=roles)
 
 
+def _non_staff_role_problem(name, permissions, existing=None):
+    """SAAS-030 security review — users of the student / parent roles
+    don't count against the plan's staff limit, so those names are
+    reserved for the school's own two roles and can only carry portal
+    permissions (no staff powers hidden under a non-staff name)."""
+    from ...services.limits import NON_STAFF_ROLES
+    name = (name or "").strip().lower()
+    if name in NON_STAFF_ROLES and (existing is None or existing.name != name):
+        return "اسم الدور محجوز للنظام."
+    if name in NON_STAFF_ROLES and set((permissions or {}).keys()) - {"portal"}:
+        return "دور الطالب / ولي الأمر يقتصر على صلاحيات البوابة."
+    return None
+
+
 @bp.route("/roles/new", methods=["GET", "POST"])
 @login_required
 @require_permission("roles", "add")
 def role_new():
     if request.method == "POST":
+        perms = _parse_permissions(request.form)
+        problem = _non_staff_role_problem(request.form["name"], perms)
+        if problem:
+            flash(problem, "danger")
+            return render_template("admin/role_form.html", role=None,
+                                   modules=PERMISSION_MODULES, actions=PERMISSION_ACTIONS)
         role = Role(
             school_id=current_user.school_id,
             name=request.form["name"].strip(),
             name_ar=request.form["name_ar"].strip(),
-            permissions=_parse_permissions(request.form),
+            permissions=perms,
         )
         db.session.add(role)
         db.session.commit()
@@ -244,9 +264,15 @@ def role_new():
 def role_edit(role_id):
     role = _get_role(role_id)
     if request.method == "POST":
+        perms = _parse_permissions(request.form)
+        problem = _non_staff_role_problem(request.form["name"], perms, existing=role)
+        if problem:
+            flash(problem, "danger")
+            return render_template("admin/role_form.html", role=role,
+                                   modules=PERMISSION_MODULES, actions=PERMISSION_ACTIONS)
         role.name = request.form["name"].strip()
         role.name_ar = request.form["name_ar"].strip()
-        role.permissions = _parse_permissions(request.form)
+        role.permissions = perms
         db.session.commit()
         flash("تم تحديث الدور.", "success")
         return redirect(url_for("admin.roles_list"))
@@ -327,6 +353,10 @@ def user_new():
             return render_template("admin/user_form.html", user=None, roles=roles)
         role_id = int(request.form["role_id"])
         if _reject_non_admin_role(role_id, roles):
+            return render_template("admin/user_form.html", user=None, roles=roles)
+        from ...services.support_policy import username_reserved
+        if username_reserved(request.form["username"]):
+            flash("اسم المستخدم محجوز.", "danger")
             return render_template("admin/user_form.html", user=None, roles=roles)
         # SAAS-030 — staff accounts count against the plan's user limit.
         from ...services.limits import LimitReached, check_and_reserve
