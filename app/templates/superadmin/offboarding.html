@@ -1,0 +1,81 @@
+{% extends "superadmin/base.html" %}
+{% block title %}مغادرة {{ school.name }}{% endblock %}
+{% macro guard(prefix, slug=False) %}
+  <label for="{{ prefix }}_reason">السبب *</label><input id="{{ prefix }}_reason" name="reason" required>
+  {% if slug %}<label for="{{ prefix }}_slug">اكتب الاسم المختصر <b class="mono">{{ school.slug }}</b> *</label><input id="{{ prefix }}_slug" name="confirm_slug" dir="ltr" required autocomplete="off">{% endif %}
+  <label for="{{ prefix }}_totp">رمز TOTP (لو آخر تحقق أقدم من 10 دقايق)</label><input id="{{ prefix }}_totp" name="totp" inputmode="numeric" maxlength="6" autocomplete="one-time-code">
+{% endmacro %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.school_detail', school_id=school.id) }}">→ {{ school.name }}</a></p>
+<h1>مغادرة المدرسة للمنصة</h1>
+<p class="sub">الترتيب: بدء ← (إيقاف) ← تصدير متحقَّق منه ← أرشفة ← فترة احتفاظ {{ retention_days }} يوم ← طلب حذف ← موافقة owner تاني ← الحذف من السيرفر (<span class="mono">flask school-purge</span>). كل خطوة قابلة للتراجع ما عدا الحذف. مفيش زر حذف هنا.</p>
+
+
+<div class="card">
+  {% if not row %}
+    <p>مفيش مسار مغادرة لسه.</p>
+    <form method="post" action="{{ url_for('superadmin.offboarding_step', school_id=school.id, step='start') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{{ guard('start') }}
+      <button class="btn" type="submit" style="margin-top:12px">بدء مسار المغادرة</button>
+    </form>
+  {% else %}
+    <dl class="review" style="display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0">
+      <dt>بدأ</dt><dd><bdi>{{ row.requested_at.strftime('%Y-%m-%d') if row.requested_at else '—' }}</bdi> — {{ row.reason }}</dd>
+      <dt>حالة المدرسة</dt><dd>{{ {'active':'نشطة','suspended':'موقوفة','archived':'مؤرشفة'}.get(school.status, school.status) }}</dd>
+      <dt>التصدير</dt><dd>{{ ('متحقَّق منه ' ~ row.export_verified_at.strftime('%Y-%m-%d')) if row.export_verified_at else 'لم يتحقق بعد' }}</dd>
+      <dt>الاحتفاظ حتى</dt><dd><bdi>{{ row.retention_until.strftime('%Y-%m-%d') if row.retention_until else '—' }}</bdi></dd>
+      <dt>طلب الحذف</dt><dd>{{ 'مطلوب ' ~ row.purge_requested_at.strftime('%Y-%m-%d %H:%M') if row.purge_requested_at else '—' }}{% if row.purge_approved_by %} — اتوافق عليه{% endif %}</dd>
+      <dt>الحذف</dt><dd>{{ ('تم ' ~ row.purged_at.strftime('%Y-%m-%d')) if row.purged_at else 'لم يتم' }}</dd>
+    </dl>
+  {% endif %}
+</div>
+
+{% if row and not row.purged_at %}
+<div class="actions">
+  <form method="post" action="{{ url_for('superadmin.offboarding_step', school_id=school.id, step='export') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h3>طلب تصدير</h3>
+    <p class="sub" style="margin:0">بيتنفّذ على السيرفر (<span class="mono">flask school-export --from-queue</span>) ويتحقق تلقائيًا.</p>
+    {{ guard('exp') }}<button class="btn block" type="submit">طلب تصدير</button>
+  </form>
+  <form method="post" action="{{ url_for('superadmin.offboarding_step', school_id=school.id, step='retention') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h3>بدء فترة الاحتفاظ</h3>
+    <p class="sub" style="margin:0">بعد الأرشفة من صفحة المدرسة.</p>
+    {{ guard('ret') }}<button class="btn block" type="submit">بدء الاحتفاظ</button>
+  </form>
+  <form method="post" action="{{ url_for('superadmin.offboarding_step', school_id=school.id, step='request_purge') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h3>طلب الحذف النهائي</h3>
+    {{ guard('req', slug=True) }}<button class="btn block" type="submit">طلب الحذف</button>
+  </form>
+  {% if row.purge_requested_by and row.purge_requested_by != current_user.id and not row.purge_approved_by %}
+  <form method="post" action="{{ url_for('superadmin.offboarding_step', school_id=school.id, step='approve_purge') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h3>موافقة على الحذف</h3>
+    {{ guard('apr') }}<button class="btn block" type="submit">موافقة</button>
+  </form>
+  {% endif %}
+  <form method="post" action="{{ url_for('superadmin.offboarding_step', school_id=school.id, step='cancel') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><h3>إلغاء المسار</h3>
+    <p class="sub" style="margin:0">المدرسة تفضل بحالتها (ممكن تلغي الأرشفة من صفحتها).</p>
+    {{ guard('cancel') }}<button class="btn block" type="submit">إلغاء</button>
+  </form>
+</div>
+{% endif %}
+
+<h2>ملفات التصدير</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>الحالة</th><th>طُلب</th><th>انتهى</th><th>الملف</th><th></th></tr></thead>
+    <tbody>
+    {% for j in jobs %}
+      <tr><td class="num">{{ j.id }}</td><td>{{ j.status }}</td>
+        <td class="num"><bdi>{{ j.requested_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td class="num"><bdi>{{ j.finished_at.strftime('%Y-%m-%d %H:%M') if j.finished_at else '—' }}</bdi></td>
+        <td class="mono">{{ (j.result or {}).get('file', '') }}</td>
+        <td>{% if j.status == 'succeeded' %}<form method="post" action="{{ url_for('superadmin.export_download', job_id=j.id) }}" class="row" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <input name="reason" required placeholder="السبب" aria-label="السبب"><input name="totp" placeholder="TOTP" aria-label="رمز التحقق" inputmode="numeric" maxlength="6" style="flex:0 0 90px">
+          <button class="btn ghost" type="submit" style="flex:0 0 auto">تحميل</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="6">لا يوجد.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -58,6 +58,10 @@ SUPERADMIN_ROUTES = {
     "superadmin.school_tags_set": {"POST"},
     "superadmin.announcements": {"GET", "POST"},
     "superadmin.announcement_delete": {"POST"},
+    # SAAS-035
+    "superadmin.offboarding": {"GET"},
+    "superadmin.offboarding_step": {"POST"},
+    "superadmin.export_download": {"POST"},
     # SAAS-034
     "superadmin.dashboard": {"GET"},
     "superadmin.system_health": {"GET"},
@@ -99,6 +103,7 @@ CONSOLE_WRITES = {
     "superadmin.announcements",
     "superadmin.announcement_delete",
     "superadmin.alert_ack",                                                   # SAAS-034
+    "superadmin.offboarding_step", "superadmin.export_download",              # SAAS-035
     "superadmin.invoice_new",
     "superadmin.invoice_issue",
     "superadmin.invoice_void",
@@ -580,7 +585,8 @@ def test_read_scope_refuses_school_writes(papp, two_schools, puser):
 
 def test_read_scope_used_only_by_platform_code():
     root = Path(__file__).parents[1] / "app"
-    allowed = ("blueprints/superadmin/", "services/platform")
+    # SAAS-035: the offboarding export / its verification read one school
+    allowed = ("blueprints/superadmin/", "services/platform", "services/school_export.py")
     offenders = []
     for f in root.rglob("*.py"):
         rel = f.relative_to(root).as_posix()

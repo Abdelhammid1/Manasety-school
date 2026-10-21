@@ -150,12 +150,28 @@ def school_lifecycle(school_id, action):
                 raise pact.ActionRefused("المدرسة مؤرشفة بالفعل.")
             subs.set_school_status(school, "archived")
             subs.bump_auth_epoch(school)
+            from ...models import SchoolOffboarding
+            off = SchoolOffboarding.query.filter_by(school_id=school.id, purged_at=None).first()
+            if off is not None and off.archived_at is None:
+                off.archived_at = datetime.now(timezone.utc)                     # SAAS-035
             request_nginx_sync("school_archived", school_id=school.id, user=user)
             pact.record(user, school, "school_archived", reason, from_value=before, to_value="archived")
         elif action == "unarchive":
             if school.status != "archived":
                 raise pact.ActionRefused("المدرسة ليست مؤرشفة.")
+            from ...models import SchoolOffboarding
+            if SchoolOffboarding.query.filter(SchoolOffboarding.school_id == school.id,
+                                              SchoolOffboarding.purged_at.isnot(None)).first():
+                raise pact.ActionRefused("بيانات المدرسة اتحذفت نهائيًا.")
             subs.set_school_status(school, "suspended")     # back carefully: resume is a separate step
+            off = SchoolOffboarding.query.filter_by(school_id=school.id, purged_at=None).first()
+            if off is not None:
+                # the school is back in use: nothing approved for the old
+                # archive may carry over (SAAS-035 security review)
+                for f in ("archived_at", "retention_until", "purge_requested_by", "purge_requested_at",
+                          "purge_approved_by", "purge_approved_at", "approvals_required",
+                          "export_verified_at", "export_job_id", "export_file"):
+                    setattr(off, f, None)
             request_nginx_sync("school_unarchived", school_id=school.id, user=user)
             pact.record(user, school, "school_unarchived", reason, from_value=before, to_value="suspended")
         else:

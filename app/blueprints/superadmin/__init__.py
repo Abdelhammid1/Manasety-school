@@ -131,4 +131,5 @@ from . import support        # noqa: E402,F401  SAAS-031
 from . import school_admin    # noqa: E402,F401  SAAS-032
 from . import billing         # noqa: E402,F401  SAAS-033
 from . import monitoring      # noqa: E402,F401  SAAS-034
+from . import offboarding     # noqa: E402,F401  SAAS-035
 from . import cli            # noqa: E402,F401

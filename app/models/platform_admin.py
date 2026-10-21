@@ -372,6 +372,28 @@ class PlatformAlert(db.Model):
     acknowledged_by = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
 
 
+class SchoolOffboarding(db.Model):
+    """SAAS-035 — a school leaving the platform, step by step."""
+    __tablename__ = "school_offboarding"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, unique=True)
+    requested_by = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    requested_at = db.Column(db.DateTime(timezone=True))
+    reason = db.Column(db.Text, nullable=False)
+    export_job_id = db.Column(db.Integer, db.ForeignKey("platform_jobs.id"))
+    export_file = db.Column(db.String(255))
+    export_verified_at = db.Column(db.DateTime(timezone=True))
+    archived_at = db.Column(db.DateTime(timezone=True))
+    retention_until = db.Column(db.DateTime(timezone=True))
+    purge_requested_by = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    purge_requested_at = db.Column(db.DateTime(timezone=True))
+    purge_approved_by = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    purge_approved_at = db.Column(db.DateTime(timezone=True))
+    approvals_required = db.Column(db.Integer)      # fixed when the purge is requested
+    purged_at = db.Column(db.DateTime(timezone=True))
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

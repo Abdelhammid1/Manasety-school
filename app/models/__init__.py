@@ -5,7 +5,7 @@ from .platform_admin import (
     Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting, PlatformJob,
     SchoolModuleOverride, SchoolLimitOverride, SupportSession, SupportSessionEvent,
     SchoolSlugHistory, PlatformSchoolNote, SchoolContact, SchoolTag, PlatformAnnouncement,
-    BILLING_CYCLES, SUBSCRIPTION_EVENT_KINDS, PlatformUsageSnapshot, PlatformAlert,
+    BILLING_CYCLES, SUBSCRIPTION_EVENT_KINDS, PlatformUsageSnapshot, PlatformAlert, SchoolOffboarding,
 )
 from .platform_billing import PlatformInvoice, PlatformInvoiceLine, PlatformPayment  # SAAS-033
 from .academic import AcademicYear, Term, Grade, Section
@@ -149,5 +149,6 @@ __all__ = [
     "SchoolModuleOverride", "SchoolLimitOverride", "SupportSession", "SupportSessionEvent",
     "SchoolSlugHistory", "PlatformSchoolNote", "SchoolContact", "SchoolTag", "PlatformAnnouncement",
     "PlatformInvoice", "PlatformInvoiceLine", "PlatformPayment", "PlatformUsageSnapshot", "PlatformAlert",
+    "SchoolOffboarding",
     "BILLING_CYCLES", "SUBSCRIPTION_EVENT_KINDS",
 ]
