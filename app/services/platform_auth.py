@@ -131,11 +131,8 @@ def verify_totp(secret: str | None, code: str | None, user=None, *, durable: boo
 
 
 def qr_svg(data: str) -> str:
-    import io
     import segno
-    buf = io.StringIO()
-    segno.make(data, error="m").save(buf, kind="svg", scale=5, border=2, xmldecl=False)
-    return buf.getvalue()
+    return segno.make(data, error="m").svg_inline(scale=5, border=2)
 
 
 # ─── recovery codes ─────────────────────────────────────────────────
