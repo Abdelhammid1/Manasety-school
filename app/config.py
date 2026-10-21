@@ -133,6 +133,23 @@ def _resolve_support_session_key(session_key: str, environ=os.environ, app_env=N
     return key or f"dev-support-key|{session_key}"
 
 
+def _resolve_platform_allowed_ips(environ=os.environ):
+    raw = (environ.get("PLATFORM_ALLOWED_IPS") or "").strip()
+    if not raw:
+        return None
+    trust = (environ.get("TRUST_PROXY_HEADERS") or "").strip().lower() in ("1", "true", "yes", "on")
+    if not trust:
+        raise RuntimeError(
+            "PLATFORM_ALLOWED_IPS is set but TRUST_PROXY_HEADERS is off: behind nginx every "
+            "request would come from the proxy's address and the console would lock everyone "
+            "out. Enable TRUST_PROXY_HEADERS (SAAS-009) or unset PLATFORM_ALLOWED_IPS.")
+    import ipaddress
+    try:
+        return [ipaddress.ip_network(p.strip(), strict=False) for p in raw.split(",") if p.strip()]
+    except ValueError as e:
+        raise RuntimeError(f"PLATFORM_ALLOWED_IPS: invalid network ({e}).") from None
+
+
 def _env_int(name: str, default: int, environ=os.environ) -> int:
     raw = (environ.get(name) or "").strip()
     if not raw:
@@ -273,6 +290,11 @@ class Config:
 
     # SAAS-034 — folder whose newest file is the latest backup (health page).
     BACKUP_DIR = os.environ.get("BACKUP_DIR") or "/opt/manasety/backups"
+
+    # SAAS-036 — optional console IP allow-list (comma-separated CIDRs).
+    # Unset/empty = no restriction. Needs TRUST_PROXY_HEADERS (checked at
+    # boot) or every request would look like it comes from the proxy.
+    PLATFORM_ALLOWED_IPS = _resolve_platform_allowed_ips()
 
     # SAAS-027 — second line of the read-only (grace) enforcement: a write
     # reaching the DB through a GET route. "log" reports only (default);

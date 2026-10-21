@@ -54,7 +54,9 @@ def _restore(capp, two_schools):
             s.status, s.is_active, s.slug = "active", True, slug
         for m in (SchoolSlugHistory, PlatformSchoolNote, SchoolContact, SchoolTag, PlatformAnnouncement):
             m.query.delete()
-        PlatformAuditLog.query.filter(PlatformAuditLog.target_school_id.isnot(None)).delete()
+        from app.services.platform_security import audit_prune
+        with audit_prune(db.session.connection()):
+            PlatformAuditLog.query.filter(PlatformAuditLog.target_school_id.isnot(None)).delete()
         db.session.commit()
         db.session.remove()
 

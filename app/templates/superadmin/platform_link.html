@@ -1,0 +1,18 @@
+{% extends "superadmin/base.html" %}
+{% block title %}{{ title }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.users') }}">→ مستخدمو المنصة</a></p>
+<h1>{{ title }}</h1>
+<p class="sub">لـ<bdi>{{ target.email }}</bdi> — صالح 72 ساعة ولمرة واحدة، ومش هيظهر تاني. شاركه مع صاحبه بس.</p>
+<div class="card">
+  <div style="display:flex;gap:8px"><input id="link" class="mono" readonly value="{{ link }}" aria-label="الرابط" style="flex:1">
+    <button class="btn" type="button" id="copyBtn">نسخ</button></div>
+</div>
+<script nonce="{{ csp_nonce }}">
+document.getElementById('copyBtn').addEventListener('click', function(){
+  var i = document.getElementById('link'); i.select();
+  if (navigator.clipboard) navigator.clipboard.writeText(i.value);
+  this.textContent = 'تم النسخ';
+});
+</script>
+{% endblock %}

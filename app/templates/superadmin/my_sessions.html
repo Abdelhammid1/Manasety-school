@@ -1,0 +1,22 @@
+{% extends "superadmin/base.html" %}
+{% block title %}جلساتي{% endblock %}
+{% block content %}
+<h1>جلساتي على اللوحة</h1>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>بدأت</th><th>آخر نشاط</th><th>العنوان</th><th>المتصفح</th><th>الحالة</th><th></th></tr></thead>
+    <tbody>
+    {% for s in rows %}
+      <tr>
+        <td class="num"><bdi>{{ s.created_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td class="num"><bdi>{{ s.last_seen_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td class="mono">{{ s.ip or '' }}</td>
+        <td style="white-space:normal;font-size:12px">{{ (s.user_agent or '')[:80] }}</td>
+        <td>{% if s.id == current %}<span class="chip active">الحالية</span>{% elif s.revoked_at %}<span class="chip archived">منتهية</span>{% else %}<span class="chip grace">مفتوحة</span>{% endif %}</td>
+        <td>{% if not s.revoked_at %}<form method="post" action="{{ url_for('superadmin.my_session_revoke', sid=s.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn ghost" type="submit">إنهاء</button></form>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "superadmin/base.html" %}
+{% block title %}ضبط كلمة المرور{% endblock %}
+{% block content %}
+<div class="card narrow">
+  {% if invalid %}
+    <h1>الرابط غير صالح</h1>
+    <p class="sub">الرابط مستخدم أو انتهت صلاحيته. اطلب رابطًا جديدًا من owner.</p>
+  {% else %}
+    <h1>اختر كلمة المرور</h1>
+    <p class="sub"><bdi>{{ user.email }}</bdi> — 12 حرف على الأقل. بعدها هتسجّل دخول وتفعّل TOTP.</p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="text" name="username" value="{{ user.email }}" autocomplete="username" hidden>
+      <label for="pw">كلمة المرور</label><input id="pw" name="password" type="password" required minlength="12" autocomplete="new-password">
+      <label for="cf">تأكيد كلمة المرور</label><input id="cf" name="confirm" type="password" required minlength="12" autocomplete="new-password">
+      <button class="btn block" type="submit">حفظ</button>
+    </form>
+  {% endif %}
+</div>
+{% endblock %}

@@ -110,7 +110,9 @@ def support_events_prune(months):
     from datetime import datetime, timedelta, timezone
     from ...models import SupportSessionEvent
     cutoff = datetime.now(timezone.utc) - timedelta(days=30 * months)
-    n = SupportSessionEvent.query.filter(SupportSessionEvent.ts < cutoff).delete(synchronize_session=False)
+    from ...services.platform_security import audit_prune
+    with audit_prune(db.session.connection()):          # SAAS-036 immutability
+        n = SupportSessionEvent.query.filter(SupportSessionEvent.ts < cutoff).delete(synchronize_session=False)
     pa.audit("support_events_pruned", None, rows=n, months=months)
     db.session.commit()
     click.echo(f"pruned {n} support event(s) older than {months} months")

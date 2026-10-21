@@ -35,7 +35,9 @@ def _cleanup(console):
     from app.extensions import db
     from app.models import SupportSession, SupportSessionEvent
     with console.app_context():
-        SupportSessionEvent.query.delete()
+        from app.services.platform_security import audit_prune
+        with audit_prune(db.session.connection()):
+            SupportSessionEvent.query.delete()
         SupportSession.query.delete()
         db.session.commit()
         db.session.remove()

@@ -122,7 +122,7 @@
   input[aria-invalid=true],select[aria-invalid=true]{border-color:var(--bad);outline:2px solid var(--badbg)}
   @media (max-width:640px){.review{grid-template-columns:1fr}.review dt{margin-top:8px}.slugbox span{font-size:13px;padding:0 8px}}
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
 (function(){
   var f=document.getElementById('createForm');
   if(f) f.addEventListener('submit', function(){ f.querySelector('button').disabled=true; });

@@ -278,9 +278,16 @@ def _console_client(app, role):
         u.set_password(secrets.token_urlsafe(16))
         db.session.add(u); db.session.commit()
         uid, ver = u.id, u.session_version
+        import uuid
+        from app.models import PlatformSession
+        sid = uuid.uuid4().hex
+        db.session.add(PlatformSession(id=sid, platform_user_id=uid, created_at=pa.utcnow(),
+                                       last_seen_at=pa.utcnow()))
+        db.session.commit()
         db.session.remove()
     c = app.test_client()
     with c.session_transaction(base_url=CONSOLE) as s:
+        s["sa_sid"] = sid
         s["_user_id"] = f"p:{uid}"
         s["_fresh"] = True
         s["sa_ver"] = ver

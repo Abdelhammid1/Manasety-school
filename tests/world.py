@@ -174,7 +174,8 @@ def purge_schools(school_ids) -> None:
     md = db.metadata
     tables = [t for t in md.sorted_tables if t.name != "schools"]
     doomed: dict[str, set] = {}
-    with db.engine.begin() as conn:
+    from app.services.platform_security import audit_prune
+    with db.engine.begin() as conn, audit_prune(conn):      # SAAS-036: audit rows are immutable
         for t in tables:
             if "school_id" in t.c and "id" in t.c:
                 doomed[t.name] = {r[0] for r in conn.execute(

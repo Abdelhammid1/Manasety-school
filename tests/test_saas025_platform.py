@@ -58,6 +58,13 @@ SUPERADMIN_ROUTES = {
     "superadmin.school_tags_set": {"POST"},
     "superadmin.announcements": {"GET", "POST"},
     "superadmin.announcement_delete": {"POST"},
+    # SAAS-036
+    "superadmin.users": {"GET", "POST"},
+    "superadmin.user_action": {"POST"},
+    "superadmin.setup": {"GET", "POST"},
+    "superadmin.my_sessions": {"GET"},
+    "superadmin.my_session_revoke": {"POST"},
+    "superadmin.audit": {"GET"},
     # SAAS-035
     "superadmin.offboarding": {"GET"},
     "superadmin.offboarding_step": {"POST"},
@@ -104,6 +111,8 @@ CONSOLE_WRITES = {
     "superadmin.announcement_delete",
     "superadmin.alert_ack",                                                   # SAAS-034
     "superadmin.offboarding_step", "superadmin.export_download",              # SAAS-035
+    "superadmin.users", "superadmin.user_action", "superadmin.setup",        # SAAS-036
+    "superadmin.my_session_revoke",
     "superadmin.invoice_new",
     "superadmin.invoice_issue",
     "superadmin.invoice_void",
@@ -151,8 +160,10 @@ def puser(papp):
 
     yield make
     with papp.app_context():
-        PlatformAuditLog.query.filter(PlatformAuditLog.platform_user_id.in_(created)).delete(
-            synchronize_session=False)
+        from app.services.platform_security import audit_prune
+        with audit_prune(db.session.connection()):
+            PlatformAuditLog.query.filter(PlatformAuditLog.platform_user_id.in_(created)).delete(
+                synchronize_session=False)
         PlatformRecoveryCode.query.filter(PlatformRecoveryCode.platform_user_id.in_(created)).delete(
             synchronize_session=False)
         PlatformUser.query.filter(PlatformUser.id.in_(created)).delete(synchronize_session=False)
@@ -483,7 +494,9 @@ def test_cli_creates_user_and_refuses_duplicates_and_short_passwords(papp):
         with papp.app_context():
             u = PlatformUser.query.filter_by(email=email).first()
             if u:
-                PlatformAuditLog.query.filter_by(platform_user_id=u.id).delete()
+                from app.services.platform_security import audit_prune
+                with audit_prune(db.session.connection()):
+                    PlatformAuditLog.query.filter_by(platform_user_id=u.id).delete()
                 db.session.delete(u)
                 db.session.commit()
             db.session.remove()

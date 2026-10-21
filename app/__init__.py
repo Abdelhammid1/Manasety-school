@@ -98,6 +98,9 @@ def create_app(config_class=Config):
     # SAAS-025 — the platform read-scope listener refuses school-table writes.
     from .services import platform_scope
     platform_scope.install()
+    # SAAS-036 — audit tables refuse UPDATE / DELETE (DB triggers)
+    from .services.platform_security import install_triggers
+    install_triggers(app)
     # SAAS-027 — subscription enforcement (read-only grace, kill switch,
     # banners). Blocked schools are answered by the resolver above.
     from .services import subscription_enforcement

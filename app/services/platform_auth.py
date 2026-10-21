@@ -205,7 +205,22 @@ def dummy_password_check(password: str) -> None:
 MIN_PASSWORD_LEN = 12
 
 
+_COMMON: frozenset[str] | None = None
+
+
+def _common_passwords() -> frozenset[str]:
+    global _COMMON
+    if _COMMON is None:
+        from pathlib import Path
+        p = Path(__file__).with_name("common_passwords.txt")
+        _COMMON = frozenset(line.strip().lower() for line in p.read_text(encoding="utf-8").splitlines()
+                            if line.strip() and not line.startswith("#")) if p.exists() else frozenset()
+    return _COMMON
+
+
 def password_problem(password: str) -> str | None:
     if len(password or "") < MIN_PASSWORD_LEN:
         return f"كلمة المرور يجب أن تكون {MIN_PASSWORD_LEN} حرفًا على الأقل."
+    if (password or "").strip().lower() in _common_passwords():
+        return "كلمة المرور دي شائعة جدًا. اختر غيرها."
     return None

@@ -394,6 +394,39 @@ class SchoolOffboarding(db.Model):
     purged_at = db.Column(db.DateTime(timezone=True))
 
 
+class PlatformSession(db.Model):
+    """SAAS-036 — one console login. The cookie only carries this id."""
+    __tablename__ = "platform_sessions"
+
+    id = db.Column(db.String(32), primary_key=True)
+    platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    last_seen_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    ip = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    revoked_at = db.Column(db.DateTime(timezone=True))
+
+
+class PlatformSetupToken(db.Model):
+    """SAAS-036 — one-time console set-password link (invite / reset)."""
+    __tablename__ = "platform_setup_tokens"
+
+    id = db.Column(db.Integer, primary_key=True)
+    platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"), nullable=False, index=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    purpose = db.Column(db.String(16), nullable=False, default="invite")
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    used_at = db.Column(db.DateTime(timezone=True))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    user = db.relationship("PlatformUser")
+
+
+# SAAS-036 — SQLite only: a row here lets the audit retention delete get
+# past the immutability trigger (Postgres uses a SET LOCAL setting).
+audit_prune_guard = db.Table("audit_prune_guard", db.Column("id", db.Integer, primary_key=True))
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

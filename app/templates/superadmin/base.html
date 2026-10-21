@@ -75,6 +75,9 @@
       {% if current_user.role in ('owner', 'finance') %}<a href="{{ url_for('superadmin.billing') }}">الفوترة</a>{% endif %}
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.support_sessions') }}">جلسات الدعم</a>
       <a href="{{ url_for('superadmin.announcements') }}">رسائل المنصة</a>{% endif %}
+      {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.users') }}">الفريق</a>
+      <a href="{{ url_for('superadmin.audit') }}">السجل</a>{% endif %}
+      <a href="{{ url_for('superadmin.my_sessions') }}">جلساتي</a>
       <a href="{{ url_for('superadmin.password') }}">كلمة المرور</a>
       <span class="tag">{{ current_user.role }}</span>
       <form method="post" action="{{ url_for('superadmin.logout') }}" style="margin:0">

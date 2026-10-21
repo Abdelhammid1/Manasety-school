@@ -80,6 +80,8 @@ def _complete_login(user):
     session["sa_login_at"] = now
     session["sa_seen_at"] = now
     session["sa_totp_at"] = now
+    from ...services.platform_security import open_session
+    open_session(user)                       # SAAS-036 server-side session row
     pa.audit("login_success", user)
     db.session.commit()
 
@@ -227,6 +229,8 @@ def password():
         # Every other session of this user dies; this one carries on.
         user.session_version = (user.session_version or 1) + 1
         session["sa_ver"] = user.session_version
+        from ...services.platform_security import revoke_sessions
+        revoke_sessions(user.id, except_sid=session.get("sa_sid"))
         pa.audit("password_changed", user)
         db.session.commit()
         flash("تم تغيير كلمة المرور.", "success")

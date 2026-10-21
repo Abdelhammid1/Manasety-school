@@ -26,7 +26,7 @@
   .copy{display:flex;gap:8px} .copy input{flex:1}
   @media (max-width:640px){.review{grid-template-columns:1fr}.review dt{margin-top:8px}}
 </style>
-<script>
+<script nonce="{{ csp_nonce }}">
 document.getElementById('copyBtn').addEventListener('click', function(){
   var i=document.getElementById('link'); i.select();
   (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).then(

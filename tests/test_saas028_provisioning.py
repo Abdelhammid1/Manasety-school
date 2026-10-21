@@ -25,8 +25,10 @@ def created(papp):
     from world import purge_schools
     with papp.app_context():
         if ids:
-            PlatformAuditLog.query.filter(PlatformAuditLog.target_school_id.in_(ids)).delete(
-                synchronize_session=False)
+            from app.services.platform_security import audit_prune
+            with audit_prune(db.session.connection()):
+                PlatformAuditLog.query.filter(PlatformAuditLog.target_school_id.in_(ids)).delete(
+                    synchronize_session=False)
             db.session.commit()
             purge_schools(ids)
         db.session.remove()

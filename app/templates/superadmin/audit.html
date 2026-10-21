@@ -1,0 +1,32 @@
+{% extends "superadmin/base.html" %}
+{% block title %}سجل التدقيق{% endblock %}
+{% block content %}
+<h1>سجل تدقيق المنصة</h1>
+<p class="sub">غير قابل للتعديل أو الحذف (trigger في قاعدة البيانات). القيم الحساسة متنقّية من الأصل.</p>
+<form method="get" class="row" style="margin-bottom:12px">
+  <div><label for="f_user">المستخدم</label><select id="f_user" name="user"><option value="">الكل</option>{% for uid, email in users.items() %}<option value="{{ uid }}" {% if args.get('user') == uid|string %}selected{% endif %}>{{ email }}</option>{% endfor %}</select></div>
+  <div><label for="f_school">رقم المدرسة</label><input id="f_school" name="school" inputmode="numeric" value="{{ args.get('school', '') }}"></div>
+  <div><label for="f_action">الإجراء</label><select id="f_action" name="action"><option value="">الكل</option>{% for a in actions %}<option value="{{ a }}" {% if args.get('action') == a %}selected{% endif %}>{{ a }}</option>{% endfor %}</select></div>
+  <div><label for="f_from">من</label><input id="f_from" name="from" type="date" value="{{ args.get('from', '') }}"></div>
+  <div><label for="f_to">إلى</label><input id="f_to" name="to" type="date" value="{{ args.get('to', '') }}"></div>
+  <div style="flex:0 0 auto"><button class="btn" type="submit">بحث</button></div>
+</form>
+<p><a href="{{ url_for('superadmin.audit', format='csv', **args.to_dict()) }}">تصدير CSV</a> (التصدير نفسه بيتسجّل)</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>#</th><th>الوقت</th><th>المستخدم</th><th>الإجراء</th><th>المدرسة</th><th>IP</th><th>التفاصيل</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+      <tr><td class="num">{{ r.id }}</td><td class="num"><bdi>{{ r.created_at.strftime('%Y-%m-%d %H:%M:%S') }}</bdi></td>
+        <td class="mono">{{ users.get(r.platform_user_id, '—') }}</td><td class="mono">{{ r.action }}</td>
+        <td class="num">{{ r.target_school_id or '' }}</td><td class="mono">{{ r.ip or '' }}</td>
+        <td class="mono" style="white-space:normal;font-size:12px">{{ r.meta|tojson if r.meta else '' }}</td></tr>
+    {% else %}<tr><td colspan="7">لا توجد نتائج.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+<p class="row" style="gap:8px">
+  {% if page > 1 %}<a class="btn ghost" style="flex:0 0 auto" href="{{ url_for('superadmin.audit', **dict(args.to_dict(), page=page - 1)) }}">السابق</a>{% endif %}
+  {% if more %}<a class="btn ghost" style="flex:0 0 auto" href="{{ url_for('superadmin.audit', **dict(args.to_dict(), page=page + 1)) }}">التالي</a>{% endif %}
+</p>
+{% endblock %}

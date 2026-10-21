@@ -407,6 +407,9 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.alert_ack":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-034 monitoring tests",
+    "superadmin.user_action":
+        "platform console (no school tenant, the id is a platform user): 404 on every "
+        "school host and when resolution is off — covered by the SAAS-036 tests",
     "superadmin.offboarding":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-035 offboarding tests",

@@ -18,6 +18,7 @@ bp = Blueprint("superadmin", __name__, url_prefix="/superadmin",
 # Reachable before a full login (password / TOTP steps).
 PUBLIC_ENDPOINTS = frozenset({
     "superadmin.login", "superadmin.totp", "superadmin.totp_setup",
+    "superadmin.setup",                                   # SAAS-036 one-time link
 })
 # Reachable while a password change is being forced.
 PASSWORD_CHANGE_ENDPOINTS = frozenset({"superadmin.password", "superadmin.logout"})
@@ -38,7 +39,17 @@ def current_platform_user():
 def end_platform_session(revoke_user=None):
     """Clear this browser's console session; with `revoke_user`, also
     kill every other session of that user (bumps session_version)."""
+    sid = session.get("sa_sid")
+    if sid:
+        from ...services.platform_security import utcnow as _now
+        from ...models import PlatformSession as _PS
+        from ...extensions import db as _db
+        row = _db.session.get(_PS, sid)
+        if row is not None and row.revoked_at is None:
+            row.revoked_at = _now()
     if revoke_user is not None:
+        from ...services.platform_security import revoke_sessions
+        revoke_sessions(revoke_user.id)
         revoke_user.session_version = (revoke_user.session_version or 1) + 1
         # SAAS-031 security review — and every support session of theirs.
         from ...services.support_policy import end_for_platform_user
@@ -68,12 +79,20 @@ def require_platform_role(*roles):
 def _gate():
     if not is_platform_request():
         abort(404)
+    # SAAS-036 — optional IP allow-list: outside it the console doesn't exist
+    from ...services.platform_security import ip_allowed
+    if not ip_allowed(request.remote_addr):
+        abort(404)
+    from ...services import platform_permissions as perms
+    if request.endpoint not in perms.ROUTES:
+        abort(404)                       # fail closed: an unlisted route isn't served
     if request.endpoint in PUBLIC_ENDPOINTS:
         return None
     user = current_platform_user()
     if user is None:
         return redirect(url_for("superadmin.login"))
-    if session.get("sa_ver") != user.session_version:
+    from ...services.platform_security import check_session
+    if session.get("sa_ver") != user.session_version or not check_session(user):
         # Revoked server-side (logout elsewhere, password / TOTP change).
         end_platform_session()
         return redirect(url_for("superadmin.login"))
@@ -91,11 +110,34 @@ def _gate():
     session["sa_seen_at"] = now
     if user.password_changed_at is None and request.endpoint not in PASSWORD_CHANGE_ENDPOINTS:
         return redirect(url_for("superadmin.password"))
+    # SAAS-036 — the one role × route matrix (services/platform_permissions.py)
+    if not perms.allowed(request.endpoint, request.method, user.role):
+        abort(403)
     return None
+
+
+@bp.app_context_processor
+def _csp_nonce():
+    """SAAS-036 — every inline <script> in the console carries this nonce."""
+    import secrets
+    if "csp_nonce" not in g:
+        g.csp_nonce = secrets.token_urlsafe(16)
+    return {"csp_nonce": g.csp_nonce}
 
 
 @bp.after_request
 def _headers(resp):
+    from flask import current_app
+    import secrets
+    nonce = g.get("csp_nonce") or secrets.token_urlsafe(16)
+    base = current_app.config.get("BASE_DOMAIN") or "manasety.ai"
+    resp.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        f"script-src 'self' 'nonce-{nonce}'; "
+        "style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; "
+        "object-src 'none'; base-uri 'none'; frame-ancestors 'none'; "
+        # the support hand-off posts here and lands on a school host
+        f"form-action 'self' https://*.{base}")
     resp.headers["Cache-Control"] = "no-store"
     resp.headers["X-Frame-Options"] = "DENY"
     resp.headers["X-Content-Type-Options"] = "nosniff"
@@ -132,4 +174,5 @@ from . import school_admin    # noqa: E402,F401  SAAS-032
 from . import billing         # noqa: E402,F401  SAAS-033
 from . import monitoring      # noqa: E402,F401  SAAS-034
 from . import offboarding     # noqa: E402,F401  SAAS-035
+from . import users           # noqa: E402,F401  SAAS-036
 from . import cli            # noqa: E402,F401

@@ -6,6 +6,13 @@
 <p class="sub">لـ{{ user.full_name }} — صالح 72 ساعة ولمرة واحدة، ومش هيظهر تاني. الروابط القديمة اتلغت.</p>
 <div class="card">
   <div style="display:flex;gap:8px"><input id="link" class="mono" readonly value="{{ link }}" aria-label="رابط ضبط الباسورد" style="flex:1">
-    <button class="btn" type="button" onclick="var i=document.getElementById('link');i.select();navigator.clipboard&&navigator.clipboard.writeText(i.value);this.textContent='تم النسخ'">نسخ</button></div>
+    <button class="btn" type="button" id="copyBtn">نسخ</button></div>
 </div>
+<script nonce="{{ csp_nonce }}">
+document.getElementById('copyBtn').addEventListener('click', function(){
+  var i = document.getElementById('link'); i.select();
+  if (navigator.clipboard) navigator.clipboard.writeText(i.value);
+  this.textContent = 'تم النسخ';
+});
+</script>
 {% endblock %}

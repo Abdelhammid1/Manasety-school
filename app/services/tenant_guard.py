@@ -55,6 +55,8 @@ PLATFORM_TABLES: frozenset[str] = frozenset({
     "platform_usage_snapshots", "platform_alerts",
     # SAAS-035
     "school_offboarding",
+    # SAAS-036
+    "platform_sessions", "platform_setup_tokens", "audit_prune_guard",
 })
 # school_id is the tenant itself; deleted_by_id is soft-delete
 # bookkeeping (who pressed delete), not ownership.
