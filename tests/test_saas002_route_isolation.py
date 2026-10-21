@@ -574,6 +574,29 @@ FORM_ID_MATRIX: dict[str, Entry] = {
     "hr.payroll_settle": _mix("payroll", "Payroll", "payroll_id",
                               lambda A, B: {"amount": "100",
                                             "payment_method_id": B["payment_method"]}),
+    # SAAS-013B — the last finance / HR form ids.
+    "finance.fee_type_new": _post(
+        lambda A, B: {"name": "x", "default_amount": "1", "revenue_account_id": B["revenue_account"]},
+        _xlink("FeeType", ("revenue_account_id", "revenue_account"))),
+    "finance.fee_type_edit": _mix("fee_type", "FeeType", "ft_id",
+                                  lambda A, B: {"name": "x", "default_amount": "1",
+                                                "revenue_account_id": B["revenue_account"]}),
+    "finance.invoice_new": _post(
+        lambda A, B: {"enrollment_id": B["enrollment"].id, "fee_type_id": B["fee_type"], "amount": "10"},
+        _xlink("Invoice", ("enrollment_id", "enrollment"))),
+    "finance.bulk_payment": Entry(
+        lambda B: {}, methods=("GET", "POST"),
+        form=lambda A, B: {"guardian_id": B["guardian"], "payment_method_id": A["payment_method"],
+                           "auto_fifo": "1", "total_amount": "10", f"amt_{B['invoice']}": "10"},
+        snapshot=_xlink("Payment", ("invoice_id", "invoice"))),
+    "finance.quick_journal_run": Entry(
+        lambda B: {"key": "capital_increase"}, methods=("POST",),
+        form=lambda A, B: {"amount": "10", "counter_account_id": B["account"], "description": "x"},
+        snapshot=_xlink("JournalEntry")),
+    "hr.payroll_new": _post(
+        lambda A, B: {"employee_id": B["employee"], "period_year": "2026", "period_month": "10",
+                      "base_salary": "1"},
+        _xlink("Payroll", ("employee_id", "employee"))),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},
@@ -595,14 +618,11 @@ FORM_ID_PLATFORM: dict[str, str] = {
 }
 
 FORM_ID_PENDING: tuple[str, ...] = (
-    "finance.bulk_payment",
     "academic.bulk_transfer", "admin.audit_log", "api.qbank_questions",
     "api.teacher_attendance_existing", "api.teacher_components",
     "api.teacher_grades_existing", "api.teacher_students",
     "api.teacher_templates", "api.teacher_upload", "courses.lesson_edit",
-    "courses.lesson_new", "courses.new", "finance.fee_type_edit", "finance.fee_type_new",
-    "finance.invoice_new", "finance.quick_journal_run",
-    "hr.payroll_new",
+    "courses.lesson_new", "courses.new",
     "lms.announcement_new", "lms.assignment_edit",
     "lms.assignment_extension_add", "lms.assignment_from_template",
     "lms.assignment_new", "lms.assignment_pick_from_bank", "lms.bank_home",

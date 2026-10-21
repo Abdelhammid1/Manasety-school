@@ -15,7 +15,7 @@ def seed_finance_hr(bundle: dict) -> dict:
     """Finance + HR records for one school. Must run in an app context."""
     from app.extensions import db
     from app.models import (
-        Account, BankStatementLine, Budget, CostCenter, DiscountType,
+        Account, BankStatementLine, Budget, CostCenter, DiscountType, Guardian, StudentGuardian,
         Employee, Expense, FeeType, Invoice, InvoiceLine, JournalEntry,
         JournalLine, LeaveRequest, PaymentMethod, Payroll,
         RecurringFeeSchedule, RefundRequest, StudentDiscount, Vendor,
@@ -91,8 +91,12 @@ def seed_finance_hr(bundle: dict) -> dict:
     payroll = Payroll(school_id=sid, employee_id=emp.id, period_year=2026,
                       period_month=9, base_salary=Decimal("5000"),
                       net_pay=Decimal("5000"))
-    for o in (exp, bsl, budget, rec, sd, rr, leave, payroll):
+    guardian = Guardian(school_id=sid, full_name=f"Guardian-{slug}", phone=f"0101{sid:07d}")
+    for o in (exp, bsl, budget, rec, sd, rr, leave, payroll, guardian):
         add(o)
+    db.session.flush()
+    add(StudentGuardian(student_id=bundle["student"].id, guardian_id=guardian.id,
+                        relationship="father", is_primary=True))
     db.session.commit()
 
     return {
@@ -103,11 +107,13 @@ def seed_finance_hr(bundle: dict) -> dict:
         "bank_line": bsl.id, "budget": budget.id, "recurring": rec.id,
         "student_discount": sd.id, "refund_request": rr.id,
         "leave_request": leave.id, "payroll": payroll.id,
+        "revenue_account": revenue.id, "guardian": guardian.id,
         "markers": (
             f"Vendor-{slug}", f"Emp-{slug}", f"INV-{slug}", f"Fee-{slug}",
             f"PM-{slug}", f"CC-{slug}", f"Disc-{slug}", f"BSL-{slug}",
             f"Exp-{slug}", f"JE-{slug}", f"Budget-{slug}", f"Refund-{slug}",
             f"Cash-{slug}", f"Bank-{slug}", f"Revenue-{slug}", f"Expense-{slug}",
+            f"Guardian-{slug}",
         ),
     }
 
