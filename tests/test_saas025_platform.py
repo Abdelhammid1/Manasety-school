@@ -621,7 +621,7 @@ def test_console_pages_send_security_headers(papp, puser):
         r = c.get("/superadmin/schools", base_url=CONSOLE)
     assert r.headers["Cache-Control"] == "no-store"
     assert r.headers["X-Frame-Options"] == "DENY"
-    assert r.headers["Referrer-Policy"] == "no-referrer"
+    assert r.headers["Referrer-Policy"] == "same-origin"   # 9c373d5: no-referrer broke CSRF on HTTPS
 
 
 # ─── security review follow-ups ──────────────────────────────────────

@@ -1,0 +1,36 @@
+{# Console error page: self-contained like the console shell — no CDN,
+   no web fonts from outside, no icon font (the console CSP blocks them,
+   and the school error page rendered icons as text). Nothing from the
+   failed request is shown. #}
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{{ title }} — منصتي</title>
+  <link rel="icon" type="image/svg+xml" href="/static/img/logo.svg">
+  <style>
+    @font-face{font-family:"Baloo Bhaijaan 2";src:url("/static/fonts/BalooBhaijaan2.ttf") format("truetype");font-weight:400 800;font-display:swap}
+    *{box-sizing:border-box}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px;
+         font-family:"Baloo Bhaijaan 2",system-ui,sans-serif;background:#f5f7fb;color:#0f172a}
+    .card{max-width:440px;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:28px;text-align:center}
+    .card img{height:40px;margin-bottom:12px}
+    .code{font-size:13px;font-weight:700;color:#64748b;letter-spacing:.08em}
+    h1{font-size:22px;margin:4px 0 8px;color:#1E3A8A}
+    p{margin:0 0 20px;color:#64748b;line-height:1.7}
+    a.btn{display:inline-flex;align-items:center;justify-content:center;height:44px;padding:0 18px;border-radius:10px;
+          background:#1E3A8A;color:#fff;font-weight:800;text-decoration:none}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img src="/static/img/logo.svg" alt="منصتي">
+    <div class="code">{{ code }}</div>
+    <h1>{{ title }}</h1>
+    <p>{{ msg }}</p>
+    <a class="btn" href="/superadmin/">الرجوع للوحة</a>
+  </main>
+</body>
+</html>

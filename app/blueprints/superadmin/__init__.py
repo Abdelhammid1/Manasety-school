@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import time
 
-from flask import Blueprint, abort, g, redirect, request, session, url_for
+from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 from flask_login import current_user, logout_user
 
 bp = Blueprint("superadmin", __name__, url_prefix="/superadmin",
@@ -125,6 +125,27 @@ def _csp_nonce():
     if "csp_nonce" not in g:
         g.csp_nonce = secrets.token_urlsafe(16)
     return {"csp_nonce": g.csp_nonce}
+
+
+# Console errors get the console's own self-contained page: the shared
+# school error page loads web fonts / an icon font the console CSP blocks
+# (icons showed as text). 404 stays the shared page on purpose — the
+# console must look like any unknown path from outside.
+@bp.errorhandler(403)
+def _console_403(_e):
+    return render_template("superadmin/error.html", code=403, title="غير مسموح",
+                           msg="دورك في اللوحة لا يسمح بهذه الصفحة."), 403
+
+
+@bp.errorhandler(500)
+def _console_500(_e):
+    from ...extensions import db
+    try:
+        db.session.rollback()          # the failed request may have left a broken transaction
+    except Exception:  # noqa: BLE001
+        pass
+    return render_template("superadmin/error.html", code=500, title="حصل خطأ",
+                           msg="حصل خطأ غير متوقع في اللوحة واتسجّل. جرّب تاني، ولو اتكرر بلّغ الفريق التقني."), 500
 
 
 @bp.after_request

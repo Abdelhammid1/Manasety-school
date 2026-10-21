@@ -80,7 +80,7 @@ def test_invite_link_once_and_owner_notified(console, monkeypatch):
     anon = console.test_client()
     r = anon.get(path, base_url=CONSOLE)                                 # token leaves the URL
     assert r.status_code == 302 and r.headers["Location"].endswith("/superadmin/setup")
-    assert r.headers["Referrer-Policy"] == "no-referrer"
+    assert r.headers["Referrer-Policy"] == "same-origin"   # 9c373d5: no-referrer broke CSRF on HTTPS
     assert anon.get("/superadmin/setup", base_url=CONSOLE).status_code == 200
     pw = "a-long-unique-pass-9"
     assert anon.post("/superadmin/setup", base_url=CONSOLE,
@@ -257,7 +257,7 @@ def test_security_headers_on_console_pages(console):
     for path in ("/superadmin/login", "/superadmin/schools", "/superadmin/dashboard"):
         h = (c if path != "/superadmin/login" else console.test_client()).get(path, base_url=CONSOLE).headers
         assert h["Cache-Control"] == "no-store" and h["X-Frame-Options"] == "DENY"
-        assert h["Referrer-Policy"] == "no-referrer" and h["X-Content-Type-Options"] == "nosniff"
+        assert h["Referrer-Policy"] == "same-origin" and h["X-Content-Type-Options"] == "nosniff"
         csp = h["Content-Security-Policy"]
         assert "frame-ancestors 'none'" in csp and "'nonce-" in csp and "'unsafe-inline'" not in csp.split("style-src")[0]
 
