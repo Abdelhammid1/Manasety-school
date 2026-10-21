@@ -84,3 +84,17 @@ def set_password():
             return _no_store(redirect(url_for("auth.login")))
     return _no_store(render_template("set_password.html", invalid=False,
                                      username=row.user.username, min_len=MIN_PASSWORD))
+
+
+@bp.route("/app", methods=["GET"], endpoint="app_landing")
+def app_landing():
+    """SAAS-037 — where the app card's QR / deep link lands when the app
+    isn't installed: school name + code + where to get the apps."""
+    resolved = getattr(g, "tenant_resolved", None)
+    if resolved is None or resolved.kind != "tenant" or resolved.school is None:
+        from flask import abort
+        abort(404)
+    from ...services.tenancy import _request_settings
+    url = (_request_settings().get("app_download_url") or "").strip()
+    return _no_store(render_template("app_landing.html", school=resolved.school,
+                                     download_url=url if url.startswith("https://") else None))

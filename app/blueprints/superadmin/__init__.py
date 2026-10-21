@@ -174,5 +174,6 @@ from . import school_admin    # noqa: E402,F401  SAAS-032
 from . import billing         # noqa: E402,F401  SAAS-033
 from . import monitoring      # noqa: E402,F401  SAAS-034
 from . import offboarding     # noqa: E402,F401  SAAS-035
+from . import app_card        # noqa: E402,F401  SAAS-037
 from . import users           # noqa: E402,F401  SAAS-036
 from . import cli            # noqa: E402,F401

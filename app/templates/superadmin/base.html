@@ -76,7 +76,8 @@
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.support_sessions') }}">جلسات الدعم</a>
       <a href="{{ url_for('superadmin.announcements') }}">رسائل المنصة</a>{% endif %}
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.users') }}">الفريق</a>
-      <a href="{{ url_for('superadmin.audit') }}">السجل</a>{% endif %}
+      <a href="{{ url_for('superadmin.audit') }}">السجل</a>
+      <a href="{{ url_for('superadmin.app_settings') }}">التطبيقات</a>{% endif %}
       <a href="{{ url_for('superadmin.my_sessions') }}">جلساتي</a>
       <a href="{{ url_for('superadmin.password') }}">كلمة المرور</a>
       <span class="tag">{{ current_user.role }}</span>

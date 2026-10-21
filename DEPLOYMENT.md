@@ -172,7 +172,18 @@ WHATSAPP_PROVIDER=stub
 - كلمات المرور الشائعة مرفوضة لحسابات اللوحة (`app/services/common_passwords.txt`).
 - الـmigration: `z1x5z7b9d1f3` (جدولين جداد + `audit_prune_guard` على SQLite + الـtriggers). الـdowngrade بيشيل الـtriggers والجداول. التجربة على نسخة الـdev: upgrade حوالي 1.7 ثانية.
 - **ملاحظة nginx:** رابط ضبط كلمة المرور بيبقى في الـpath (`/superadmin/setup/<token>`) لأول طلب بس (بعده بيتنقل للجلسة)، فيُفضّل استبعاده من access log: `location ^~ /superadmin/setup/ { access_log off; ... }`. قيد الـIP بيغطي `/superadmin/*` بس؛ لو مطلوب قفل الـhost كله يتعمل `allow/deny` في `console.conf`.
+- **إضافة owner** (دعوة بدور owner أو ترقية لـowner) من السيرفر بس: `flask platform-user-create --role owner` أو `flask platform-user-set-role --email <e> --role owner`. السبب: الـowner اللي بيشوف رابط الـowner الجديد بيتحكم في حسابه، فيبقى هو "الـowner التاني" في قاعدة الشخصين.
 - **باسورد أو TOTP لحساب owner** ما بيتعادش من اللوحة أبدًا (أي owner كان هيقدر ياخد حساب owner تاني). من السيرفر بس: `flask platform-user-reset-link --email <e>` (بيطبع رابط لمرة واحدة، 72 ساعة) و`flask platform-user-reset-2fa --email <e>`.
+
+#### عقد الـAPI للتطبيقات (SAAS-037)
+
+مفيش متغيرات بيئة جديدة. الإعدادات من اللوحة: `/superadmin/settings/apps` (owner): أقل نسخة لكل تطبيق، رابط التحميل، وبيانات الدعم (اللي بتظهر كمان في صفحة الإيقاف).
+
+- `GET /api/public/school-info` و`GET /api/public/app-config` على host المدرسة من غير توكن. الأولى بترد حتى لو المدرسة محجوبة (`state = blocked`)، و404 لأي host مش معروف أو مؤرشف. محدودة 20 طلب/دقيقة لكل IP لكل worker (nginx ممكن يضيف `limit_req` فوقها).
+- `X-App-Name` + `X-App-Version` أقدم من الحد الأدنى ← 426 `upgrade_required`. الطلبات من غير الهيدر ما بتتفحصش (مفيش سلوك اتغيّر).
+- `https://<slug>.<BASE_DOMAIN>/app` صفحة بسيطة (اسم المدرسة + الكود + رابط التحميل)، وهي اللي بيفتحها QR بطاقة التطبيق من صفحة المدرسة في اللوحة.
+- العقد الكامل للأكواد: `docs/api-error-codes.md` (اختبارات `tests/test_saas037_api_contract.py`).
+- مطلوب بعدين من مسار التطبيقات: ملفات `/.well-known/assetlinks.json` و`apple-app-site-association` (محتاجة IDs التطبيقات) عشان الرابط يفتح التطبيق مباشرة.
 - أول مستخدم منصة: `flask platform-user-create --email you@manasety.ai --name "الاسم" --role owner` (الباسورد بيتطلب مخفي، 12 حرف على الأقل). أول دخول بيفرض تغيير الباسورد وتفعيل TOTP، وبيعرض 10 أكواد استرداد مرة واحدة.
 - جلسة اللوحة: كوكي منفصل `manasety_platform` (SameSite=Strict)، خروج بعد الخمول، وحد أقصى 8 ساعات.
 

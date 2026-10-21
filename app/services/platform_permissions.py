@@ -35,6 +35,7 @@ CAPABILITIES: dict[str, frozenset[str]] = {
     "offboarding": frozenset({OWNER}),               # 035
     "platform_users": frozenset({OWNER}),            # 036
     "audit": frozenset({OWNER}),
+    "apps.settings": frozenset({OWNER}),             # 037
 }
 
 G, P = "GET", "POST"
@@ -83,6 +84,8 @@ ROUTES: dict[str, dict[str, str]] = {
     "superadmin.offboarding": {G: "offboarding"},
     "superadmin.offboarding_step": {P: "offboarding"},
     "superadmin.export_download": {P: "offboarding"},
+    "superadmin.app_card": {G: "schools.read"},      # 037
+    "superadmin.app_settings": {G: "apps.settings", P: "apps.settings"},
     "superadmin.dashboard": {G: "monitoring.read"},
     "superadmin.system_health": {G: "monitoring.read"},
     "superadmin.alerts": {G: "monitoring.read"},

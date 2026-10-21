@@ -419,6 +419,9 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.export_download":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-035 offboarding tests",
+    "superadmin.app_card":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-037 contract tests",
     "superadmin.school_detail":
         "SAAS-025 platform console (no school tenant): 404 on every school host "
         "and when resolution is off — covered by tests/test_saas025_platform.py",

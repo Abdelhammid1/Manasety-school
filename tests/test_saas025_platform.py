@@ -65,6 +65,9 @@ SUPERADMIN_ROUTES = {
     "superadmin.my_sessions": {"GET"},
     "superadmin.my_session_revoke": {"POST"},
     "superadmin.audit": {"GET"},
+    # SAAS-037
+    "superadmin.app_card": {"GET"},
+    "superadmin.app_settings": {"GET", "POST"},
     # SAAS-035
     "superadmin.offboarding": {"GET"},
     "superadmin.offboarding_step": {"POST"},
@@ -111,6 +114,7 @@ CONSOLE_WRITES = {
     "superadmin.announcement_delete",
     "superadmin.alert_ack",                                                   # SAAS-034
     "superadmin.offboarding_step", "superadmin.export_download",              # SAAS-035
+    "superadmin.app_settings",                                                # SAAS-037
     "superadmin.users", "superadmin.user_action", "superadmin.setup",        # SAAS-036
     "superadmin.my_session_revoke",
     "superadmin.invoice_new",

@@ -558,6 +558,10 @@ def init_app(app: Flask) -> None:
             # allow access: one page / one JSON shape, no login form.
             # SAAS-031 — except for platform support entering / inside a
             # live support session for this very school.
+            # SAAS-037 — the app's "is this my school?" call explains the
+            # block itself instead of getting a bare 403.
+            if request.endpoint == "api.public_school_info":
+                return None
             from .support_policy import bypass_for
             if request.endpoint == "support.enter" or bypass_for(resolved):
                 resolved.support_bypass = True

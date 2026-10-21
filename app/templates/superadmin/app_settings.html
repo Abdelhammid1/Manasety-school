@@ -1,0 +1,22 @@
+{% extends "superadmin/base.html" %}
+{% block title %}إعدادات التطبيقات{% endblock %}
+{% block content %}
+<h1>إعدادات التطبيقات والدعم</h1>
+<p class="sub">أقل نسخة مسموحة لكل تطبيق: أي نسخة أقدم بتاخد <span class="mono" dir="ltr">upgrade_required</span>. فاضي = مفيش حد أدنى. بيانات الدعم بتظهر في التطبيقات وصفحة الإيقاف.</p>
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% set labels = {
+    'min_app_version_student':'أقل نسخة — تطبيق الطالب',
+    'min_app_version_teacher':'أقل نسخة — تطبيق المعلم',
+    'min_app_version_parent':'أقل نسخة — تطبيق ولي الأمر',
+    'app_download_url':'رابط تحميل التطبيقات (https)',
+    'support_email':'إيميل الدعم',
+    'support_phone':'هاتف الدعم',
+    'support_whatsapp':'واتساب الدعم'} %}
+  {% for key, label in labels.items() %}
+    <label for="{{ key }}">{{ label }}</label>
+    <input id="{{ key }}" name="{{ key }}" value="{{ values[key] }}" dir="ltr"{% if key.startswith('min_app_version_') %} placeholder="1.0.0" inputmode="decimal"{% endif %}>
+  {% endfor %}
+  <button class="btn" type="submit" style="margin-top:12px">حفظ</button>
+</form>
+{% endblock %}
