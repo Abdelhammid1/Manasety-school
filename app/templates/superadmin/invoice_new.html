@@ -1,0 +1,27 @@
+{% extends "superadmin/base.html" %}
+{% block title %}فاتورة جديدة{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.school_detail', school_id=school.id) }}">→ {{ school.name }}</a></p>
+<h1>فاتورة جديدة — {{ school.name }}</h1>
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row">
+    <div><label for="plan_id">سطر اشتراك من باقة</label>
+      <select id="plan_id" name="plan_id"><option value="">— بدون —</option>
+        {% for p in plans %}<option value="{{ p.id }}">{{ p.name_ar }} — <bdi>{{ p.price_amount or 0 }} {{ p.currency or '' }}</bdi> / {{ {'monthly':'شهري','yearly':'سنوي','custom':'مخصص'}.get(p.billing_cycle, p.billing_cycle) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="currency">العملة</label><input id="currency" name="currency" dir="ltr" value="{{ school.currency }}" maxlength="8"></div>
+    <div><label for="tax_rate">الضريبة %</label><input id="tax_rate" name="tax_rate" inputmode="decimal" value="{{ settings.get('company_default_tax_rate') or 0 }}"></div>
+  </div>
+  <h2>سطور إضافية</h2>
+  {% for i in range(3) %}
+  <div class="row">
+    <div style="flex:3 1 240px"><label for="desc{{ i }}">الوصف</label><input id="desc{{ i }}" name="desc"></div>
+    <div><label for="qty{{ i }}">الكمية</label><input id="qty{{ i }}" name="qty" inputmode="decimal" value="1"></div>
+    <div><label for="price{{ i }}">السعر</label><input id="price{{ i }}" name="price" inputmode="decimal"></div>
+  </div>
+  {% endfor %}
+  <label for="notes">ملاحظات</label><textarea id="notes" name="notes" rows="2"></textarea>
+  <button class="btn" type="submit" style="margin-top:12px">حفظ كمسودة</button>
+</form>
+{% endblock %}

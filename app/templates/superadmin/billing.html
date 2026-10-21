@@ -1,0 +1,25 @@
+{% extends "superadmin/base.html" %}
+{% block title %}الفوترة{% endblock %}
+{% block content %}
+<h1>فواتير المنصة</h1>
+<p class="sub">منفصلة تمامًا عن مالية المدارس. <a href="{{ url_for('superadmin.billing_report') }}">التقارير المالية</a> · <a href="{{ url_for('superadmin.company_settings') }}">بيانات الشركة</a></p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الرقم</th><th>المدرسة</th><th>الحالة</th><th>الإصدار</th><th>الاستحقاق</th><th>الإجمالي</th><th>المتبقي</th></tr></thead>
+    <tbody>
+    {% for inv in rows %}
+      {% set overdue = billing.is_overdue(inv, today) %}
+      <tr>
+        <td class="mono"><a href="{{ url_for('superadmin.invoice_detail', invoice_id=inv.id) }}">{{ inv.number or ('مسودة #' ~ inv.id) }}</a></td>
+        <td>{{ inv.school.name if inv.school else inv.school_id }}</td>
+        <td><span class="chip {{ 'expired' if overdue else {'draft':'archived','issued':'grace','partially_paid':'grace','paid':'active','void':'archived'}[inv.status] }}">{{ 'متأخرة' if overdue else {'draft':'مسودة','issued':'صادرة','partially_paid':'مدفوعة جزئيًا','paid':'مدفوعة','void':'ملغاة'}[inv.status] }}</span></td>
+        <td class="num"><bdi>{{ inv.issue_date or '—' }}</bdi></td>
+        <td class="num"><bdi>{{ inv.due_date or '—' }}</bdi></td>
+        <td class="num"><bdi>{{ inv.total }} {{ inv.currency }}</bdi></td>
+        <td class="num"><bdi>{{ billing.outstanding(inv) if inv.status not in ('draft', 'void') else '—' }}</bdi></td>
+      </tr>
+    {% else %}<tr><td colspan="7">لا توجد فواتير. أنشئ فاتورة من صفحة المدرسة.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

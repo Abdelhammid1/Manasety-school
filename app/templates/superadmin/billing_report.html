@@ -1,0 +1,39 @@
+{% extends "superadmin/base.html" %}
+{% block title %}التقارير المالية{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.billing') }}">→ الفواتير</a></p>
+<h1>التقارير المالية</h1>
+<p class="sub">بعملة كل فاتورة، من غير تحويل عملات. <a href="{{ url_for('superadmin.billing_report', format='csv') }}">تصدير CSV</a></p>
+<div class="grid">
+  {% for cur, v in rep.mrr.items() %}
+  <div class="stat"><b><bdi>{{ v }} {{ cur }}</bdi></b><span>MRR</span></div>
+  <div class="stat"><b><bdi>{{ rep.arr[cur] }} {{ cur }}</bdi></b><span>ARR</span></div>
+  {% else %}<div class="stat"><b>—</b><span>MRR (مفيش باقات مسعّرة)</span></div>{% endfor %}
+  <div class="stat"><b>{{ rep.expiring[30]|length }}</b><span>تنتهي خلال 30 يوم</span></div>
+  <div class="stat"><b>{{ rep.expiring[60]|length }}</b><span>تنتهي خلال 60 يوم</span></div>
+</div>
+<h2>أعمار الفواتير المتأخرة</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>العملة</th><th>0-30</th><th>31-60</th><th>+60</th></tr></thead>
+    <tbody>
+    {% for cur, b in rep.aging.items() %}<tr><td>{{ cur }}</td><td class="num">{{ b['0-30'] }}</td><td class="num">{{ b['31-60'] }}</td><td class="num">{{ b['60+'] }}</td></tr>
+    {% else %}<tr><td colspan="4">لا توجد فواتير متأخرة.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+<h2>المحصّل شهريًا</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>العملة</th><th>الشهر</th><th>المبلغ</th></tr></thead>
+    <tbody>
+    {% for cur, months in rep.collected.items() %}{% for m, v in months.items() %}<tr><td>{{ cur }}</td><td class="num">{{ m }}</td><td class="num">{{ v }}</td></tr>{% endfor %}
+    {% else %}<tr><td colspan="3">لا توجد دفعات.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+<h2>اشتراكات تنتهي خلال 60 يوم</h2>
+<div class="card">
+  {% for s in rep.expiring[60] %}<a href="{{ url_for('superadmin.school_detail', school_id=s.id) }}">{{ s.name }}</a>{% if not loop.last %} · {% endif %}{% else %}لا يوجد.{% endfor %}
+</div>
+{% endblock %}

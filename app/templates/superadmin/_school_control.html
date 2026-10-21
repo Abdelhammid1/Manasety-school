@@ -2,6 +2,7 @@
 <div class="row" style="margin:16px 0;gap:8px">
   {% if current_user.role == 'owner' %}<a class="btn ghost" style="flex:0 0 auto;height:40px" href="{{ url_for('superadmin.school_edit', school_id=school.id) }}">تعديل البيانات</a>{% endif %}
   {% if current_user.role in ('owner', 'support') %}<a class="btn ghost" style="flex:0 0 auto;height:40px" href="{{ url_for('superadmin.school_staff', school_id=school.id) }}">مستخدمو الموظفين</a>{% endif %}
+  {% if current_user.role in ('owner', 'finance') %}<a class="btn ghost" style="flex:0 0 auto;height:40px" href="{{ url_for('superadmin.school_statement', school_id=school.id) }}">الفواتير وكشف الحساب</a>{% endif %}
 </div>
 
 {% if current_user.role == 'owner' %}

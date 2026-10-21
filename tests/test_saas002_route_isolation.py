@@ -380,6 +380,30 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.announcement_delete":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.invoice_new":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.invoice_detail":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.invoice_issue":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.invoice_void":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.invoice_payment":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.payment_reverse":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.invoice_pdf":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.school_statement":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-033 billing tests",
     "superadmin.school_detail":
         "SAAS-025 platform console (no school tenant): 404 on every school host "
         "and when resolution is off — covered by tests/test_saas025_platform.py",
@@ -549,6 +573,7 @@ FORM_ID_MATRIX: dict[str, Entry] = {
 FORM_ID_PLATFORM: dict[str, str] = {
     "superadmin.subscription_change_plan": "plan_id → plans (platform table, SAAS-026)",
     "superadmin.subscription_trial": "plan_id → plans (platform table, SAAS-026)",
+    "superadmin.invoice_new": "plan_id → plans (platform table, SAAS-033)",
 }
 
 FORM_ID_PENDING: tuple[str, ...] = (

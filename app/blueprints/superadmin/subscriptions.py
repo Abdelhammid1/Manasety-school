@@ -99,6 +99,9 @@ def subscriptions_tick_command():
     from ...services.locks import AlreadyRunning
     try:
         result = subs.run_subscriptions_tick()
+        # SAAS-033 — expiry / grace / overdue notices (idempotent per day)
+        from ...services.billing import send_due_notices
+        result["notices"] = send_due_notices()
     except AlreadyRunning:
         click.echo(json.dumps({"ok": False, "reason": "already_running"}))
         sys.exit(2)

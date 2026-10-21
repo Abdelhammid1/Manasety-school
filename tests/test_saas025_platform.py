@@ -58,6 +58,18 @@ SUPERADMIN_ROUTES = {
     "superadmin.school_tags_set": {"POST"},
     "superadmin.announcements": {"GET", "POST"},
     "superadmin.announcement_delete": {"POST"},
+    # SAAS-033
+    "superadmin.billing": {"GET"},
+    "superadmin.invoice_new": {"GET", "POST"},
+    "superadmin.invoice_detail": {"GET"},
+    "superadmin.invoice_issue": {"POST"},
+    "superadmin.invoice_void": {"POST"},
+    "superadmin.invoice_payment": {"POST"},
+    "superadmin.payment_reverse": {"POST"},
+    "superadmin.invoice_pdf": {"GET"},
+    "superadmin.school_statement": {"GET"},
+    "superadmin.billing_report": {"GET"},
+    "superadmin.company_settings": {"GET", "POST"},
 }
 # Writes allowed in the console, per ticket. Anything else must be GET.
 CONSOLE_WRITES = {
@@ -81,6 +93,12 @@ CONSOLE_WRITES = {
     "superadmin.school_tags_set",
     "superadmin.announcements",
     "superadmin.announcement_delete",
+    "superadmin.invoice_new",
+    "superadmin.invoice_issue",
+    "superadmin.invoice_void",
+    "superadmin.invoice_payment",
+    "superadmin.payment_reverse",
+    "superadmin.company_settings",
 }
 
 

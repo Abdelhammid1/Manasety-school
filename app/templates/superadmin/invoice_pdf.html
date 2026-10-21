@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="utf-8">
+<title>{{ inv.number }}</title>
+<style>
+  @page { size: A4; margin: 18mm; }
+  body { font-family: "Baloo Bhaijaan 2", "Noto Naskh Arabic", "DejaVu Sans", sans-serif; color: #0f172a; font-size: 12pt; }
+  h1 { color: #1E3A8A; margin: 0; font-size: 20pt; }
+  .head { display: flex; justify-content: space-between; border-bottom: 2px solid #1E3A8A; padding-bottom: 8px; margin-bottom: 16px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+  th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: right; }
+  th { background: #eef2ff; }
+  .num { direction: ltr; unicode-bidi: isolate; text-align: left; }
+  .muted { color: #475569; font-size: 10pt; }
+</style>
+</head>
+<body>
+  <div class="head">
+    <div>
+      <h1>فاتورة</h1>
+      <div class="muted">{{ company.company_legal_name or 'منصتي' }}</div>
+      {% if company.company_tax_number %}<div class="muted">الرقم الضريبي: <span class="num">{{ company.company_tax_number }}</span></div>{% endif %}
+      {% if company.company_address %}<div class="muted">{{ company.company_address }}</div>{% endif %}
+    </div>
+    <div>
+      <div>رقم: <span class="num">{{ inv.number }}</span></div>
+      <div>التاريخ: <span class="num">{{ inv.issue_date }}</span></div>
+      <div>الاستحقاق: <span class="num">{{ inv.due_date }}</span></div>
+    </div>
+  </div>
+  <div>إلى: <b>{{ inv.school.name }}</b>{% if inv.school.tax_number %} — الرقم الضريبي <span class="num">{{ inv.school.tax_number }}</span>{% endif %}</div>
+  <table>
+    <thead><tr><th>الوصف</th><th>الكمية</th><th>السعر</th><th>المبلغ</th></tr></thead>
+    <tbody>
+    {% for l in inv.lines %}<tr><td>{{ l.description }}</td><td class="num">{{ l.qty }}</td><td class="num">{{ l.unit_price }}</td><td class="num">{{ l.amount }}</td></tr>{% endfor %}
+    <tr><td colspan="3">الإجمالي قبل الضريبة</td><td class="num">{{ inv.subtotal }}</td></tr>
+    <tr><td colspan="3">الضريبة ({{ inv.tax_rate }}%)</td><td class="num">{{ inv.tax_amount }}</td></tr>
+    <tr><th colspan="3">الإجمالي</th><th class="num">{{ inv.total }} {{ inv.currency }}</th></tr>
+    <tr><td colspan="3">المدفوع</td><td class="num">{{ paid }}</td></tr>
+    <tr><td colspan="3">المتبقي</td><td class="num">{{ outstanding }}</td></tr>
+    </tbody>
+  </table>
+  {% if company.company_bank_details %}<p class="muted" style="white-space:pre-wrap">بيانات التحويل:
+{{ company.company_bank_details }}</p>{% endif %}
+  {% if inv.notes %}<p class="muted">{{ inv.notes }}</p>{% endif %}
+  {% if inv.status == 'void' %}<p style="color:#b91c1c;font-weight:800">ملغاة: {{ inv.void_reason }}</p>{% endif %}
+</body>
+</html>

@@ -262,6 +262,15 @@ class Config:
     NGINX_CERT_FILE = os.environ.get("NGINX_CERT_FILE") or         "/opt/manasety/certbot/conf/live/wildcard-manasety/fullchain.pem"
     NGINX_UPSTREAM = os.environ.get("NGINX_UPSTREAM") or "172.21.0.1:5006"
 
+    # SAAS-033 — platform notices (billing / expiry). Off unless enabled;
+    # outside production only the allow-list ever receives anything.
+    PLATFORM_EMAILS_ENABLED = (os.environ.get("PLATFORM_EMAILS_ENABLED") or "").strip().lower() in (
+        "1", "true", "yes", "on")
+    PLATFORM_EMAIL_ALLOWLIST = (
+        None if APP_ENV not in ("development", "testing") and not os.environ.get("PLATFORM_EMAIL_ALLOWLIST")
+        else frozenset(a.strip().lower() for a in (os.environ.get("PLATFORM_EMAIL_ALLOWLIST") or "").split(",")
+                       if a.strip()))
+
     # SAAS-027 — second line of the read-only (grace) enforcement: a write
     # reaching the DB through a GET route. "log" reports only (default);
     # "enforce" refuses the flush. Anything else is treated as "log".

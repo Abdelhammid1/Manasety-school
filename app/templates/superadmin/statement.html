@@ -1,0 +1,21 @@
+{% extends "superadmin/base.html" %}
+{% block title %}كشف حساب {{ school.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.school_detail', school_id=school.id) }}">→ {{ school.name }}</a></p>
+<h1>كشف حساب — {{ school.name }}</h1>
+<p><a class="btn ghost" href="{{ url_for('superadmin.invoice_new', school_id=school.id) }}">فاتورة جديدة</a></p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الرقم</th><th>الحالة</th><th>التاريخ</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+    <tbody>
+    {% for r in rows %}{% set i = r.invoice %}
+      <tr><td class="mono"><a href="{{ url_for('superadmin.invoice_detail', invoice_id=i.id) }}">{{ i.number or ('مسودة #' ~ i.id) }}</a></td>
+        <td>{{ {'draft':'مسودة','issued':'صادرة','partially_paid':'جزئي','paid':'مدفوعة','void':'ملغاة'}[i.status] }}</td>
+        <td class="num"><bdi>{{ i.issue_date or '—' }}</bdi></td>
+        <td class="num"><bdi>{{ i.total }} {{ i.currency }}</bdi></td>
+        <td class="num">{{ r.paid }}</td><td class="num">{{ r.outstanding if i.status not in ('draft','void') else '—' }}</td></tr>
+    {% else %}<tr><td colspan="6">لا توجد فواتير.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

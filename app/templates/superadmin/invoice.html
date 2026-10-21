@@ -1,0 +1,77 @@
+{% extends "superadmin/base.html" %}
+{% block title %}{{ inv.number or 'مسودة' }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.billing') }}">→ الفواتير</a> · <a href="{{ url_for('superadmin.school_statement', school_id=inv.school_id) }}">كشف حساب المدرسة</a></p>
+<h1>{{ inv.number or ('مسودة #' ~ inv.id) }}</h1>
+{% set overdue = billing.is_overdue(inv, today) %}
+<p class="sub">{{ inv.school.name }} · <span class="chip {{ 'expired' if overdue else 'grace' }}">{{ 'متأخرة' if overdue else {'draft':'مسودة','issued':'صادرة','partially_paid':'مدفوعة جزئيًا','paid':'مدفوعة','void':'ملغاة'}[inv.status] }}</span>
+  {% if inv.issue_date %}· صدرت <bdi>{{ inv.issue_date }}</bdi> · تستحق <bdi>{{ inv.due_date }}</bdi>{% endif %}
+  {% if inv.status != 'draft' %}· <a href="{{ url_for('superadmin.invoice_pdf', invoice_id=inv.id) }}">PDF</a>{% endif %}</p>
+{% if inv.void_reason %}<div class="warn">ملغاة: {{ inv.void_reason }}</div>{% endif %}
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الوصف</th><th>الكمية</th><th>السعر</th><th>المبلغ</th></tr></thead>
+    <tbody>
+    {% for l in inv.lines %}<tr><td style="white-space:normal">{{ l.description }}</td><td class="num">{{ l.qty }}</td><td class="num">{{ l.unit_price }}</td><td class="num">{{ l.amount }}</td></tr>{% endfor %}
+    <tr><td colspan="3"><b>الإجمالي قبل الضريبة</b></td><td class="num">{{ inv.subtotal }}</td></tr>
+    <tr><td colspan="3"><b>الضريبة ({{ inv.tax_rate }}%)</b></td><td class="num">{{ inv.tax_amount }}</td></tr>
+    <tr><td colspan="3"><b>الإجمالي</b></td><td class="num"><b><bdi>{{ inv.total }} {{ inv.currency }}</bdi></b></td></tr>
+    {% if inv.status != 'draft' %}<tr><td colspan="3"><b>المدفوع / المتبقي</b></td><td class="num"><bdi>{{ billing.paid_amount(inv) }} / {{ billing.outstanding(inv) }}</bdi></td></tr>{% endif %}
+    </tbody>
+  </table>
+</div>
+
+{% if inv.payments %}
+<h2>الدفعات</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>التاريخ</th><th>المبلغ</th><th>الطريقة</th><th>المرجع</th><th></th></tr></thead>
+    <tbody>
+    {% for p in inv.payments %}
+      <tr><td class="num"><bdi>{{ p.paid_on }}</bdi></td><td class="num">{{ p.amount }}</td><td>{{ p.method }}</td><td class="mono">{{ p.reference or p.notes or '' }}</td>
+        <td>{% if p.amount > 0 and not p.reverses_payment_id %}
+          <form method="post" action="{{ url_for('superadmin.payment_reverse', payment_id=p.id) }}" class="row" style="margin:0">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input name="reason" required placeholder="سبب العكس" aria-label="سبب العكس">
+            <button class="btn ghost" type="submit" style="flex:0 0 auto">عكس</button></form>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<div class="actions">
+  {% if inv.status == 'draft' %}
+  <form method="post" action="{{ url_for('superadmin.invoice_issue', invoice_id=inv.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h3>إصدار</h3><p class="sub" style="margin:0">بعد الإصدار الفاتورة ما بتتعدلش.</p>
+    <label for="due_days">مدة الاستحقاق (أيام)</label><input id="due_days" name="due_days" value="14" inputmode="numeric">
+    <button class="btn block" type="submit">إصدار</button>
+  </form>
+  {% endif %}
+  {% if inv.status in ('issued', 'partially_paid') %}
+  <form method="post" action="{{ url_for('superadmin.invoice_payment', invoice_id=inv.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h3>تسجيل دفعة</h3>
+    <div class="row">
+      <div><label for="amount">المبلغ *</label><input id="amount" name="amount" required inputmode="decimal" value="{{ billing.outstanding(inv) }}"></div>
+      <div><label for="paid_on">التاريخ</label><input id="paid_on" name="paid_on" type="date" value="{{ today }}"></div>
+    </div>
+    <div class="row">
+      <div><label for="method">الطريقة</label><select id="method" name="method">{% for m in methods %}<option value="{{ m }}">{{ {'bank_transfer':'تحويل بنكي','cash':'نقدي','instapay':'إنستاباي','other':'أخرى'}[m] }}</option>{% endfor %}</select></div>
+      <div><label for="reference">المرجع</label><input id="reference" name="reference" dir="ltr"></div>
+    </div>
+    {% if inv.lines|selectattr('period_start')|list %}<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="renew" value="1" checked style="width:auto;height:auto"> تجديد الاشتراك بفترة الفاتورة</label>{% endif %}
+    <button class="btn block" type="submit">تسجيل</button>
+  </form>
+  {% endif %}
+  {% if inv.status != 'void' %}
+  <form method="post" action="{{ url_for('superadmin.invoice_void', invoice_id=inv.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <h3>إلغاء</h3><p class="sub" style="margin:0">التصحيح = إلغاء + فاتورة جديدة. مفيش حذف.</p>
+    <label for="void_reason">السبب *</label><input id="void_reason" name="reason" required>
+    <button class="btn block" type="submit">إلغاء الفاتورة</button>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}
