@@ -81,11 +81,13 @@ def _act(invoice_id, fn, ok_msg):
     inv = _inv(invoice_id)
     try:
         fn(inv)
-    except billing.BillingError as e:
+    except ValueError as e:              # BillingError, or a bad number in the form
         db.session.rollback()
-        flash(str(e), "danger")
+        billing.drop_deferred()
+        flash(str(e) if isinstance(e, billing.BillingError) else "قيمة غير صالحة.", "danger")
     else:
         db.session.commit()
+        billing.send_deferred()          # e-mails only after the commit
         flash(ok_msg, "success")
     return redirect(url_for("superadmin.invoice_detail", invoice_id=inv.id))
 

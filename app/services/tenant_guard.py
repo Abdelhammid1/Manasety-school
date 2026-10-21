@@ -74,10 +74,21 @@ class Edge:
     parent: str
 
 
+_OWNED_CACHE: dict = {}
+
+
 def owned_tables() -> set[str]:
-    return {t.name for t in db.metadata.tables.values()
-            if "school_id" in t.c and t.name != "schools"
-            and t.name not in PLATFORM_TABLES}
+    """Tenant-owned table names. Cached: the metadata only changes when a
+    model is imported (the key catches that), and this runs per flush."""
+    key = (id(db.metadata), len(db.metadata.tables))
+    hit = _OWNED_CACHE.get(key)
+    if hit is None:
+        hit = frozenset(t.name for t in db.metadata.tables.values()
+                        if "school_id" in t.c and t.name != "schools"
+                        and t.name not in PLATFORM_TABLES)
+        _OWNED_CACHE.clear()
+        _OWNED_CACHE[key] = hit
+    return set(hit)
 
 
 def edges() -> list[Edge]:

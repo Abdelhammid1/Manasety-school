@@ -275,14 +275,24 @@ def support_notices_for_request():
     return recent_for_admin(current_user.school_id)
 
 
+_LIMIT_WARN_CACHE: dict = {}
+
+
 def limit_warnings_for_request():
     """SAAS-030 — limits at ≥ 90 %, for a school admin on the dashboard
     only (counting storage walks the upload folder)."""
     from flask_login import current_user
     if request.endpoint != "dashboard.home" or not getattr(current_user, "is_authenticated", False)             or getattr(current_user, "is_platform_user", False)             or getattr(getattr(current_user, "role", None), "name", None) != "admin":
         return []
+    # the storage count walks the upload folder: once per 5 min per school
+    import time as _time
     from .limits import limit_report
-    return [r for r in limit_report(current_user.school_id) if r["warn"]]
+    sid = current_user.school_id
+    hit = _LIMIT_WARN_CACHE.get(sid)
+    if hit is None or _time.monotonic() - hit[0] > 300:
+        hit = (_time.monotonic(), [r for r in limit_report(sid) if r["warn"]])
+        _LIMIT_WARN_CACHE[sid] = hit
+    return hit[1]
 
 def banner_for_request():
     """{kind, text} for the school app's base template, or None."""

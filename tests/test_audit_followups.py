@@ -351,3 +351,135 @@ def test_grace_allowlisted_write_is_not_a_flush_guard_offender(eapp, two_schools
     set_state(eapp, A["school"].id, "active")
     assert r.status_code in (200, 201), r.data[:200]       # a real hit, not a 404
     assert "would refuse" not in caplog.text
+
+
+
+# ─── the "your call" items, decided ──────────────────────────────────
+
+def test_off_mode_school_without_subscription_keeps_every_module(app, two_schools, monkeypatch):
+    from app.extensions import db
+    from app.models import SchoolSubscription
+    from app.services.modules import MODULE_KEYS, _compute_enabled
+    A = two_schools["A"]
+    with app.app_context():
+        sub = SchoolSubscription.query.filter_by(school_id=A["school"].id, is_current=True).one()
+        sub.is_current = False
+        db.session.flush()
+        try:
+            for mode, everything in (("off", True), ("log", True), ("enforce", False)):
+                monkeypatch.setitem(app.config, "TENANT_RESOLUTION_MODE", mode)
+                assert (_compute_enabled(A["school"].id) == frozenset(MODULE_KEYS)) is everything, mode
+        finally:
+            db.session.rollback()
+            db.session.remove()
+
+
+def test_off_mode_cron_skips_nobody(app, two_schools, monkeypatch):
+    from app.blueprints.cron.routes import run_tick
+    A = two_schools["A"]
+    monkeypatch.setitem(app.config, "TENANT_RESOLUTION_MODE", "off")
+    set_state(app, A["school"].id, "expired")
+    try:
+        with app.app_context():
+            res = run_tick()
+        assert res["schools"][A["school"].id]["status"] == "ok"
+    finally:
+        set_state(app, A["school"].id, "active")
+
+
+def test_billing_mail_waits_for_the_commit(console, two_schools, monkeypatch):
+    from datetime import date
+    from app.extensions import db
+    from app.services import billing, platform_mailer
+    from test_saas033_billing import _sub_invoice
+    sent = []
+    monkeypatch.setattr(platform_mailer, "is_configured", lambda: True)
+    monkeypatch.setattr(platform_mailer, "send", lambda to, subj, body: sent.append(subj))
+    monkeypatch.setitem(console.config, "PLATFORM_EMAILS_ENABLED", True)
+    monkeypatch.setitem(console.config, "PLATFORM_EMAIL_ALLOWLIST", None)
+    A = two_schools["A"]
+    with console.app_context():
+        from app.models import School
+        db.session.get(School, A["school"].id).email = "billing@alpha.test"
+        inv = _sub_invoice(console, A, date(2027, 1, 1), date(2027, 12, 31))
+        billing.issue(inv, None, issue_date=date(2026, 12, 1))
+        assert sent == []                                  # nothing before the commit
+        billing.drop_deferred()                            # a rollback path sends nothing
+        db.session.rollback()
+        db.session.get(School, A["school"].id).email = "billing@alpha.test"   # the rollback undid it
+        inv = _sub_invoice(console, A, date(2027, 1, 1), date(2027, 12, 31))
+        billing.issue(inv, None, issue_date=date(2026, 12, 1))
+        db.session.commit()
+        billing.send_deferred()
+        assert len(sent) == 1
+        db.session.get(School, A["school"].id).email = None
+        db.session.commit()
+        db.session.remove()
+
+
+def test_a_failed_recipient_is_retried_alone(console, two_schools, monkeypatch):
+    from datetime import date
+    from app.extensions import db
+    from app.models import SchoolContact
+    from app.services import billing, platform_mailer
+    calls = []
+
+    def send(to, subj, body):
+        calls.append(to)
+        if to == "flaky@alpha.test" and calls.count(to) == 1:
+            raise platform_mailer.PlatformMailError("down")
+    monkeypatch.setattr(platform_mailer, "is_configured", lambda: True)
+    monkeypatch.setattr(platform_mailer, "send", send)
+    monkeypatch.setitem(console.config, "PLATFORM_EMAILS_ENABLED", True)
+    monkeypatch.setitem(console.config, "PLATFORM_EMAIL_ALLOWLIST", None)
+    A = two_schools["A"]
+    with console.app_context():
+        for addr in ("ok@alpha.test", "flaky@alpha.test"):
+            db.session.add(SchoolContact(school_id=A["school"].id, name=addr, email=addr,
+                                         is_billing_contact=True))
+        db.session.flush()
+        day = date(2026, 12, 24)
+        assert billing._notice(db.session.get(type(A["school"]), A["school"].id), "test_kind", "x", day=day) is False
+        assert billing._notice(db.session.get(type(A["school"]), A["school"].id), "test_kind", "x", day=day) is True
+        assert calls.count("ok@alpha.test") == 1 and calls.count("flaky@alpha.test") == 2
+        db.session.rollback()
+        db.session.remove()
+
+
+def test_reversal_is_booked_on_the_day_it_happens(console, two_schools):
+    from datetime import date
+    from app.extensions import db
+    from app.services import billing
+    from app.services.subscriptions import get_settings, platform_today
+    from test_saas033_billing import _sub_invoice
+    A = two_schools["A"]
+    with console.app_context():
+        inv = _sub_invoice(console, A, date(2027, 1, 1), date(2027, 12, 31))
+        billing.issue(inv, None, issue_date=date(2026, 1, 5))
+        p = billing.record_payment(inv, None, amount="100", paid_on=date(2026, 1, 5), method="cash")
+        r = billing.reverse_payment(p, None, "bounced cheque")
+        assert r.paid_on == platform_today(get_settings())
+        billing.drop_deferred()
+        db.session.rollback()
+        db.session.remove()
+
+
+def test_manual_renew_double_submit_renews_once(console, two_schools, monkeypatch):
+    from app.extensions import db
+    from app.services.subscriptions import current_subscription
+    monkeypatch.setitem(console.config, "WTF_CSRF_ENABLED", False)
+    c, _ = _console_client(console, "owner")
+    sid = two_schools["A"]["school"].id
+    from app.models import SchoolSubscriptionEvent
+    with console.app_context():
+        n0 = SchoolSubscriptionEvent.query.filter_by(school_id=sid, kind="renewed").count()
+    try:
+        for _ in range(2):
+            c.post(f"/superadmin/schools/{sid}/subscription/renew", base_url=CONSOLE,
+                   data={"months": "12", "reason": "paid"})
+        with console.app_context():
+            assert SchoolSubscriptionEvent.query.filter_by(school_id=sid, kind="renewed").count() == n0 + 1
+            assert current_subscription(sid) is not None
+            db.session.remove()
+    finally:
+        set_state(console, sid, "active")

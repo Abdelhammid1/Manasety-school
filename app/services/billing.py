@@ -131,7 +131,7 @@ def issue(inv, user, *, issue_date: date | None = None, due_days: int = 14) -> N
     inv.status = "issued" if inv.total > 0 else "paid"       # free / grant invoice
     db.session.flush()
     audit("invoice_issued", user, school_id=inv.school_id, invoice=inv.number, total=str(inv.total))
-    _notice_new_invoice(inv)
+    defer(_notice_new_invoice, inv)
 
 
 def void(inv, user, reason: str) -> None:
@@ -197,8 +197,8 @@ def record_payment(inv, user, *, amount, paid_on: date, method: str, reference=N
     if renew:
         renew_from_invoice(inv, user, today=today)
     db.session.flush()
-    _notice(inv.school, "payment_confirmed", f"تم استلام دفعة {amount} {inv.currency} للفاتورة {inv.number}.",
-            day=paid_on)
+    defer(_notice, inv.school, "payment_confirmed",
+          f"تم استلام دفعة {amount} {inv.currency} للفاتورة {inv.number}.", day=paid_on)
     return p
 
 
@@ -213,7 +213,9 @@ def reverse_payment(payment, user, reason: str):
     if PlatformPayment.query.filter_by(reverses_payment_id=payment.id).first() is not None:
         raise BillingError("الدفعة اتعكست قبل كده.")
     inv = payment.invoice
-    r = PlatformPayment(invoice_id=inv.id, amount=-money(payment.amount), paid_on=payment.paid_on,
+    from .subscriptions import get_settings, platform_today
+    r = PlatformPayment(invoice_id=inv.id, amount=-money(payment.amount),
+                        paid_on=max(payment.paid_on, platform_today(get_settings())),
                         method=payment.method, notes=reason.strip(), reverses_payment_id=payment.id,
                         recorded_by_platform_user_id=getattr(user, "id", None))
     db.session.add(r)
@@ -337,12 +339,42 @@ def _notice(school, kind: str, body: str, *, day: date | None = None) -> bool:
         return False
     ok = True
     for addr in targets:
+        one = f"{key}|{addr.strip().lower()}"
+        if SchoolSubscriptionEvent.query.filter_by(school_id=school.id, kind="reminder_sent",
+                                                   to_value=one).first():
+            continue                # this recipient already got it today
         try:
             platform_mailer.send(addr, f"منصتي — {school.name}", body)
         except platform_mailer.PlatformMailError:
             ok = False
+            continue
+        _event(school.id, "reminder_sent", None, one, None, None)
     _event(school.id, "reminder_sent" if ok else "reminder_failed", None, key, None, None)
     return ok
+
+
+def defer(fn, *args, **kw) -> None:
+    """Queue a notice for after the commit (send_deferred)."""
+    db.session.info.setdefault("_billing_deferred", []).append((fn, args, kw))
+
+
+def drop_deferred() -> None:
+    db.session.info.pop("_billing_deferred", None)
+
+
+def send_deferred() -> None:
+    """Call right after the commit: sends the queued notices (each one
+    records its own event) and commits those events. A failure is logged,
+    never surfaced — the money transaction is already safe."""
+    from flask import current_app
+    queued = db.session.info.pop("_billing_deferred", [])
+    for fn, args, kw in queued:
+        try:
+            fn(*args, **kw)
+            db.session.commit()
+        except Exception:  # noqa: BLE001
+            db.session.rollback()
+            current_app.logger.exception("billing — deferred notice failed")
 
 
 def _notice_new_invoice(inv):

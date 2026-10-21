@@ -187,8 +187,14 @@ def install(app) -> None:
 def _compute_enabled(school_id: int) -> frozenset[str]:
     from ..models import SchoolModuleOverride
     from .subscriptions import current_subscription
+    from .tenancy import resolution_mode
     sub = current_subscription(school_id)
-    plan_modules = list((sub.plan.modules if sub is not None and sub.plan is not None else None) or [])
+    if sub is None and resolution_mode() != "enforce":
+        # before enforcement nothing new may take a module away: a school
+        # created outside the console (CLI, old seed) keeps them all
+        plan_modules = ["*"]
+    else:
+        plan_modules = list((sub.plan.modules if sub is not None and sub.plan is not None else None) or [])
     enabled = set(MODULE_KEYS) if "*" in plan_modules else set(plan_modules) & set(MODULE_KEYS)
     for o in SchoolModuleOverride.query.filter_by(school_id=school_id):
         if o.module_key in BY_KEY:

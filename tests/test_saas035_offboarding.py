@@ -350,17 +350,23 @@ def test_unarchive_resets_offboarding(console, two_schools, purge_world):
         assert row.retention_until is None and row.purge_approved_by is None and row.export_verified_at is None
 
 
-def test_export_skips_symlinks_out_of_the_school(console, two_schools, uploads, tmp_path):
+def test_export_skips_symlinks_out_of_the_school(console, two_schools, uploads, tmp_path, monkeypatch):
     import os
     A = two_schools["A"]
     folder = uploads / "up" / str(A["school"].id)
     folder.mkdir(parents=True)
     secret = tmp_path / "secret.txt"
     secret.write_text("TOP-SECRET")
+    link = folder / "link.txt"
     try:
-        os.symlink(secret, folder / "link.txt")
+        os.symlink(secret, link)
     except (OSError, NotImplementedError):
-        pytest.skip("symlinks not available on this machine")
+        # no symlink privilege (Windows): simulate one so the rule is
+        # still exercised — never a skipped test
+        import pathlib
+        link.write_text("TOP-SECRET")
+        real = pathlib.Path.is_symlink
+        monkeypatch.setattr(pathlib.Path, "is_symlink", lambda self: self == link or real(self))
     res = _export(console, A)
     with zipfile.ZipFile(res["path"]) as z:
         assert not any(n.startswith("files/link") for n in z.namelist())

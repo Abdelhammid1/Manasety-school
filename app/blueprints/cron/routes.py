@@ -121,12 +121,14 @@ def run_tick(today: date | None = None) -> dict:
         # tick (no generated rows, no reminders); the reason is recorded.
         from ...services.subscriptions import (
             current_subscription, effective_state, get_settings, platform_today)
+        from ...services.tenancy import resolution_mode
         settings = get_settings()
         sub_today = platform_today(settings)
+        enforce = resolution_mode() == "enforce"     # off / log: block nothing (no new behaviour)
         for sid in school_ids:
             state = effective_state(db.session.get(School, sid), current_subscription(sid),
                                     sub_today, settings)
-            if state.blocked:
+            if enforce and state.blocked:
                 results[sid] = {"status": "skipped", "reason": state.state}
                 continue
             try:

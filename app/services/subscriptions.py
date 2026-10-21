@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import calendar
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from ..extensions import db
@@ -230,6 +230,18 @@ def resume_school(school, user, reason: str) -> None:
     request_nginx_sync("school_resumed", school_id=school.id, user=user)
 
 
+RENEW_DOUBLE_SUBMIT = timedelta(seconds=60)
+
+
+def _recent_renewal_by(school_id: int, user) -> bool:
+    from ..models import SchoolSubscriptionEvent
+    since = datetime.now(timezone.utc) - RENEW_DOUBLE_SUBMIT
+    return SchoolSubscriptionEvent.query.filter(
+        SchoolSubscriptionEvent.school_id == school_id, SchoolSubscriptionEvent.kind == "renewed",
+        SchoolSubscriptionEvent.platform_user_id == user.id,
+        SchoolSubscriptionEvent.created_at >= since).first() is not None
+
+
 def renewal_dates(cur, today: date) -> tuple[date, date]:
     """(starts_on of the new row, first day of the paid period).
 
@@ -244,6 +256,10 @@ def renewal_dates(cur, today: date) -> tuple[date, date]:
 def renew(school, user, reason, months=None, ends_on=None, today=None):
     """New period starting the day after the current end (or today if the
     subscription already ended)."""
+    from .locks import transaction_lock
+    transaction_lock(f"school-subscription-{school.id}")
+    if user is not None and _recent_renewal_by(school.id, user):
+        raise SubscriptionError("اتعمل تجديد للتو — راجع سجل الاشتراك قبل ما تجدد تاني.")
     cur = current_subscription(school.id)
     if cur is None:
         raise SubscriptionError("لا يوجد اشتراك حالي للتجديد.")

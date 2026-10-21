@@ -237,7 +237,9 @@ def test_notices_once_per_day_and_allowlist(console, two_schools, monkeypatch):
         billing.send_due_notices(day)
         billing.send_due_notices(day)          # second run the same day
         assert sent == ["ok@alpha.test"]
-        assert SchoolSubscriptionEvent.query.filter_by(school_id=A["school"].id, kind="reminder_sent").count() == 1
+        daily = [e for e in SchoolSubscriptionEvent.query.filter_by(school_id=A["school"].id, kind="reminder_sent")
+                 if "|" not in (e.to_value or "")]          # per-recipient rows carry "|addr"
+        assert len(daily) == 1
         db.session.remove()
 
 
