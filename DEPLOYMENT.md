@@ -335,6 +335,21 @@ Runbook:
 
 التراجع: أي خطوة قبل الحذف بتتلغي (إلغاء المسار + إلغاء الأرشفة). بعد `--execute` مفيش تراجع غير الاسترجاع من الـbackup. **ملاحظة:** بيانات المدرسة بتفضل موجودة في ملفات `backups/` القديمة لحد ما تتمسح حسب سياسة الاحتفاظ بالنسخ (قرار عبدالحميد).
 
+#### بعد كل Deploy — `flask smoke-check` (SAAS-042)
+
+آخر خطوة في بروتوكول الـDeploy، بعد `systemctl status`:
+
+```bash
+flask smoke-check            # الافتراضي: https://lms.manasety.ai و https://console.manasety.ai و https://test-a.manasety.ai
+```
+
+- للقراءة بس: GETs، والـPOST الوحيد هو لوجين حسابات مدرسة الاختبار (`instance/test_accounts.txt` من `seed-test-schools`، أو `--accounts-file`).
+- بيفحص: الصفحة الرئيسية 200، صفحة لوجين اللوحة، `/_health` لمدرسة الاختبار، لوجين admin / معلم / طالب / ولي أمر وفتح الصفحة الرئيسية لكل دور، وإن الشهادة فاضل عليها أكتر من 14 يوم.
+- كل فحص بيطبع `PASS` / `FAIL` بالزمن، والأمر بيخرج بكود غير صفري لو أي فحص فشل.
+- `--school-url ''` لو مدارس الاختبار مش متبنية؛ `--no-cert` لبيئة من غير HTTPS.
+
+**الـCI** (`.github/workflows/ci.yml`): كل push / PR بيشغّل الاختبارات كلها على PostgreSQL حقيقي، `flask db upgrade` من الصفر، رأس migration واحد بس، downgrade لما قبل المنصة وupgrade تاني، `tenant-integrity-check`، وبناء مدارس الاختبار وهدمها على Postgres. **مطلوب من عبدالحميد:** في GitHub ← Settings ← Branches، يخلّي check «ci» إجباري على `main` عشان أي PR بيكسر اختبار أو بيضيف head تاني ما يتدمجش.
+
 #### بيانات الاختبار — `flask seed-test-schools` (SAAS-041)
 
 مدرستين اختبار كاملتين ومنفصلتين (`test-a` و`test-b`) على الـhosts بتوعهم (`https://test-a.<BASE_DOMAIN>` و`https://test-b.<BASE_DOMAIN>`)، للاختبار اليدوي واختبارات العزل:

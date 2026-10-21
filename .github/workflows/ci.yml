@@ -1,0 +1,62 @@
+# SAAS-042 — every push / PR: the whole suite on a real PostgreSQL (not
+# only SQLite), migrations from zero, one migration head, the tenant
+# integrity scan, and the route-isolation classification. Any failure
+# blocks the merge (make "ci" a required check on main).
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci-only-throwaway
+          POSTGRES_DB: manasety_ci
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U ci -d manasety_ci"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      APP_ENV: testing
+      FLASK_APP: wsgi.py
+      # throwaway database of this job only (a test-only name the test
+      # guard accepts); no real secret anywhere in CI
+      DATABASE_URL: postgresql://ci:ci-only-throwaway@localhost:5432/manasety_ci
+      PYTHONIOENCODING: utf-8
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq libpango-1.0-0 libpangoft2-1.0-0 >/dev/null
+          pip install -r requirements.txt -r requirements-dev.txt
+      - name: Migrations from zero
+        run: flask db upgrade
+      - name: Exactly one migration head
+        run: |
+          heads=$(flask db heads | grep -c "(head)")
+          echo "heads: $heads"
+          test "$heads" -eq 1
+      - name: Downgrade to the pre-platform revision and back
+        run: |
+          flask db downgrade n7z1b3d5f7h9
+          flask db upgrade
+      - name: Tenant integrity
+        run: flask tenant-integrity-check
+      - name: Test suite (PostgreSQL)
+        run: python -m pytest tests -p no:cacheprovider
+      - name: Seed the test schools on PostgreSQL (SAAS-041)
+        run: |
+          flask seed-test-schools --small --no-backup --accounts-file /tmp/acc.txt
+          flask seed-test-schools --teardown --no-backup
