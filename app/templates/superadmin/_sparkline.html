@@ -1,0 +1,17 @@
+{# SAAS-034 — one-line chart, inline SVG. points: [(day, value)] #}
+{% macro sparkline(points, label, unit='') %}
+  {% if points %}
+    {% set vals = points|map(attribute=1)|list %}
+    {% set lo = vals|min %}{% set hi = vals|max %}{% set span = (hi - lo) or 1 %}
+    {% set n = points|length %}
+    <figure style="margin:0">
+      <svg viewBox="0 0 300 70" width="100%" height="70" role="img" aria-label="{{ label }}: من {{ vals[0] }} إلى {{ vals[-1] }}{{ unit }}" preserveAspectRatio="none" style="direction:ltr">
+        <polyline fill="none" stroke="var(--navy)" stroke-width="2" vector-effect="non-scaling-stroke"
+          points="{% for d, v in points %}{{ (loop.index0 * 300 / ((n - 1) or 1))|round(1) }},{{ (64 - (v - lo) * 58 / span)|round(1) }} {% endfor %}"/>
+      </svg>
+      <figcaption class="sub" style="margin:4px 0 0;display:flex;justify-content:space-between"><span>{{ label }}</span><bdi>{{ vals[-1] }}{{ unit }}</bdi></figcaption>
+    </figure>
+  {% else %}
+    <p class="sub" style="margin:0">{{ label }}: لا توجد لقطات بعد.</p>
+  {% endif %}
+{% endmacro %}

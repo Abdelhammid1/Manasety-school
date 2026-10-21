@@ -1,0 +1,14 @@
+{# SAAS-034 — included by school_detail.html #}
+{% from "superadmin/_sparkline.html" import sparkline %}
+<h2 id="usage">الاستخدام (90 يوم)</h2>
+<div class="card">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(240px,1fr))">
+    <div>{{ sparkline(usage.students, 'الطلاب النشطون') }}</div>
+    <div>{{ sparkline(usage.storage_mb, 'التخزين', ' MB') }}</div>
+  </div>
+  <p class="sub" style="margin:8px 0 0">آخر نشاط: <bdi>{{ usage.last.last_activity_at.strftime('%Y-%m-%d %H:%M') if usage.last and usage.last.last_activity_at else '—' }}</bdi>
+    · نشطون آخر 7 أيام: {{ usage.last.active_users_7d if usage.last else '—' }}</p>
+  {% if school_alerts %}
+  <div style="margin-top:8px">{% for a in school_alerts %}<div class="warn" style="margin:6px 0">{{ a.message_ar }}</div>{% endfor %}</div>
+  {% endif %}
+</div>

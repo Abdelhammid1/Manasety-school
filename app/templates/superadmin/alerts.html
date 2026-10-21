@@ -1,0 +1,24 @@
+{% extends "superadmin/base.html" %}
+{% block title %}التنبيهات{% endblock %}
+{% block content %}
+<h1>التنبيهات</h1>
+<p class="sub"><a href="{{ url_for('superadmin.alerts', show='open') }}">المفتوحة</a> · <a href="{{ url_for('superadmin.alerts', show='all') }}">الكل</a></p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>النوع</th><th>الرسالة</th><th>أول ظهور</th><th>آخر ظهور</th><th>الحالة</th><th></th></tr></thead>
+    <tbody>
+    {% for a in rows %}
+      <tr>
+        <td><span class="chip {{ 'expired' if a.severity == 'error' else 'grace' }}">{{ a.kind }}</span></td>
+        <td style="white-space:normal">{% if a.school_id %}<a href="{{ url_for('superadmin.school_detail', school_id=a.school_id) }}">{{ a.message_ar }}</a>{% else %}{{ a.message_ar }}{% endif %}</td>
+        <td class="num"><bdi>{{ a.first_seen_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td class="num"><bdi>{{ a.last_seen_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td>{{ 'اتقفل' if a.resolved_at else ('تم الإقرار' if a.acknowledged_by else 'مفتوح') }}</td>
+        <td>{% if not a.resolved_at and not a.acknowledged_by and current_user.role in ('owner', 'support') %}
+          <form method="post" action="{{ url_for('superadmin.alert_ack', alert_id=a.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn ghost" type="submit">إقرار</button></form>{% endif %}</td>
+      </tr>
+    {% else %}<tr><td colspan="6">لا توجد تنبيهات.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

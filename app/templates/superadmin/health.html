@@ -1,0 +1,18 @@
+{% extends "superadmin/base.html" %}
+{% block title %}صحة النظام{% endblock %}
+{% block content %}
+<h1>صحة النظام</h1>
+<p class="sub">قراءة فقط. أي مصدر ما يتقريش يظهر "غير معروف"، مش "سليم".</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>المؤشر</th><th>الحالة</th><th>التفاصيل</th></tr></thead>
+    <tbody>
+    {% for i in indicators %}
+      <tr><td>{{ i.label }}</td>
+        <td><span class="chip {{ {'ok':'active','warn':'grace','error':'expired','unknown':'archived'}[i.status] }}">{{ {'ok':'سليم','warn':'تحذير','error':'خطأ','unknown':'غير معروف'}[i.status] }}</span></td>
+        <td>{{ i.detail }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

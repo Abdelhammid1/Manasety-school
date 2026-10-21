@@ -1,0 +1,40 @@
+{% extends "superadmin/base.html" %}
+{% from "superadmin/_sparkline.html" import sparkline %}
+{% block title %}الرئيسية{% endblock %}
+{% block content %}
+<h1>نظرة عامة</h1>
+<p class="sub">أرقام وإحصاءات فقط. اليوم <bdi>{{ today }}</bdi>.</p>
+{% set labels = {'trial':'تجربة','active':'نشط','grace':'فترة سماح','expired':'منتهي','suspended':'موقوفة','not_started':'لم يبدأ','no_subscription':'بدون اشتراك','archived':'مؤرشفة'} %}
+<div class="grid">
+  {% for st in ('trial', 'active', 'grace', 'expired', 'suspended') %}
+  <a class="stat" href="{{ url_for('superadmin.schools', state=st) }}" style="text-decoration:none;color:inherit"><b>{{ d.by_state.get(st, 0) }}</b><span>{{ labels[st] }}</span></a>
+  {% endfor %}
+  <a class="stat" href="{{ url_for('superadmin.schools', sort='ends_on') }}" style="text-decoration:none;color:inherit"><b>{{ d.expiring }}</b><span>تنتهي خلال 30 يوم</span></a>
+  <a class="stat" href="{{ url_for('superadmin.alerts') }}" style="text-decoration:none;color:inherit"><b>{{ d.over_90 }} / {{ d.over_100 }}</b><span>فوق 90% / 100% من حد</span></a>
+  <a class="stat" href="{{ url_for('superadmin.alerts') }}" style="text-decoration:none;color:inherit"><b>{{ d.inactive }}</b><span>بلا نشاط 14 يوم</span></a>
+</div>
+
+<h2>صحة النظام <a class="sub" style="font-size:14px" href="{{ url_for('superadmin.system_health') }}">التفاصيل</a></h2>
+<div class="row" style="gap:8px">
+  {% for i in health %}<span class="chip {{ {'ok':'active','warn':'grace','error':'expired','unknown':'archived'}[i.status] }}" title="{{ i.detail }}">{{ i.label }}: {{ {'ok':'سليم','warn':'تحذير','error':'خطأ','unknown':'غير معروف'}[i.status] }}</span>{% endfor %}
+</div>
+
+<h2>إجمالي الطلاب النشطين (90 يوم)</h2>
+<div class="card">{{ sparkline(d.series, 'الطلاب النشطون عبر كل المدارس') }}</div>
+
+<h2>تنبيهات مفتوحة</h2>
+<div class="card table-wrap">
+  <table><tbody>
+  {% for a in d.alerts %}<tr><td><span class="chip {{ 'expired' if a.severity == 'error' else 'grace' }}">{{ 'خطأ' if a.severity == 'error' else 'تحذير' }}</span></td><td style="white-space:normal">{{ a.message_ar }}</td><td class="num"><bdi>{{ a.first_seen_at.strftime('%Y-%m-%d') }}</bdi></td></tr>
+  {% else %}<tr><td>لا توجد تنبيهات مفتوحة.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+
+<h2>آخر جلسات الدعم</h2>
+<div class="card table-wrap">
+  <table><tbody>
+  {% for s in d.support %}<tr><td class="num">#{{ s.id }}</td><td>{{ 'قراءة' if s.mode == 'read_only' else 'كتابة' }}</td><td class="num"><bdi>{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td><td>{{ s.end_reason or ('جارية' if not s.ended_at else 'انتهت') }}</td></tr>
+  {% else %}<tr><td>لا توجد جلسات.</td></tr>{% endfor %}
+  </tbody></table>
+</div>
+{% endblock %}

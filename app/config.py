@@ -271,6 +271,9 @@ class Config:
         else frozenset(a.strip().lower() for a in (os.environ.get("PLATFORM_EMAIL_ALLOWLIST") or "").split(",")
                        if a.strip()))
 
+    # SAAS-034 — folder whose newest file is the latest backup (health page).
+    BACKUP_DIR = os.environ.get("BACKUP_DIR") or "/opt/manasety/backups"
+
     # SAAS-027 — second line of the read-only (grace) enforcement: a write
     # reaching the DB through a GET route. "log" reports only (default);
     # "enforce" refuses the flush. Anything else is treated as "log".

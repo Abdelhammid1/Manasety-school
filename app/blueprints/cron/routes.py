@@ -131,6 +131,10 @@ def run_tick(today: date | None = None) -> dict:
                 continue
             try:
                 results[sid] = {"status": "ok", **run_school_tick(sid, today)}
+                # SAAS-034 — the health page's "last successful tick"
+                from ...services.monitoring import record_cron_ok
+                record_cron_ok(sid)
+                db.session.commit()
             except Exception as e:
                 db.session.rollback()
                 current_app.logger.exception("cron tick failed for school %s", sid)

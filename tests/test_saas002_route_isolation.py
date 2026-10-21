@@ -404,6 +404,9 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.school_statement":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-033 billing tests",
+    "superadmin.alert_ack":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-034 monitoring tests",
     "superadmin.school_detail":
         "SAAS-025 platform console (no school tenant): 404 on every school host "
         "and when resolution is off — covered by tests/test_saas025_platform.py",

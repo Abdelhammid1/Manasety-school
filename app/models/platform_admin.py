@@ -340,6 +340,38 @@ class PlatformAnnouncement(db.Model):
     )
 
 
+class PlatformUsageSnapshot(db.Model):
+    """SAAS-034 — one row per (school, day). Numbers only."""
+    __tablename__ = "platform_usage_snapshots"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    day = db.Column(db.Date, nullable=False, index=True)
+    students_active = db.Column(db.Integer, nullable=False, default=0)
+    staff_users = db.Column(db.Integer, nullable=False, default=0)
+    storage_bytes = db.Column(db.BigInteger, nullable=False, default=0)
+    last_activity_at = db.Column(db.DateTime)
+    active_users_7d = db.Column(db.Integer, nullable=False, default=0)
+    subscription_state = db.Column(db.String(24))
+
+    __table_args__ = (db.UniqueConstraint("school_id", "day", name="uq_usage_snapshot_school_day"),)
+
+
+class PlatformAlert(db.Model):
+    """SAAS-034 — an open condition (one row while it lasts)."""
+    __tablename__ = "platform_alerts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(48), nullable=False, index=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"))
+    severity = db.Column(db.String(8), nullable=False, default="warn")
+    message_ar = db.Column(db.Text, nullable=False)
+    first_seen_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    last_seen_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    resolved_at = db.Column(db.DateTime(timezone=True))
+    acknowledged_by = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

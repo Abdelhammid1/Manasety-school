@@ -67,7 +67,9 @@
     </a>
     {% if current_user.is_authenticated and current_user.is_platform_user %}
     <nav class="nav">
+      <a href="{{ url_for('superadmin.dashboard') }}">الرئيسية</a>
       <a href="{{ url_for('superadmin.schools') }}">المدارس</a>
+      <a href="{{ url_for('superadmin.alerts') }}">التنبيهات</a>
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.school_new', reset=1) }}">مدرسة جديدة</a>{% endif %}
       <a href="{{ url_for('superadmin.plans') }}">الباقات</a>
       {% if current_user.role in ('owner', 'finance') %}<a href="{{ url_for('superadmin.billing') }}">الفوترة</a>{% endif %}

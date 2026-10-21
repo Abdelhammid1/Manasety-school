@@ -54,7 +54,7 @@ def school_stats():
 
 @bp.route("/", endpoint="home")
 def home():
-    return redirect(url_for("superadmin.schools"))
+    return redirect(url_for("superadmin.dashboard"))      # SAAS-034
 
 
 @bp.route("/schools", endpoint="schools")
@@ -140,7 +140,14 @@ def school_detail(school_id):
                            subdomain=school_subdomain_status(school.id), jobs=latest_jobs(5),
                            modules=_modules_view(school.id), limits=_limits_view(school.id),
                            limit_override=db.session.get(SchoolLimitOverride, school.id),
-                           **_control_view(school.id))
+                           **_control_view(school.id), **_usage_view(school.id))
+
+
+def _usage_view(school_id):
+    from ...models import PlatformAlert
+    from ...services.monitoring import school_series
+    return {"usage": school_series(school_id, subs.platform_today(subs.get_settings())),
+            "school_alerts": PlatformAlert.query.filter_by(school_id=school_id, resolved_at=None).all()}
 
 
 def _control_view(school_id):

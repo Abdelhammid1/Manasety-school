@@ -58,6 +58,11 @@ SUPERADMIN_ROUTES = {
     "superadmin.school_tags_set": {"POST"},
     "superadmin.announcements": {"GET", "POST"},
     "superadmin.announcement_delete": {"POST"},
+    # SAAS-034
+    "superadmin.dashboard": {"GET"},
+    "superadmin.system_health": {"GET"},
+    "superadmin.alerts": {"GET"},
+    "superadmin.alert_ack": {"POST"},
     # SAAS-033
     "superadmin.billing": {"GET"},
     "superadmin.invoice_new": {"GET", "POST"},
@@ -93,6 +98,7 @@ CONSOLE_WRITES = {
     "superadmin.school_tags_set",
     "superadmin.announcements",
     "superadmin.announcement_delete",
+    "superadmin.alert_ack",                                                   # SAAS-034
     "superadmin.invoice_new",
     "superadmin.invoice_issue",
     "superadmin.invoice_void",
