@@ -17,7 +17,7 @@ from __future__ import annotations
 import re
 import threading
 import time
-from collections import deque
+from collections import OrderedDict, deque
 
 from flask import abort, g, jsonify, request
 
@@ -30,7 +30,8 @@ PUBLIC_ENDPOINTS = frozenset({"api.public_school_info", "api.public_app_config"}
 # Per-IP, per-process: enough to stop the endpoint being a slug
 # enumeration tool (nginx can add a global limit on top).
 SCHOOL_INFO_PER_MINUTE = 20
-_hits: dict[str, deque] = {}
+MAX_TRACKED_IPS = 10_000
+_hits: "OrderedDict[str, deque]" = OrderedDict()
 _hits_lock = threading.Lock()
 
 UPGRADE_MESSAGE_AR = "نسخة التطبيق قديمة. حدّث التطبيق من المتجر للمتابعة."
@@ -41,15 +42,21 @@ _VERSION_RE = re.compile(r"^\d{1,4}(\.\d{1,4}){0,3}$")
 def _rate_limited(ip: str) -> bool:
     now = time.monotonic()
     with _hits_lock:
-        q = _hits.setdefault(ip or "-", deque())
+        key = ip or "-"
+        q = _hits.get(key)
+        if q is None:
+            q = _hits[key] = deque()
+        _hits.move_to_end(key)           # least recently seen first
         while q and now - q[0] > 60:
             q.popleft()
         if len(q) >= SCHOOL_INFO_PER_MINUTE:
             return True
         q.append(now)
-        if len(_hits) > 10_000:          # never grow without bound
-            for k in [k for k, v in _hits.items() if not v][:5_000]:
-                _hits.pop(k, None)
+        # Hard cap: the table never passes MAX_TRACKED_IPS. Dropping the
+        # least recently seen IP only forgets a window older than the
+        # rest (security review: emptiness-based eviction never fired).
+        while len(_hits) > MAX_TRACKED_IPS:
+            _hits.popitem(last=False)
     return False
 
 

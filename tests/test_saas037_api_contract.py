@@ -379,3 +379,16 @@ def test_app_landing(papp, two_schools):
     assert 'href="https://get.manasety.test"' in c.get("/app", base_url=host(two_schools["B"])).get_data(as_text=True)
     assert c.get("/app", base_url="http://nowhere.manasety.ai").status_code == 404
     assert c.get("/app", base_url=CONSOLE).status_code == 404
+
+
+def test_rate_limit_table_is_hard_capped(monkeypatch):
+    from app.blueprints.api import public
+    monkeypatch.setattr(public, "MAX_TRACKED_IPS", 50)
+    public._hits.clear()
+    try:
+        for i in range(500):
+            public._rate_limited(f"10.0.{i // 250}.{i % 250}")
+        assert len(public._hits) == 50
+        assert "10.0.1.249" in public._hits and "10.0.0.0" not in public._hits   # oldest dropped
+    finally:
+        public._hits.clear()
