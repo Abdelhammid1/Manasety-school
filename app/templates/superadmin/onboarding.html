@@ -1,0 +1,141 @@
+{% extends "superadmin/base.html" %}
+{% block title %}مدرسة جديدة{% endblock %}
+{% set labels = {'school':'بيانات المدرسة','settings':'الإعدادات','subscription':'الاشتراك','admin':'المدير الأول','review':'مراجعة وإنشاء'} %}
+{% macro field(name, label, type='text', required=False, hint=None, attrs='') %}
+  <label for="{{ name }}">{{ label }}{% if required %} *{% endif %}</label>
+  <input id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ d.get(name, '') }}"
+         {% if required %}required{% endif %} {{ attrs|safe }}
+         {% if error and error.field == name %}aria-invalid="true" aria-describedby="err"{% endif %}>
+  {% if hint %}<small class="sub" style="display:block;margin:4px 0 0">{{ hint }}</small>{% endif %}
+{% endmacro %}
+{% block content %}
+<h1>مدرسة جديدة</h1>
+<ol class="steps" aria-label="خطوات الإنشاء">
+  {% for s in steps %}<li class="{{ 'cur' if s == step else ('done' if s in (d._done or []) else '') }}" {% if s == step %}aria-current="step"{% endif %}>{{ loop.index }}. {{ labels[s] }}</li>{% endfor %}
+</ol>
+{% if error %}<div class="flash danger" id="err" role="alert">{{ error }}</div>{% endif %}
+
+<div class="card">
+{% if step == 'review' %}
+  {% set plan = (plans|selectattr('id', 'equalto', (d.plan_id or 0)|int)|first) %}
+  <h2 style="margin-top:0">راجع البيانات</h2>
+  <dl class="review">
+    <dt>المدرسة</dt><dd>{{ d.name }}{% if d.name_en %} — <bdi>{{ d.name_en }}</bdi>{% endif %}</dd>
+    <dt>الرابط</dt><dd class="mono">https://{{ d.slug }}.{{ base_domain }}</dd>
+    <dt>العملة</dt><dd><bdi>{{ d.currency }}</bdi> (<bdi>{{ d.currency_symbol }}</bdi>) — بداية السنة المالية: شهر {{ d.fiscal_year_start_month }}</dd>
+    <dt>الفواتير</dt><dd>بادئة <bdi>{{ d.invoice_prefix }}</bdi> — ضريبة {{ d.default_tax_rate }}%</dd>
+    <dt>الحضور</dt><dd>{{ {'daily':'يومي','per_period':'بالحصة'}.get(d.attendance_mode, d.attendance_mode) }}</dd>
+    <dt>الباقة</dt><dd>{{ plan.name_ar if plan else '—' }} — من <bdi>{{ d.starts_on }}</bdi>،
+      {% if d.term == 'trial' %}تجربة {{ d.trial_days }} يوم{% elif d.term == 'ends_on' %}حتى <bdi>{{ d.ends_on }}</bdi>{% elif d.term == 'open' %}مفتوحة بلا نهاية{% else %}{{ d.months }} شهر{% endif %}</dd>
+    <dt>المدير</dt><dd>{{ d.admin_full_name }} — <bdi class="mono">{{ d.admin_username }}</bdi>{% if d.admin_email %} — <bdi>{{ d.admin_email }}</bdi>{% endif %}</dd>
+  </dl>
+  <div class="row" style="margin-top:16px">
+    <a class="btn ghost" style="height:44px;flex:0 0 auto" href="{{ url_for('superadmin.school_new', step='admin') }}">رجوع</a>
+    <form method="post" action="{{ url_for('superadmin.school_create') }}" style="margin:0;flex:0 0 auto" id="createForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="nonce" value="{{ session.get('sa_wizard_nonce', '') }}">
+      <button class="btn" type="submit">إنشاء المدرسة</button>
+    </form>
+  </div>
+{% else %}
+<form method="post" action="{{ url_for('superadmin.school_new_step', step=step) }}" novalidate>
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% if step == 'school' %}
+    <div class="row">
+      <div>{{ field('name', 'اسم المدرسة (عربي)', required=True) }}</div>
+      <div>{{ field('name_en', 'اسم المدرسة (إنجليزي)', attrs='dir="ltr"') }}</div>
+    </div>
+    <label for="slug">الاسم المختصر (الرابط) *</label>
+    <div class="slugbox" dir="ltr"><input id="slug" name="slug" value="{{ d.get('slug','') }}" required
+         maxlength="63" autocomplete="off" spellcheck="false" aria-describedby="slugmsg"
+         {% if error and error.field == 'slug' %}aria-invalid="true"{% endif %}><span>.{{ base_domain }}</span></div>
+    <small id="slugmsg" class="sub" role="status" aria-live="polite" style="display:block;margin:4px 0 0">حروف إنجليزية صغيرة وأرقام وشرطة. لا يمكن تغييره بعد الإنشاء.</small>
+    <div class="row">
+      <div>{{ field('phone', 'الهاتف', type='tel', attrs='dir="ltr"') }}</div>
+      <div>{{ field('email', 'الإيميل', type='email', attrs='dir="ltr"') }}</div>
+    </div>
+    {{ field('address', 'العنوان') }}
+  {% elif step == 'settings' %}
+    <div class="row">
+      <div>{{ field('currency', 'العملة (كود)', required=True, attrs='dir="ltr" maxlength="8"') }}</div>
+      <div>{{ field('currency_symbol', 'رمز العملة', attrs='maxlength="8"') }}</div>
+      <div><label for="fiscal_year_start_month">بداية السنة المالية</label>
+        <select id="fiscal_year_start_month" name="fiscal_year_start_month">
+          {% for m in range(1, 13) %}<option value="{{ m }}" {% if d.fiscal_year_start_month|string == m|string %}selected{% endif %}>شهر {{ m }}</option>{% endfor %}
+        </select></div>
+    </div>
+    <div class="row">
+      <div>{{ field('invoice_prefix', 'بادئة الفواتير', required=True, attrs='dir="ltr" maxlength="16"') }}</div>
+      <div>{{ field('default_tax_rate', 'الضريبة الافتراضية %', type='number', attrs='min="0" max="100" step="0.01"') }}</div>
+      <div><label for="attendance_mode">نمط الحضور</label>
+        <select id="attendance_mode" name="attendance_mode">
+          <option value="daily" {% if d.attendance_mode == 'daily' %}selected{% endif %}>يومي</option>
+          <option value="per_period" {% if d.attendance_mode == 'per_period' %}selected{% endif %}>بالحصة</option>
+        </select></div>
+    </div>
+  {% elif step == 'subscription' %}
+    <div class="row">
+      <div><label for="plan_id">الباقة *</label>
+        <select id="plan_id" name="plan_id" required {% if error and error.field == 'plan_id' %}aria-invalid="true"{% endif %}>
+          <option value="">— اختر —</option>
+          {% for p in plans %}<option value="{{ p.id }}" {% if d.plan_id|string == p.id|string %}selected{% endif %}>{{ p.name_ar }} ({{ p.code }})</option>{% endfor %}
+        </select></div>
+      <div>{{ field('starts_on', 'تاريخ البداية', type='date', required=True) }}</div>
+    </div>
+    <fieldset class="term"><legend>المدة</legend>
+      <label><input type="radio" name="term" value="months" {% if d.term == 'months' %}checked{% endif %}> بالشهور</label>
+      <input name="months" type="number" min="1" value="{{ d.months }}" aria-label="عدد الشهور">
+      <label><input type="radio" name="term" value="ends_on" {% if d.term == 'ends_on' %}checked{% endif %}> حتى تاريخ</label>
+      <input name="ends_on" type="date" value="{{ d.ends_on }}" aria-label="تاريخ النهاية">
+      <label><input type="radio" name="term" value="trial" {% if d.term == 'trial' %}checked{% endif %}> تجربة (أيام)</label>
+      <input name="trial_days" type="number" min="1" value="{{ d.trial_days }}" aria-label="أيام التجربة">
+      <label class="wide"><input type="radio" name="term" value="open" {% if d.term == 'open' %}checked{% endif %}> مفتوحة بلا نهاية</label>
+    </fieldset>
+  {% elif step == 'admin' %}
+    <div class="row">
+      <div>{{ field('admin_full_name', 'اسم المدير', required=True) }}</div>
+      <div>{{ field('admin_username', 'اسم المستخدم', required=True, attrs='dir="ltr" autocomplete="off"') }}</div>
+    </div>
+    <div class="row">
+      <div>{{ field('admin_email', 'الإيميل', type='email', attrs='dir="ltr"', hint='لو إيميل المنصة مفعّل، رابط ضبط كلمة المرور بيتبعت عليه.') }}</div>
+      <div>{{ field('admin_phone', 'التليفون', type='tel', attrs='dir="ltr"') }}</div>
+    </div>
+    <p class="sub" style="margin-top:12px">مفيش كلمة مرور هنا: المدير بيختارها بنفسه من رابط صالح 72 ساعة ولمرة واحدة.</p>
+  {% endif %}
+  <div class="row" style="margin-top:18px">
+    {% if step != 'school' %}<button class="btn ghost" style="height:44px;flex:0 0 auto" type="submit" name="nav" value="back" formnovalidate>رجوع</button>{% endif %}
+    <button class="btn" style="flex:0 0 auto" type="submit" name="nav" value="next">التالي</button>
+  </div>
+</form>
+{% endif %}
+</div>
+<style>
+  .steps{display:flex;flex-wrap:wrap;gap:8px;list-style:none;padding:0;margin:0 0 16px}
+  .steps li{padding:6px 12px;border-radius:999px;background:#f1f5f9;color:var(--muted);font-weight:700;font-size:14px}
+  .steps li.done{background:var(--okbg);color:var(--ok)} .steps li.cur{background:var(--navy);color:#fff}
+  .slugbox{display:flex;align-items:center;border:1px solid var(--line);border-radius:10px;background:#fff;overflow:hidden}
+  .slugbox input{border:0;border-radius:0} .slugbox span{padding:0 12px;color:var(--muted);white-space:nowrap}
+  .term{border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:12px;display:grid;grid-template-columns:auto 1fr;gap:8px 12px;align-items:center}
+  .term legend{font-weight:700;padding:0 6px} .term label{margin:0;display:flex;gap:6px;align-items:center;font-weight:600}
+  .term input[type=radio]{width:auto;height:auto} .term label.wide{grid-column:1/-1}
+  .review{display:grid;grid-template-columns:max-content 1fr;gap:8px 16px;margin:0} .review dt{font-weight:800;color:var(--navy)} .review dd{margin:0}
+  input[aria-invalid=true],select[aria-invalid=true]{border-color:var(--bad);outline:2px solid var(--badbg)}
+  @media (max-width:640px){.review{grid-template-columns:1fr}.review dt{margin-top:8px}.slugbox span{font-size:13px;padding:0 8px}}
+</style>
+<script>
+(function(){
+  var f=document.getElementById('createForm');
+  if(f) f.addEventListener('submit', function(){ f.querySelector('button').disabled=true; });
+  var i=document.getElementById('slug'), m=document.getElementById('slugmsg'), t;
+  if(!i) return;
+  i.addEventListener('input', function(){
+    clearTimeout(t); var v=i.value.trim().toLowerCase(); if(!v) return;
+    t=setTimeout(function(){
+      fetch('{{ url_for('superadmin.slug_check') }}?slug='+encodeURIComponent(v), {credentials:'same-origin'})
+        .then(function(r){return r.json()}).then(function(j){ m.textContent=j.message; m.style.color=j.ok?'var(--ok)':'var(--bad)'; })
+        .catch(function(){});
+    }, 350);
+  });
+})();
+</script>
+{% endblock %}

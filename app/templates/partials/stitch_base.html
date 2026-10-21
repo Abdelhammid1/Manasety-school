@@ -202,6 +202,17 @@
       {% include "partials/stitch_topbar.html" %}
       {% if current_user.is_authenticated %}{% include "partials/pickup_banner.html" %}{% endif %}
       <main class="relative pt-16 w-full px-space-lg flex-1 bg-surface">
+        {# SAAS-027 — subscription banner (texts: services/subscription_enforcement.py) #}
+        {% if subscription_banner %}
+          <div role="status" class="mt-4 px-4 py-3 rounded-lg font-label-lg text-label-lg
+            {% if subscription_banner.kind == 'grace' %}bg-error-container text-on-error-container{% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %}">
+            {{ subscription_banner.text }}
+            {% set sup = subscription_banner.support %}
+            {% if sup.support_phone or sup.support_email %}
+              <span class="whitespace-nowrap">— الدعم: <bdi>{{ sup.support_phone or sup.support_email }}</bdi></span>
+            {% endif %}
+          </div>
+        {% endif %}
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             <div class="mt-4 flex flex-col gap-2">

@@ -106,7 +106,18 @@ def run_tick(today: date | None = None) -> dict:
     with tick_lock():
         school_ids = [sid for (sid,) in db.session.query(School.id)
                       .filter(School.status == "active").order_by(School.id)]
+        # SAAS-027 — a school whose subscription blocks access gets no
+        # tick (no generated rows, no reminders); the reason is recorded.
+        from ...services.subscriptions import (
+            current_subscription, effective_state, get_settings, platform_today)
+        settings = get_settings()
+        sub_today = platform_today(settings)
         for sid in school_ids:
+            state = effective_state(db.session.get(School, sid), current_subscription(sid),
+                                    sub_today, settings)
+            if state.blocked:
+                results[sid] = {"status": "skipped", "reason": state.state}
+                continue
             try:
                 results[sid] = {"status": "ok", **run_school_tick(sid, today)}
             except Exception as e:
@@ -115,7 +126,7 @@ def run_tick(today: date | None = None) -> dict:
                 # Type only — never the message or stack (may hold data).
                 results[sid] = {"status": "failed", "error": type(e).__name__}
     return {
-        "ok": all(r["status"] == "ok" for r in results.values()),
+        "ok": all(r["status"] != "failed" for r in results.values()),
         "today": today.isoformat(),
         "schools": results,
     }

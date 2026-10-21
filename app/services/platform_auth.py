@@ -106,10 +106,21 @@ def verify_totp(secret: str | None, code: str | None, user=None) -> bool:
         if hmac.compare_digest(totp.at(t), code):
             counter = totp.timecode(datetime.fromtimestamp(t, tz=timezone.utc))
             if user is not None:
-                last = user.totp_last_counter
-                if last is not None and counter <= last:
+                # Atomic compare-and-set: two concurrent requests with the
+                # same code can't both pass a read-then-write check.
+                from sqlalchemy import or_, update
+                from sqlalchemy.orm.attributes import set_committed_value
+                from ..models.platform_admin import PlatformUser
+                res = db.session.execute(
+                    update(PlatformUser)
+                    .where(PlatformUser.id == user.id,
+                           or_(PlatformUser.totp_last_counter.is_(None),
+                               PlatformUser.totp_last_counter < counter))
+                    .values(totp_last_counter=counter)
+                    .execution_options(synchronize_session=False))
+                if res.rowcount != 1:
                     return False
-                user.totp_last_counter = counter
+                set_committed_value(user, "totp_last_counter", counter)
             return True
     return False
 

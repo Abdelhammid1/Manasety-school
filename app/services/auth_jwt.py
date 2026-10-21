@@ -41,6 +41,8 @@ def issue_token(user: User, ttl_hours: int = 24) -> str:
         "sub": user.id,
         "school": user.school_id,
         "school_slug": school.slug if school is not None else None,
+        # SAAS-027 kill switch: tokens older than the school's epoch die.
+        "ae": int(getattr(school, "auth_epoch", 0) or 0) if school is not None else 0,
         "exp": datetime.utcnow() + timedelta(hours=ttl_hours),
         "iat": datetime.utcnow(),
         # `iss` ties the token to this platform; nothing else should
@@ -88,6 +90,18 @@ def _tenant_mismatch(payload: dict) -> bool:
         return True
 
 
+def _epoch_stale(payload: dict, user) -> bool:
+    """SAAS-027 — a token minted before the school's last suspend.
+    Tokens from before the claim existed carry no `ae` (= 0)."""
+    if user.school_id is None:
+        return False
+    from .subscription_enforcement import jwt_epoch_is_stale
+    try:
+        return jwt_epoch_is_stale(payload, user)
+    except (TypeError, ValueError):
+        return True
+
+
 def user_from_bearer() -> Optional[User]:
     """The active user behind `Authorization: Bearer <jwt>`, after every
     check jwt_required applies (signature/expiry, active user, host
@@ -106,6 +120,8 @@ def user_from_bearer() -> Optional[User]:
                 return None
         except (TypeError, ValueError):
             return None
+    if _epoch_stale(payload, user):
+        return None
     return user
 
 
@@ -143,6 +159,8 @@ def jwt_required(view):
                     return jsonify({"error": "unauthorized"}), 401
             except (TypeError, ValueError):
                 return jsonify({"error": "unauthorized"}), 401
+        if _epoch_stale(payload, user):
+            return jsonify({"error": "unauthorized"}), 401
         g.api_user = user
         return view(*args, **kwargs)
     return wrapped

@@ -68,6 +68,7 @@
     {% if current_user.is_authenticated and current_user.is_platform_user %}
     <nav class="nav">
       <a href="{{ url_for('superadmin.schools') }}">المدارس</a>
+      {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.school_new', reset=1) }}">مدرسة جديدة</a>{% endif %}
       <a href="{{ url_for('superadmin.plans') }}">الباقات</a>
       <a href="{{ url_for('superadmin.password') }}">كلمة المرور</a>
       <span class="tag">{{ current_user.role }}</span>

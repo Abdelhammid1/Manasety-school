@@ -173,6 +173,59 @@ def create_subscription(school, plan, starts_on, ends_on=None, trial_ends_on=Non
     return new
 
 
+def internal_plan():
+    """The unlimited `internal` plan (seeded by the SAAS-026 migration;
+    created here for DBs built with create_all — seeds / tests)."""
+    from ..models import Plan
+    plan = Plan.query.filter_by(code="internal").first()
+    if plan is None:
+        plan = Plan(code="internal", name_ar="داخلية (بلا حدود)", name_en="Internal (unlimited)",
+                    modules=["*"], billing_cycle="custom", trial_days=0, is_active=True)
+        db.session.add(plan)
+        db.session.flush()
+    return plan
+
+
+def ensure_subscription(school, reason="seed"):
+    """Give a school with no current subscription an open-ended internal
+    one, so a freshly seeded school isn't locked out by SAAS-027."""
+    cur = current_subscription(school.id)
+    if cur is not None:
+        return cur
+    return create_subscription(school, internal_plan(), starts_on=platform_today(get_settings()),
+                               reason=reason)
+
+
+# ─── manual lifecycle (SAAS-027) ─────────────────────────────────────
+
+def bump_auth_epoch(school) -> None:
+    """Kill switch: every session / JWT minted before this is refused on
+    its next request (SAAS-027)."""
+    school.auth_epoch = int(school.auth_epoch or 0) + 1
+
+
+def suspend_school(school, user, reason: str) -> None:
+    if not reason or not reason.strip():
+        raise SubscriptionError("سبب الإيقاف مطلوب.")
+    if school.status == "suspended":
+        raise SubscriptionError("المدرسة موقوفة بالفعل.")
+    if school.status == "archived":
+        raise SubscriptionError("المدرسة مؤرشفة.")
+    prev = school.status
+    set_school_status(school, "suspended")
+    bump_auth_epoch(school)
+    _event(school.id, "suspended", prev, "suspended", reason.strip(), user)
+
+
+def resume_school(school, user, reason: str) -> None:
+    if not reason or not reason.strip():
+        raise SubscriptionError("سبب الاستئناف مطلوب.")
+    if school.status != "suspended":
+        raise SubscriptionError("المدرسة ليست موقوفة.")
+    set_school_status(school, "active")
+    _event(school.id, "resumed", "suspended", "active", reason.strip(), user)
+
+
 def renew(school, user, reason, months=None, ends_on=None, today=None):
     """New period starting the day after the current end (or today if the
     subscription already ended)."""

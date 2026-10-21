@@ -86,6 +86,10 @@ def create_app(config_class=Config):
     # SAAS-025 — the platform read-scope listener refuses school-table writes.
     from .services import platform_scope
     platform_scope.install()
+    # SAAS-027 — subscription enforcement (read-only grace, kill switch,
+    # banners). Blocked schools are answered by the resolver above.
+    from .services import subscription_enforcement
+    subscription_enforcement.install(app)
 
     from .blueprints.auth import bp as auth_bp
     from .blueprints.dashboard import bp as dashboard_bp
@@ -108,6 +112,9 @@ def create_app(config_class=Config):
     from .blueprints.nafis import bp as nafis_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    # SAAS-028 — /set-password/<token> for provisioned school admins.
+    from .blueprints.auth.setup import bp as account_bp
+    app.register_blueprint(account_bp)
     app.register_blueprint(dashboard_bp, url_prefix="/")
     app.register_blueprint(admin_bp, url_prefix="/admin")
     app.register_blueprint(academic_bp, url_prefix="/academic")

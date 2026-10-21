@@ -34,6 +34,11 @@ SUPERADMIN_ROUTES = {
     "superadmin.subscription_extend": {"POST"},
     "superadmin.subscription_change_plan": {"POST"},
     "superadmin.subscription_trial": {"POST"},
+    # SAAS-028
+    "superadmin.school_new": {"GET"},
+    "superadmin.school_new_step": {"POST"},
+    "superadmin.school_create": {"POST"},
+    "superadmin.slug_check": {"GET"},
 }
 # Writes allowed in the console, per ticket. Anything else must be GET.
 CONSOLE_WRITES = {
@@ -42,6 +47,7 @@ CONSOLE_WRITES = {
     "superadmin.plan_new", "superadmin.plan_edit", "superadmin.plan_toggle",
     "superadmin.subscription_renew", "superadmin.subscription_extend",
     "superadmin.subscription_change_plan", "superadmin.subscription_trial",   # SAAS-026
+    "superadmin.school_new_step", "superadmin.school_create",                 # SAAS-028
 }
 
 

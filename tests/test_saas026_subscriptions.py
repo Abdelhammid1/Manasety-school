@@ -69,6 +69,14 @@ def sub_world(app, two_schools):
         plan = Plan(code=f"t-{secrets.token_hex(3)}", name_ar="خطة اختبار", modules=["*"],
                     billing_cycle="monthly", is_active=True)
         db.session.add(plan); db.session.flush()
+        # SAAS-027: two_schools now gives each school an internal
+        # subscription; this fixture builds its own history from scratch.
+        from app.models import SchoolSubscription, SchoolSubscriptionEvent
+        sids = [two_schools[k]["school"].id for k in ("A", "B")]
+        SchoolSubscriptionEvent.query.filter(SchoolSubscriptionEvent.school_id.in_(sids)).delete(
+            synchronize_session=False)
+        SchoolSubscription.query.filter(SchoolSubscription.school_id.in_(sids)).delete(
+            synchronize_session=False)
         for key in ("A", "B"):
             school = db.session.get(__import__("app.models", fromlist=["School"]).School,
                                     two_schools[key]["school"].id)

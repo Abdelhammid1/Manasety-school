@@ -30,6 +30,9 @@ def three_schools(app, two_schools):
                        status=status, is_active=True)
             db.session.add(s)
             db.session.flush()
+            if status == "active":
+                from world import give_subscription
+                give_subscription(s)
             extra[slug] = s.id
         db.session.commit()
         db.session.remove()

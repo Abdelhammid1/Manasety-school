@@ -1,5 +1,5 @@
 from .school import School
-from .user import User, Role
+from .user import User, Role, AccountSetupToken
 from .platform_admin import (
     PlatformUser, PlatformRecoveryCode, PlatformAuditLog, PLATFORM_ROLES,
     Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting,
@@ -86,7 +86,7 @@ from .nafis import (
 )
 
 __all__ = [
-    "School", "User", "Role",
+    "School", "User", "Role", "AccountSetupToken",
     "AcademicYear", "Term", "Grade", "Section",
     "Student", "Enrollment", "TransferLog",
     "StudentNote", "StudentTag", "PreviousSchool", "student_tag_links",

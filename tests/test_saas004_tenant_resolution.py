@@ -102,12 +102,17 @@ def app_with_schools():
                     slug=slug, status=status,
                 )
                 db.session.add(s)
+                db.session.flush()
+                if status == "active":
+                    from world import give_subscription
+                    give_subscription(s)
                 extras.append(s)
         db.session.commit()
+        ids = [s.id for s in extras]
         yield app
-        for s in extras:
-            db.session.delete(s)
-        db.session.commit()
+        from world import purge_schools
+        purge_schools(ids)
+        db.session.remove()
 
 
 def test_resolve_tenant_host(app_with_schools):

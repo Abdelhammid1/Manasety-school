@@ -145,6 +145,14 @@ def ledger_state(school_ids) -> tuple:
     return tuple(out)
 
 
+def give_subscription(school) -> None:
+    """SAAS-027 — an active test school needs a current subscription or
+    the resolver blocks it. Open-ended internal plan, like the migration
+    gives every existing school."""
+    from app.services.subscriptions import ensure_subscription
+    ensure_subscription(school, reason="test fixture")
+
+
 def purge_schools(school_ids) -> None:
     """Delete every row owned by `school_ids`, children first.
 

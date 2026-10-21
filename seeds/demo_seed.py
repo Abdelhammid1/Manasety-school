@@ -131,6 +131,9 @@ def seed():
         school = School(code="MNS", name="مدرسة منصتي التجريبية النموذجية",
                         phone="+966501234567", address="حي النرجس، الرياض")
         db.session.add(school); db.session.flush()
+        # SAAS-027 — without a current subscription the school is blocked.
+        from app.services.subscriptions import ensure_subscription
+        ensure_subscription(school, reason="demo seed")
 
         # ── Roles ────────────────────────────────────────────────────────
         print("Seeding roles + permissions...")

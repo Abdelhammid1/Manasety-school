@@ -104,6 +104,8 @@ def login():
         user.last_login_at = datetime.utcnow()
         db.session.commit()
         login_user(user, remember=bool(request.form.get("remember")))
+        from ...services.subscription_enforcement import stamp_session_epoch
+        stamp_session_epoch(user)
         return redirect(url_for("dashboard.home"))
 
     return render_template(

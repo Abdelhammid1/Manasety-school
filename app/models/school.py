@@ -60,6 +60,9 @@ class School(db.Model):
                                     server_default="1")
     day_start_time = db.Column(db.Time)
     day_end_time = db.Column(db.Time)
+    # SAAS-027 kill switch: bumped on suspend; sessions / JWTs carrying an
+    # older value are refused on their next request.
+    auth_epoch = db.Column(db.Integer, default=0, nullable=False, server_default="0")
     reminder_days_before = db.Column(db.String(32), default="7,3",
                                      nullable=False, server_default="7,3")
     notify_channels = db.Column(db.String(64), default="in_app,email",

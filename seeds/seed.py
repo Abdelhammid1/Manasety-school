@@ -84,6 +84,10 @@ def run():
             db.session.add(school)
             db.session.commit()
             print(f"✓ Created school: {school.name}")
+        # SAAS-027 — without a current subscription the school is blocked.
+        from app.services.subscriptions import ensure_subscription
+        ensure_subscription(school, reason="seed")
+        db.session.commit()
 
         for name, name_ar, is_system, spec in DEFAULT_ROLES:
             role = Role.query.filter_by(school_id=school.id, name=name).first()

@@ -1,0 +1,43 @@
+{# SAAS-027 — shown instead of the school app when its subscription
+   doesn't allow access (or a write during the read-only grace period).
+   No login form: nothing here lets anyone in. #}
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  <title>{{ 'للقراءة فقط' if read_only else 'الخدمة غير متاحة' }} — منصتي</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
+  <style>
+    @font-face{font-family:"Baloo Bhaijaan 2";src:url("{{ url_for('static', filename='fonts/BalooBhaijaan2.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
+    body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f5f7fb;
+         font-family:"Baloo Bhaijaan 2",system-ui,sans-serif;color:#0f172a;padding:16px}
+    .card{max-width:480px;width:100%;background:#fff;border:1px solid #e2e8f0;border-radius:18px;padding:28px;text-align:center}
+    img{height:56px;margin-bottom:12px}
+    h1{color:#1E3A8A;font-size:22px;margin:0 0 8px}
+    p{color:#475569;margin:0 0 16px;line-height:1.7}
+    .support{display:grid;gap:6px;margin-top:8px;font-weight:700}
+    .support a{color:#1E3A8A;direction:ltr;unicode-bidi:isolate}
+    a.back{display:inline-block;margin-top:16px;color:#1E3A8A}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي">
+    <h1>{{ 'النظام للقراءة فقط' if read_only else 'الخدمة غير متاحة حاليًا' }}</h1>
+    <p>{{ message }}{% if school %}<br><b>{{ school.name }}</b>{% endif %}</p>
+    {% if support.support_email or support.support_phone or support.support_whatsapp %}
+    <p>للتجديد أو الاستفسار تواصل مع الدعم:</p>
+    <div class="support">
+      {% if support.support_phone %}<a href="tel:{{ support.support_phone }}">{{ support.support_phone }}</a>{% endif %}
+      {% if support.support_whatsapp %}<a href="https://wa.me/{{ support.support_whatsapp|replace('+', '')|replace(' ', '') }}">واتساب: {{ support.support_whatsapp }}</a>{% endif %}
+      {% if support.support_email %}<a href="mailto:{{ support.support_email }}">{{ support.support_email }}</a>{% endif %}
+    </div>
+    {% else %}
+    <p>تواصل مع إدارة المدرسة.</p>
+    {% endif %}
+    {% if read_only %}<a class="back" href="javascript:history.back()">رجوع</a>{% endif %}
+  </main>
+</body>
+</html>

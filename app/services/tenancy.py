@@ -19,7 +19,7 @@ from contextvars import ContextVar
 from typing import Final, Iterator, Optional
 
 from flask import (
-    Flask, abort, current_app, g, redirect, render_template, request, url_for,
+    Flask, abort, current_app, g, redirect, request, url_for,
 )
 
 
@@ -218,22 +218,39 @@ class ResolvedTenant:
     """What the resolver attaches to Flask's `g` object.
 
     Attributes:
-      kind     — "tenant" | "platform" | "unknown" | "suspended" | "malformed"
+      kind     — "tenant" | "platform" | "unknown" | "suspended" |
+                 "blocked" | "malformed"
       school   — School row if kind == "tenant", else None
       slug     — resolved slug string (always set when kind == "tenant")
       host     — the normalized host we matched against
       reason   — short English code useful for logs / tests
+      subscription — SAAS-027: the school's SubscriptionState (or None)
+      support_bypass — SAAS-031 hook: a support session may see a
+                 blocked school. Never set before SAAS-031.
     """
 
-    __slots__ = ("kind", "school", "slug", "host", "reason")
+    __slots__ = ("kind", "school", "slug", "host", "reason", "subscription", "support_bypass")
 
     def __init__(self, kind: str, *, school=None, slug: str = "",
-                 host: str = "", reason: str = "") -> None:
+                 host: str = "", reason: str = "", subscription=None) -> None:
         self.kind = kind
         self.school = school
         self.slug = slug
         self.host = host
         self.reason = reason
+        self.subscription = subscription
+        self.support_bypass = False
+
+    @property
+    def read_only(self) -> bool:
+        """Grace period: everything visible, nothing writable."""
+        return self.kind == "tenant" and self.subscription is not None \
+            and self.subscription.read_only
+
+    @property
+    def blocked(self) -> bool:
+        """Suspended status or a subscription that doesn't allow access."""
+        return self.kind in ("suspended", "blocked")
 
     @property
     def is_platform(self) -> bool:
@@ -292,6 +309,19 @@ def resolve_host(host_header: str | None) -> ResolvedTenant:
     return ResolvedTenant("unknown", host=host, reason="no_match")
 
 
+def _request_settings() -> dict:
+    """Platform settings, read once per request (cached on g)."""
+    from flask import has_app_context
+    from .subscriptions import get_settings
+    if has_app_context():
+        cached = g.get("_platform_settings")
+        if cached is None:
+            cached = get_settings()
+            g._platform_settings = cached
+        return cached
+    return get_settings()
+
+
 def _resolve_by_slug(slug: str, *, host: str, reason: str) -> ResolvedTenant:
     """Look up the School row, enforce lifecycle status.
     Deferred import so this module stays importable before models load.
@@ -316,11 +346,25 @@ def _resolve_by_slug(slug: str, *, host: str, reason: str) -> ResolvedTenant:
     # against row drift from a half-applied migration. Security review
     # (2026-10-12) flagged the previous blacklist as fail-open.
     if school.status == "active":
+        # SAAS-027 — the subscription decides: trial / active → tenant,
+        # grace → tenant + read_only, anything else → blocked. One
+        # indexed read of the current subscription per request.
+        from .subscriptions import current_subscription, effective_state, platform_today
+        settings = _request_settings()
+        state = effective_state(school, current_subscription(school.id),
+                                platform_today(settings), settings)
+        if state.blocked:
+            return ResolvedTenant("blocked", host=host, slug=slug_norm, school=school,
+                                  reason=f"{reason}:{state.state}", subscription=state)
         return ResolvedTenant("tenant", school=school, slug=slug_norm,
-                              host=host, reason=reason)
+                              host=host, reason=reason, subscription=state)
     if school.status == "suspended":
+        # Kept as its own kind (pre-SAAS-027 tests rely on it); enforced
+        # exactly like "blocked" — see ResolvedTenant.blocked.
+        from .subscriptions import SubscriptionState
         return ResolvedTenant("suspended", host=host, slug=slug_norm,
-                              school=school, reason=f"{reason}:suspended")
+                              school=school, reason=f"{reason}:suspended",
+                              subscription=SubscriptionState("suspended"))
     # archived — and any unexpected value — looks like unknown so we
     # never leak whether a slug exists in a non-active state.
     return ResolvedTenant("unknown", host=host, slug=slug_norm,
@@ -469,11 +513,13 @@ def init_app(app: Flask) -> None:
         # enforce
         if resolved.kind == "tenant" or resolved.kind == "platform":
             return None
-        if resolved.kind == "suspended":
-            return render_template(
-                "errors/tenant_suspended.html",
-                school=resolved.school,
-            ), 403
+        if resolved.blocked:
+            # SAAS-027 — suspended status or a subscription that doesn't
+            # allow access: one page / one JSON shape, no login form.
+            if resolved.support_bypass:
+                return None
+            from .subscription_enforcement import blocked_response
+            return blocked_response(resolved)
         # unknown / malformed / archived — never disclose which.
         abort(404)
 

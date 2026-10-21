@@ -2,7 +2,7 @@ from datetime import datetime
 from flask_login import UserMixin
 
 from ..extensions import db, bcrypt
-from .mixins import SoftDeleteMixin
+from .mixins import SoftDeleteMixin, inherited_school_id
 
 
 PERMISSION_MODULES = [
@@ -75,3 +75,22 @@ class User(UserMixin, db.Model):
 
     def can(self, module: str, action: str = "view") -> bool:
         return bool(self.role and self.role.has(module, action))
+
+
+class AccountSetupToken(db.Model):
+    """SAAS-028 — one-time "set your password" link for a provisioned
+    school admin. Only the HMAC of the token is stored; the raw token is
+    shown once on the console result screen (and e-mailed if platform
+    SMTP is configured). 72 h lifetime, single use."""
+    __tablename__ = "account_setup_tokens"
+    school_id = inherited_school_id("users", "user_id")
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"),
+                        nullable=False, index=True)
+    token_hash = db.Column(db.String(64), nullable=False, unique=True)
+    expires_at = db.Column(db.DateTime, nullable=False)
+    used_at = db.Column(db.DateTime)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    user = db.relationship("User")

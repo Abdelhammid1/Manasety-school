@@ -254,6 +254,8 @@ def two_schools(app) -> Iterator[dict]:
             )
             db.session.add(s); db.session.flush()
             created_ids["schools"].append(s.id)
+            from world import give_subscription
+            give_subscription(s)
             return s
 
         def _mk_role(school_id: int, name: str) -> Role:

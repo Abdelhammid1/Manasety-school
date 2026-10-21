@@ -234,6 +234,19 @@ class Config:
     PLATFORM_SESSION_MINUTES = _env_int("PLATFORM_SESSION_MINUTES", 30)
     PLATFORM_SESSION_MAX_HOURS = 8
     PLATFORM_SESSION_COOKIE_NAME = "manasety_platform"
+    # SAAS-027 — second line of the read-only (grace) enforcement: a write
+    # reaching the DB through a GET route. "log" reports only (default);
+    # "enforce" refuses the flush. Anything else is treated as "log".
+    # SAAS-028 — platform outbound mail (setup links, billing notices).
+    # Unset host or from = not configured: links are shown on screen only.
+    PLATFORM_SMTP_HOST = (os.environ.get("PLATFORM_SMTP_HOST") or "").strip()
+    PLATFORM_SMTP_PORT = _env_int("PLATFORM_SMTP_PORT", 587)
+    PLATFORM_SMTP_USERNAME = (os.environ.get("PLATFORM_SMTP_USERNAME") or "").strip()
+    PLATFORM_SMTP_PASSWORD = os.environ.get("PLATFORM_SMTP_PASSWORD") or ""
+    PLATFORM_SMTP_FROM = (os.environ.get("PLATFORM_SMTP_FROM") or "").strip()
+    PLATFORM_SMTP_TLS = (os.environ.get("PLATFORM_SMTP_TLS") or "1").strip().lower() not in (
+        "0", "false", "no", "off")
+    SUBSCRIPTION_RO_FLUSH_GUARD = (os.environ.get("SUBSCRIPTION_RO_FLUSH_GUARD") or "log").strip().lower()
 
     # ─── SAAS-001 (2026-10-12) — explicit session cookie flags ────
     # Hard-coded here (not read from env) so a prod deployment can't

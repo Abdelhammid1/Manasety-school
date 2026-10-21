@@ -1,0 +1,37 @@
+{% extends "superadmin/base.html" %}
+{% block title %}تم إنشاء المدرسة{% endblock %}
+{% block content %}
+<h1>تم إنشاء المدرسة</h1>
+<p class="sub">احفظ رابط ضبط كلمة المرور الآن — مش هيظهر تاني.</p>
+<div class="card">
+  <dl class="review">
+    <dt>رابط المدرسة</dt><dd class="mono">{{ result.url }}</dd>
+    <dt>الـsubdomain</dt>
+    <dd>
+      {% if result.subdomain_status == 'active' %}<span class="chip active">مفعّل</span>
+      {% elif result.subdomain_status == 'queued' %}<span class="chip grace">في انتظار المزامنة</span> — طلب مزامنة nginx اتسجّل، والسيرفر بينفّذه خلال دقيقة.
+      {% else %}<span class="chip grace">غير مفعّل</span> — الرابط مش هيفتح لحد ما يتشغّل <span class="mono">flask nginx-sync</span> على السيرفر.{% endif %}
+    </dd>
+    <dt>ضبط كلمة المرور</dt>
+    <dd>
+      <div class="copy"><input id="link" class="mono" readonly value="{{ result.setup_link }}" aria-label="رابط ضبط كلمة المرور">
+        <button class="btn" type="button" id="copyBtn">نسخ</button></div>
+      <small class="sub" style="display:block;margin-top:6px">صالح 72 ساعة ولمرة واحدة. شاركه مع المدير (مثلًا واتساب).{% if result.mailed %} واتبعت كمان على إيميله.{% endif %}</small>
+    </dd>
+  </dl>
+  {% if result.school_id %}<a class="btn ghost" style="margin-top:16px" href="{{ url_for('superadmin.school_detail', school_id=result.school_id) }}">صفحة المدرسة</a>{% endif %}
+</div>
+<style>
+  .review{display:grid;grid-template-columns:max-content 1fr;gap:12px 16px;margin:0} .review dt{font-weight:800;color:var(--navy)} .review dd{margin:0}
+  .copy{display:flex;gap:8px} .copy input{flex:1}
+  @media (max-width:640px){.review{grid-template-columns:1fr}.review dt{margin-top:8px}}
+</style>
+<script>
+document.getElementById('copyBtn').addEventListener('click', function(){
+  var i=document.getElementById('link'); i.select();
+  (navigator.clipboard ? navigator.clipboard.writeText(i.value) : Promise.reject()).then(
+    function(){ document.getElementById('copyBtn').textContent='تم النسخ'; },
+    function(){ document.execCommand('copy'); });
+});
+</script>
+{% endblock %}

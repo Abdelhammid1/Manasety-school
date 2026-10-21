@@ -34,3 +34,40 @@ def platform_user_create(email, full_name, role):
     pa.audit("platform_user_created_cli", user, role=role)
     db.session.commit()
     click.echo(f"created platform user #{user.id} ({role}); password change + TOTP required at first login")
+
+
+@bp.cli.command("school-provision")
+@click.option("--name", required=True, help="School name (Arabic).")
+@click.option("--slug", required=True)
+@click.option("--plan", "plan_code", default="internal", show_default=True)
+@click.option("--admin-name", required=True)
+@click.option("--admin-username", default="admin", show_default=True)
+@click.option("--admin-email", default="")
+@click.option("--months", type=int, default=None, help="Subscription length; omit for open-ended.")
+@click.option("--trial-days", type=int, default=None)
+@click.option("--dry-run", is_flag=True, help="Print what would be created; write nothing.")
+def school_provision(name, slug, plan_code, admin_name, admin_username, admin_email, months,
+                     trial_days, dry_run):
+    """SAAS-028 — CLI equivalent of the console wizard. The setup link is
+    printed once; it is not stored or logged anywhere."""
+    from ...models import Plan
+    from ...services import provisioning as prov
+    from ...services.subscriptions import get_settings, platform_today
+    plan = Plan.query.filter_by(code=plan_code).first()
+    if plan is None:
+        raise click.ClickException(f"unknown plan {plan_code!r}")
+    spec = prov.ProvisionSpec(name=name, slug=slug, plan_id=plan.id,
+                              starts_on=platform_today(get_settings()), months=months,
+                              trial_days=trial_days, admin_full_name=admin_name,
+                              admin_username=admin_username, admin_email=admin_email)
+    try:
+        result = prov.provision_school(spec, None, dry_run=dry_run)
+    except prov.ProvisionError as e:
+        raise click.ClickException(str(e)) from None
+    if dry_run:
+        click.echo(f"[dry-run] would create {result.url}:")
+        for line in result.plan:
+            click.echo(f"  - {line}")
+        return
+    click.echo(f"created school #{result.school_id} {result.url} (subdomain: {result.subdomain_status})")
+    click.echo(f"set-password link (shown once, valid 72h): {result.setup_link}")

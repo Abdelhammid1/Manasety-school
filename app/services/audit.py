@@ -105,6 +105,10 @@ def _record(connection, action, target, before=None):
     entity_id = getattr(target, "id", None)
     school_id = getattr(target, "school_id", None)
     user_id = getattr(current_user, "id", None) if has_request_context() else None
+    # SAAS-028 — a platform (console) user is not a row in `users`; the
+    # console's own trail is platform_audit_logs.
+    if has_request_context() and getattr(current_user, "is_platform_user", False):
+        user_id = None
     ip = None
     ua = None
     if has_request_context():

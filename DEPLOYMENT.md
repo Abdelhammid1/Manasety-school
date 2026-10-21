@@ -164,6 +164,55 @@ WHATSAPP_PROVIDER=stub
 - جدولة يومية (على عبدالحميد): `flask subscriptions-tick` — بيسجّل تحولات الحالة ويجهّز التنبيهات (الإرسال في SAAS-033). تشغيله مرتين في نفس اليوم ما بيكرّرش حاجة.
 - إعدادات المنصة (`platform_settings`) ليها افتراضيات في الكود: `default_trial_days=14`، `default_grace_days=14`، `reminder_days=30,14,7,3,1`، `platform_timezone=Africa/Cairo`، وبيانات الدعم فاضية لحد ما تتظبط.
 
+#### إنشاء مدرسة (SAAS-028)
+
+ممنوع إنشاء أي مدرسة على الإنتاج قبل بوابة B. الإنشاء من اللوحة (`/superadmin/schools/new`، دور owner بس) أو من السيرفر:
+
+```
+flask school-provision --name "اسم المدرسة" --slug myschool --admin-name "اسم المدير" --dry-run
+```
+
+(من غير `--dry-run` بيكتب فعلًا ويطبع رابط ضبط الباسورد مرة واحدة). المدير الأول بيتعمل بباسورد عشوائي محدش يعرفه، وبيختار باسورده من `https://<slug>.manasety.ai/set-password/<token>` (صالح 72 ساعة ولمرة واحدة). الرابط مش متخزّن غير كـhash، ومش بيتسجّل في أي audit.
+
+| المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |
+|---|---|---|---|
+| `PLATFORM_SMTP_HOST` | خادم SMTP بتاع المنصة (روابط ضبط الباسورد، وتنبيهات SAAS-033) | الإيميل مقفول: الرابط بيظهر في الشاشة بس | نفس "مش معرّف" |
+| `PLATFORM_SMTP_PORT` | رقم | `587` | `587` |
+| `PLATFORM_SMTP_USERNAME` | اسم الدخول على SMTP | من غير login | من غير login |
+| `PLATFORM_SMTP_PASSWORD` | سر — ما بيظهرش في أي log أو رسالة خطأ | فاضي | فاضي |
+| `PLATFORM_SMTP_FROM` | عنوان المرسل | الإيميل مقفول | الإيميل مقفول |
+| `PLATFORM_SMTP_TLS` | `1`/`0` (STARTTLS) | `1` | `1` |
+
+ملاحظة على السجلات: أول طلب على `/set-password/<token>` بيحوّل فورًا لـ`/set-password` من غير التوكن (التوكن بيتنقل للجلسة)، فالتوكن ما بيظهرش في الـReferer ولا في السجل بعد كده، لكن سطر الـaccess log بتاع أول طلب (nginx / gunicorn) فيه المسار. التوكن لمرة واحدة ويموت بعد 72 ساعة؛ لو حابب، اعمل `log_format` في nginx بيقص المسار ده.
+
+#### تطبيق الاشتراكات (SAAS-027)
+
+بيشتغل بس لما `TENANT_RESOLUTION_MODE=enforce` (في `log` بيسجّل بس).
+
+| المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |
+|---|---|---|---|
+| `SUBSCRIPTION_RO_FLUSH_GUARD` | `log` أو `enforce` — حماية تانية: كتابة في الداتا جاية من طلب GET أثناء فترة السماح | `log` (تسجيل بس) | `log` |
+
+- **محظورة** (`suspended` / `expired` / `not_started` / `no_subscription`): صفحة "الخدمة غير متاحة" 403 من غير فورم لوجين، وفيها بيانات الدعم من الإعدادات. `/files/...` بيرجع 404.
+- **فترة السماح** (`grace`): كل حاجة بتتقري، وأي POST/PUT/PATCH/DELETE بيترفض، ما عدا قائمة واحدة في `app/services/subscription_enforcement.py` (الدخول، الـOTP، استعادة الباسورد، تغيير الباسورد، توكن الإشعارات، `cron.tick`). بانر للكل.
+- بانر للمدير لما فاضل على النهاية أقل من أو يساوي أول قيمة في `reminder_days`.
+- الـ cron (`/cron/tick`) بيتخطى المدرسة المحظورة وبيسجّل `{"status":"skipped","reason":"<state>"}`.
+- **مفتاح القتل**: `schools.auth_epoch` بيزيد مع كل إيقاف (`suspend_school`)؛ أي جلسة ويب أو JWT (claim `ae`) أقدم بيترفض في الطلب الجاي. الجلسات والتوكنات القديمة من قبل التذكرة = 0، فمحدش بيخرج وقت النشر.
+
+أكواد الـAPI (عقد ثابت للموبايل — SAAS-037):
+
+| الحالة | HTTP | الرد |
+|---|---|---|
+| مدرسة محظورة | 403 | `{"error":"subscription_blocked","reason":"<state>","message_ar":"..."}` |
+| كتابة أثناء فترة السماح | 403 | `{"error":"subscription_read_only","reason":"grace","message_ar":"..."}` |
+| توكن قديم بعد الإيقاف | 401 | `{"error":"unauthorized"}` |
+
+خطوات النشر:
+1. نسخة احتياطية من الداتابيز، وبعدين `flask db upgrade` (بيضيف `schools.auth_epoch` بقيمة 0).
+2. تأكد إن كل مدرسة ليها اشتراك حالي (الـ migration بتاعة SAAS-026 بتضمن ده).
+3. سيب `SUBSCRIPTION_RO_FLUSH_GUARD=log` أسبوع، وراجع اللوج على `subscription[log] would refuse`.
+4. لو اللوج نضيف، حوّله لـ`enforce`.
+
 خطة التفعيل على الإنتاج (بعد موافقة عبدالحميد على القيم):
 
 ```
