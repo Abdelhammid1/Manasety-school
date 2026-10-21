@@ -116,8 +116,14 @@ def school_edit(school_id):
 
 def _dangerous(school):
     user = current_platform_user()
-    reason = pact.check(user, school, reason=request.form.get("reason"),
-                        confirm_slug=request.form.get("confirm_slug"))
+    try:
+        reason = pact.check(user, school, reason=request.form.get("reason"),
+                            confirm_slug=request.form.get("confirm_slug"))
+    except pact.StepUpLocked:
+        from . import end_platform_session
+        end_platform_session(revoke_user=user)
+        db.session.commit()
+        raise
     return user, reason
 
 
@@ -222,10 +228,36 @@ def school_staff_action(school_id, user_id, action):
     user = _staff_query(school.id).filter(User.id == user_id).first() or abort(404)
     who = current_platform_user()
     link = None
+    if action not in ("unlock", "setup_link", "deactivate", "activate"):
+        abort(404)
+    if action != "unlock":
+        # Security review: a set-password link is a credential and
+        # (de)activation changes access — owner only, with a fresh TOTP
+        # and a reason (support may only unlock).
+        if who.role != "owner":
+            abort(403)
+        reason = (request.form.get("reason") or "").strip()
+        try:
+            if not reason:
+                raise pact.ActionRefused("السبب مطلوب.")
+            if not pact.fresh_totp(who):
+                raise pact.ActionRefused("أدخل رمز التحقق (TOTP) الحالي.")
+        except pact.StepUpLocked as e:
+            from . import end_platform_session
+            flash(str(e), "danger")
+            end_platform_session(revoke_user=who)
+            db.session.commit()
+            return redirect(url_for("superadmin.login"))
+        except pact.ActionRefused as e:
+            flash(str(e), "danger")
+            return redirect(url_for("superadmin.school_staff", school_id=school.id))
     if action == "unlock":
         user.locked_until, user.failed_attempts = None, 0
     elif action == "deactivate":
-        user.is_active = False
+        user.is_active = False          # the user loader drops inactive users at once
+        AccountSetupToken.query.filter(AccountSetupToken.user_id == user.id,
+                                       AccountSetupToken.used_at.is_(None)) \
+            .update({"used_at": datetime.utcnow()}, synchronize_session=False)
     elif action == "activate":
         user.is_active = True
     elif action == "setup_link":
@@ -237,9 +269,9 @@ def school_staff_action(school_id, user_id, action):
         db.session.add(AccountSetupToken(user_id=user.id, token_hash=hash_token(raw),
                                          expires_at=datetime.utcnow() + SETUP_TOKEN_TTL))
         link = f"{school_url(school.slug)}/set-password/{raw}"
-    else:
-        abort(404)
-    pa.audit(f"staff_{action}", who, school_id=school.id, target_user_id=user.id)
+        _tell_school_admins(school, user)
+    pa.audit(f"staff_{action}", who, school_id=school.id, target_user_id=user.id,
+             reason=request.form.get("reason") or None)
     db.session.commit()
     if link:
         r = make_response(render_template("superadmin/staff_link.html", school=school, user=user,
@@ -248,6 +280,25 @@ def school_staff_action(school_id, user_id, action):
         return r
     flash("تم.", "success")
     return redirect(url_for("superadmin.school_staff", school_id=school.id))
+
+
+def _tell_school_admins(school, target):
+    """Security review: the school learns when the platform issued a
+    set-password link for one of its users."""
+    from ...models import Role
+    from ...services import platform_mailer
+    if not platform_mailer.is_configured():
+        return
+    admins = (User.query.join(Role, Role.id == User.role_id)
+              .filter(User.school_id == school.id, Role.name == "admin", User.is_active.is_(True),
+                      User.email.isnot(None)).all())
+    for a in admins:
+        try:
+            platform_mailer.send(a.email, "منصتي — رابط ضبط كلمة مرور",
+                                 f"أصدرت إدارة منصتي رابط ضبط كلمة مرور جديد للمستخدم {target.full_name} "
+                                 f"في {school.name}. لو ده مش متوقع، تواصل مع الدعم.")
+        except platform_mailer.PlatformMailError:
+            pass
 
 
 # ─── notes / contacts / tags (platform-only) ─────────────────────────

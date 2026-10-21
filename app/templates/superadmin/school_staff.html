@@ -16,14 +16,22 @@
         <td>{% if not u.is_active %}<span class="chip archived">معطّل</span>{% elif u.is_locked() %}<span class="chip expired">مقفول</span>{% else %}<span class="chip active">نشط</span>{% endif %}</td>
         <td>
           <div class="row" style="gap:6px">
-          {% for action, label in (('unlock', 'فك القفل'), ('setup_link', 'رابط ضبط الباسورد'), ('deactivate' if u.is_active else 'activate', 'تعطيل' if u.is_active else 'تفعيل')) %}
-            {% if action != 'unlock' or u.is_locked() or u.failed_attempts %}
-            <form method="post" action="{{ url_for('superadmin.school_staff_action', school_id=school.id, user_id=u.id, action=action) }}" style="margin:0;flex:0 0 auto">
+          {% if u.is_locked() or u.failed_attempts %}
+            <form method="post" action="{{ url_for('superadmin.school_staff_action', school_id=school.id, user_id=u.id, action='unlock') }}" style="margin:0;flex:0 0 auto">
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-              <button class="btn ghost" type="submit">{{ label }}</button>
+              <button class="btn ghost" type="submit">فك القفل</button>
             </form>
-            {% endif %}
+          {% endif %}
+          {% if current_user.role == 'owner' %}
+          {% for action, label in (('setup_link', 'رابط ضبط الباسورد'), ('deactivate' if u.is_active else 'activate', 'تعطيل' if u.is_active else 'تفعيل')) %}
+            <form method="post" action="{{ url_for('superadmin.school_staff_action', school_id=school.id, user_id=u.id, action=action) }}" class="row" style="margin:0;flex:1 1 100%;gap:6px">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input name="reason" required placeholder="السبب" aria-label="السبب" style="flex:1 1 120px">
+              <input name="totp" inputmode="numeric" maxlength="6" placeholder="TOTP" aria-label="رمز التحقق" style="flex:0 0 90px">
+              <button class="btn ghost" type="submit" style="flex:0 0 auto">{{ label }}</button>
+            </form>
           {% endfor %}
+          {% endif %}
           </div>
         </td>
       </tr>

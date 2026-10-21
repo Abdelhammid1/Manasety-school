@@ -25,16 +25,52 @@ class ActionRefused(ValueError):
     """Arabic, shown on the console."""
 
 
-def fresh_totp(user) -> bool:
-    """TOTP verified within STEP_UP_SECONDS — or the form's `totp` code
-    verifies now (which refreshes the window)."""
+STEP_UP_MAX_FAILURES = 5
+STEP_UP_WINDOW = timedelta(minutes=15)
+
+
+class StepUpLocked(ActionRefused):
+    """Too many wrong step-up codes: the console session is ended."""
+
+
+def _step_up_failures(user) -> int:
+    from ..models import PlatformAuditLog
+    from .platform_auth import utcnow
+    return PlatformAuditLog.query.filter(
+        PlatformAuditLog.platform_user_id == user.id, PlatformAuditLog.action == "step_up_failed",
+        PlatformAuditLog.created_at >= utcnow() - STEP_UP_WINDOW).count()
+
+
+def _record_step_up_failure(user) -> None:
+    """On its own connection, so the caller's rollback can't erase it."""
+    from ..extensions import db
+    from ..models import PlatformAuditLog
+    from .platform_auth import utcnow
+    with db.engine.begin() as conn:
+        conn.execute(PlatformAuditLog.__table__.insert().values(
+            platform_user_id=user.id, action="step_up_failed", ip=request.remote_addr,
+            created_at=utcnow()))
+
+
+def fresh_totp(user, *, force: bool = False) -> bool:
+    """TOTP verified within STEP_UP_SECONDS (unless force) — or the form's
+    `totp` code verifies now (which refreshes the window). Wrong codes are
+    counted; STEP_UP_MAX_FAILURES within STEP_UP_WINDOW raises
+    StepUpLocked (the view ends the console session)."""
     from .platform_auth import decrypt, verify_totp
-    if time.time() - session.get("sa_totp_at", 0) <= STEP_UP_SECONDS:
+    if not force and time.time() - session.get("sa_totp_at", 0) <= STEP_UP_SECONDS:
         return True
+    if _step_up_failures(user) >= STEP_UP_MAX_FAILURES:
+        raise StepUpLocked("محاولات خاطئة كثيرة لرمز التحقق. سجّل الدخول من جديد.")
     code = (request.form.get("totp") or "").strip()
-    if code and verify_totp(decrypt(user.totp_secret_encrypted), code, user=user):
+    if not code:
+        return False
+    if verify_totp(decrypt(user.totp_secret_encrypted), code, user=user):
         session["sa_totp_at"] = time.time()
         return True
+    _record_step_up_failure(user)
+    if _step_up_failures(user) >= STEP_UP_MAX_FAILURES:
+        raise StepUpLocked("محاولات خاطئة كثيرة لرمز التحقق. سجّل الدخول من جديد.")
     return False
 
 

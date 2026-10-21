@@ -19,16 +19,9 @@ from ...services import support_policy as sp
 
 
 def _step_up(user, *, force: bool) -> bool:
-    """True when a TOTP was verified within STEP_UP_SECONDS (or the
-    submitted code verifies now — that refreshes the window)."""
-    fresh = time.time() - session.get("sa_totp_at", 0) <= sp.STEP_UP_SECONDS
-    if fresh and not force:
-        return True
-    code = (request.form.get("totp") or "").strip()
-    if code and pa.verify_totp(pa.decrypt(user.totp_secret_encrypted), code, user=user):
-        session["sa_totp_at"] = time.time()
-        return True
-    return False
+    """Shared, throttled step-up (services/platform_actions.fresh_totp)."""
+    from ...services.platform_actions import fresh_totp
+    return fresh_totp(user, force=force)
 
 
 def school_enter_url(school, token):
@@ -44,7 +37,16 @@ def support_start(school_id):
     user = current_platform_user()
     mode = request.form.get("mode") or "read_only"
     back = url_for("superadmin.school_detail", school_id=school.id) + "#support"
-    if not _step_up(user, force=(mode == "write")):
+    from ...services.platform_actions import StepUpLocked
+    try:
+        stepped_up = _step_up(user, force=(mode == "write"))
+    except StepUpLocked as e:
+        from . import end_platform_session
+        flash(str(e), "danger")
+        end_platform_session(revoke_user=user)
+        db.session.commit()
+        return redirect(url_for("superadmin.login"))
+    if not stepped_up:
         pa.audit("support_step_up_failed", user, school_id=school.id)
         db.session.commit()
         flash("أدخل رمز التحقق (TOTP) الحالي لبدء جلسة الدعم.", "danger")

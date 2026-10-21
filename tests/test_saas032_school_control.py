@@ -242,7 +242,14 @@ def test_staff_tools(capp, two_schools):
         u.failed_attempts, u.locked_until = 5, datetime.utcnow() + timedelta(hours=1)
         db.session.commit()
     sup.post(f"/superadmin/schools/{A['school'].id}/staff/{uid}/unlock", base_url=CONSOLE)
-    r = sup.post(f"/superadmin/schools/{A['school'].id}/staff/{uid}/setup_link", base_url=CONSOLE)
+    # support may unlock, but never mint a credential (security review)
+    assert sup.post(f"/superadmin/schools/{A['school'].id}/staff/{uid}/setup_link", base_url=CONSOLE,
+                    data={"reason": "x"}).status_code == 403
+    owner, _ = _owner(capp)
+    r = owner.post(f"/superadmin/schools/{A['school'].id}/staff/{uid}/setup_link", base_url=CONSOLE)
+    assert b"/set-password/" not in r.data                         # no reason → refused
+    r = owner.post(f"/superadmin/schools/{A['school'].id}/staff/{uid}/setup_link", base_url=CONSOLE,
+                   data={"reason": "user locked out"})
     assert r.status_code == 200 and b"/set-password/" in r.data
     with capp.app_context():
         u = db.session.get(User, uid)
@@ -251,6 +258,8 @@ def test_staff_tools(capp, two_schools):
         db.session.remove()
     # a parent / another school's user is not reachable
     pid = A["users"]["parent"].id
+    assert owner.post(f"/superadmin/schools/{A['school'].id}/staff/{pid}/deactivate",
+                      base_url=CONSOLE, data={"reason": "x"}).status_code == 404
     assert sup.post(f"/superadmin/schools/{A['school'].id}/staff/{pid}/deactivate",
                     base_url=CONSOLE).status_code == 404
     bid = two_schools["B"]["users"]["admin"].id
@@ -307,3 +316,41 @@ def test_targeted_announcement(capp, two_schools, login_as, monkeypatch):
     assert "ANN-OLD" not in pa_ and "ANN-OLD" not in pb_
     sup, _ = _console_client(capp, "support")
     assert sup.get("/superadmin/announcements", base_url=CONSOLE).status_code == 403
+
+
+def test_deactivated_user_loses_session_now(capp, two_schools, login_as):
+    A = two_schools["A"]
+    ua = capp.test_client()
+    login_as(ua, A["users"]["teacher"], base_url=host(A))
+    assert ua.get("/students", base_url=host(A)).status_code in (200, 403)
+    owner, _ = _owner(capp)
+    r = owner.post(f"/superadmin/schools/{A['school'].id}/staff/{A['users']['teacher'].id}/deactivate",
+                   base_url=CONSOLE, data={"reason": "left the school"})
+    assert r.status_code == 302
+    r = ua.get("/students", base_url=host(A))
+    assert r.status_code == 302 and "/auth/login" in r.headers["Location"]
+    from app.extensions import db
+    from app.models import User
+    with capp.app_context():
+        db.session.get(User, A["users"]["teacher"].id).is_active = True
+        db.session.commit()
+        db.session.remove()
+
+
+def test_step_up_bruteforce_locks_and_logs_out(capp, two_schools, monkeypatch):
+    from app.extensions import db
+    from app.models import PlatformAuditLog
+    from app.services import platform_actions as pact
+    monkeypatch.setattr(pact, "STEP_UP_MAX_FAILURES", 3)
+    A = two_schools["A"]["school"]
+    c, uid = _console_client(capp, "owner")
+    with c.session_transaction(base_url=CONSOLE) as s:
+        s["sa_totp_at"] = time.time() - 601
+    for _ in range(3):
+        _act(c, A, "suspend", totp="000000")
+    assert _status(capp, A.id)[0] == "active"
+    with capp.app_context():
+        assert PlatformAuditLog.query.filter_by(platform_user_id=uid, action="step_up_failed").count() == 3
+        db.session.remove()
+    r = c.get(f"/superadmin/schools/{A.id}", base_url=CONSOLE)
+    assert r.status_code == 302 and "/superadmin/login" in r.headers["Location"]

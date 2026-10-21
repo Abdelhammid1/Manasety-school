@@ -82,6 +82,10 @@ def create_app(config_class=Config):
         user = db.session.get(User, int(uid), execution_options={"include_support": True})
         if user is not None and user.is_platform_support and not is_support_request():
             return None
+        # Security review (SAAS-032): deactivating a user ends their
+        # sessions on the next request.
+        if user is not None and not user.is_active:
+            return None
         return user
 
     # Ticket 6 — install audit-log SQLAlchemy listeners once per process.
