@@ -104,7 +104,7 @@ def run_school_tick(school_id: int, today: date) -> dict:
             skipped.append("attendance")
         out["risk_scores_updated"] = run_risk(school_id, today=today)
         if today.day == 1 and module_enabled(school_id, "attendance"):
-            out["attendance_reports_sent"] = send_reports_for_school(school_id)
+            out["attendance_reports_sent"] = send_reports_for_school(school_id, day=today)
         db.session.commit()
     if skipped:
         out["skipped_modules"] = skipped

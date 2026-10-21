@@ -51,7 +51,7 @@ def build_report_html(student_id: int, start=None, end=None) -> tuple[str, dict]
     return html, stats
 
 
-def send_report(student_id: int, start=None, end=None) -> int:
+def send_report(student_id: int, start=None, end=None, day=None) -> int:
     """Enqueue a per-guardian notification carrying the report link
     or HTML body. Returns the count of notifications enqueued."""
     student = Student.query.get(student_id)
@@ -74,12 +74,20 @@ def send_report(student_id: int, start=None, end=None) -> int:
         ),
     }
     sent = 0
+    from datetime import datetime
+    from ..models import NotificationLog
+    since = datetime.combine(day or date.today(), datetime.min.time())
     for link in getattr(student, "guardian_links", None) or []:
         if not link.can_receive_notifications:
             continue
         g = link.guardian
         phone = (getattr(g, "phone", "") or "").strip()
         if not phone:
+            continue
+        # SAAS-043 — a second tick the same day sends nothing new
+        if NotificationLog.query.filter(
+                NotificationLog.kind == "attendance_report", NotificationLog.student_id == student.id,
+                NotificationLog.target_phone == phone, NotificationLog.created_at >= since).first():
             continue
         send_notification(
             school_id=student.school_id,
@@ -92,7 +100,7 @@ def send_report(student_id: int, start=None, end=None) -> int:
     return sent
 
 
-def send_reports_for_school(school_id: int):
+def send_reports_for_school(school_id: int, day=None):
     """Cron entry point — once a month, per school (SAAS-010).
 
     Iterates the school's active enrolments; skips duplicate students
@@ -103,5 +111,5 @@ def send_reports_for_school(school_id: int):
         if e.student_id in seen:
             continue
         seen.add(e.student_id)
-        total_sent += send_report(e.student_id)
+        total_sent += send_report(e.student_id, day=day)
     return total_sent
