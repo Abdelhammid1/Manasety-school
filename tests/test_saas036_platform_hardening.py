@@ -404,3 +404,66 @@ def test_audit_prune_guard_is_cleared_when_the_body_raises(console):
             assert conn.execute(text("SELECT COUNT(*) FROM audit_prune_guard")).scalar() == 0
         db.session.rollback()
         db.session.remove()
+
+
+def test_a_new_owner_comes_only_from_the_server(console, monkeypatch):
+    """Commit review (HIGH): the console never mints an owner — the owner
+    who sees the link would control the second account of the two-person
+    rule. Invite-as-owner and promote-to-owner are CLI only."""
+    from app.extensions import db
+    from app.models import PlatformUser
+    from app.services import platform_actions
+    monkeypatch.setattr(platform_actions, "notify_owners", lambda s, b: 1)
+    owner, _ = _console_client(console, "owner")
+    _fresh(owner)
+    _, tid = _console_client(console, "support")
+    email = f"own2-{time.time_ns()}@manasety.test"
+    r = owner.post("/superadmin/users", base_url=CONSOLE,
+                   data={"email": email, "full_name": "Owner Two", "role": "owner"})
+    assert b"/superadmin/setup/" not in r.data
+    owner.post(f"/superadmin/users/{tid}/role", base_url=CONSOLE, data={"role": "owner"})
+    with console.app_context():
+        assert PlatformUser.query.filter_by(email=email).first() is None
+        target = db.session.get(PlatformUser, tid)
+        assert target.role == "support"
+        target_email = target.email
+        db.session.remove()
+    out = console.test_cli_runner().invoke(
+        args=["platform-user-set-role", "--email", target_email, "--role", "owner"])
+    assert out.exit_code == 0, out.output
+    with console.app_context():
+        assert db.session.get(PlatformUser, tid).role == "owner"
+        db.session.get(PlatformUser, tid).role = "support"
+        db.session.commit()
+        db.session.remove()
+
+
+def test_reactivating_an_owner_waits_for_a_pending_purge(console, two_schools, monkeypatch):
+    from datetime import datetime, timedelta, timezone
+    from app.extensions import db
+    from app.models import PlatformUser, SchoolOffboarding
+    from app.services import platform_actions
+    monkeypatch.setattr(platform_actions, "notify_owners", lambda s, b: 1)
+    owner, oid = _console_client(console, "owner")
+    _fresh(owner)
+    _, other = _console_client(console, "owner")
+    now = datetime.now(timezone.utc)
+    with console.app_context():
+        db.session.get(PlatformUser, other).is_active = False
+        db.session.add(SchoolOffboarding(school_id=two_schools["A"]["school"].id, reason="leaving",
+                                         requested_at=now - timedelta(days=3),
+                                         purge_requested_by=oid, purge_requested_at=now))
+        db.session.commit()
+    try:
+        owner.post(f"/superadmin/users/{other}/activate", base_url=CONSOLE)
+        with console.app_context():
+            assert db.session.get(PlatformUser, other).is_active is False
+    finally:
+        with console.app_context():
+            SchoolOffboarding.query.delete()
+            db.session.commit()
+            db.session.remove()
+    owner.post(f"/superadmin/users/{other}/activate", base_url=CONSOLE)
+    with console.app_context():
+        assert db.session.get(PlatformUser, other).is_active is True
+        db.session.remove()

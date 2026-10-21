@@ -34,7 +34,8 @@ def approvals_required(now) -> int:
     if PlatformUser.query.filter_by(role="owner").count() > 1:
         return 2
     recent = PlatformAuditLog.query.filter(
-        PlatformAuditLog.action.in_(("platform_user_role", "platform_user_deactivate")),
+        PlatformAuditLog.action.in_(("platform_user_role", "platform_user_role_cli",
+                                     "platform_user_deactivate", "platform_user_deactivate_cli")),
         PlatformAuditLog.created_at >= now - OWNER_LOSS_WINDOW).all()
     for row in recent:
         meta = row.meta or {}

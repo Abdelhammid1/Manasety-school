@@ -50,7 +50,7 @@ def users():
             if PlatformUser.query.filter_by(email=email).first() is not None:
                 raise pact.ActionRefused("الإيميل مستخدم.")
             if role == "owner":
-                _no_pending_purge_owner_change(None, new_role="owner")
+                raise pact.ActionRefused("إضافة owner (دعوة أو ترقية) من السيرفر بس: flask platform-user-create أو flask platform-user-set-role.")
             if not pact.fresh_totp(me):
                 raise pact.ActionRefused("أدخل رمز التحقق (TOTP) الحالي.")
         except pact.StepUpLocked:
@@ -84,7 +84,9 @@ def user_action(user_id, action):
         if action in ("reset_password", "reset_totp") and u.role == "owner":
             raise pact.ActionRefused("حسابات owner: إعادة تعيين كلمة المرور أو TOTP من السيرفر بس "
                                      "(flask platform-user-reset-link / platform-user-reset-2fa).")
-        if action in ("role", "deactivate"):
+        if action == "role" and (request.form.get("role") or "") == "owner":
+            raise pact.ActionRefused("إضافة owner (دعوة أو ترقية) من السيرفر بس: flask platform-user-create أو flask platform-user-set-role.")
+        if action in ("role", "deactivate", "activate"):
             # 2. two owners demoting each other at once must not leave none
             from ...services.locks import transaction_lock
             transaction_lock("platform-owners")
@@ -112,6 +114,7 @@ def user_action(user_id, action):
             from ...services.support_policy import end_for_platform_user
             end_for_platform_user(u.id, "deactivated")
         elif action == "activate":
+            _no_pending_purge_owner_change(u)
             u.is_active = True
         elif action == "reset_password":
             raw = psec.issue_setup_link(u, purpose="reset")
@@ -309,6 +312,30 @@ def platform_user_reset_link(email):
     click.echo(f"https://{host}/superadmin/setup/{raw}")
 
 
+@bp.cli.command("platform-user-set-role")
+@click.option("--email", required=True)
+@click.option("--role", type=click.Choice(PLATFORM_ROLES), required=True)
+def platform_user_set_role(email, role):
+    """Change a platform user's role — the only way to make someone an
+    owner (the console can't, so one owner can't mint a second one)."""
+    from ...services.locks import transaction_lock
+    u = _cli_user(email)
+    transaction_lock("platform-owners")
+    if u.role == "owner" and role != "owner" and u.is_active and psec.active_owner_count(exclude_id=u.id) == 0:
+        raise click.ClickException("can't demote the last active owner")
+    try:
+        _no_pending_purge_owner_change(u, new_role=role)
+    except pact.ActionRefused as e:
+        raise click.ClickException(str(e)) from None
+    old, u.role = u.role, role
+    psec.revoke_sessions(u.id)
+    u.session_version = (u.session_version or 1) + 1
+    pa.audit("platform_user_role_cli", None, target_user_id=u.id, role=role, old_role=old)
+    pact.notify_owners("منصتي — تغيير دور من السيرفر", f"دور {u.email} اتغيّر من {old} إلى {role} من سطر الأوامر.")
+    db.session.commit()
+    click.echo(f"{u.email}: {old} -> {role}")
+
+
 @bp.cli.command("platform-user-unlock")
 @click.option("--email", required=True)
 def platform_user_unlock(email):
@@ -325,7 +352,7 @@ def platform_user_deactivate(email):
     u = _cli_user(email)
     u.is_active = False
     psec.revoke_sessions(u.id)
-    pa.audit("platform_user_deactivate_cli", None, target_user_id=u.id)
+    pa.audit("platform_user_deactivate_cli", None, target_user_id=u.id, role=u.role)
     db.session.commit()
     click.echo(f"deactivated {u.email}")
 
