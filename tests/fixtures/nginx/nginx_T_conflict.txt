@@ -1,0 +1,38 @@
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+# configuration file /etc/nginx/nginx.conf:
+user  nginx;
+http {
+    include /etc/nginx/conf.d/*.conf;
+}
+
+# configuration file /etc/nginx/conf.d/wildcard-lamma.conf:
+server {
+    listen 443 ssl;
+    server_name *.manasety.ai;
+    location / { proxy_pass http://172.21.0.1:5100; }
+}
+
+# configuration file /etc/nginx/conf.d/chatwoot.conf:
+server {
+    listen 443 ssl;
+    server_name chatwoot.manasety.ai accountant.manasety.ai;
+}
+
+# configuration file /etc/nginx/conf.d/lms.conf:
+server {
+    listen 443 ssl;
+    server_name lms.manasety.ai console.manasety.ai;
+}
+
+# configuration file /etc/nginx/conf.d/landing.conf:
+server {
+    listen 443 ssl;
+    server_name landing.manasety.ai;
+}
+
+# configuration file /etc/nginx/conf.d/schools.conf:
+server {
+    listen 443 ssl;
+    server_name demo.manasety.ai;
+}

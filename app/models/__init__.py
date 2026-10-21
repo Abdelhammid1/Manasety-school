@@ -2,7 +2,7 @@ from .school import School
 from .user import User, Role, AccountSetupToken
 from .platform_admin import (
     PlatformUser, PlatformRecoveryCode, PlatformAuditLog, PLATFORM_ROLES,
-    Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting,
+    Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting, PlatformJob,
     BILLING_CYCLES, SUBSCRIPTION_EVENT_KINDS,
 )
 from .academic import AcademicYear, Term, Grade, Section
@@ -142,6 +142,6 @@ __all__ = [
     "NAFIS_LEVELS", "NAFIS_SUBJECTS", "NAFIS_BANDS", "NAFIS_CYCLE_STATUS",
     "GAP_SEVERITY", "GAP_SOURCE", "INTERVENTION_STATUS",
     "PlatformUser", "PlatformRecoveryCode", "PlatformAuditLog", "PLATFORM_ROLES",
-    "Plan", "SchoolSubscription", "SchoolSubscriptionEvent", "PlatformSetting",
+    "Plan", "SchoolSubscription", "SchoolSubscriptionEvent", "PlatformSetting", "PlatformJob",
     "BILLING_CYCLES", "SUBSCRIPTION_EVENT_KINDS",
 ]

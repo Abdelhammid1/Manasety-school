@@ -119,6 +119,45 @@ def jwt_epoch_is_stale(payload: dict, user) -> bool:
     return int(payload.get("ae", 0) or 0) < _school_epoch(user.school_id)
 
 
+def user_school_state(user):
+    """Subscription state of the user's OWN school — independent of the
+    request host (security review: a token must not dodge the gate by
+    being replayed on a host that resolves differently)."""
+    from ..models import School
+    from .subscriptions import SubscriptionState, current_subscription, effective_state, platform_today
+    from .tenancy import _request_settings
+    sid = getattr(user, "school_id", None)
+    if sid is None:
+        return None
+    resolved = getattr(g, "tenant_resolved", None)
+    sub = getattr(resolved, "subscription", None) if resolved is not None else None
+    if sub is not None and resolved.school is not None and resolved.school.id == sid:
+        return sub
+    school = db.session.get(School, sid)
+    if school is None:
+        return SubscriptionState("no_subscription")
+    settings = _request_settings()
+    return effective_state(school, current_subscription(sid), platform_today(settings), settings)
+
+
+def api_refusal(user):
+    """(json, 403) when the bearer's own school may not use the API for
+    this request, else None. Enforce mode only, like the host gate."""
+    from .tenancy import resolution_mode
+    if resolution_mode() != "enforce":
+        return None
+    st = user_school_state(user)
+    if st is None:
+        return None
+    if st.blocked:
+        return jsonify({"error": "subscription_blocked", "reason": st.state,
+                        "message_ar": MESSAGES_AR.get(st.state, MESSAGES_AR["suspended"])}), 403
+    if st.read_only and request.method in WRITE_METHODS and             request.endpoint not in READ_ONLY_ALLOWED_ENDPOINTS:
+        return jsonify({"error": "subscription_read_only", "reason": "grace",
+                        "message_ar": MESSAGES_AR["read_only"]}), 403
+    return None
+
+
 # ─── hooks ──────────────────────────────────────────────────────────
 
 def install(app) -> None:
@@ -128,7 +167,7 @@ def install(app) -> None:
     @app.before_request
     def _subscription_gate():
         resolved = getattr(g, "tenant_resolved", None)
-        if resolved is None or resolution_mode() != "enforce":
+        if resolved is None or resolution_mode() != "enforce" or g.get("tenant_health_ok"):
             return None
         # blocked is answered by the resolver itself (tenancy.init_app)
         if getattr(resolved, "support_bypass", False):

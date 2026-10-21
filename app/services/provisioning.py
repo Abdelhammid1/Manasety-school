@@ -225,21 +225,14 @@ def _record_events(school, admin, user, counts):
 
 
 def subdomain_status(school_id) -> str:
-    """Before SAAS-029 every new school waits for `flask nginx-sync`."""
-    try:
-        from .nginx_sync import school_subdomain_status
-    except ImportError:
-        return "pending_sync"
+    from .nginx_queue import school_subdomain_status
     return school_subdomain_status(school_id)
 
 
-def _after_create(school):
-    """SAAS-029 hook: queue an nginx sync."""
-    try:
-        from .nginx_sync import request_nginx_sync
-    except ImportError:
-        return
-    request_nginx_sync("school_created", school_id=school.id)
+def _after_create(school, user=None):
+    """SAAS-029: queue an nginx sync; the server applies it within a minute."""
+    from .nginx_queue import request_nginx_sync
+    request_nginx_sync("school_created", school_id=school.id, user=user)
 
 
 def provision_school(spec: ProvisionSpec, platform_user, *, dry_run: bool = False) -> ProvisionResult:
@@ -259,7 +252,7 @@ def provision_school(spec: ProvisionSpec, platform_user, *, dry_run: bool = Fals
             counts = _apply_template(school)
             admin, raw = _create_admin(school, spec)
             _record_events(school, admin, platform_user, counts)
-            _after_create(school)
+            _after_create(school, platform_user)
         db.session.commit()
     except IntegrityError:
         # Lost a race on the slug / code unique index (double submit).

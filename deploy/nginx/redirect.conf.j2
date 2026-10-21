@@ -1,0 +1,27 @@
+{#- SAAS-032 — an old slug inside its redirect window: the app answers
+    301 (web) / 410 school_moved (API), so nginx only has to route it. -#}
+# moved: {{ slug }} -> {{ new_slug }}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ host }};
+    return 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name {{ host }};
+
+    ssl_certificate     {{ cert_dir }}/{{ cert }}/fullchain.pem;
+    ssl_certificate_key {{ cert_dir }}/{{ cert }}/privkey.pem;
+
+    location / {
+        proxy_pass http://{{ upstream }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+# end moved: {{ slug }}

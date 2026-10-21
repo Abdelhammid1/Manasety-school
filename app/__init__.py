@@ -112,6 +112,13 @@ def create_app(config_class=Config):
     from .blueprints.nafis import bp as nafis_bp
 
     app.register_blueprint(auth_bp, url_prefix="/auth")
+    # SAAS-029 — health probe used by `flask nginx-sync` after a reload.
+    # No data: just "this host resolved". (Unknown hosts 404 in enforce.)
+    @app.route("/_health", endpoint="health")
+    def _health():
+        from flask import jsonify
+        return jsonify(ok=True)
+
     # SAAS-028 — /set-password/<token> for provisioned school admins.
     from .blueprints.auth.setup import bp as account_bp
     app.register_blueprint(account_bp)

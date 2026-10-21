@@ -215,6 +215,8 @@ def suspend_school(school, user, reason: str) -> None:
     set_school_status(school, "suspended")
     bump_auth_epoch(school)
     _event(school.id, "suspended", prev, "suspended", reason.strip(), user)
+    from .nginx_queue import request_nginx_sync
+    request_nginx_sync("school_suspended", school_id=school.id, user=user)
 
 
 def resume_school(school, user, reason: str) -> None:
@@ -224,6 +226,8 @@ def resume_school(school, user, reason: str) -> None:
         raise SubscriptionError("المدرسة ليست موقوفة.")
     set_school_status(school, "active")
     _event(school.id, "resumed", "suspended", "active", reason.strip(), user)
+    from .nginx_queue import request_nginx_sync
+    request_nginx_sync("school_resumed", school_id=school.id, user=user)
 
 
 def renew(school, user, reason, months=None, ends_on=None, today=None):

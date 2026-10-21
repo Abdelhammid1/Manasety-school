@@ -165,6 +165,34 @@ class SchoolSubscriptionEvent(db.Model):
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow, index=True)
 
 
+JOB_KINDS = ("nginx_sync", "school_export")
+JOB_STATUSES = ("pending", "running", "succeeded", "failed")
+
+
+class PlatformJob(db.Model):
+    """SAAS-029 — work the web process queues and a server-side CLI runs
+    (the web process never touches docker / nginx). `log` is truncated
+    and redacted; `result` holds the structured outcome."""
+    __tablename__ = "platform_jobs"
+
+    id = db.Column(db.Integer, primary_key=True)
+    kind = db.Column(db.String(32), nullable=False, index=True)
+    status = db.Column(db.String(16), nullable=False, default="pending", index=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"))
+    reason = db.Column(db.String(255))
+    requested_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    requested_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    started_at = db.Column(db.DateTime(timezone=True))
+    finished_at = db.Column(db.DateTime(timezone=True))
+    log = db.Column(db.Text)
+    result = db.Column(db.JSON)
+
+    __table_args__ = (
+        db.CheckConstraint("status IN ('pending','running','succeeded','failed')",
+                           name="ck_platform_jobs_status"),
+    )
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

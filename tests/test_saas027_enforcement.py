@@ -249,3 +249,29 @@ def test_login_stamps_epoch(eapp, two_schools):
 def test_reason_text_comes_from_one_place():
     from app.services.subscription_enforcement import MESSAGES_AR
     assert BLOCKED <= set(MESSAGES_AR)
+
+
+def test_blocked_school_token_refused_on_another_host(eapp, two_schools):
+    """Security review: the bearer's own school decides, even when the
+    token is replayed on a host that resolves to a different school."""
+    A, B = two_schools["A"], two_schools["B"]
+    set_state(eapp, A["school"].id, "expired")
+    hdr = _bearer(eapp, A["users"]["admin"])
+    r = eapp.test_client().get("/api/me", base_url=host(B), headers=hdr)
+    assert r.status_code in (401, 403)
+    r = eapp.test_client().get("/api/me", base_url="http://lms-legacy-unknown.manasety.ai", headers=hdr)
+    assert r.status_code in (401, 403, 404)
+
+
+def test_api_refusal_ignores_host(eapp, two_schools):
+    from flask import g
+    from app.services.subscription_enforcement import api_refusal
+    A = two_schools["A"]
+    set_state(eapp, A["school"].id, "grace")
+    with eapp.test_request_context("/api/me/full-name", method="POST", base_url=host(two_schools["B"])):
+        g.tenant_resolved = None
+        resp, code = api_refusal(A["users"]["admin"])
+        assert code == 403 and resp.json["error"] == "subscription_read_only"
+    with eapp.test_request_context("/api/me", method="GET", base_url=host(two_schools["B"])):
+        g.tenant_resolved = None
+        assert api_refusal(A["users"]["admin"]) is None

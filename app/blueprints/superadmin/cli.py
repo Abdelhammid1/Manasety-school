@@ -71,3 +71,32 @@ def school_provision(name, slug, plan_code, admin_name, admin_username, admin_em
         return
     click.echo(f"created school #{result.school_id} {result.url} (subdomain: {result.subdomain_status})")
     click.echo(f"set-password link (shown once, valid 72h): {result.setup_link}")
+
+
+@bp.cli.command("nginx-sync")
+@click.option("--check", is_flag=True, help="Print the diff against the deployed schools.conf and exit.")
+@click.option("--dry-run", is_flag=True, help="Render + conflict check; write nothing, no reload.")
+@click.option("--only", "only", default=None, help="Regenerate one school's block only.")
+@click.option("--from-queue", is_flag=True, help="Apply pending console requests (systemd timer).")
+def nginx_sync_command(check, dry_run, only, from_queue):
+    """SAAS-029 — generate schools.conf and apply it with backup, nginx -t,
+    reload, health verification and automatic rollback. Server only."""
+    from ...services import nginx_sync
+    try:
+        if from_queue:
+            res = nginx_sync.run_queue(check=check, dry_run=dry_run, only=only)
+            if res is None:
+                return                         # nothing queued: stay quiet for the timer
+        else:
+            res = nginx_sync.run_sync(check=check, dry_run=dry_run, only=only)
+    except nginx_sync.SyncError as e:
+        raise click.ClickException(str(e)) from None
+    if res.diff and (check or dry_run):
+        click.echo(res.diff)
+    for line in res.log:
+        click.echo(line)
+    if res.cert_days_left is not None:
+        click.echo(f"certificate: {res.cert_days_left} day(s) left")
+    click.echo(f"result: {res.status}")
+    if res.status == "failed":
+        raise SystemExit(1)

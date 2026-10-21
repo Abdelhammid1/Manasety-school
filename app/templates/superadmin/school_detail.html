@@ -49,6 +49,40 @@
   {% endif %}
 </div>
 
+<h2>الرابط (nginx)</h2>
+<div class="card">
+  <p>
+    {% if subdomain == 'active' %}<span class="chip active">مفعّل</span> الرابط شغّال.
+    {% elif subdomain == 'queued' %}<span class="chip grace">في انتظار المزامنة</span> طلب مزامنة مسجّل، والسيرفر بينفّذه خلال دقيقة.
+    {% elif subdomain == 'failed' %}<span class="chip expired">فشلت آخر مزامنة</span> راجع السجل تحت.
+    {% else %}<span class="chip grace">غير مفعّل</span> لسه ما اتعملهوش مزامنة.{% endif %}
+  </p>
+  {% if current_user.role in ('owner', 'support') %}
+  <form method="post" action="{{ url_for('superadmin.school_nginx_sync', school_id=school.id) }}" style="margin:0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <button class="btn ghost" type="submit">مزامنة الآن</button>
+  </form>
+  {% endif %}
+  {% if jobs %}
+  <div class="table-wrap" style="margin-top:12px">
+    <table>
+      <thead><tr><th>#</th><th>الحالة</th><th>السبب</th><th>طُلب</th><th>انتهى</th><th>الشهادة</th></tr></thead>
+      <tbody>
+      {% for j in jobs %}
+        <tr><td class="num">{{ j.id }}</td>
+            <td><span class="chip {{ {'succeeded':'active','failed':'expired','pending':'grace','running':'grace'}[j.status] }}">{{ {'succeeded':'نجحت','failed':'فشلت','pending':'في الانتظار','running':'جارية'}[j.status] }}</span></td>
+            <td class="mono">{{ j.reason or '' }}</td>
+            <td class="num"><bdi>{{ j.requested_at.strftime('%Y-%m-%d %H:%M') if j.requested_at else '' }}</bdi></td>
+            <td class="num"><bdi>{{ j.finished_at.strftime('%Y-%m-%d %H:%M') if j.finished_at else '—' }}</bdi></td>
+            <td class="num">{% set days = (j.result or {}).get('cert_days_left') %}{% if days is not none %}<span {% if days < 21 %}style="color:var(--bad);font-weight:800"{% endif %}>{{ days }} يوم</span>{% else %}—{% endif %}</td></tr>
+        {% if j.status == 'failed' and j.log %}<tr><td colspan="6"><pre class="mono" style="white-space:pre-wrap;margin:0;font-size:12px">{{ j.log }}</pre></td></tr>{% endif %}
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
 <h2>سجل الاشتراك</h2>
 <div class="card table-wrap">
   <table>

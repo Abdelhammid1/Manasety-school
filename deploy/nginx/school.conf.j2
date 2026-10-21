@@ -1,0 +1,36 @@
+{#- SAAS-029 — one explicit server block per school. Mirrors the
+    hand-written demo.manasety.ai block in schools.conf: an explicit
+    server_name beats the *.manasety.ai wildcard (Lamma), the wildcard
+    certificate covers every school, and the original Host header is
+    passed through (SAAS-004 resolves the tenant from it).
+    Rendered by app/services/nginx_sync.py; never edit the output. -#}
+# school: {{ slug }}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ host }};
+    return 301 https://$host$request_uri;
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name {{ host }};
+
+    ssl_certificate     {{ cert_dir }}/{{ cert }}/fullchain.pem;
+    ssl_certificate_key {{ cert_dir }}/{{ cert }}/privkey.pem;
+
+    # file_storage.py accepts up to 10 MB; headroom for multipart overhead.
+    client_max_body_size {{ max_body }};
+
+    location / {
+        proxy_pass http://{{ upstream }};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_read_timeout 120s;
+    }
+}
+# end school: {{ slug }}

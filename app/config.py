@@ -234,6 +234,16 @@ class Config:
     PLATFORM_SESSION_MINUTES = _env_int("PLATFORM_SESSION_MINUTES", 30)
     PLATFORM_SESSION_MAX_HOURS = 8
     PLATFORM_SESSION_COOKIE_NAME = "manasety_platform"
+    # SAAS-029 — nginx-sync (server-side CLI only; the web app never reads
+    # these paths or runs docker). Defaults match the production layout.
+    NGINX_CONF_DIR = os.environ.get("NGINX_CONF_DIR") or "/opt/manasety/nginx"
+    NGINX_BACKUP_ROOT = os.environ.get("NGINX_BACKUP_ROOT") or "/opt/manasety"
+    NGINX_CONTAINER = os.environ.get("NGINX_CONTAINER") or "manasety-nginx-1"
+    NGINX_WILDCARD_CERT = os.environ.get("NGINX_WILDCARD_CERT") or "wildcard-manasety"
+    NGINX_CERT_DIR = os.environ.get("NGINX_CERT_DIR") or "/etc/letsencrypt/live"
+    NGINX_CERT_FILE = os.environ.get("NGINX_CERT_FILE") or         "/opt/manasety/certbot/conf/live/wildcard-manasety/fullchain.pem"
+    NGINX_UPSTREAM = os.environ.get("NGINX_UPSTREAM") or "172.21.0.1:5006"
+
     # SAAS-027 — second line of the read-only (grace) enforcement: a write
     # reaching the DB through a GET route. "log" reports only (default);
     # "enforce" refuses the flush. Anything else is treated as "log".

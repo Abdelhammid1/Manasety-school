@@ -39,6 +39,7 @@ SUPERADMIN_ROUTES = {
     "superadmin.school_new_step": {"POST"},
     "superadmin.school_create": {"POST"},
     "superadmin.slug_check": {"GET"},
+    "superadmin.school_nginx_sync": {"POST"},                       # SAAS-029
 }
 # Writes allowed in the console, per ticket. Anything else must be GET.
 CONSOLE_WRITES = {
@@ -48,6 +49,7 @@ CONSOLE_WRITES = {
     "superadmin.subscription_renew", "superadmin.subscription_extend",
     "superadmin.subscription_change_plan", "superadmin.subscription_trial",   # SAAS-026
     "superadmin.school_new_step", "superadmin.school_create",                 # SAAS-028
+    "superadmin.school_nginx_sync",                                           # SAAS-029
 }
 
 

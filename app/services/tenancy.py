@@ -511,6 +511,13 @@ def init_app(app: Flask) -> None:
             return None
 
         # enforce
+        if request.path == "/_health":
+            # SAAS-029 — nginx-sync's post-reload probe: 200 for any host
+            # that resolved (incl. a blocked school), 404 otherwise.
+            if resolved.kind in ("tenant", "platform", "suspended", "blocked"):
+                g.tenant_health_ok = True
+                return None
+            abort(404)
         if resolved.kind == "tenant" or resolved.kind == "platform":
             return None
         if resolved.blocked:

@@ -11,7 +11,7 @@ from pathlib import Path
 from flask import abort, current_app, redirect, render_template, request, url_for
 from sqlalchemy import func
 
-from . import bp, current_platform_user
+from . import bp, current_platform_user, require_platform_role
 from ...extensions import db
 from ...models import (
     Course, Plan, School, SchoolSubscription, SchoolSubscriptionEvent, Section, Student,
@@ -119,7 +119,26 @@ def school_detail(school_id):
                 over.append("الطلاب")
             if current.plan.max_users is not None and stats["active_users"] > current.plan.max_users:
                 over.append("المستخدمين")
+    from ...services.nginx_queue import latest_jobs, school_subdomain_status
     return render_template("superadmin/school_detail.html", school=school, stats=stats,
                            base_domain=current_app.config.get("BASE_DOMAIN"),
                            current=current, state=state, events=events, plans=plans, over=over,
-                           can_edit=user.role in ("owner", "finance"))
+                           can_edit=user.role in ("owner", "finance"),
+                           subdomain=school_subdomain_status(school.id), jobs=latest_jobs(5))
+
+
+@bp.route("/schools/<int:school_id>/nginx-sync", methods=["POST"], endpoint="school_nginx_sync")
+@require_platform_role("owner", "support")
+def school_nginx_sync(school_id):
+    """SAAS-029 — "sync now": only queues a request; the server-side
+    timer applies it."""
+    from flask import flash
+    from ...services import platform_auth as pa
+    from ...services.nginx_queue import request_nginx_sync
+    school = db.session.get(School, school_id) or abort(404)
+    user = current_platform_user()
+    job = request_nginx_sync("sync_now", school_id=school.id, user=user)
+    pa.audit("nginx_sync_requested", user, school_id=school.id, job_id=job.id)
+    db.session.commit()
+    flash("تم تسجيل طلب المزامنة، وهيتنفّذ على السيرفر خلال دقيقة.", "success")
+    return redirect(url_for("superadmin.school_detail", school_id=school.id))

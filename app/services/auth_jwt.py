@@ -122,6 +122,9 @@ def user_from_bearer() -> Optional[User]:
             return None
     if _epoch_stale(payload, user):
         return None
+    from .subscription_enforcement import api_refusal
+    if api_refusal(user) is not None:
+        return None
     return user
 
 
@@ -161,6 +164,12 @@ def jwt_required(view):
                 return jsonify({"error": "unauthorized"}), 401
         if _epoch_stale(payload, user):
             return jsonify({"error": "unauthorized"}), 401
+        # SAAS-027 security review — the user's own school decides, not
+        # only the host the token was presented on.
+        from .subscription_enforcement import api_refusal
+        refused = api_refusal(user)
+        if refused is not None:
+            return refused
         g.api_user = user
         return view(*args, **kwargs)
     return wrapped
