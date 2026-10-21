@@ -30,6 +30,7 @@
     <div class="code">{{ code }}</div>
     <h1>{{ title }}</h1>
     <p>{{ msg }}</p>
+    {% if request_id %}<p class="code" dir="ltr">ref: {{ request_id }}</p>{% endif %}
     <a class="btn" href="/superadmin/">الرجوع للوحة</a>
   </main>
 </body>

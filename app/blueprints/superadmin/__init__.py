@@ -131,21 +131,50 @@ def _csp_nonce():
 # school error page loads web fonts / an icon font the console CSP blocks
 # (icons showed as text). 404 stays the shared page on purpose — the
 # console must look like any unknown path from outside.
+def _request_id() -> str:
+    """Short id shown on the error page and written to the log line, so a
+    screenshot can be matched to the log (SAAS-044)."""
+    if "request_id" not in g:
+        import secrets
+        g.request_id = request.headers.get("X-Request-ID", "")[:32] or secrets.token_hex(6)
+    return g.request_id
+
+
+def _console_error(code, title, msg):
+    rid = _request_id()
+    resp = render_template("superadmin/error.html", code=code, title=title, msg=msg, request_id=rid)
+    return resp, code, {"X-Request-ID": rid}
+
+
 @bp.errorhandler(403)
 def _console_403(_e):
-    return render_template("superadmin/error.html", code=403, title="غير مسموح",
-                           msg="دورك في اللوحة لا يسمح بهذه الصفحة."), 403
+    return _console_error(403, "غير مسموح", "دورك في اللوحة لا يسمح بهذه الصفحة.")
+
+
+@bp.errorhandler(404)
+def _console_404(e):
+    # Only on the console host: on a school host the console must stay an
+    # ordinary unknown path (the gate's 404), so the shared page is used.
+    if not is_platform_request():
+        # exactly the app-wide 404 (app/__init__.py err_404)
+        return render_template("errors/error.html", code=404, title="الصفحة غير موجودة",
+                               msg="تعذّر العثور على ما تبحث عنه."), 404
+    return _console_error(404, "الصفحة مش موجودة", "الرابط ده مش موجود في اللوحة.")
 
 
 @bp.errorhandler(500)
-def _console_500(_e):
+def _console_500(e):
+    from flask import current_app
     from ...extensions import db
+    rid = _request_id()
+    current_app.logger.error("console 500 request_id=%s path=%s", rid, request.path,
+                             exc_info=getattr(e, "original_exception", None) or e)
     try:
         db.session.rollback()          # the failed request may have left a broken transaction
     except Exception:  # noqa: BLE001
         pass
-    return render_template("superadmin/error.html", code=500, title="حصل خطأ",
-                           msg="حصل خطأ غير متوقع في اللوحة واتسجّل. جرّب تاني، ولو اتكرر بلّغ الفريق التقني."), 500
+    return _console_error(500, "حصل خطأ",
+                          "حصل خطأ غير متوقع في اللوحة واتسجّل. جرّب تاني، ولو اتكرر بلّغ الفريق التقني.")
 
 
 @bp.after_request

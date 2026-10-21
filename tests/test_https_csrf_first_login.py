@@ -86,6 +86,7 @@ class Browser:
 def happ(papp, monkeypatch):
     monkeypatch.setitem(papp.config, "WTF_CSRF_ENABLED", True)       # the real setting
     monkeypatch.setitem(papp.config, "WTF_CSRF_SSL_STRICT", True)
+    monkeypatch.setitem(papp.config, "PREFERRED_URL_SCHEME", "https")
     return papp
 
 
@@ -233,3 +234,73 @@ def test_console_403_uses_the_console_page(happ, monkeypatch):
     assert r.status_code == 403
     html = r.get_data(as_text=True)
     assert "غير مسموح" in html and "fonts.googleapis" not in html
+
+
+# ─── SAAS-039 — the remaining guards ─────────────────────────────────
+
+def test_qr_svg_returns_svg_text():
+    from app.services import platform_auth as pa
+    out = pa.qr_svg("otpauth://totp/manasety:someone@manasety.test?secret=JBSWY3DPEHPK3PXP")
+    assert isinstance(out, str) and out.lstrip().startswith("<svg") and "</svg>" in out
+
+
+def test_no_referrer_never_comes_back_in_the_app_code():
+    """CI rule: the policy that broke CSRF on HTTPS can't be reintroduced."""
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "app"
+    hits = [str(p.relative_to(root)) for p in root.rglob("*")
+            if p.suffix in (".py", ".html", ".j2") and "no-referrer" in p.read_text(encoding="utf-8", errors="ignore")]
+    assert not hits, f"Referrer-Policy no-referrer would break CSRF on HTTPS: {hits}"
+
+
+def test_no_page_with_a_form_ships_no_referrer(happ, puser, two_schools, login_as):
+    """Every parameter-less GET page (console as owner, school as admin)
+    that renders a <form> must not send Referrer-Policy: no-referrer."""
+    from test_saas026_subscriptions import _console_client
+    console_c, _ = _console_client(happ, "owner")
+    school_c = happ.test_client()
+    login_as(school_c, two_schools["A"]["users"]["admin"], base_url="http://alpha.manasety.ai")
+    checked = 0
+    for rule in happ.url_map.iter_rules():
+        if "GET" not in (rule.methods or ()) or rule.arguments or rule.endpoint == "static":
+            continue
+        is_console = rule.endpoint.startswith("superadmin.")
+        c, base = (console_c, "http://console.manasety.ai") if is_console else (school_c, "http://alpha.manasety.ai")
+        r = c.get(rule.rule, base_url=base)
+        if r.status_code != 200 or b"<form" not in r.data:
+            continue
+        checked += 1
+        assert "no-referrer" not in (r.headers.get("Referrer-Policy") or ""), rule.rule
+    assert checked > 10                                   # the sweep really ran
+
+
+def test_console_404_on_the_console_host_only(happ, two_schools, monkeypatch):
+    """SAAS-044: a missing record inside the console gets the console page;
+    on a school host /superadmin stays an ordinary unknown path."""
+    from test_saas026_subscriptions import _console_client
+    from isolation_harness import host
+    c, _ = _console_client(happ, "owner")
+    r = c.get("/superadmin/schools/999999", base_url="http://console.manasety.ai")
+    assert r.status_code == 404
+    html = r.get_data(as_text=True)
+    assert "الصفحة مش موجودة" in html and "fonts.googleapis" not in html
+    rid = r.headers.get("X-Request-ID")
+    assert rid and f"ref: {rid}" in html
+    r = happ.test_client().get("/superadmin/schools", base_url=host(two_schools["A"]))
+    assert r.status_code == 404 and "الصفحة مش موجودة" not in r.get_data(as_text=True)
+
+
+def test_console_500_shows_a_request_id_that_is_logged(happ, monkeypatch, caplog):
+    import logging
+    from test_saas026_subscriptions import _console_client
+    monkeypatch.setitem(happ.config, "PROPAGATE_EXCEPTIONS", False)
+    c, _ = _console_client(happ, "owner")
+
+    def boom():
+        raise RuntimeError("boom-detail")
+    monkeypatch.setitem(happ.view_functions, "superadmin.alerts", boom)
+    caplog.set_level(logging.ERROR)
+    r = c.get("/superadmin/alerts", base_url="http://console.manasety.ai")
+    rid = r.headers.get("X-Request-ID")
+    assert r.status_code == 500 and rid and f"ref: {rid}" in r.get_data(as_text=True)
+    assert f"request_id={rid}" in caplog.text and "boom-detail" not in r.get_data(as_text=True)
