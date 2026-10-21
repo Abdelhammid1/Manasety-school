@@ -208,8 +208,9 @@ def password():
         new = request.form.get("new_password") or ""
         confirm = request.form.get("confirm_password") or ""
         problem = pa.password_problem(new)
-        if not user.check_password(current):
-            problem = "كلمة المرور الحالية غير صحيحة."
+        bad_credentials = not user.check_password(current)
+        if bad_credentials:
+            problem = "كلمة المرور الحالية أو رمز التحقق غير صحيح."
         elif new != confirm:
             problem = "كلمتا المرور غير متطابقتين."
         elif new == current:
@@ -218,8 +219,14 @@ def password():
         # the code (it can be used only once).
         if problem is None and not pa.verify_totp(
                 pa.decrypt(user.totp_secret_encrypted), request.form.get("code"), user=user):
-            problem = "رمز التحقق غير صحيح."
+            problem = "كلمة المرور الحالية أو رمز التحقق غير صحيح."
+            bad_credentials = True
         if problem:
+            if bad_credentials and not user.is_locked():
+                user.failed_attempts = (user.failed_attempts or 0) + 1
+                if user.failed_attempts >= current_app.config["LOCKOUT_MAX_ATTEMPTS"]:
+                    user.locked_until = pa.utcnow() + timedelta(minutes=current_app.config["LOCKOUT_MINUTES"])
+                    pa.audit("login_locked", user)
             pa.audit("password_change_failed", user)
             db.session.commit()
             flash(problem, "danger")

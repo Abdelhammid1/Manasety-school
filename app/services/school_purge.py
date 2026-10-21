@@ -176,6 +176,8 @@ def purge(school, *, confirm_slug: str, backup_file: str | None, execute: bool =
     sid = school.id
     db.session.commit()                    # nothing pending on the ORM side
     with db.engine.connect() as conn:
+        if conn.dialect.name == "postgresql":
+            conn = conn.execution_options(isolation_level="REPEATABLE READ")
         tx = conn.begin()
         try:
             from .school_export import exports_dir, link_count, link_tables, verify

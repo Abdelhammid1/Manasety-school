@@ -58,7 +58,11 @@ def login():
     password = data.get("password") or ""
     if not username or not password:
         return _err("الرجاء إدخال اسم المستخدم وكلمة المرور.")
-    user = User.query.filter_by(username=username).first()
+    q = User.query.filter_by(username=username)
+    resolved = getattr(g, "tenant_resolved", None)
+    if resolved is not None and resolved.kind == "tenant" and resolved.school is not None:
+        q = q.filter(User.school_id == resolved.school.id)
+    user = q.first()
     if not user or not user.is_active or not user.check_password(password):
         return _err("اسم المستخدم أو كلمة المرور غير صحيحة.", 401)
 

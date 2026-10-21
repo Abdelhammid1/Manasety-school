@@ -157,7 +157,11 @@ def _lock_school(school_id: int) -> None:
     from ..models import School
     if db.engine.dialect.name == "postgresql":
         # Row lock, held by the database until this transaction ends.
-        db.session.query(School.id).filter(School.id == school_id).with_for_update().one()
+        # FOR NO KEY UPDATE: serialises check_and_reserve callers but,
+        # unlike FOR UPDATE, doesn't block the FOR KEY SHARE every insert
+        # with a school_id FK takes (audit: stalls + deadlocks)
+        db.session.query(School.id).filter(School.id == school_id) \
+            .with_for_update(key_share=True).one()
         return
     sess = db.session()
     held = sess.info.setdefault("_limit_locks", {})

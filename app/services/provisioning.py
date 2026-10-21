@@ -30,6 +30,7 @@ from ..extensions import db
 SETUP_TOKEN_TTL = timedelta(hours=72)
 CODE_MAX = 32
 USERNAME_RE = re.compile(r"^[A-Za-z0-9_.\-]{3,64}$")
+EMAIL_RE = re.compile(r"^[^@\s]{1,64}@[^@\s]{1,255}\.[^@\s]{2,63}$")
 ATTENDANCE_MODES = ("daily", "per_period")
 
 
@@ -152,7 +153,11 @@ def validate_spec(spec: ProvisionSpec) -> str:
         raise ProvisionError("اسم المدير مطلوب.", "admin_full_name")
     if not USERNAME_RE.match(spec.admin_username or ""):
         raise ProvisionError("اسم المستخدم: 3–64 حرفًا إنجليزيًا أو أرقام أو . _ -", "admin_username")
-    if spec.admin_email and "@" not in spec.admin_email:
+    from .support_policy import username_reserved
+    if username_reserved(spec.admin_username):
+        raise ProvisionError("أسماء المستخدمين اللي بتبدأ بـ __ محجوزة للمنصة.", "admin_username")
+    if spec.admin_email and not EMAIL_RE.match(spec.admin_email):
+        # no spaces / CR / LF: the address goes into a mail header
         raise ProvisionError("إيميل المدير غير صحيح.", "admin_email")
     return msg
 
@@ -290,6 +295,8 @@ def _mail_setup_link(spec, school, link) -> bool:
                 "لاختيار كلمة المرور افتح الرابط التالي (صالح 72 ساعة ولمرة واحدة):",
                 link,
             ]))
-    except platform_mailer.PlatformMailError:
+    except Exception:  # noqa: BLE001 — after the commit: never lose the one-time link to a 500
+        import logging
+        logging.getLogger(__name__).exception("provisioning — setup-link mail failed")
         return False
     return True

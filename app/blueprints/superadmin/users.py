@@ -27,6 +27,11 @@ from ...services import platform_security as psec
 PAGE = 50
 
 
+def _num(v) -> bool:
+    """ASCII digits only ("²".isdigit() is True but int() fails)."""
+    return isinstance(v, str) and v.isascii() and v.isdigit() and len(v) <= 12
+
+
 def _link(raw):
     return url_for("superadmin.setup", token=raw, _external=True)
 
@@ -90,7 +95,7 @@ def user_action(user_id, action):
             # 2. two owners demoting each other at once must not leave none
             from ...services.locks import transaction_lock
             transaction_lock("platform-owners")
-        if not pact.fresh_totp(me):
+        if action != "reset_totp" and not pact.fresh_totp(me):
             raise pact.ActionRefused("أدخل رمز التحقق (TOTP) الحالي.")
         raw = None
         audit_extra = {}
@@ -231,8 +236,8 @@ def _audit_query():
     q = PlatformAuditLog.query
     a = request.args
     if a.get("user"):
-        q = q.filter(PlatformAuditLog.platform_user_id == int(a["user"])) if a["user"].isdigit() else q
-    if a.get("school") and a["school"].isdigit():
+        q = q.filter(PlatformAuditLog.platform_user_id == int(a["user"])) if _num(a["user"]) else q
+    if a.get("school") and _num(a["school"]):
         q = q.filter(PlatformAuditLog.target_school_id == int(a["school"]))
     if a.get("action"):
         q = q.filter(PlatformAuditLog.action == a["action"])
@@ -263,7 +268,7 @@ def audit_view():
         db.session.commit()
         return Response("﻿" + buf.getvalue(), mimetype="text/csv",
                         headers={"Content-Disposition": 'attachment; filename="platform-audit.csv"'})
-    page = max(int(request.args.get("page") or 1), 1)
+    page = max(request.args.get("page", 1, type=int) or 1, 1)
     rows = q.offset((page - 1) * PAGE).limit(PAGE + 1).all()
     users = {u.id: u.email for u in PlatformUser.query.all()}
     actions = [a for (a,) in db.session.query(PlatformAuditLog.action).distinct().order_by(PlatformAuditLog.action)]
@@ -366,9 +371,20 @@ def platform_user_unlock(email):
 @bp.cli.command("platform-user-deactivate")
 @click.option("--email", required=True)
 def platform_user_deactivate(email):
+    from ...services.locks import transaction_lock
+    from ...services.support_policy import end_for_platform_user
     u = _cli_user(email)
+    transaction_lock("platform-owners")
+    if u.role == "owner" and u.is_active and psec.active_owner_count(exclude_id=u.id) == 0:
+        raise click.ClickException("can't deactivate the last active owner")
+    try:
+        _no_pending_purge_owner_change(u)
+    except pact.ActionRefused as e:
+        raise click.ClickException(str(e)) from None
     u.is_active = False
+    u.session_version = (u.session_version or 1) + 1
     psec.revoke_sessions(u.id)
+    end_for_platform_user(u.id, "deactivated")
     pa.audit("platform_user_deactivate_cli", None, target_user_id=u.id, role=u.role)
     db.session.commit()
     click.echo(f"deactivated {u.email}")

@@ -30,6 +30,8 @@
     </div>
   {% endfor %}
   </div>
+  <label for="edit_totp">رمز TOTP (مطلوب لتغيير الإيميل أو رسالة الحجب أو إشعار دخول الدعم)</label>
+  <input id="edit_totp" name="totp" inputmode="numeric" maxlength="6" autocomplete="one-time-code" style="max-width:200px">
   <button class="btn" type="submit" style="margin-top:16px">حفظ</button>
 </form>
 {% endblock %}

@@ -12,4 +12,4 @@ WorkingDirectory=/opt/manasety/lms
 EnvironmentFile=/opt/manasety/lms/.env
 Environment=FLASK_APP=wsgi.py
 ExecStart=/opt/manasety/lms/venv/bin/flask nginx-sync --from-queue
-TimeoutStartSec=120
+TimeoutStartSec=600

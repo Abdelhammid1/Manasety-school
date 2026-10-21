@@ -65,7 +65,7 @@ def fresh_totp(user, *, force: bool = False) -> bool:
     code = (request.form.get("totp") or "").strip()
     if not code:
         return False
-    if verify_totp(decrypt(user.totp_secret_encrypted), code, user=user):
+    if verify_totp(decrypt(user.totp_secret_encrypted), code, user=user, durable=True):
         session["sa_totp_at"] = time.time()
         return True
     _record_step_up_failure(user)

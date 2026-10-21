@@ -230,6 +230,17 @@ def resume_school(school, user, reason: str) -> None:
     request_nginx_sync("school_resumed", school_id=school.id, user=user)
 
 
+def renewal_dates(cur, today: date) -> tuple[date, date]:
+    """(starts_on of the new row, first day of the paid period).
+
+    Ended (or open-ended) → both today. Still running → the new row keeps
+    the current start (so the school stays active today) and the paid
+    period begins the day after the current end."""
+    if cur.ends_on is None or cur.ends_on < today:
+        return today, today
+    return min(cur.starts_on, today), cur.ends_on + timedelta(days=1)
+
+
 def renew(school, user, reason, months=None, ends_on=None, today=None):
     """New period starting the day after the current end (or today if the
     subscription already ended)."""
@@ -237,13 +248,15 @@ def renew(school, user, reason, months=None, ends_on=None, today=None):
     if cur is None:
         raise SubscriptionError("لا يوجد اشتراك حالي للتجديد.")
     today = today or platform_today(get_settings())
-    start = today if (cur.ends_on is None or cur.ends_on < today) else cur.ends_on + timedelta(days=1)
+    start, period_from = renewal_dates(cur, today)
     if months:
-        new_end = add_months(start, int(months)) - timedelta(days=1)
+        new_end = add_months(period_from, int(months)) - timedelta(days=1)
     elif ends_on:
         new_end = ends_on
     else:
         raise SubscriptionError("حدد مدة التجديد بالشهور أو تاريخ نهاية جديد.")
+    if new_end < today:
+        raise SubscriptionError("تاريخ النهاية الجديد في الماضي.")
     old, new = _replace(school.id, user, starts_on=start, ends_on=new_end, trial_ends_on=None)
     _event(school.id, "renewed", str(cur.ends_on or "∞"), str(new_end), reason, user)
     return new

@@ -94,7 +94,9 @@ def _gate():
     from ...services.platform_security import check_session
     if session.get("sa_ver") != user.session_version or not check_session(user):
         # Revoked server-side (logout elsewhere, password / TOTP change).
+        from ...extensions import db
         end_platform_session()
+        db.session.commit()
         return redirect(url_for("superadmin.login"))
     from flask import current_app
     now = time.time()
@@ -104,8 +106,8 @@ def _gate():
         from ...extensions import db
         from ...services.platform_auth import audit
         audit("session_expired", user)
-        db.session.commit()
-        end_platform_session()
+        end_platform_session()          # marks the server-side row revoked …
+        db.session.commit()             # … and keeps it so
         return redirect(url_for("superadmin.login"))
     session["sa_seen_at"] = now
     if user.password_changed_at is None and request.endpoint not in PASSWORD_CHANGE_ENDPOINTS:

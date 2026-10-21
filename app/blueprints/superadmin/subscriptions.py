@@ -46,6 +46,11 @@ def _run(school, action, fn):
     return _back(school)
 
 
+
+def _bounded(v: str, cap: int) -> bool:
+    """1..cap, ASCII digits only (audit: no overflow / unicode-digit 500s)."""
+    return v.isascii() and v.isdigit() and 0 < int(v) <= cap
+
 @bp.route("/schools/<int:school_id>/subscription/renew", methods=["POST"],
           endpoint="subscription_renew")
 @require_platform_role(*EDIT_ROLES)
@@ -54,7 +59,7 @@ def subscription_renew(school_id):
     months = (request.form.get("months") or "").strip()
     return _run(school, "renewed", lambda u: subs.renew(
         school, u, (request.form.get("reason") or "").strip() or None,
-        months=int(months) if months.isdigit() and int(months) > 0 else None,
+        months=int(months) if _bounded(months, 120) else None,
         ends_on=_date("ends_on")))
 
 
@@ -65,7 +70,7 @@ def subscription_extend(school_id):
     school = _school(school_id)
     days = (request.form.get("days") or "").strip()
     return _run(school, "extended", lambda u: subs.extend(
-        school, u, int(days) if days.isdigit() else 0, request.form.get("reason") or ""))
+        school, u, int(days) if _bounded(days, 3650) else 0, request.form.get("reason") or ""))
 
 
 @bp.route("/schools/<int:school_id>/subscription/plan", methods=["POST"],
@@ -86,7 +91,7 @@ def subscription_trial(school_id):
     plan = db.session.get(Plan, request.form.get("plan_id", type=int) or 0) or abort(404)
     days = (request.form.get("days") or "").strip()
     return _run(school, "trial_started", lambda u: subs.start_trial(
-        school, plan, u, days=int(days) if days.isdigit() and int(days) > 0 else None,
+        school, plan, u, days=int(days) if _bounded(days, 3650) else None,
         reason=(request.form.get("reason") or "").strip() or None))
 
 

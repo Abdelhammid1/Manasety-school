@@ -60,6 +60,13 @@ def _rate_limited(ip: str) -> bool:
     return False
 
 
+def rate_limited_response():
+    """429 JSON when this IP is over the school-info limit, else None."""
+    if _rate_limited(request.remote_addr or ""):
+        return jsonify({"error": "rate_limited", "message_ar": "محاولات كثيرة، انتظر دقيقة."}), 429
+    return None
+
+
 def _version_tuple(v: str | None) -> tuple[int, ...] | None:
     v = (v or "").strip()
     if not _VERSION_RE.match(v):
@@ -131,8 +138,9 @@ def public_school_info():
     if resolved is None or resolved.school is None or \
             resolved.kind not in ("tenant", "suspended", "blocked"):
         abort(404)
-    if _rate_limited(request.remote_addr or ""):
-        return jsonify({"error": "rate_limited", "message_ar": "محاولات كثيرة، انتظر دقيقة."}), 429
+    refused = rate_limited_response()
+    if refused is not None:
+        return refused
     from ...services.tenancy import _request_settings
     settings = _request_settings()
     school = resolved.school

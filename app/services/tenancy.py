@@ -560,7 +560,11 @@ def init_app(app: Flask) -> None:
             # live support session for this very school.
             # SAAS-037 — the app's "is this my school?" call explains the
             # block itself instead of getting a bare 403.
-            if request.endpoint == "api.public_school_info":
+            if request.endpoint in ("api.public_school_info", "api.public_app_config"):
+                return None
+            # token-authenticated and cross-school: it skips blocked
+            # schools itself (a blocked host must not stop every tick)
+            if request.endpoint == "cron.tick":
                 return None
             from .support_policy import bypass_for
             if request.endpoint == "support.enter" or bypass_for(resolved):
@@ -569,6 +573,13 @@ def init_app(app: Flask) -> None:
             from .subscription_enforcement import blocked_response
             return blocked_response(resolved)
         # unknown / malformed / archived — never disclose which.
+        if request.path.startswith("/api/public/"):
+            # the probes of a slug-guesser count toward the same per-IP
+            # limit as the hits (else the 404s are an unlimited oracle)
+            from ..blueprints.api.public import rate_limited_response
+            refused = rate_limited_response()
+            if refused is not None:
+                return refused
         abort(404)
 
     # ─── SAAS-006 — cross-tenant session kill ─────────────────────

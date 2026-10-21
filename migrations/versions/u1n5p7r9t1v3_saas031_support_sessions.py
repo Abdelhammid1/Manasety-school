@@ -93,6 +93,13 @@ def upgrade():
 
 def downgrade():
     bind = op.get_bind()
+    acted = bind.execute(sa.text(
+        "SELECT COUNT(*) FROM audit_logs WHERE user_id IN "
+        "(SELECT id FROM users WHERE is_platform_support)")).scalar()
+    if acted:
+        raise RuntimeError(
+            f"SAAS-031 downgrade refused: {acted} audit_logs rows were written by support users; "
+            "deleting those users would break (or destroy) the audit trail. Keep this revision.")
     bind.execute(sa.text("DELETE FROM users WHERE is_platform_support"))
     op.drop_table("support_session_events")
     op.drop_table("support_sessions")

@@ -49,7 +49,11 @@ _WATCHED = [
 # (api_token, webhook_secret, …) is hidden by default.
 REDACTED = "[REDACTED]"
 _SECRET_NAMES = frozenset({"password_hash", "smtp_password_encrypted"})
-_SECRET_NAME_RE = re.compile(r"password|(?:^|_)(?:token|secret|key|hash)$", re.IGNORECASE)
+# a secret word anywhere ("totp_secret_encrypted", "secret_value"), or
+# token / key / hash as a whole name part ("api_token_v2") — but not
+# "tokenized", "keyboard_layout", "monkey"
+_SECRET_NAME_RE = re.compile(r"password|secret|totp|recovery_code|(?:^|_)(?:token|key|hash)(?:$|_)",
+                             re.IGNORECASE)
 # Belt-and-braces: a bcrypt hash under an unexpected key is still hidden.
 _BCRYPT_RE = re.compile(r"^\$2[abxy]\$\d{2}\$")
 

@@ -27,7 +27,7 @@ import re
 import shutil
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from flask import current_app
@@ -306,8 +306,10 @@ def run_sync(*, runner: Runner | None = None, st: Settings | None = None, check:
     res = SyncResult(status="failed")
     if only is not None:
         only = _checked_slug(only)
+    marker = st.conf_dir / ".nginx-sync.pending"
     with _Lock(st.conf_dir / ".nginx-sync.lock"):
         current = st.target.read_text(encoding="utf-8") if st.target.exists() else ""
+        interrupted = marker.exists()
         new = render_file(st, only=only, current=current)
         res.slugs = wanted_slugs()
         res.diff = _diff(current, new)
@@ -322,7 +324,9 @@ def run_sync(*, runner: Runner | None = None, st: Settings | None = None, check:
         if check:
             res.status = "check"
             return res
-        if new == current:
+        if interrupted:
+            res.say("previous run was interrupted after writing — re-validating")
+        if new == current and not interrupted:
             res.status = "unchanged"
             res.say("no changes — nothing written, no reload")
             return res
@@ -348,24 +352,29 @@ def run_sync(*, runner: Runner | None = None, st: Settings | None = None, check:
         else:
             backup.write_text("", encoding="utf-8")
         res.say(f"backup: {backup}")
+        marker.write_text(stamp, encoding="utf-8")
         os.replace(staged, st.target)
 
         def restore(why):
             shutil.copy2(backup, st.target)
             res.say(f"rolled back ({why})")
 
+        def done():
+            marker.unlink(missing_ok=True)
+            return res
+
         rc, out = runner.nginx_test()
         if rc != 0:
             restore("nginx -t failed")
             res.say(f"nginx -t:\n{out}")
-            return res
+            return done()
         rc, out = runner.nginx_reload()
         if rc != 0:
             restore("reload failed")
             runner.nginx_test()
             runner.nginx_reload()
             res.say(f"reload:\n{out}")
-            return res
+            return done()
         school_hosts = {f"{s}.{st.base_domain}" for s in res.slugs}
         # Removed blocks have nothing to verify; redirect blocks answer
         # 301 rather than /_health.
@@ -374,23 +383,59 @@ def run_sync(*, runner: Runner | None = None, st: Settings | None = None, check:
             restore("verification failed: " + ", ".join(bad))
             runner.nginx_test()
             runner.nginx_reload()
-            return res
+            return done()
         res.status = "applied"
         res.say(f"applied: {len(res.changed_hosts)} host(s) changed")
-        return res
+        return done()
 
 
 # ─── queue runner ───────────────────────────────────────────────────
+
+STALE_RUNNING = timedelta(minutes=30)
+RETRY_AFTER = timedelta(minutes=10)
+MAX_RETRIES = 3
+
+
+def _retry_after_failure(now) -> None:
+    """A failed sync is retried (every 10 min, at most 3 times in a row)
+    instead of waiting for someone to press "sync"."""
+    from ..extensions import db
+    from ..models import PlatformJob
+    recent = (PlatformJob.query.filter_by(kind="nginx_sync")
+              .order_by(PlatformJob.id.desc()).limit(MAX_RETRIES).all())
+    if not recent or recent[0].status != "failed":
+        return
+    if len(recent) == MAX_RETRIES and all(j.status == "failed" and (j.reason or "").startswith("retry")
+                                          for j in recent):
+        return                      # gave up; a person has to look
+    last = recent[0].finished_at
+    last = last if last is None or last.tzinfo else last.replace(tzinfo=timezone.utc)
+    if last is not None and now - last < RETRY_AFTER:
+        return
+    db.session.add(PlatformJob(kind="nginx_sync", status="pending", reason="retry after failure"))
+    db.session.commit()
+
 
 def run_queue(**kw) -> SyncResult | None:
     """Claim every pending job, run the pipeline once, record the outcome."""
     from ..extensions import db
     from ..models import PlatformJob
     from .audit import redact
+    now = datetime.now(timezone.utc)
+    # a run killed mid-way (timeout, OOM) never recorded its outcome
+    for j in PlatformJob.query.filter_by(kind="nginx_sync", status="running").all():
+        started = j.started_at if j.started_at is None or j.started_at.tzinfo else \
+            j.started_at.replace(tzinfo=timezone.utc)
+        if started is None or now - started > STALE_RUNNING:
+            j.status, j.finished_at = "failed", now
+            j.log = (j.log or "") + "\ninterrupted (no result recorded)"
+    db.session.commit()
     jobs = PlatformJob.query.filter_by(kind="nginx_sync", status="pending").all()
     if not jobs:
+        _retry_after_failure(now)
+        jobs = PlatformJob.query.filter_by(kind="nginx_sync", status="pending").all()
+    if not jobs:
         return None
-    now = datetime.now(timezone.utc)
     for j in jobs:
         j.status, j.started_at = "running", now
     db.session.commit()

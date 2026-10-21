@@ -135,6 +135,14 @@ def export_school(school_id: int, user=None) -> dict:
     return {"path": str(path), "manifest": manifest}
 
 
+def _file_sha(path) -> str:
+    h = hashlib.sha256()
+    with open(path, "rb") as fh:
+        for chunk in iter(lambda: fh.read(1 << 20), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
 def school_files(school_id: int):
     """(path, relative name) of every upload of the school, sorted."""
     from .file_storage import upload_root
@@ -173,7 +181,8 @@ def _write_zip(fh, school, manifest, readme, user):
                                                   "link": True}
                 for f, rel in school_files(school.id):
                     z.write(f, f"files/{rel}")
-                    manifest["files"].append({"path": rel, "bytes": f.stat().st_size})
+                    manifest["files"].append({"path": rel, "bytes": f.stat().st_size,
+                                              "sha256": _file_sha(f)})
                 z.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1))
                 z.writestr("README.md", "".join(readme))
 
@@ -214,8 +223,8 @@ def verify(path: str, *, school_id: int | None = None, conn=None) -> list[str]:
             compare(t.name, *_csv(c, t, sid))
         for t, fks in link_tables():
             compare(t.name, *_csv(c, t, sid, where=_link_where(t, fks, sid)))
-        live = sorted((rel, f.stat().st_size) for f, rel in school_files(sid))
-        if live != sorted((m["path"], m["bytes"]) for m in manifest.get("files", [])):
+        live = sorted((rel, f.stat().st_size, _file_sha(f)) for f, rel in school_files(sid))
+        if live != sorted((m["path"], m["bytes"], m.get("sha256")) for m in manifest.get("files", [])):
             problems.append("uploaded files changed since the export")
     if conn is not None:
         check(conn)
@@ -228,8 +237,7 @@ def verify(path: str, *, school_id: int | None = None, conn=None) -> list[str]:
 
 def prune_old_exports(days: int = EXPORT_TTL_DAYS) -> int:
     from ..models import SchoolOffboarding
-    keep = {r.export_file for r in SchoolOffboarding.query.filter(SchoolOffboarding.purged_at.is_(None))
-            if r.export_file}
+    keep = {r.export_file for r in SchoolOffboarding.query.all() if r.export_file}
     cutoff = datetime.now().timestamp() - days * 86400
     n = 0
     for f in exports_dir().glob("*.zip"):

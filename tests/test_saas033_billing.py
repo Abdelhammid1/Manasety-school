@@ -146,7 +146,7 @@ def _set_sub(console, bundle, ends_on):
 
 
 @pytest.mark.parametrize("cur_end,today,new_start", [
-    (date(2026, 12, 31), date(2026, 12, 1), date(2027, 1, 1)),    # active: extend from the end
+    (date(2026, 12, 31), date(2026, 12, 1), date(2027, 1, 1)),    # active: paid period from the end
     (date(2026, 12, 31), date(2026, 12, 31), date(2027, 1, 1)),   # last day
     (date(2026, 12, 31), date(2027, 1, 1), date(2027, 1, 1)),     # ended yesterday → today
     (date(2026, 10, 1), date(2026, 12, 1), date(2026, 12, 1)),    # long expired → today
@@ -161,9 +161,37 @@ def test_payment_renews_from_end_or_today(console, two_schools, cur_end, today, 
         inv = _sub_invoice(console, A, date(2027, 1, 1), date(2027, 12, 31))
         billing.issue(inv, None, issue_date=today)
         billing.record_payment(inv, None, amount="1200", paid_on=today, method="cash", renew=True, today=today)
+        from app.services.subscriptions import effective_state
         cur = current_subscription(A["school"].id)
-        assert cur.starts_on == new_start and cur.ends_on == new_start + timedelta(days=364)
+        assert cur.ends_on == new_start + timedelta(days=364)
+        assert cur.starts_on <= today                          # never "not_started" after paying
+        assert effective_state(A["school"], cur, today).state == "active"
         db.session.rollback()
+
+
+def test_an_invoice_renews_once_across_instalments(console, two_schools):
+    """Audit: every instalment with "renew" used to extend again."""
+    from app.extensions import db
+    from app.services import billing
+    from app.services.subscriptions import current_subscription
+    A = two_schools["A"]
+    today = date(2026, 12, 1)
+    with console.app_context():
+        _set_sub(console, A, date(2026, 12, 31))
+        inv = _sub_invoice(console, A, date(2027, 1, 1), date(2027, 12, 31))
+        billing.issue(inv, None, issue_date=today)
+        billing.record_payment(inv, None, amount="600", paid_on=today, method="cash", renew=True, today=today)
+        end = current_subscription(A["school"].id).ends_on
+        billing.record_payment(inv, None, amount="600", paid_on=today, method="cash", renew=True, today=today)
+        assert current_subscription(A["school"].id).ends_on == end
+        db.session.rollback()
+
+
+@pytest.mark.parametrize("bad", ["abc", "NaN", "Infinity", "1e999999"])
+def test_bad_amounts_are_a_form_error(bad):
+    from app.services import billing
+    with pytest.raises(billing.BillingError):
+        billing.money(bad)
 
 
 def test_payment_and_renewal_are_atomic(console, two_schools, monkeypatch):

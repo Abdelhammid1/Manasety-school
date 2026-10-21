@@ -175,6 +175,8 @@ def install(app) -> None:
         # blocked is answered by the resolver itself (tenancy.init_app)
         if getattr(resolved, "support_bypass", False):
             return None
+        if request.endpoint == "cron.tick":
+            return None             # system job across schools, not this host's school
         if resolved.read_only:
             g.subscription_read_only = True
             if request.method in WRITE_METHODS and \
@@ -217,6 +219,8 @@ def _read_only_flush_guard(session_, _flush_context, _instances):
     from flask import current_app, has_request_context
     if not has_request_context() or not g.get("subscription_read_only"):
         return
+    if request.endpoint in READ_ONLY_ALLOWED_ENDPOINTS and not g.get("ro_flush_guard_enforce"):
+        return                      # an allowed write during grace (audit fix)
     from ..models import User
     from .tenant_guard import owned_tables
     owned = owned_tables()

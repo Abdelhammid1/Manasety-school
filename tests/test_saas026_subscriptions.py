@@ -112,7 +112,11 @@ def test_renew_extend_change_trial_keep_history(app, sub_world):
         a = _school(sub_world, "A")
         subs.renew(a, None, "paid", months=12, today=date(2026, 10, 1))
         cur = subs.current_subscription(a.id)
-        assert (cur.starts_on, cur.ends_on) == (date(2027, 1, 1), date(2027, 12, 31))
+        # the paid year runs from the day after the old end; the row keeps
+        # its start so the school stays active today (audit: an early
+        # renewal used to make it "not_started" = blocked)
+        assert cur.ends_on == date(2027, 12, 31) and cur.starts_on <= date(2026, 10, 1)
+        assert subs.effective_state(a, cur, date(2026, 10, 1)).state == "active"
         subs.extend(a, None, 10, "goodwill")
         assert subs.current_subscription(a.id).ends_on == date(2028, 1, 10)
         other = Plan(code=f"o-{secrets.token_hex(3)}", name_ar="أخرى", modules=["students"],

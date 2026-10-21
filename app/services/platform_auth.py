@@ -91,7 +91,7 @@ def provisioning_uri(secret: str, email: str) -> str:
     return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name=ISSUER)
 
 
-def verify_totp(secret: str | None, code: str | None, user=None) -> bool:
+def verify_totp(secret: str | None, code: str | None, user=None, *, durable: bool = False) -> bool:
     """Check a 6-digit code (+-1 time-step). With `user`, a code whose
     time-step is not newer than the last accepted one is refused
     (no replay) and the accepted step is recorded."""
@@ -111,14 +111,19 @@ def verify_totp(secret: str | None, code: str | None, user=None) -> bool:
                 from sqlalchemy import or_, update
                 from sqlalchemy.orm.attributes import set_committed_value
                 from ..models.platform_admin import PlatformUser
-                res = db.session.execute(
-                    update(PlatformUser)
-                    .where(PlatformUser.id == user.id,
-                           or_(PlatformUser.totp_last_counter.is_(None),
-                               PlatformUser.totp_last_counter < counter))
-                    .values(totp_last_counter=counter)
-                    .execution_options(synchronize_session=False))
-                if res.rowcount != 1:
+                stmt = (update(PlatformUser)
+                        .where(PlatformUser.id == user.id,
+                               or_(PlatformUser.totp_last_counter.is_(None),
+                                   PlatformUser.totp_last_counter < counter))
+                        .values(totp_last_counter=counter)
+                        .execution_options(synchronize_session=False))
+                if durable:
+                    # step-up: survives the caller's rollback (audit fix)
+                    with db.engine.begin() as conn:
+                        rowcount = conn.execute(stmt).rowcount
+                else:
+                    rowcount = db.session.execute(stmt).rowcount
+                if rowcount != 1:
                     return False
                 set_committed_value(user, "totp_last_counter", counter)
             return True

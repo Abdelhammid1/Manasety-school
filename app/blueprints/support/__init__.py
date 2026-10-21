@@ -142,7 +142,10 @@ def install(app) -> None:
         if request.method in sp.WRITE_METHODS and request.endpoint not in sp.ALWAYS_ALLOWED:
             if row.mode != "write":
                 return _refuse("جلسة الدعم للقراءة فقط.")
-            if request.endpoint in sp.FORBIDDEN_ENDPOINTS or sp.credential_fields(request.form):
+            body = request.get_json(silent=True) if request.is_json else None
+            if request.endpoint in sp.FORBIDDEN_ENDPOINTS or sp.credential_fields(request.form) \
+                    or sp.credential_fields(request.args) \
+                    or (isinstance(body, dict) and sp.credential_fields(body)):
                 return _refuse("هذا الإجراء غير مسموح في جلسات الدعم.")
         if row.mode != "write":
             # GET routes that write anyway are refused, not just logged.

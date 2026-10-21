@@ -57,6 +57,10 @@ def _plain(v):
 
 # ─── edit ────────────────────────────────────────────────────────────
 
+# audit: what the school sees, or what silences its support-access notice
+SENSITIVE = frozenset({"email", "blocked_message", "notify_on_support_access"})
+
+
 @bp.route("/schools/<int:school_id>/edit", methods=["GET", "POST"], endpoint="school_edit")
 @require_platform_role("owner")
 def school_edit(school_id):
@@ -98,6 +102,15 @@ def school_edit(school_id):
                 old = float(old)
             if old != new:
                 before[field], after[field] = _plain(old), _plain(new)
+        if not errors and SENSITIVE & set(after):
+            try:
+                if not pact.fresh_totp(current_platform_user()):
+                    errors.append("تغيير الإيميل أو رسالة الحجب أو إشعار دخول الدعم يحتاج رمز TOTP.")
+            except pact.StepUpLocked:
+                from . import end_platform_session
+                end_platform_session(revoke_user=current_platform_user())
+                db.session.commit()
+                return redirect(url_for("superadmin.login"))
         if errors:
             for e in errors:
                 flash(e, "danger")
@@ -405,7 +418,8 @@ def announcements():
         except (KeyError, ValueError):
             flash("التواريخ غير صحيحة.", "danger")
             return redirect(url_for("superadmin.announcements"))
-        targets = [int(x) for x in request.form.getlist("school_ids") if x.isdigit()]
+        targets = [int(x) for x in request.form.getlist("school_ids")
+                   if x.isascii() and x.isdigit() and len(x) <= 12]
         if not msg or sev not in ("info", "warning") or ends <= starts:
             flash("الرسالة مطلوبة، والنهاية لازم تكون بعد البداية.", "danger")
             return redirect(url_for("superadmin.announcements"))

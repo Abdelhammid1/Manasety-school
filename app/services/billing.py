@@ -18,12 +18,32 @@ CENT = Decimal("0.01")
 OPEN = ("issued", "partially_paid")
 
 
+MAX_AMOUNT = Decimal("1000000000000")      # 10^12: far above any real invoice
+
+
 class BillingError(ValueError):
     """Arabic, shown on the console."""
 
 
 def money(v) -> Decimal:
-    return Decimal(str(v if v not in (None, "") else "0")).quantize(CENT, rounding=ROUND_HALF_UP)
+    from decimal import InvalidOperation
+    try:
+        d = Decimal(str(v if v not in (None, "") else "0"))
+    except (InvalidOperation, ValueError):
+        raise BillingError("قيمة مالية غير صالحة.") from None
+    if not d.is_finite() or abs(d) >= MAX_AMOUNT:
+        raise BillingError("قيمة مالية غير صالحة.")
+    return d.quantize(CENT, rounding=ROUND_HALF_UP)
+
+
+def lock_invoice(inv) -> None:
+    """Serialise every write on one invoice and re-read it, so two
+    parallel submits can't both pass the status / outstanding checks."""
+    from .locks import transaction_lock
+    transaction_lock(f"platform-invoice-{inv.id}")
+    db.session.refresh(inv)
+    for p in inv.payments:
+        db.session.refresh(p)
 
 
 # ─── invoices ───────────────────────────────────────────────────────
@@ -81,12 +101,12 @@ def subscription_line(school, plan, today: date | None = None) -> dict:
 
 
 def _next_number(year: int) -> str:
-    from sqlalchemy import func
     from ..models import PlatformInvoice
     prefix = f"MNS-{year}-"
-    last = (db.session.query(func.max(PlatformInvoice.number))
-            .filter(PlatformInvoice.number.like(prefix + "%")).scalar())
-    n = int(last.rsplit("-", 1)[1]) + 1 if last else 1
+    nums = [int(n.rsplit("-", 1)[1]) for (n,) in db.session.query(PlatformInvoice.number)
+            .filter(PlatformInvoice.number.like(prefix + "%"))
+            if n and n.rsplit("-", 1)[1].isdigit()]
+    n = max(nums) + 1 if nums else 1
     return f"{prefix}{n:04d}"
 
 
@@ -95,12 +115,16 @@ def issue(inv, user, *, issue_date: date | None = None, due_days: int = 14) -> N
     from .locks import transaction_lock
     from .platform_auth import audit
     from .subscriptions import get_settings, platform_today
+    if int(due_days) < 0 or int(due_days) > 365:
+        raise BillingError("مدة السداد لازم تكون بين 0 و365 يوم.")
+    # Held until the caller's commit: the next issuer waits and then sees
+    # this number (no duplicates, no gaps). Status is checked after the
+    # lock, on a fresh read, so a double submit can't issue twice.
+    transaction_lock("platform-invoice-number")
+    lock_invoice(inv)
     if inv.status != "draft":
         raise BillingError("الفاتورة صادرة بالفعل.")
     issue_date = issue_date or platform_today(get_settings())
-    # Held until the caller's commit: the next issuer waits and then sees
-    # this number (no duplicates, no gaps).
-    transaction_lock("platform-invoice-number")
     inv.number = _next_number(issue_date.year)
     inv.issue_date = issue_date
     inv.due_date = issue_date + timedelta(days=int(due_days))
@@ -114,6 +138,7 @@ def void(inv, user, reason: str) -> None:
     from .platform_auth import audit
     if not (reason or "").strip():
         raise BillingError("سبب الإلغاء مطلوب.")
+    lock_invoice(inv)
     if inv.status == "void":
         raise BillingError("الفاتورة ملغاة بالفعل.")
     if paid_amount(inv) > 0:
@@ -152,6 +177,7 @@ def record_payment(inv, user, *, amount, paid_on: date, method: str, reference=N
     from ..models import PlatformPayment
     from ..models.platform_billing import PAYMENT_METHODS
     from .platform_auth import audit
+    lock_invoice(inv)
     if inv.status not in OPEN:
         raise BillingError("الفاتورة مش مفتوحة للدفع.")
     amount = money(amount)
@@ -181,6 +207,7 @@ def reverse_payment(payment, user, reason: str):
     from .platform_auth import audit
     if not (reason or "").strip():
         raise BillingError("سبب الإلغاء مطلوب.")
+    lock_invoice(payment.invoice)
     if money(payment.amount) <= 0 or payment.reverses_payment_id is not None:
         raise BillingError("الدفعة دي مش قابلة للعكس.")
     if PlatformPayment.query.filter_by(reverses_payment_id=payment.id).first() is not None:
@@ -204,13 +231,17 @@ def renew_from_invoice(inv, user, today: date | None = None):
     if line is None:
         raise BillingError("الفاتورة مفيهاش سطر اشتراك.")
     school = inv.school
+    from ..models import SchoolSubscriptionEvent
+    if SchoolSubscriptionEvent.query.filter_by(school_id=school.id, kind="renewed",
+                                               reason=f"invoice {inv.number}").first() is not None:
+        return                      # this invoice already renewed once
     today = today or subs.platform_today(subs.get_settings())
     cur = subs.current_subscription(school.id)
     if cur is None:
         raise BillingError("لا يوجد اشتراك حالي.")
-    start = today if (cur.ends_on is None or cur.ends_on < today) else cur.ends_on + timedelta(days=1)
+    start, period_from = subs.renewal_dates(cur, today)
     length = (line.period_end - line.period_start).days
-    new_end = start + timedelta(days=length)
+    new_end = period_from + timedelta(days=length)
     fields = {"starts_on": start, "ends_on": new_end, "trial_ends_on": None}
     if line.plan_id:
         fields["plan_id"] = line.plan_id
