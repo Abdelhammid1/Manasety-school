@@ -62,7 +62,7 @@ def enter():
           platform_user_id=row.platform_user_id)
     db.session.commit()
     resp = redirect(url_for("dashboard.home"))
-    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Referrer-Policy"] = "same-origin"
     return resp
 
 

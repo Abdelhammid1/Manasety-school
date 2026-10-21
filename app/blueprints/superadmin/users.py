@@ -177,7 +177,7 @@ def setup(token):
         # token from the address bar / history / later log lines
         session[_SETUP_KEY] = psec.hash_token(token)
         resp = redirect(url_for("superadmin.setup"))
-        resp.headers["Referrer-Policy"] = "no-referrer"
+        resp.headers["Referrer-Policy"] = "same-origin"
         return resp
     row = psec.redeem_setup_hash(session.get(_SETUP_KEY))
     if row is None:
@@ -206,7 +206,7 @@ def setup(token):
         flash("تم ضبط كلمة المرور. سجّل الدخول (وفعّل TOTP لو لسه).", "success")
         return redirect(url_for("superadmin.login"))
     resp = make_response(render_template("superadmin/setup.html", invalid=False, user=row.user))
-    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Referrer-Policy"] = "same-origin"
     return resp
 
 

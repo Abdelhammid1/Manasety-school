@@ -61,7 +61,7 @@ def support_start(school_id):
         return redirect(back)
     db.session.commit()
     resp = redirect(school_enter_url(school, token))
-    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Referrer-Policy"] = "same-origin"
     return resp
 
 

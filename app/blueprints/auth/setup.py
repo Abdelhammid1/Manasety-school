@@ -41,7 +41,7 @@ def _valid_token(token_hash):
 def _no_store(resp, status=None):
     resp = make_response(resp) if status is None else make_response(resp, status)
     resp.headers["Cache-Control"] = "no-store"
-    resp.headers["Referrer-Policy"] = "no-referrer"
+    resp.headers["Referrer-Policy"] = "same-origin"
     return resp
 
 
