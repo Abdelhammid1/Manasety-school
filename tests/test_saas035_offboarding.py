@@ -104,7 +104,8 @@ def _ready(app, bundle, owners=2, **overrides):
         ids = []
         for i in range(owners):
             u = PlatformUser(email=f"o{i}-{secrets.token_hex(3)}@manasety.test", full_name="o",
-                             role="owner", is_active=True)
+                             role="owner", is_active=True,
+                             created_at=datetime.now(timezone.utc) - timedelta(days=365))
             u.set_password(secrets.token_urlsafe(16))
             db.session.add(u); db.session.flush(); ids.append(u.id)
         s = db.session.get(School, bundle["school"].id)
@@ -368,3 +369,104 @@ def test_export_skips_symlinks_out_of_the_school(console, two_schools, uploads, 
 def test_hash_columns_are_secret():
     from app.services.audit import is_secret_field
     assert is_secret_field("token_hash") and is_secret_field("code_hash") and is_secret_field("password_hash")
+
+
+# ─── post-commit security review ─────────────────────────────────────
+
+def test_csv_formula_cells_are_escaped(console, two_schools, uploads):
+    import csv
+    import io
+    from app.extensions import db
+    from app.models import Student
+    A = two_schools["A"]
+    with console.app_context():
+        db.session.add(Student(school_id=A["school"].id, permanent_code="FX-1",
+                               full_name='=HYPERLINK("http://x.test","a")'))
+        db.session.commit()
+        db.session.remove()
+    res = _export(console, A)
+    with zipfile.ZipFile(res["path"]) as z:
+        rows = list(csv.reader(io.StringIO(z.read("tables/students.csv").decode("utf-8"))))
+        assert json.loads(z.read("manifest.json"))["csv_formula_escape"] == "'"
+    names = [r[rows[0].index("full_name")] for r in rows[1:]]
+    assert "'=HYPERLINK(\"http://x.test\",\"a\")" in names
+    assert not any(n.startswith(("=", "+", "-", "@")) for n in names)
+
+
+def test_purge_refuses_an_edit_after_export_with_the_same_count(console, two_schools, purge_world, backup):
+    from app.extensions import db
+    from app.models import Student
+    from app.services import school_purge
+    A = two_schools["A"]
+    _ready(console, A)
+    with console.app_context():
+        st = Student.query.filter_by(school_id=A["school"].id).first()
+        st.full_name = "renamed after the export"
+        db.session.commit()
+        db.session.remove()
+    with pytest.raises(school_purge.PurgeRefused, match="rows changed since the export"):
+        _purge(console, A, backup)
+    assert _all_counts(console, A["school"].id)["students"] >= 1
+
+
+def test_approvals_required_cannot_be_lowered_first(console):
+    from app.blueprints.superadmin.offboarding import approvals_required
+    from app.extensions import db
+    from app.models import PlatformAuditLog, PlatformUser
+    import secrets
+    now = datetime.now(timezone.utc)
+    with console.app_context():
+        db.session.begin_nested()
+        try:
+            PlatformUser.query.update({"role": "support"})
+            keep = PlatformUser(email=f"solo-{secrets.token_hex(3)}@manasety.test", full_name="o",
+                                role="owner", is_active=True)
+            keep.set_password(secrets.token_urlsafe(16))
+            db.session.add(keep)
+            db.session.flush()
+            assert approvals_required(now) == 1                    # really one owner
+            other = PlatformUser(email=f"o2-{secrets.token_hex(3)}@manasety.test", full_name="o",
+                                 role="owner", is_active=False)
+            other.set_password(secrets.token_urlsafe(16))
+            db.session.add(other)
+            db.session.flush()
+            assert approvals_required(now) == 2                    # a deactivated owner counts
+            other.role = "support"
+            db.session.flush()
+            assert approvals_required(now) == 1
+            db.session.add(PlatformAuditLog(action="platform_user_role", platform_user_id=keep.id,
+                                            meta={"target_user_id": other.id, "role": "support",
+                                                  "old_role": "owner"}, created_at=now))
+            db.session.flush()
+            assert approvals_required(now) == 2                    # demoted in the last 30 days
+            assert approvals_required(now + timedelta(days=31)) == 1
+        finally:
+            db.session.rollback()
+            db.session.remove()
+
+
+def test_approver_must_predate_the_request(console, two_schools, purge_world, backup):
+    from app.extensions import db
+    from app.models import PlatformUser, SchoolOffboarding
+    A = two_schools["A"]
+    ids = _ready(console, A)
+    # the purge itself refuses an approver made after the request
+    with console.app_context():
+        db.session.get(PlatformUser, ids[1]).created_at = datetime.now(timezone.utc)
+        db.session.commit()
+        db.session.remove()
+    rep = _purge(console, A, backup, execute=False)
+    assert any("created after the request" in p for p in rep["problems"])
+    # and the console won't record such an approval
+    with console.app_context():
+        row = SchoolOffboarding.query.filter_by(school_id=A["school"].id).one()
+        row.purge_approved_by = row.purge_approved_at = None
+        db.session.commit()
+        db.session.remove()
+    c, uid = _console_client(console, "owner")             # created just now
+    with c.session_transaction(base_url=CONSOLE) as s:
+        s["sa_totp_at"] = time.time()
+    c.post(f"/superadmin/schools/{A['school'].id}/offboarding/approve_purge", base_url=CONSOLE,
+           data={"reason": "ok", "confirm_slug": A["school"].slug})
+    with console.app_context():
+        assert SchoolOffboarding.query.filter_by(school_id=A["school"].id).one().purge_approved_by is None

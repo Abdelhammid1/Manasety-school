@@ -78,6 +78,21 @@ def exported_columns(table):
     return [c for c in table.c if not is_secret_field(c.name)]
 
 
+# Spreadsheets run a cell that starts with one of these as a formula.
+# School staff open the export in Excel: prefix a quote (OWASP advice).
+FORMULA_LEAD = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _cell(v):
+    if v is None:
+        return ""
+    if hasattr(v, "isoformat"):
+        return v.isoformat()
+    if isinstance(v, str) and v.startswith(FORMULA_LEAD):
+        return "'" + v
+    return v
+
+
 def _csv(conn, table, school_id, where=None) -> tuple[bytes, int]:
     cols = exported_columns(table)
     cond = table.c.school_id == school_id if where is None else where
@@ -87,7 +102,7 @@ def _csv(conn, table, school_id, where=None) -> tuple[bytes, int]:
     w = csv.writer(buf)
     w.writerow([c.name for c in cols])
     for r in rows:
-        w.writerow(["" if v is None else (v.isoformat() if hasattr(v, "isoformat") else v) for v in r])
+        w.writerow([_cell(v) for v in r])
     return buf.getvalue().encode("utf-8"), len(rows)
 
 
@@ -107,8 +122,10 @@ def export_school(school_id: int, user=None) -> dict:
         raise ValueError("unknown school")
     stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
     path = exports_dir() / f"{school.slug}-{school.id}-{stamp}.zip"
-    manifest = {"school_id": school.id, "slug": school.slug, "created_at": stamp, "tables": {}, "files": []}
-    readme = [f"# تصدير {school.name}\n", "كل ملف CSV فيه صفوف المدرسة دي بس. الأعمدة السرية مستبعدة.\n"]
+    manifest = {"school_id": school.id, "slug": school.slug, "created_at": stamp, "tables": {}, "files": [],
+                "csv_formula_escape": "'"}
+    readme = [f"# تصدير {school.name}\n", "كل ملف CSV فيه صفوف المدرسة دي بس. الأعمدة السرية مستبعدة.\n",
+              "أي خلية نصية بتبدأ بـ = أو + أو - أو @ اتحط قبلها ' عشان برامج الجداول ما تنفّذهاش كمعادلة.\n"]
     fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
     try:
         _write_zip(os.fdopen(fd, "wb"), school, manifest, readme, user)
@@ -118,8 +135,24 @@ def export_school(school_id: int, user=None) -> dict:
     return {"path": str(path), "manifest": manifest}
 
 
-def _write_zip(fh, school, manifest, readme, user):
+def school_files(school_id: int):
+    """(path, relative name) of every upload of the school, sorted."""
     from .file_storage import upload_root
+    root = Path(upload_root()) / str(school_id)
+    if not root.is_dir():
+        return []
+    real_root = root.resolve()
+    out = []
+    for f in sorted(root.rglob("*")):
+        # 7. never follow a symlink out of the school's folder
+        if f.is_symlink() or not f.resolve().is_relative_to(real_root):
+            continue
+        if f.is_file():
+            out.append((f, f.relative_to(root).as_posix()))
+    return out
+
+
+def _write_zip(fh, school, manifest, readme, user):
     from .platform_scope import platform_read_scope
     with platform_read_scope("school_export_read", user, school_id=school.id):
         with db.engine.connect() as conn:
@@ -138,25 +171,16 @@ def _write_zip(fh, school, manifest, readme, user):
                     z.writestr(f"tables/{t.name}.csv", data)
                     manifest["tables"][t.name] = {"rows": n, "sha256": hashlib.sha256(data).hexdigest(),
                                                   "link": True}
-                root = Path(upload_root()) / str(school.id)
-                if root.is_dir():
-                    real_root = root.resolve()
-                    for f in sorted(root.rglob("*")):
-                        # 7. never follow a symlink out of the school's folder
-                        if f.is_symlink() or not f.resolve().is_relative_to(real_root):
-                            continue
-                        if f.is_file():
-                            rel = f.relative_to(root).as_posix()
-                            z.write(f, f"files/{rel}")
-                            manifest["files"].append({"path": rel, "bytes": f.stat().st_size})
+                for f, rel in school_files(school.id):
+                    z.write(f, f"files/{rel}")
+                    manifest["files"].append({"path": rel, "bytes": f.stat().st_size})
                 z.writestr("manifest.json", json.dumps(manifest, ensure_ascii=False, indent=1))
                 z.writestr("README.md", "".join(readme))
 
 
 def verify(path: str, *, school_id: int | None = None, conn=None) -> list[str]:
-    """Re-count the school's rows (tenant AND link tables) and compare with
-    the manifest and the CSV checksums. [] = verified."""
-    from sqlalchemy import func
+    """Rebuild the school's CSVs (tenant AND link tables) from the live
+    rows and compare them, and the uploads, with the manifest. [] = verified."""
     from .platform_scope import platform_read_scope
     problems = []
     try:
@@ -173,21 +197,26 @@ def verify(path: str, *, school_id: int | None = None, conn=None) -> list[str]:
             if hashlib.sha256(data).hexdigest() != meta["sha256"]:
                 problems.append(f"{name}: checksum mismatch")
 
+    def compare(name, data, n):
+        meta = manifest["tables"].get(name)
+        if meta is None:
+            problems.append(f"{name}: missing from the manifest")
+        elif n != meta.get("rows"):
+            problems.append(f"{name}: {n} rows now, {meta.get('rows')} in the manifest")
+        elif hashlib.sha256(data).hexdigest() != meta.get("sha256"):
+            # same count, different content: an edit after the export
+            problems.append(f"{name}: rows changed since the export")
+
     def check(c):
+        # Rebuild every CSV from the live rows: a row count alone misses
+        # an UPDATE made after the export (security review).
         for t in tenant_tables():
-            want = manifest["tables"].get(t.name, {}).get("rows")
-            have = c.execute(select(func.count()).select_from(t).where(t.c.school_id == sid)).scalar()
-            if want is None:
-                problems.append(f"{t.name}: missing from the manifest")
-            elif have != want:
-                problems.append(f"{t.name}: {have} rows now, {want} in the manifest")
+            compare(t.name, *_csv(c, t, sid))
         for t, fks in link_tables():
-            want = manifest["tables"].get(t.name, {}).get("rows")
-            have = link_count(c, t, fks, sid)
-            if want is None:
-                problems.append(f"{t.name}: missing from the manifest")
-            elif have != want:
-                problems.append(f"{t.name}: {have} rows now, {want} in the manifest")
+            compare(t.name, *_csv(c, t, sid, where=_link_where(t, fks, sid)))
+        live = sorted((rel, f.stat().st_size) for f, rel in school_files(sid))
+        if live != sorted((m["path"], m["bytes"]) for m in manifest.get("files", [])):
+            problems.append("uploaded files changed since the export")
     if conn is not None:
         check(conn)
     else:

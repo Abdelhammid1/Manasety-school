@@ -85,6 +85,9 @@ def check_conditions(school, *, confirm_slug: str, backup_file: str | None, now=
             problems.append("needs approval by a second owner")
         elif not active_owner(off.purge_approved_by):
             problems.append("approving owner is no longer an active owner")
+        elif _aware(getattr(db.session.get(PlatformUser, off.purge_approved_by), "created_at", None)
+                    or requested) >= requested:
+            problems.append("approving owner was created after the request")
     elif now - requested < SINGLE_OWNER_WAIT:
         problems.append("single owner: 24 h must pass after the request")
     if (confirm_slug or "").strip() != school.slug:

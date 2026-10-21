@@ -22,6 +22,29 @@ from ...services import platform_auth as pa
 from ...services import school_export, school_purge
 
 RETENTION_DAYS = 90       # proposed; Abdelhamid's decision (SAAS-035)
+OWNER_LOSS_WINDOW = timedelta(days=30)
+
+
+def approvals_required(now) -> int:
+    """Two approvals unless the platform really has one owner. Counted so
+    the requester can't lower it first (security review): inactive owner
+    accounts count, and an owner demoted / deactivated in the last 30
+    days forces two as well."""
+    from ...models import PlatformAuditLog, PlatformUser
+    if PlatformUser.query.filter_by(role="owner").count() > 1:
+        return 2
+    recent = PlatformAuditLog.query.filter(
+        PlatformAuditLog.action.in_(("platform_user_role", "platform_user_deactivate")),
+        PlatformAuditLog.created_at >= now - OWNER_LOSS_WINDOW).all()
+    for row in recent:
+        meta = row.meta or {}
+        if meta.get("old_role", meta.get("role")) == "owner":
+            return 2
+    return 1
+
+
+def _aware(d):
+    return d if d is None or d.tzinfo else d.replace(tzinfo=timezone.utc)
 
 
 def _school(school_id):
@@ -88,17 +111,19 @@ def offboarding_step(school_id, step):
                 raise pact.ActionRefused("المدرسة لازم تكون مؤرشفة وفترة الاحتفاظ محددة.")
             if (request.form.get("confirm_slug") or "").strip() != school.slug:
                 raise pact.ActionRefused("اكتب الاسم المختصر للتأكيد.")
-            from ...models import PlatformUser
-            row.purge_requested_by, row.purge_requested_at = user.id, datetime.now(timezone.utc)
+            now = datetime.now(timezone.utc)
+            row.purge_requested_by, row.purge_requested_at = user.id, now
             row.purge_approved_by = row.purge_approved_at = None
             # fixed now: later owner changes can't lower it
-            owners = PlatformUser.query.filter_by(role="owner", is_active=True).count()
-            row.approvals_required = 2 if owners > 1 else 1
+            row.approvals_required = approvals_required(now)
         elif step == "approve_purge":
             if row.purge_requested_by is None:
                 raise pact.ActionRefused("مفيش طلب حذف.")
             if row.purge_requested_by == user.id:
                 raise pact.ActionRefused("الموافقة لازم تكون من owner تاني.")
+            # an account made after the request can't be the second owner
+            if _aware(user.created_at) >= _aware(row.purge_requested_at):
+                raise pact.ActionRefused("الموافقة لازم تكون من owner كان موجود قبل طلب الحذف.")
             row.purge_approved_by, row.purge_approved_at = user.id, datetime.now(timezone.utc)
         elif step == "cancel":
             if row.purged_at is not None:
