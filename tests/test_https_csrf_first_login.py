@@ -304,3 +304,29 @@ def test_console_500_shows_a_request_id_that_is_logged(happ, monkeypatch, caplog
     rid = r.headers.get("X-Request-ID")
     assert r.status_code == 500 and rid and f"ref: {rid}" in r.get_data(as_text=True)
     assert f"request_id={rid}" in caplog.text and "boom-detail" not in r.get_data(as_text=True)
+
+
+def test_console_error_page_never_reveals_the_console_to_a_blocked_ip(happ, monkeypatch):
+    """Commit review: outside the IP allow-list the console doesn't exist —
+    the shared 404, no console page, no request id."""
+    import ipaddress
+    from test_saas026_subscriptions import _console_client
+    c, _ = _console_client(happ, "owner")
+    monkeypatch.setitem(happ.config, "PLATFORM_ALLOWED_IPS", [ipaddress.ip_network("203.0.113.0/24")])
+    for path in ("/superadmin/schools/999999", "/superadmin/login", "/superadmin/nope"):
+        r = c.get(path, base_url="http://console.manasety.ai")
+        assert r.status_code == 404, path
+        assert "X-Request-ID" not in r.headers and "الصفحة مش موجودة" not in r.get_data(as_text=True)
+    # an unlisted route on the console host is the shared page too
+    monkeypatch.setitem(happ.config, "PLATFORM_ALLOWED_IPS", None)
+    r = c.get("/superadmin/no-such-route", base_url="http://console.manasety.ai")
+    assert r.status_code == 404 and "X-Request-ID" not in r.headers
+
+
+def test_a_client_sent_request_id_is_ignored(happ):
+    from test_saas026_subscriptions import _console_client
+    c, _ = _console_client(happ, "owner")
+    r = c.get("/superadmin/schools/999999", base_url="http://console.manasety.ai",
+              headers={"X-Request-ID": "attacker chosen text"})
+    rid = r.headers.get("X-Request-ID")
+    assert r.status_code == 404 and rid and rid != "attacker chosen text" and len(rid) == 12 and rid.isalnum()

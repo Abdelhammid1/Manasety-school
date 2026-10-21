@@ -86,6 +86,9 @@ def _gate():
     from ...services import platform_permissions as perms
     if request.endpoint not in perms.ROUTES:
         abort(404)                       # fail closed: an unlisted route isn't served
+    # past the host, IP allow-list and route checks: from here on an error
+    # may show the console's own page (before this the console must not exist)
+    g.console_gate_passed = True
     if request.endpoint in PUBLIC_ENDPOINTS:
         return None
     user = current_platform_user()
@@ -134,13 +137,25 @@ def _csp_nonce():
 def _request_id() -> str:
     """Short id shown on the error page and written to the log line, so a
     screenshot can be matched to the log (SAAS-044)."""
+    # always ours: a client-sent X-Request-ID would let anyone write
+    # arbitrary text into the log line (security review)
     if "request_id" not in g:
         import secrets
-        g.request_id = request.headers.get("X-Request-ID", "")[:32] or secrets.token_hex(6)
+        g.request_id = secrets.token_hex(6)
     return g.request_id
 
 
+_SHARED = {403: ("غير مصرّح", "لا تملك صلاحية الوصول إلى هذه الصفحة."),
+           404: ("الصفحة غير موجودة", "تعذّر العثور على ما تبحث عنه."),
+           500: ("خطأ داخلي", "حدث خطأ في الخادم. تواصل مع الدعم الفنّي.")}
+
+
 def _console_error(code, title, msg):
+    if not g.get("console_gate_passed"):
+        # school host, an IP outside the allow-list, or an unlisted route:
+        # exactly the app-wide page, no console page and no request id
+        t, m = _SHARED[code]
+        return render_template("errors/error.html", code=code, title=t, msg=m), code
     rid = _request_id()
     resp = render_template("superadmin/error.html", code=code, title=title, msg=msg, request_id=rid)
     return resp, code, {"X-Request-ID": rid}
@@ -152,13 +167,9 @@ def _console_403(_e):
 
 
 @bp.errorhandler(404)
-def _console_404(e):
-    # Only on the console host: on a school host the console must stay an
-    # ordinary unknown path (the gate's 404), so the shared page is used.
-    if not is_platform_request():
-        # exactly the app-wide 404 (app/__init__.py err_404)
-        return render_template("errors/error.html", code=404, title="الصفحة غير موجودة",
-                               msg="تعذّر العثور على ما تبحث عنه."), 404
+def _console_404(_e):
+    # the gate's own 404s (school host, IP outside the allow-list, unlisted
+    # route) stay the shared page — see _console_error
     return _console_error(404, "الصفحة مش موجودة", "الرابط ده مش موجود في اللوحة.")
 
 
