@@ -225,6 +225,11 @@
             {% endif %}
           </div>
         {% endif %}
+        {% for a in announcements or [] %}
+          <div role="status" class="mt-4 px-4 py-3 rounded-lg font-label-lg text-label-lg {% if a.severity == 'warning' %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% else %}bg-secondary-container text-secondary{% endif %}">
+            {{ a.message_ar }}
+          </div>
+        {% endfor %}
         {% for s in support_notices or [] %}
           <div role="status" class="mt-4 px-4 py-3 rounded-lg font-label-lg text-label-lg bg-surface-container text-on-surface">
             دخل فريق دعم منصتي مدرستك يوم <bdi>{{ s.started_at.strftime('%Y-%m-%d %H:%M') }}</bdi> ({{ 'قراءة فقط' if s.mode == 'read_only' else 'كتابة' }}) — السبب: {{ s.reason }}.

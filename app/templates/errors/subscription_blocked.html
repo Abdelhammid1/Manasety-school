@@ -27,6 +27,7 @@
     <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي">
     <h1>{{ 'النظام للقراءة فقط' if read_only else 'الخدمة غير متاحة حاليًا' }}</h1>
     <p>{{ message }}{% if school %}<br><b>{{ school.name }}</b>{% endif %}</p>
+    {% if custom_message %}<p style="white-space:pre-wrap">{{ custom_message }}</p>{% endif %}
     {% if support.support_email or support.support_phone or support.support_whatsapp %}
     <p>للتجديد أو الاستفسار تواصل مع الدعم:</p>
     <div class="support">

@@ -62,16 +62,26 @@ def schools():
     user = current_platform_user()
     state_filter = (request.args.get("state") or "").strip()
     sort = (request.args.get("sort") or "").strip()
+    q = (request.args.get("q") or "").strip().lower()
+    tag_filter = (request.args.get("tag") or "").strip()
     with platform_read_scope("schools_listed", user):
         rows = School.query.order_by(School.id).all()
         students, active_users, last_login = school_stats()
         current = {s.school_id: s for s in SchoolSubscription.query.filter_by(is_current=True)}
         settings = subs.get_settings()
         today = subs.platform_today(settings)
+        from ...models import SchoolTag
+        tags_by_school: dict[int, list[str]] = {}
+        for t in SchoolTag.query.order_by(SchoolTag.tag):
+            tags_by_school.setdefault(t.school_id, []).append(t.tag)
         items = []
         for s in rows:
             st = subs.effective_state(s, current.get(s.id), today, settings)
             if state_filter and st.state != state_filter:
+                continue
+            if q and q not in s.name.lower() and q not in s.slug:
+                continue
+            if tag_filter and tag_filter not in tags_by_school.get(s.id, ()):
                 continue
             items.append({
                 "school": s,
@@ -84,8 +94,10 @@ def schools():
             })
     if sort == "ends_on":
         items.sort(key=lambda it: (it["ends_on"] is None, it["ends_on"] or today))
+    all_tags = sorted({t for ts in tags_by_school.values() for t in ts})
     return render_template("superadmin/schools.html", items=items, states=subs.STATES,
-                           state_filter=state_filter, sort=sort)
+                           state_filter=state_filter, sort=sort, q=q, tag_filter=tag_filter,
+                           all_tags=all_tags, tags_by_school=tags_by_school)
 
 
 @bp.route("/schools/<int:school_id>", endpoint="school_detail")
@@ -127,7 +139,18 @@ def school_detail(school_id):
                            can_edit=user.role in ("owner", "finance"),
                            subdomain=school_subdomain_status(school.id), jobs=latest_jobs(5),
                            modules=_modules_view(school.id), limits=_limits_view(school.id),
-                           limit_override=db.session.get(SchoolLimitOverride, school.id))
+                           limit_override=db.session.get(SchoolLimitOverride, school.id),
+                           **_control_view(school.id))
+
+
+def _control_view(school_id):
+    from ...models import PlatformSchoolNote, SchoolContact, SchoolTag
+    return {
+        "notes": PlatformSchoolNote.query.filter_by(school_id=school_id)
+                 .order_by(PlatformSchoolNote.id.desc()).limit(50).all(),
+        "contacts": SchoolContact.query.filter_by(school_id=school_id).order_by(SchoolContact.id).all(),
+        "tags": sorted(t.tag for t in SchoolTag.query.filter_by(school_id=school_id)),
+    }
 
 
 def _modules_view(school_id):

@@ -322,6 +322,22 @@ def _request_settings() -> dict:
     return get_settings()
 
 
+def _moved_to(old_slug: str):
+    """The school an old slug now belongs to, while its redirect window
+    is open (archived schools never redirect)."""
+    from datetime import datetime, timezone
+    from ..extensions import db
+    from ..models import School, SchoolSlugHistory
+    h = SchoolSlugHistory.query.filter_by(old_slug=old_slug).first()
+    if h is None:
+        return None
+    until = h.redirect_until if h.redirect_until.tzinfo else h.redirect_until.replace(tzinfo=timezone.utc)
+    if until < datetime.now(timezone.utc):
+        return None
+    school = db.session.get(School, h.school_id)
+    return school if school is not None and school.status != "archived" else None
+
+
 def _resolve_by_slug(slug: str, *, host: str, reason: str) -> ResolvedTenant:
     """Look up the School row, enforce lifecycle status.
     Deferred import so this module stays importable before models load.
@@ -337,6 +353,11 @@ def _resolve_by_slug(slug: str, *, host: str, reason: str) -> ResolvedTenant:
                               reason=f"{reason}:bad_slug")
     school = School.query.filter_by(slug=slug_norm).first()
     if school is None:
+        # SAAS-032 — a renamed school's old slug, inside its redirect window
+        moved = _moved_to(slug_norm)
+        if moved is not None:
+            return ResolvedTenant("moved", host=host, slug=slug_norm, school=moved,
+                                  reason=f"{reason}:moved")
         return ResolvedTenant("unknown", host=host, slug=slug_norm,
                               reason=f"{reason}:slug_not_found")
     # Fail-closed status check — only `active` passes. The ticket enum
@@ -511,6 +532,18 @@ def init_app(app: Flask) -> None:
             return None
 
         # enforce
+        if resolved.kind == "moved":
+            # SAAS-032 — old slug: 301 for web GETs, 410 school_moved for
+            # the API (fixed mobile contract), 404 for anything else.
+            base = current_app.config.get("BASE_DOMAIN") or "manasety.ai"
+            new_host = f"{resolved.school.slug}.{base}"
+            if request.path.startswith("/api/"):
+                from flask import jsonify
+                return jsonify({"error": "school_moved", "new_host": new_host}), 410
+            if request.method in ("GET", "HEAD"):
+                qs = request.query_string.decode("latin-1")
+                return redirect(f"https://{new_host}{request.path}" + (f"?{qs}" if qs else ""), 301)
+            abort(404)
         if request.path == "/_health":
             # SAAS-029 — nginx-sync's post-reload probe: 200 for any host
             # that resolved (incl. a blocked school), 404 otherwise.

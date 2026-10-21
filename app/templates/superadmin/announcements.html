@@ -1,0 +1,38 @@
+{% extends "superadmin/base.html" %}
+{% block title %}رسائل المنصة{% endblock %}
+{% block content %}
+<h1>رسائل المنصة للمدارس</h1>
+<p class="sub">بتظهر كبانر لمدير المدرسة بين البداية والنهاية (للصيانة المجدولة مثلًا).</p>
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <label for="message_ar">الرسالة *</label>
+  <textarea id="message_ar" name="message_ar" rows="2" required maxlength="1000"></textarea>
+  <div class="row">
+    <div><label for="severity">النوع</label><select id="severity" name="severity"><option value="info">معلومة</option><option value="warning">تحذير</option></select></div>
+    <div><label for="starts_at">البداية</label><input id="starts_at" name="starts_at" type="datetime-local"></div>
+    <div><label for="ends_at">النهاية *</label><input id="ends_at" name="ends_at" type="datetime-local" required></div>
+  </div>
+  <label for="school_ids">المدارس (فاضي = كل المدارس)</label>
+  <select id="school_ids" name="school_ids" multiple size="6">
+    {% for s in schools %}<option value="{{ s.id }}">{{ s.name }} ({{ s.slug }})</option>{% endfor %}
+  </select>
+  <button class="btn" type="submit" style="margin-top:12px">نشر</button>
+</form>
+<h2>الرسائل</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الرسالة</th><th>النوع</th><th>من</th><th>إلى</th><th>المدارس</th><th></th></tr></thead>
+    <tbody>
+    {% for a in rows %}
+      <tr><td style="white-space:normal">{{ a.message_ar }}</td>
+        <td><span class="chip {{ 'grace' if a.severity == 'warning' else 'active' }}">{{ 'تحذير' if a.severity == 'warning' else 'معلومة' }}</span></td>
+        <td class="num"><bdi>{{ a.starts_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td class="num"><bdi>{{ a.ends_at.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        <td>{{ (a.target_school_ids|length) ~ ' مدرسة' if a.target_school_ids else 'الكل' }}</td>
+        <td><form method="post" action="{{ url_for('superadmin.announcement_delete', aid=a.id) }}" style="margin:0">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn ghost" type="submit">حذف</button></form></td></tr>
+    {% else %}<tr><td colspan="6">لا توجد رسائل.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

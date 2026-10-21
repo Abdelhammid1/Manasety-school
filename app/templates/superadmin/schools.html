@@ -10,6 +10,11 @@
     </select></div>
   <div><label for="sort">الترتيب</label>
     <select id="sort" name="sort"><option value="">بالرقم</option><option value="ends_on" {% if sort == 'ends_on' %}selected{% endif %}>بتاريخ نهاية الاشتراك</option></select></div>
+  <div><label for="q">بحث</label><input id="q" name="q" value="{{ q }}" placeholder="الاسم أو الاسم المختصر"></div>
+  <div><label for="tag">وسم</label>
+    <select id="tag" name="tag"><option value="">الكل</option>
+      {% for t in all_tags %}<option value="{{ t }}" {% if t == tag_filter %}selected{% endif %}>{{ t }}</option>{% endfor %}
+    </select></div>
   <div style="flex:0 0 auto"><button class="btn" type="submit">تطبيق</button></div>
 </form>
 <div class="card table-wrap">

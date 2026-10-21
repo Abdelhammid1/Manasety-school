@@ -46,6 +46,18 @@ SUPERADMIN_ROUTES = {
     "superadmin.support_sessions": {"GET"},
     "superadmin.support_session_detail": {"GET"},
     "superadmin.support_revoke": {"POST"},
+    # SAAS-032
+    "superadmin.school_edit": {"GET", "POST"},
+    "superadmin.school_lifecycle": {"POST"},
+    "superadmin.school_slug_change": {"POST"},
+    "superadmin.school_staff": {"GET"},
+    "superadmin.school_staff_action": {"POST"},
+    "superadmin.school_note_add": {"POST"},
+    "superadmin.school_contact_add": {"POST"},
+    "superadmin.school_contact_delete": {"POST"},
+    "superadmin.school_tags_set": {"POST"},
+    "superadmin.announcements": {"GET", "POST"},
+    "superadmin.announcement_delete": {"POST"},
 }
 # Writes allowed in the console, per ticket. Anything else must be GET.
 CONSOLE_WRITES = {
@@ -58,6 +70,17 @@ CONSOLE_WRITES = {
     "superadmin.school_nginx_sync",                                           # SAAS-029
     "superadmin.school_module_set", "superadmin.school_limits_set",           # SAAS-030
     "superadmin.support_start", "superadmin.support_revoke",                  # SAAS-031
+    "superadmin.school_edit",
+    "superadmin.school_lifecycle",
+    "superadmin.school_slug_change",
+    "superadmin.school_staff",
+    "superadmin.school_staff_action",
+    "superadmin.school_note_add",
+    "superadmin.school_contact_add",
+    "superadmin.school_contact_delete",
+    "superadmin.school_tags_set",
+    "superadmin.announcements",
+    "superadmin.announcement_delete",
 }
 
 

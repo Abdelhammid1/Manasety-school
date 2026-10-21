@@ -270,6 +270,76 @@ class SupportSessionEvent(db.Model):
     __table_args__ = (db.Index("ix_support_session_events_session_ts", "support_session_id", "ts"),)
 
 
+class SchoolSlugHistory(db.Model):
+    """SAAS-032 — every slug a school ever had. An old slug is never given
+    to anyone again; inside redirect_until it 301s to the new host."""
+    __tablename__ = "school_slug_history"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    old_slug = db.Column(db.String(63), nullable=False, unique=True)
+    changed_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+    changed_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    redirect_until = db.Column(db.DateTime(timezone=True), nullable=False)
+
+
+class PlatformSchoolNote(db.Model):
+    """SAAS-032 — the platform's own notes about a school (never shown to it)."""
+    __tablename__ = "platform_school_notes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    author_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    body = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    author = db.relationship("PlatformUser")
+
+
+class SchoolContact(db.Model):
+    """SAAS-032 — people at the school the platform talks to. The billing
+    contact receives SAAS-033 notices."""
+    __tablename__ = "school_contacts"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    name = db.Column(db.String(128), nullable=False)
+    role = db.Column(db.String(64))
+    phone = db.Column(db.String(32))
+    email = db.Column(db.String(128))
+    is_billing_contact = db.Column(db.Boolean, nullable=False, default=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+
+
+class SchoolTag(db.Model):
+    """SAAS-032 — free platform-side labels ("تجريبي", "VIP", …)."""
+    __tablename__ = "school_tags"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    tag = db.Column(db.String(40), nullable=False)
+
+    __table_args__ = (db.UniqueConstraint("school_id", "tag", name="uq_school_tag"),)
+
+
+class PlatformAnnouncement(db.Model):
+    """SAAS-032 — a banner for school admins (all schools, or a list)."""
+    __tablename__ = "platform_announcements"
+
+    id = db.Column(db.Integer, primary_key=True)
+    message_ar = db.Column(db.Text, nullable=False)
+    severity = db.Column(db.String(16), nullable=False, default="info")
+    target_school_ids = db.Column(db.JSON)          # NULL = every school
+    starts_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    ends_at = db.Column(db.DateTime(timezone=True), nullable=False)
+    created_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=_utcnow)
+
+    __table_args__ = (
+        db.CheckConstraint("severity IN ('info','warning')", name="ck_platform_announcements_severity"),
+    )
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

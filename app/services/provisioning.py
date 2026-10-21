@@ -98,6 +98,10 @@ def slug_available(raw: str) -> tuple[bool, str]:
         return False, str(e)
     if School.query.filter(func.lower(School.slug) == slug).first() is not None:
         return False, f"الاسم المختصر «{slug}» مستخدم بالفعل."
+    # SAAS-032 — a slug a school ever had stays reserved forever.
+    from ..models import SchoolSlugHistory
+    if SchoolSlugHistory.query.filter(func.lower(SchoolSlugHistory.old_slug) == slug).first() is not None:
+        return False, f"الاسم المختصر «{slug}» محجوز (كان لمدرسة قبل كده)."
     return True, slug
 
 

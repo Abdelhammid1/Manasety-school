@@ -1,0 +1,34 @@
+{% extends "superadmin/base.html" %}
+{% block title %}موظفو {{ school.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.school_detail', school_id=school.id) }}">→ {{ school.name }}</a></p>
+<h1>مستخدمو الموظفين</h1>
+<p class="sub">الموظفون فقط (من غير الطلاب وأولياء الأمور). مفيش هنا أي باسورد: ضبط الباسورد برابط لمرة واحدة.</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الاسم</th><th>الدور</th><th>آخر دخول</th><th>الحالة</th><th>إجراءات</th></tr></thead>
+    <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.full_name }}</td>
+        <td>{{ u.role.name_ar if u.role else '' }}</td>
+        <td class="num"><bdi>{{ u.last_login_at.strftime('%Y-%m-%d %H:%M') if u.last_login_at else '—' }}</bdi></td>
+        <td>{% if not u.is_active %}<span class="chip archived">معطّل</span>{% elif u.is_locked() %}<span class="chip expired">مقفول</span>{% else %}<span class="chip active">نشط</span>{% endif %}</td>
+        <td>
+          <div class="row" style="gap:6px">
+          {% for action, label in (('unlock', 'فك القفل'), ('setup_link', 'رابط ضبط الباسورد'), ('deactivate' if u.is_active else 'activate', 'تعطيل' if u.is_active else 'تفعيل')) %}
+            {% if action != 'unlock' or u.is_locked() or u.failed_attempts %}
+            <form method="post" action="{{ url_for('superadmin.school_staff_action', school_id=school.id, user_id=u.id, action=action) }}" style="margin:0;flex:0 0 auto">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="btn ghost" type="submit">{{ label }}</button>
+            </form>
+            {% endif %}
+          {% endfor %}
+          </div>
+        </td>
+      </tr>
+    {% else %}<tr><td colspan="5">لا يوجد موظفون.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

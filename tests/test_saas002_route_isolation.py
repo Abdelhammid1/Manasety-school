@@ -350,6 +350,36 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.support_revoke":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-031 support tests",
+    "superadmin.school_edit":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_lifecycle":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_slug_change":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_staff":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_staff_action":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_note_add":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_contact_add":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_contact_delete":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.school_tags_set":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
+    "superadmin.announcement_delete":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-032 console tests",
     "superadmin.school_detail":
         "SAAS-025 platform console (no school tenant): 404 on every school host "
         "and when resolution is off — covered by tests/test_saas025_platform.py",

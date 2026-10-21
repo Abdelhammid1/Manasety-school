@@ -1,0 +1,88 @@
+{# SAAS-032 — included by school_detail.html #}
+<div class="row" style="margin:16px 0;gap:8px">
+  {% if current_user.role == 'owner' %}<a class="btn ghost" style="flex:0 0 auto;height:40px" href="{{ url_for('superadmin.school_edit', school_id=school.id) }}">تعديل البيانات</a>{% endif %}
+  {% if current_user.role in ('owner', 'support') %}<a class="btn ghost" style="flex:0 0 auto;height:40px" href="{{ url_for('superadmin.school_staff', school_id=school.id) }}">مستخدمو الموظفين</a>{% endif %}
+</div>
+
+{% if current_user.role == 'owner' %}
+<h2 id="lifecycle">الحالة والرابط (إجراءات خطرة)</h2>
+<div class="card">
+  <p class="sub" style="margin:0 0 8px">كل إجراء هنا محتاج: سبب، كتابة الاسم المختصر <b class="mono">{{ school.slug }}</b>، ورمز TOTP لو آخر تحقق أقدم من 10 دقايق. حد أقصى 5 إجراءات في الساعة.</p>
+  {% macro guard(prefix) %}
+    <label for="{{ prefix }}_reason">السبب *</label><input id="{{ prefix }}_reason" name="reason" required>
+    <div class="row">
+      <div><label for="{{ prefix }}_slug">اكتب الاسم المختصر للتأكيد *</label><input id="{{ prefix }}_slug" name="confirm_slug" dir="ltr" autocomplete="off" required></div>
+      <div><label for="{{ prefix }}_totp">رمز TOTP</label><input id="{{ prefix }}_totp" name="totp" inputmode="numeric" maxlength="6" autocomplete="one-time-code"></div>
+    </div>
+  {% endmacro %}
+  <div class="actions">
+    {% set actions = [] %}
+    {% if school.status == 'active' %}{% set _ = actions.append(('suspend', 'إيقاف المدرسة', 'بيقطع كل الجلسات والتوكنات فورًا.')) %}{% endif %}
+    {% if school.status == 'suspended' %}{% set _ = actions.append(('resume', 'استئناف', 'المدرسة ترجع تشتغل.')) %}{% endif %}
+    {% if school.status != 'archived' %}{% set _ = actions.append(('archive', 'أرشفة', 'المدرسة تختفي (الداتا محفوظة).')) %}{% endif %}
+    {% if school.status == 'archived' %}{% set _ = actions.append(('unarchive', 'إلغاء الأرشفة', 'بترجع موقوفة، والاستئناف خطوة تانية.')) %}{% endif %}
+    {% set _ = actions.append(('end_sessions', 'إنهاء كل الجلسات', 'كل المستخدمين يسجلوا دخول تاني، من غير إيقاف.')) %}
+    {% for key, label, hint in actions %}
+    <form method="post" action="{{ url_for('superadmin.school_lifecycle', school_id=school.id, action=key) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>{{ label }}</h3><p class="sub" style="margin:0">{{ hint }}</p>
+      {{ guard('lc_' ~ key) }}
+      <button class="btn block" type="submit">{{ label }}</button>
+    </form>
+    {% endfor %}
+    {% if school.status != 'archived' %}
+    <form method="post" action="{{ url_for('superadmin.school_slug_change', school_id=school.id) }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>تغيير الرابط</h3><p class="sub" style="margin:0">القديم بيحوّل 90 يوم وبيفضل محجوز. كل الجلسات بتقفل.</p>
+      <label for="new_slug">الاسم المختصر الجديد *</label><input id="new_slug" name="new_slug" dir="ltr" required>
+      {{ guard('slug') }}
+      <button class="btn block" type="submit">تغيير الرابط</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<h2 id="notes">ملاحظات ووسوم (للمنصة فقط)</h2>
+<div class="card">
+  <form method="post" action="{{ url_for('superadmin.school_tags_set', school_id=school.id) }}" class="row" style="margin:0 0 12px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div><label for="tags">الوسوم (مفصولة بفاصلة)</label><input id="tags" name="tags" value="{{ tags|join(', ') }}"></div>
+    <div style="flex:0 0 auto"><button class="btn ghost" type="submit">حفظ الوسوم</button></div>
+  </form>
+  {% for n in notes %}
+    <div style="border-top:1px solid var(--line);padding:8px 0"><small class="sub"><bdi>{{ n.created_at.strftime('%Y-%m-%d %H:%M') }}</bdi> — <bdi>{{ n.author.email if n.author else '' }}</bdi></small><div style="white-space:pre-wrap">{{ n.body }}</div></div>
+  {% endfor %}
+  <form method="post" action="{{ url_for('superadmin.school_note_add', school_id=school.id) }}" style="margin:8px 0 0">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <label for="note_body">ملاحظة جديدة</label><textarea id="note_body" name="body" rows="2" required></textarea>
+    <button class="btn ghost" type="submit" style="margin-top:8px">إضافة</button>
+  </form>
+</div>
+
+<h2 id="contacts">جهات الاتصال</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الاسم</th><th>الصفة</th><th>الهاتف</th><th>الإيميل</th><th>الفواتير</th><th></th></tr></thead>
+    <tbody>
+    {% for c in contacts %}
+      <tr><td>{{ c.name }}</td><td>{{ c.role or '' }}</td><td class="mono">{{ c.phone or '' }}</td><td class="mono">{{ c.email or '' }}</td>
+        <td>{% if c.is_billing_contact %}<span class="chip active">نعم</span>{% endif %}</td>
+        <td>{% if current_user.role in ('owner', 'finance') %}<form method="post" action="{{ url_for('superadmin.school_contact_delete', school_id=school.id, cid=c.id) }}" style="margin:0"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn ghost" type="submit">حذف</button></form>{% endif %}</td></tr>
+    {% else %}<tr><td colspan="6">لا توجد جهات اتصال.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  {% if current_user.role in ('owner', 'finance') %}
+  <form method="post" action="{{ url_for('superadmin.school_contact_add', school_id=school.id) }}" style="margin-top:12px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row">
+      <div><label for="c_name">الاسم *</label><input id="c_name" name="name" required></div>
+      <div><label for="c_role">الصفة</label><input id="c_role" name="role"></div>
+      <div><label for="c_phone">الهاتف</label><input id="c_phone" name="phone" dir="ltr"></div>
+      <div><label for="c_email">الإيميل</label><input id="c_email" name="email" type="email" dir="ltr"></div>
+    </div>
+    <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="is_billing_contact" value="1" style="width:auto;height:auto"> جهة اتصال الفواتير</label>
+    <button class="btn ghost" type="submit">إضافة</button>
+  </form>
+  {% endif %}
+</div>

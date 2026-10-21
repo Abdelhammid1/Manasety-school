@@ -1,0 +1,35 @@
+{% extends "superadmin/base.html" %}
+{% block title %}تعديل {{ school.name }}{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.school_detail', school_id=school.id) }}">→ {{ school.name }}</a></p>
+<h1>تعديل بيانات المدرسة</h1>
+<p class="sub">بيانات SMTP وأي أسرار للمدرسة نفسها بس، ومش بتظهر هنا.</p>
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="_full_form" value="1">
+  <div class="row">
+  {% for field, (label, kind) in fields.items() %}
+    {% set v = school[field] %}
+    <div {% if field in ('address', 'blocked_message') %}style="flex-basis:100%"{% endif %}>
+      {% if field == 'attendance_mode' %}
+        <label for="{{ field }}">{{ label }}</label>
+        <select id="{{ field }}" name="{{ field }}">
+          <option value="daily" {% if v == 'daily' %}selected{% endif %}>يومي</option>
+          <option value="per_period" {% if v == 'per_period' %}selected{% endif %}>بالحصة</option>
+        </select>
+      {% elif field == 'notify_on_support_access' %}
+        <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="{{ field }}" value="1" style="width:auto;height:auto" {% if v %}checked{% endif %}> {{ label }}</label>
+      {% elif field == 'blocked_message' %}
+        <label for="{{ field }}">{{ label }}</label>
+        <textarea id="{{ field }}" name="{{ field }}" rows="2">{{ v or '' }}</textarea>
+      {% else %}
+        <label for="{{ field }}">{{ label }}</label>
+        <input id="{{ field }}" name="{{ field }}" value="{{ v if v is not none else '' }}"
+               {% if field in ('email', 'website', 'phone', 'currency', 'invoice_prefix', 'tax_number', 'legal_name_en') %}dir="ltr"{% endif %}>
+      {% endif %}
+    </div>
+  {% endfor %}
+  </div>
+  <button class="btn" type="submit" style="margin-top:16px">حفظ</button>
+</form>
+{% endblock %}

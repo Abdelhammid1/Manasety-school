@@ -76,6 +76,7 @@ def blocked_response(resolved):
     settings = _request_settings()
     return render_template("errors/subscription_blocked.html", reason=reason,
                            message=MESSAGES_AR.get(reason, MESSAGES_AR["suspended"]),
+                           custom_message=getattr(resolved.school, "blocked_message", None),
                            school=resolved.school, support=_support(settings)), 403
 
 
@@ -203,7 +204,8 @@ def install(app) -> None:
             return {}               # e-mail / PDF rendering from cron
         return {"subscription_banner": banner_for_request(),
                 "limit_warnings": limit_warnings_for_request(),
-                "support_notices": support_notices_for_request()}
+                "support_notices": support_notices_for_request(),
+                "announcements": announcements_for_request()}
 
     if not event.contains(db.session, "before_flush", _read_only_flush_guard):
         event.listen(db.session, "before_flush", _read_only_flush_guard)
@@ -242,6 +244,22 @@ def _read_only_flush_guard(session_, _flush_context, _instances):
 
 
 # ─── banners ────────────────────────────────────────────────────────
+
+def announcements_for_request():
+    """SAAS-032 — live platform announcements for this school's admins."""
+    from flask_login import current_user
+    if not getattr(current_user, "is_authenticated", False) \
+            or getattr(current_user, "is_platform_user", False) \
+            or getattr(getattr(current_user, "role", None), "name", None) != "admin":
+        return []
+    from datetime import datetime, timezone
+    from ..models import PlatformAnnouncement
+    now = datetime.now(timezone.utc)
+    rows = PlatformAnnouncement.query.filter(PlatformAnnouncement.starts_at <= now,
+                                             PlatformAnnouncement.ends_at > now).all()
+    sid = current_user.school_id
+    return [a for a in rows if not a.target_school_ids or sid in a.target_school_ids]
+
 
 def support_notices_for_request():
     """SAAS-031 — the school admin's in-app notice of recent support

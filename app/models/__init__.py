@@ -4,6 +4,7 @@ from .platform_admin import (
     PlatformUser, PlatformRecoveryCode, PlatformAuditLog, PLATFORM_ROLES,
     Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting, PlatformJob,
     SchoolModuleOverride, SchoolLimitOverride, SupportSession, SupportSessionEvent,
+    SchoolSlugHistory, PlatformSchoolNote, SchoolContact, SchoolTag, PlatformAnnouncement,
     BILLING_CYCLES, SUBSCRIPTION_EVENT_KINDS,
 )
 from .academic import AcademicYear, Term, Grade, Section
@@ -145,5 +146,6 @@ __all__ = [
     "PlatformUser", "PlatformRecoveryCode", "PlatformAuditLog", "PLATFORM_ROLES",
     "Plan", "SchoolSubscription", "SchoolSubscriptionEvent", "PlatformSetting", "PlatformJob",
     "SchoolModuleOverride", "SchoolLimitOverride", "SupportSession", "SupportSessionEvent",
+    "SchoolSlugHistory", "PlatformSchoolNote", "SchoolContact", "SchoolTag", "PlatformAnnouncement",
     "BILLING_CYCLES", "SUBSCRIPTION_EVENT_KINDS",
 ]
