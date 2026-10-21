@@ -310,3 +310,55 @@ def test_nginx_sync_only_imported_by_the_cli():
                      r"|import\s+[.\w]*\bnginx_sync\b)", p.read_text(encoding="utf-8"), re.M):
             importers.append(rel)
     assert importers == ["app/blueprints/superadmin/cli.py"], importers
+
+
+# ─── SAAS-040 ───────────────────────────────────────────────────────────
+
+def test_sync_never_touches_files_it_did_not_generate(app, st, two_schools):
+    """Lamma's wildcard and every other conf in the folder stay byte-for-byte."""
+    import os
+    others = {"wildcard-lamma.conf": "server { server_name *.manasety.ai; }\n",
+              "lms.conf": "# hand-written\n", "console.conf": "# hand-written\n"}
+    for name, text in others.items():
+        (st.conf_dir / name).write_text(text, encoding="utf-8")
+    before = {n: os.stat(st.conf_dir / n).st_mtime_ns for n in others}
+    assert _sync(app, st, FakeRunner()).status == "applied"
+    assert _sync(app, st, FakeRunner(test_rc=[1, 0])).status in ("unchanged", "failed")
+    for name, text in others.items():
+        assert (st.conf_dir / name).read_text(encoding="utf-8") == text
+        assert os.stat(st.conf_dir / name).st_mtime_ns == before[name]
+    written = {p.name for p in st.conf_dir.iterdir()} - set(others)
+    assert written <= {"schools.conf", ".nginx-sync.lock"}, written
+
+
+def test_template_matches_the_live_block_settings(app, st, two_schools):
+    from app.services.nginx_sync import render_file
+    with app.app_context():
+        text = render_file(st)
+    for needle in ("client_max_body_size 20M;", "http2 on;", "listen [::]:443 ssl;",
+                   "listen [::]:80;", "proxy_set_header X-Forwarded-Host $host;"):
+        assert needle in text, needle
+    assert "12m" not in text
+
+
+def test_units_command_uses_the_real_install_paths(app, tmp_path):
+    (tmp_path / "wsgi.py").write_text("")
+    (tmp_path / ".env").write_text("")
+    out = app.test_cli_runner().invoke(args=["nginx-sync-units", "--app-dir", str(tmp_path)])
+    assert out.exit_code == 0, out.output
+    assert f"WorkingDirectory={tmp_path.resolve().as_posix()}" in out.output
+    assert f"EnvironmentFile={(tmp_path / '.env').resolve().as_posix()}" in out.output
+    assert "nginx-sync --from-queue" in out.output and "/opt/manasety/lms" not in out.output
+    assert "Unit=manasety-nginx-sync.service" in out.output
+    dest = tmp_path / "units"
+    dest.mkdir()
+    out = app.test_cli_runner().invoke(args=["nginx-sync-units", "--app-dir", str(tmp_path),
+                                             "--user", "deploy", "--write", str(dest)])
+    assert out.exit_code == 0, out.output
+    service = (dest / "manasety-nginx-sync.service").read_text(encoding="utf-8")
+    assert "User=deploy" in service and (dest / "manasety-nginx-sync.timer").exists()
+
+
+def test_units_command_refuses_a_wrong_app_dir(app, tmp_path):
+    out = app.test_cli_runner().invoke(args=["nginx-sync-units", "--app-dir", str(tmp_path)])
+    assert out.exit_code != 0 and "wsgi.py" in out.output

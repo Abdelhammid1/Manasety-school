@@ -277,6 +277,7 @@ class Config:
     NGINX_WILDCARD_CERT = os.environ.get("NGINX_WILDCARD_CERT") or "wildcard-manasety"
     NGINX_CERT_DIR = os.environ.get("NGINX_CERT_DIR") or "/etc/letsencrypt/live"
     NGINX_CERT_FILE = os.environ.get("NGINX_CERT_FILE") or         "/opt/manasety/certbot/conf/live/wildcard-manasety/fullchain.pem"
+    NGINX_MAX_BODY = os.environ.get("NGINX_MAX_BODY", "").strip() or "20M"   # SAAS-040
     NGINX_UPSTREAM = os.environ.get("NGINX_UPSTREAM") or "172.21.0.1:5006"
 
     # SAAS-033 — platform notices (billing / expiry). Off unless enabled;

@@ -102,6 +102,53 @@ def nginx_sync_command(check, dry_run, only, from_queue):
         raise SystemExit(1)
 
 
+@bp.cli.command("nginx-sync-units")
+@click.option("--app-dir", default=None, help="The app checkout (default: this one).")
+@click.option("--env-file", default=None, help="The service env file (default: <app-dir>/.env).")
+@click.option("--user", default=None, help="Run as this user (default: root, which can docker exec).")
+@click.option("--write", "write_dir", default=None,
+              help="Write the two files into this directory (e.g. /etc/systemd/system).")
+def nginx_sync_units(app_dir, env_file, user, write_dir):
+    """SAAS-040 — the systemd service + timer for nginx-sync, with the real
+    paths of this install (no guessed /opt/... paths). Prints them, or
+    writes them with --write; then: systemctl daemon-reload &&
+    systemctl enable --now manasety-nginx-sync.timer"""
+    import shutil
+    import sys
+    from pathlib import Path
+    from flask import current_app
+    from jinja2 import Environment, FileSystemLoader, StrictUndefined
+    root = Path(current_app.root_path).parent
+    app_dir = Path(app_dir or root).resolve()
+    if not (app_dir / "wsgi.py").is_file():
+        raise click.ClickException(f"{app_dir} has no wsgi.py - pass --app-dir <the lms checkout>")
+    env_file = Path(env_file) if env_file else app_dir / ".env"
+    if not env_file.is_file():
+        raise click.ClickException(f"env file {env_file} not found - pass --env-file")
+    # the flask next to the running interpreter = this venv's flask
+    flask_bin = Path(sys.executable).with_name("flask")
+    if not flask_bin.exists():
+        found = shutil.which("flask")
+        if not found:
+            raise click.ClickException("can't find the flask executable of this environment")
+        flask_bin = Path(found)
+    env = Environment(loader=FileSystemLoader(str(root / "deploy" / "systemd")),
+                      undefined=StrictUndefined, keep_trailing_newline=True, autoescape=False)
+    ctx = {"app_dir": app_dir.as_posix(), "env_file": env_file.resolve().as_posix(),
+           "flask": flask_bin.resolve().as_posix(), "user": user}
+    for name in ("manasety-nginx-sync.service", "manasety-nginx-sync.timer"):
+        text = env.get_template(name + ".j2").render(**ctx)
+        if write_dir:
+            dest = Path(write_dir) / name
+            dest.write_text(text, encoding="utf-8")
+            click.echo(f"wrote {dest}")
+        else:
+            click.echo(f"# ===== {name} =====")
+            click.echo(text)
+    click.echo("next: systemctl daemon-reload && systemctl enable --now manasety-nginx-sync.timer "
+               "&& systemctl list-timers manasety-nginx-sync.timer")
+
+
 @bp.cli.command("support-events-prune")
 @click.option("--months", type=int, default=12, show_default=True)
 def support_events_prune(months):

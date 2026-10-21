@@ -20,7 +20,8 @@ server {
     ssl_certificate     {{ cert_dir }}/{{ cert }}/fullchain.pem;
     ssl_certificate_key {{ cert_dir }}/{{ cert }}/privkey.pem;
 
-    # file_storage.py accepts up to 10 MB; headroom for multipart overhead.
+    # Same ceiling as the live blocks (SAAS-040); file_storage.py caps
+    # each upload lower.
     client_max_body_size {{ max_body }};
 
     location / {

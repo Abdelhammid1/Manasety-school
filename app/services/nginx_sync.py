@@ -99,7 +99,9 @@ class Settings:
     cert_file: str
     upstream: str
     base_domain: str
-    max_body: str = "12m"
+    # SAAS-040: the live hand-written blocks use 20M (uploads are capped
+    # lower in file_storage.py; this is only nginx's ceiling)
+    max_body: str = "20M"
 
     @classmethod
     def from_app(cls):
@@ -107,7 +109,8 @@ class Settings:
         return cls(conf_dir=Path(c["NGINX_CONF_DIR"]), backup_root=Path(c["NGINX_BACKUP_ROOT"]),
                    container=c["NGINX_CONTAINER"], cert=c["NGINX_WILDCARD_CERT"],
                    cert_dir=c["NGINX_CERT_DIR"], cert_file=c["NGINX_CERT_FILE"],
-                   upstream=c["NGINX_UPSTREAM"], base_domain=c.get("BASE_DOMAIN") or "manasety.ai")
+                   upstream=c["NGINX_UPSTREAM"], base_domain=c.get("BASE_DOMAIN") or "manasety.ai",
+                   max_body=c.get("NGINX_MAX_BODY") or "20M")
 
     @property
     def target(self) -> Path:
@@ -167,7 +170,7 @@ def render_block(st: Settings, slug: str) -> str:
 def render_redirect(st: Settings, old: str, new: str) -> str:
     return _template("redirect.conf.j2").render(
         slug=old, new_slug=new, host=f"{old}.{st.base_domain}", cert=st.cert,
-        cert_dir=st.cert_dir, upstream=st.upstream)
+        cert_dir=st.cert_dir, upstream=st.upstream, max_body=st.max_body)
 
 
 def split_blocks(text: str) -> dict[tuple[str, str], str]:
