@@ -74,6 +74,11 @@ class User(UserMixin, db.Model):
         return bool(self.locked_until and self.locked_until > datetime.utcnow())
 
     def can(self, module: str, action: str = "view") -> bool:
+        # SAAS-030 — a module the school's plan doesn't include is
+        # never permitted, whatever the role says.
+        from ..services.modules import module_enabled, module_for_permission
+        if not module_enabled(self.school_id, module_for_permission(module)):
+            return False
         return bool(self.role and self.role.has(module, action))
 
 

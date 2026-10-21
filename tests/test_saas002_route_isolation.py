@@ -335,6 +335,12 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.school_nginx_sync":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-029 console tests",
+    "superadmin.school_module_set":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-030 console tests",
+    "superadmin.school_limits_set":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-030 console tests",
     "superadmin.school_detail":
         "SAAS-025 platform console (no school tenant): 404 on every school host "
         "and when resolution is off — covered by tests/test_saas025_platform.py",

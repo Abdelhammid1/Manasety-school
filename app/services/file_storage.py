@@ -54,6 +54,15 @@ class UploadRejected(ValueError):
     """Shown to the user (Arabic)."""
 
 
+class StorageLimitRejected(UploadRejected):
+    """SAAS-030 — the plan's storage limit; the API answers with the fixed
+    {"error": "limit_reached", "limit": "storage"} body."""
+
+    def __init__(self, reached):
+        super().__init__(str(reached))
+        self.api_body = reached.api_body()
+
+
 # ─── content sniffing ───────────────────────────────────────────────
 
 def _sniff_ok(ext: str, head: bytes) -> bool:
@@ -127,6 +136,13 @@ def save(file, kind: str, owner_id: int) -> str:
     stream.seek(0)
     if not _sniff_ok(ext, head):
         raise UploadRejected(f"محتوى الملف لا يطابق الامتداد .{ext}.")
+
+    # SAAS-030 — storage limit: this file + what the school already uses.
+    from .limits import LimitReached, check_and_reserve
+    try:
+        check_and_reserve(_current_school(), "storage", adding=size / (1024 * 1024))
+    except LimitReached as e:
+        raise StorageLimitRejected(e) from None
 
     key = f"{_current_school()}/{kind}/{int(owner_id)}/{uuid.uuid4().hex[:12]}_{name}"
     dest = upload_root() / key

@@ -196,7 +196,11 @@ def install(app) -> None:
 
     @app.context_processor
     def _subscription_banner():
-        return {"subscription_banner": banner_for_request()}
+        from flask import has_request_context
+        if not has_request_context():
+            return {}               # e-mail / PDF rendering from cron
+        return {"subscription_banner": banner_for_request(),
+                "limit_warnings": limit_warnings_for_request()}
 
     if not event.contains(db.session, "before_flush", _read_only_flush_guard):
         event.listen(db.session, "before_flush", _read_only_flush_guard)
@@ -233,6 +237,15 @@ def _read_only_flush_guard(session_, _flush_context, _instances):
 
 
 # ─── banners ────────────────────────────────────────────────────────
+
+def limit_warnings_for_request():
+    """SAAS-030 — limits at ≥ 90 %, for a school admin on the dashboard
+    only (counting storage walks the upload folder)."""
+    from flask_login import current_user
+    if request.endpoint != "dashboard.home" or not getattr(current_user, "is_authenticated", False)             or getattr(current_user, "is_platform_user", False)             or getattr(getattr(current_user, "role", None), "name", None) != "admin":
+        return []
+    from .limits import limit_report
+    return [r for r in limit_report(current_user.school_id) if r["warn"]]
 
 def banner_for_request():
     """{kind, text} for the school app's base template, or None."""

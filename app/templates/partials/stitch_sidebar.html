@@ -11,6 +11,8 @@
 {% set _role = (current_user.role.name if current_user.is_authenticated and current_user.role else 'guest') %}
 
 {% macro nav_item(endpoint, label, icon, extra_endpoints=None) -%}
+  {# SAAS-030 — a link into a module the school doesn't have isn't shown. #}
+  {% if endpoint_on(endpoint) %}
   {% set _cur = request.endpoint or '' %}
   {% set _active = (_cur == endpoint) or (extra_endpoints and _cur in extra_endpoints) or (_cur and _cur.split('.')[0] == endpoint.split('.')[0] and endpoint.endswith('.index')) %}
   <div class="group relative">
@@ -22,6 +24,7 @@
     </a>
     <span class="tooltip hidden absolute right-[76px] top-1/2 -translate-y-1/2 bg-navy border border-outline-variant/20 text-on-primary font-label-sm text-label-sm px-2 py-1 rounded shadow-lg whitespace-nowrap z-50">{{ label }}</span>
   </div>
+{% endif %}
 {%- endmacro %}
 
 {# Collapsible group block. Use as:
@@ -95,10 +98,12 @@
         {% endcall %}
 
         {# 3 · Schedule & rooms #}
+        {% if module_on('schedule') %}
         {% call group('admin-schedule', 'الجدول والقاعات', 'schedule') %}
           {{ nav_item('platform.rooms_list', 'القاعات',        'meeting_room') }}
           {{ nav_item('schedule.index',      'الجدول المدرسي', 'calendar_month') }}
         {% endcall %}
+        {% endif %}
 
         {# 4 · Teachers #}
         {% call group('admin-teachers', 'المعلمون', 'menu_book') %}
@@ -117,6 +122,7 @@
         {% endcall %}
 
         {# 6 · Learning #}
+        {% if module_on('lms') %}
         {% call group('admin-learning', 'التعلم', 'auto_stories') %}
           {{ nav_item('lms.qbank_dashboard',    'بنك الأسئلة',   'inventory_2') }}
           {{ nav_item('lms.passages_home',      'القطع اللفظية',  'menu_book') }}
@@ -124,8 +130,10 @@
           {{ nav_item('lms.assignments_home',   'واجبات الطلاب',  'assignment') }}
           {{ nav_item('lms.announcements_home', 'الإعلانات',      'campaign') }}
         {% endcall %}
+        {% endif %}
 
         {# 7 · Assessment #}
+        {% if module_on('results') %}
         {% call group('admin-assessment', 'التقييم', 'grading') %}
           {{ nav_item('lms.quizzes_home',      'الاختبارات',      'quiz') }}
           {{ nav_item('lms.blueprint_exam_new','توليد Blueprint', 'schema') }}
@@ -135,15 +143,19 @@
           {{ nav_item('results.rubrics_list',  'معايير التقييم',  'rule') }}
           {{ nav_item('results.settings',      'إعدادات النتائج', 'tune') }}
         {% endcall %}
+        {% endif %}
 
         {# 7.5 · NAFIS #}
+        {% if module_on('nafis') %}
         {% call group('admin-nafis', 'نافس', 'insights') %}
           {{ nav_item('nafis.outcomes_home',   'نواتج التعلم (نافس)', 'menu_book') }}
           {{ nav_item('nafis.cycles_list',     'دورات نافس',        'quiz') }}
           {{ nav_item('nafis.gaps_home',       'الفجوات والخطط العلاجية', 'insights') }}
         {% endcall %}
+        {% endif %}
 
         {# 8 · Finance #}
+        {% if module_on('finance') %}
         {% call group('admin-finance', 'المالية', 'account_balance') %}
           {{ nav_item('finance.invoices_list',        'الفواتير',            'receipt_long') }}
           {{ nav_item('finance.fee_types',            'أنواع الرسوم',        'sell') }}
@@ -163,13 +175,16 @@
           {{ nav_item('finance.cost_centers_list',    'مراكز التكلفة',       'donut_small') }}
           {{ nav_item('finance.reports_index',        'التقارير المالية',    'analytics') }}
         {% endcall %}
+        {% endif %}
 
         {# 9 · HR #}
+        {% if module_on('hr') %}
         {% call group('admin-hr', 'الموارد البشرية', 'badge') %}
           {{ nav_item('hr.employees_list',         'الموظفون',        'badge') }}
           {{ nav_item('platform.staff_attendance', 'حضور الموظفين',   'fact_check') }}
           {{ nav_item('hr.payroll_list',           'الرواتب',         'paid') }}
         {% endcall %}
+        {% endif %}
 
         {# 10 · Settings & system #}
         {% call group('admin-system', 'الإعدادات والنظام', 'settings') %}
@@ -208,14 +223,17 @@
         {{ nav_item('dashboard.home', 'صفحة ولي الأمر', 'family_restroom') }}
         {{ nav_item('portal.pickup_home', 'نداء لاستلام الطالب', 'campaign') }}
 
+        {% if module_on('portal') %}
         {% call group('parent-updates', 'المتابعة والرسوم', 'campaign') %}
           {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
           {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long') }}
         {% endcall %}
+        {% endif %}
 
       {% elif _role == 'student' %}
         {{ nav_item('dashboard.home', 'صفحتي', 'home') }}
 
+        {% if module_on('lms') %}
         {% call group('student-learning', 'دراستي', 'auto_stories') %}
           {{ nav_item('courses.list_courses',  'مقرّراتي',     'auto_stories') }}
           {{ nav_item('lms.assignments_home',  'واجباتي',      'assignment') }}
@@ -223,6 +241,7 @@
           {{ nav_item('schedule.index',        'جدولي',       'calendar_month') }}
           {{ nav_item('lms.announcements_home','الإعلانات',    'campaign') }}
         {% endcall %}
+        {% endif %}
       {% endif %}
     </nav>
   </div>

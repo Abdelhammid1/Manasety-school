@@ -76,6 +76,14 @@ def provision_user(
     if role is None:
         return None, f"لا يوجد دور مناسب ({kind}) في هذه المدرسة — راجع الأدوار."
 
+    # SAAS-030 — staff accounts count against the plan's user limit.
+    from .limits import LimitReached, check_and_reserve, is_staff_role
+    if is_staff_role(role):
+        try:
+            check_and_reserve(school_id, "users")
+        except LimitReached as e:
+            return None, str(e)
+
     username = (username or "").strip() or suggest_username(full_name, phone)
     # De-duplicate username inside the school by appending a short tail.
     base = username

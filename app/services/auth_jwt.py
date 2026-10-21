@@ -125,6 +125,9 @@ def user_from_bearer() -> Optional[User]:
     from .subscription_enforcement import api_refusal
     if api_refusal(user) is not None:
         return None
+    from .modules import api_module_refusal
+    if api_module_refusal(user) is not None:
+        return None
     return user
 
 
@@ -168,6 +171,10 @@ def jwt_required(view):
         # only the host the token was presented on.
         from .subscription_enforcement import api_refusal
         refused = api_refusal(user)
+        if refused is not None:
+            return refused
+        from .modules import api_module_refusal
+        refused = api_module_refusal(user)
         if refused is not None:
             return refused
         g.api_user = user

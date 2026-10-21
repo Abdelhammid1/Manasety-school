@@ -90,6 +90,9 @@ def create_app(config_class=Config):
     # banners). Blocked schools are answered by the resolver above.
     from .services import subscription_enforcement
     subscription_enforcement.install(app)
+    # SAAS-030 — per-school modules (plan ± console overrides).
+    from .services import modules as _modules
+    _modules.install(app)
 
     from .blueprints.auth import bp as auth_bp
     from .blueprints.dashboard import bp as dashboard_bp

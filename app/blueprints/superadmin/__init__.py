@@ -123,4 +123,5 @@ from . import schools        # noqa: E402,F401
 from . import plans          # noqa: E402,F401  SAAS-026
 from . import subscriptions  # noqa: E402,F401  SAAS-026
 from . import onboarding     # noqa: E402,F401  SAAS-028
+from . import modules_limits  # noqa: E402,F401  SAAS-030
 from . import cli            # noqa: E402,F401

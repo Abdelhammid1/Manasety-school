@@ -1,0 +1,56 @@
+{# SAAS-030 — included by school_detail.html #}
+<h2 id="modules">الموديولات</h2>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الموديول</th><th>الحالة</th><th>المصدر</th>{% if current_user.role == 'owner' %}<th>تعديل</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for m in modules %}
+      <tr>
+        <td style="white-space:normal">{{ m.module.label_ar }}</td>
+        <td><span class="chip {{ 'active' if m.enabled else 'expired' }}">{{ 'مفعّل' if m.enabled else 'مقفول' }}</span></td>
+        <td style="white-space:normal">{{ {'core':'أساسي','plan':'الباقة','override':'استثناء'}[m.source] }}{% if m.override %} — {{ m.override.reason }}{% endif %}</td>
+        {% if current_user.role == 'owner' %}
+        <td>{% if not m.module.core %}
+          <form method="post" action="{{ url_for('superadmin.school_module_set', school_id=school.id) }}" class="row" style="margin:0;align-items:center">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="module" value="{{ m.module.key }}">
+            <select name="state" aria-label="حالة {{ m.module.label_ar }}" style="flex:0 0 130px">
+              <option value="plan" {% if not m.override %}selected{% endif %}>حسب الباقة</option>
+              <option value="on" {% if m.override and m.override.enabled %}selected{% endif %}>تفعيل</option>
+              <option value="off" {% if m.override and not m.override.enabled %}selected{% endif %}>إيقاف</option>
+            </select>
+            <input name="reason" required placeholder="السبب" aria-label="السبب" style="flex:1 1 140px">
+            <button class="btn ghost" type="submit" style="flex:0 0 auto">حفظ</button>
+          </form>{% endif %}</td>
+        {% endif %}
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<h2 id="limits">الحدود والاستخدام</h2>
+<div class="card">
+  {% for l in limits %}
+    <div style="margin-bottom:12px">
+      <div class="row" style="justify-content:space-between"><b style="flex:0 0 auto">{{ l.label }}</b>
+        <span class="num" style="flex:0 0 auto"><bdi>{{ (l.used|round(1)) if l.kind == 'storage' else l.used }} / {{ l.limit if l.limit is not none else 'بلا حد' }}{% if l.kind == 'storage' %} MB{% endif %}</bdi></span></div>
+      {% if l.limit %}<div class="bar" role="img" aria-label="{{ l.label }} {{ ((l.ratio or 0) * 100)|round|int }}%"><span style="width:{{ [((l.ratio or 0) * 100), 100]|min }}%;background:{{ 'var(--bad)' if l.full else ('var(--warn)' if l.warn else 'var(--ok)') }}"></span></div>{% endif %}
+    </div>
+  {% endfor %}
+  {% if current_user.role in ('owner', 'finance') %}
+  <form method="post" action="{{ url_for('superadmin.school_limits_set', school_id=school.id) }}" style="margin-top:8px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <p class="sub" style="margin:0">حد استثنائي للمدرسة دي (فاضي = حد الباقة).</p>
+    {% set lo = limit_override %}
+    <div class="row">
+      <div><label for="max_students">الطلاب</label><input id="max_students" name="max_students" inputmode="numeric" value="{{ lo.max_students if lo and lo.max_students is not none else '' }}"></div>
+      <div><label for="max_users">الموظفون</label><input id="max_users" name="max_users" inputmode="numeric" value="{{ lo.max_users if lo and lo.max_users is not none else '' }}"></div>
+      <div><label for="max_storage_mb">التخزين (MB)</label><input id="max_storage_mb" name="max_storage_mb" inputmode="numeric" value="{{ lo.max_storage_mb if lo and lo.max_storage_mb is not none else '' }}"></div>
+    </div>
+    <label for="lim_reason">السبب *</label><input id="lim_reason" name="reason" required>
+    <button class="btn" type="submit" style="margin-top:12px">حفظ الحدود</button>
+  </form>
+  {% endif %}
+</div>
+<style>.bar{height:8px;background:#eef2f7;border-radius:999px;overflow:hidden;margin-top:6px}.bar span{display:block;height:100%}</style>

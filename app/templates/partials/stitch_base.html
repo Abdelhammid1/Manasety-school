@@ -213,6 +213,13 @@
             {% endif %}
           </div>
         {% endif %}
+        {% for w in limit_warnings or [] %}
+          <div role="status" class="mt-4 px-4 py-3 rounded-lg font-label-lg text-label-lg {% if w.full %}bg-error-container text-on-error-container{% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %}">
+            {% if w.full %}وصلت للحد الأقصى للباقة في {{ w.label }}{% else %}قربت من الحد الأقصى للباقة في {{ w.label }}{% endif %}:
+            <bdi>{{ (w.used|round(1)) if w.kind == 'storage' else w.used }} / {{ w.limit }}{% if w.kind == 'storage' %} MB{% endif %}</bdi>.
+            تواصل مع الدعم للترقية.
+          </div>
+        {% endfor %}
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             <div class="mt-4 flex flex-col gap-2">

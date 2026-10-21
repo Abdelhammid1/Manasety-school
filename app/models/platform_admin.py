@@ -193,6 +193,35 @@ class PlatformJob(db.Model):
     )
 
 
+class SchoolModuleOverride(db.Model):
+    """SAAS-030 — a per-school exception to the plan's modules. Managed
+    from the console only; the school never sees it."""
+    __tablename__ = "school_module_overrides"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    module_key = db.Column(db.String(32), nullable=False)
+    enabled = db.Column(db.Boolean, nullable=False)
+    reason = db.Column(db.Text, nullable=False, default="")
+    updated_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    __table_args__ = (db.UniqueConstraint("school_id", "module_key", name="uq_school_module_override"),)
+
+
+class SchoolLimitOverride(db.Model):
+    """SAAS-030 — per-school limits that win over the plan's. NULL = use the plan."""
+    __tablename__ = "school_limit_overrides"
+
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), primary_key=True)
+    max_students = db.Column(db.Integer)
+    max_users = db.Column(db.Integer)
+    max_storage_mb = db.Column(db.Integer)
+    reason = db.Column(db.Text, nullable=False, default="")
+    updated_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+
 class PlatformSetting(db.Model):
     __tablename__ = "platform_settings"
 

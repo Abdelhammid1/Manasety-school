@@ -271,6 +271,9 @@ def change_plan(school, plan, user, reason=None):
     old_code = cur.plan.code if cur.plan else str(cur.plan_id)
     _replace(school.id, user, plan_id=plan.id)
     _event(school.id, "plan_changed", old_code, plan.code, reason, user)
+    # SAAS-030 — module exceptions that now merely repeat the new plan go.
+    from .modules import clear_overrides_for_plan_change
+    clear_overrides_for_plan_change(school.id)
 
 
 def start_trial(school, plan, user, days=None, reason=None, today=None):

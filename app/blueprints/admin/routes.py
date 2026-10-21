@@ -328,6 +328,13 @@ def user_new():
         role_id = int(request.form["role_id"])
         if _reject_non_admin_role(role_id, roles):
             return render_template("admin/user_form.html", user=None, roles=roles)
+        # SAAS-030 — staff accounts count against the plan's user limit.
+        from ...services.limits import LimitReached, check_and_reserve
+        try:
+            check_and_reserve(current_user.school_id, "users")
+        except LimitReached as e:
+            flash(str(e), "danger")
+            return render_template("admin/user_form.html", user=None, roles=roles)
         user = User(
             school_id=current_user.school_id,
             role_id=role_id,

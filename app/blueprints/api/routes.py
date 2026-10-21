@@ -772,6 +772,8 @@ def teacher_upload():
     from ...services import file_storage as fs
     try:
         rel_path = fs.save(file, "materials", section.id)
+    except fs.StorageLimitRejected as e:
+        return jsonify(e.api_body), 403
     except fs.UploadRejected as e:
         return _err(str(e))
 

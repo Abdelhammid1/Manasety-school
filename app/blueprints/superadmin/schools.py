@@ -14,7 +14,8 @@ from sqlalchemy import func
 from . import bp, current_platform_user, require_platform_role
 from ...extensions import db
 from ...models import (
-    Course, Plan, School, SchoolSubscription, SchoolSubscriptionEvent, Section, Student,
+    Course, Plan, School, SchoolLimitOverride, SchoolSubscription, SchoolSubscriptionEvent,
+    Section, Student,
     Teacher, User,
 )
 from ...services import subscriptions as subs
@@ -124,7 +125,19 @@ def school_detail(school_id):
                            base_domain=current_app.config.get("BASE_DOMAIN"),
                            current=current, state=state, events=events, plans=plans, over=over,
                            can_edit=user.role in ("owner", "finance"),
-                           subdomain=school_subdomain_status(school.id), jobs=latest_jobs(5))
+                           subdomain=school_subdomain_status(school.id), jobs=latest_jobs(5),
+                           modules=_modules_view(school.id), limits=_limits_view(school.id),
+                           limit_override=db.session.get(SchoolLimitOverride, school.id))
+
+
+def _modules_view(school_id):
+    from ...services.modules import module_sources
+    return module_sources(school_id)
+
+
+def _limits_view(school_id):
+    from ...services.limits import limit_report
+    return limit_report(school_id)
 
 
 @bp.route("/schools/<int:school_id>/nginx-sync", methods=["POST"], endpoint="school_nginx_sync")

@@ -194,6 +194,18 @@ def imports_commit():
     rows = pending["rows"]
     ok_rows = [r for r in rows if r["status"] == "ok"]
 
+    if entity == "students" and ok_rows:
+        # SAAS-030 — all or nothing: an import that doesn't fit the plan
+        # limit is refused whole, never cut short.
+        from ...services.limits import LimitReached, check_and_reserve
+        try:
+            check_and_reserve(_sid(), "students", adding=len(ok_rows))
+        except LimitReached as e:
+            db.session.rollback()
+            flash(f"{e} الملف فيه {len(ok_rows)} طالب والمتبقي {e.remaining} خانة فقط — "
+                  "لم يتم استيراد أي صف.", "danger")
+            return redirect(url_for("platform.imports_home"))
+
     batch = ImportBatch(
         school_id=_sid(), user_id=getattr(current_user, "id", None),
         entity_type=entity,

@@ -294,6 +294,14 @@ def student_new():
         guardian_mode = (request.form.get("guardian_mode") or "new").strip()
         existing_guardian_id = request.form.get("existing_guardian_id", type=int)
 
+        # SAAS-030 — plan limit (locks the school row until commit).
+        from ...services.limits import LimitReached, check_and_reserve
+        try:
+            check_and_reserve(_sid(), "students")
+        except LimitReached as e:
+            flash(str(e), "danger")
+            return render_template("students/form.html", student=None,
+                                   form=request.form, **render_kwargs)
         try:
             student = Student(
                 school_id=_sid(),

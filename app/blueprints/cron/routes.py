@@ -84,19 +84,30 @@ def tick_lock():
 
 def run_school_tick(school_id: int, today: date) -> dict:
     out: dict = {}
+    # SAAS-030 — a module the school doesn't have gets no tasks.
+    from ...services.modules import module_enabled
+    skipped = []
     with tenant_context(school_id):
-        # Recurring first so today's new invoices can flip overdue in
-        # the same tick; reminders then read the fresh state.
-        out["recurring"] = generate_recurring_invoices(school_id, today=today)
-        out["overdue_flipped"] = update_overdue_invoices(school_id, today=today)
-        out["reminders"] = send_payment_reminders(school_id, today=today)
-        out["installment_reminders"] = send_installment_reminders(school_id)
-        db.session.commit()
-        out["attendance_rules_triggered"] = run_rules(school_id, today=today)
+        if module_enabled(school_id, "finance"):
+            # Recurring first so today's new invoices can flip overdue in
+            # the same tick; reminders then read the fresh state.
+            out["recurring"] = generate_recurring_invoices(school_id, today=today)
+            out["overdue_flipped"] = update_overdue_invoices(school_id, today=today)
+            out["reminders"] = send_payment_reminders(school_id, today=today)
+            out["installment_reminders"] = send_installment_reminders(school_id)
+            db.session.commit()
+        else:
+            skipped.append("finance")
+        if module_enabled(school_id, "attendance"):
+            out["attendance_rules_triggered"] = run_rules(school_id, today=today)
+        else:
+            skipped.append("attendance")
         out["risk_scores_updated"] = run_risk(school_id, today=today)
-        if today.day == 1:
+        if today.day == 1 and module_enabled(school_id, "attendance"):
             out["attendance_reports_sent"] = send_reports_for_school(school_id)
         db.session.commit()
+    if skipped:
+        out["skipped_modules"] = skipped
     return out
 
 
