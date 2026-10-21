@@ -396,10 +396,15 @@ def world(app, two_schools) -> dict:
     """two_schools + finance/HR records in both schools (SAAS-013).
     Ids and markers are merged into each school's bundle."""
     from app.extensions import db
-    from world import seed_finance_hr
+    from world import seed_finance_hr, seed_students
     A, B = two_schools["A"], two_schools["B"]
     with app.app_context():
         fa, fb = seed_finance_hr(A), seed_finance_hr(B)
+        sa, sb = seed_students(A), seed_students(B)          # SAAS-014
+        fa = {**fa, **{k: v for k, v in sa.items() if k != "markers"},
+              "markers": tuple(fa["markers"]) + tuple(sa["markers"])}
+        fb = {**fb, **{k: v for k, v in sb.items() if k != "markers"},
+              "markers": tuple(fb["markers"]) + tuple(sb["markers"])}
         db.session.remove()
     pair = (A["school"].id, B["school"].id)
 

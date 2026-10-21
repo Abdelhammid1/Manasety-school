@@ -118,6 +118,56 @@ def seed_finance_hr(bundle: dict) -> dict:
     }
 
 
+def seed_students(bundle: dict) -> dict:
+    """Students / attendance / portal records for one school (SAAS-014).
+    Run after seed_finance_hr (reuses its guardian). App context."""
+    from app.extensions import db
+    from app.models import (
+        Attendance, AttendanceRule, AttendanceRuleTriggered, BehaviorCategory,
+        BehaviorIncident, Guardian, HealthIncident, PickupCall, PreviousSchool,
+        StudentDocument, StudentGuardian, StudentHealthProfile, StudentNote, StudentTag,
+    )
+    slug, sid = bundle["school"].slug, bundle["school"].id
+    stu, enr = bundle["student"], bundle["enrollment"]       # detached: read ids only
+    add = db.session.add
+    guardian = Guardian.query.filter_by(school_id=sid, full_name=f"Guardian-{slug}").one()
+    guardian.user_id = bundle["users"]["parent"].id          # a portal account
+    link = StudentGuardian.query.filter_by(student_id=stu.id, guardian_id=guardian.id).one()
+    note = StudentNote(school_id=sid, student_id=stu.id, body=f"Note-{slug}")
+    tag = StudentTag(school_id=sid, name=f"Tag-{slug}")
+    prev = PreviousSchool(school_id=sid, student_id=stu.id, name=f"Prev-{slug}")
+    health = StudentHealthProfile(school_id=sid, student_id=stu.id)
+    inc = HealthIncident(school_id=sid, student_id=stu.id, incident_date=date(2026, 9, 4),
+                         description=f"Health-{slug}")
+    doc = StudentDocument(school_id=sid, student_id=stu.id, document_type="birth_certificate",
+                          file_path=f"/files/{sid}/student_doc/{stu.id}/doc-{slug}.pdf")
+    cat = BehaviorCategory(school_id=sid, name=f"BehCat-{slug}")
+    rule = AttendanceRule(school_id=sid, name=f"Rule-{slug}", kind="absence_count", threshold=3)
+    for o in (note, tag, prev, health, inc, doc, cat, rule):
+        add(o)
+    db.session.flush()
+    from app.models import Student
+    tag.students.append(db.session.get(Student, stu.id))   # never attach the bundle's detached object
+    beh = BehaviorIncident(school_id=sid, student_id=stu.id, category_id=cat.id,
+                           incident_date=date(2026, 9, 5), description=f"Behavior-{slug}")
+    trig = AttendanceRuleTriggered(school_id=sid, rule_id=rule.id, student_id=stu.id, count_at_trigger=3)
+    att = Attendance(school_id=sid, enrollment_id=enr.id, date=date(2026, 9, 6), status="absent")
+    pick = PickupCall(school_id=sid, parent_user_id=bundle["users"]["parent"].id, student_id=stu.id,
+                      section_id=bundle["section"].id)
+    for o in (beh, trig, att, pick):
+        add(o)
+    db.session.commit()
+    return {
+        "guardian_link": link.id, "student_note": note.id, "student_tag": tag.id,
+        "previous_school": prev.id, "health_incident": inc.id, "document": doc.id,
+        "behavior_category": cat.id, "behavior": beh.id, "rule_trigger": trig.id,
+        "attendance": att.id, "pickup": pick.id, "health_profile": health.id,
+        "parent_user": bundle["users"]["parent"].id, "student_user": bundle["users"]["student"].id,
+        "markers": (f"Note-{slug}", f"Tag-{slug}", f"Prev-{slug}", f"Health-{slug}",
+                    f"doc-{slug}", f"BehCat-{slug}", f"Behavior-{slug}", f"Rule-{slug}"),
+    }
+
+
 def ledger_state(school_ids) -> tuple:
     """Accounting fingerprint of the given schools: journal entries,
     debit/credit totals and money-moving rows. Any cross-tenant write

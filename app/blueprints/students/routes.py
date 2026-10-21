@@ -13,6 +13,14 @@ from ...models import (
 )
 
 
+def _own_parent_user_id(raw):
+    """SAAS-014 — a parent account picked in the form must be a user of
+    THIS school (a foreign id is a 404, never a cross-school link)."""
+    from ...services.scoping import owned_or_none
+    u = owned_or_none(User, raw)
+    return u.id if u is not None else None
+
+
 def _sid() -> int:
     # SAAS-005 — central tenant source of truth. One function
     # here so no blueprint reads current_user.school_id directly.
@@ -313,7 +321,7 @@ def student_new():
                 parent_name=parent_name,
                 parent_phone=parent_phone,
                 parent_email=parent_email,
-                parent_user_id=int(request.form["parent_user_id"]) if request.form.get("parent_user_id") else None,
+                parent_user_id=_own_parent_user_id(request.form.get("parent_user_id")),
                 mother_name=(request.form.get("mother_name") or "").strip() or None,
                 mother_phone=(request.form.get("mother_phone") or "").strip() or None,
                 address=(request.form.get("address") or "").strip() or None,
@@ -913,7 +921,7 @@ def student_edit(student_id):
         student.parent_name = (request.form.get("parent_name") or "").strip() or None
         student.parent_phone = (request.form.get("parent_phone") or "").strip() or None
         student.parent_email = (request.form.get("parent_email") or "").strip() or None
-        student.parent_user_id = int(request.form["parent_user_id"]) if request.form.get("parent_user_id") else None
+        student.parent_user_id = _own_parent_user_id(request.form.get("parent_user_id"))
         student.mother_name = (request.form.get("mother_name") or "").strip() or None
         student.mother_phone = (request.form.get("mother_phone") or "").strip() or None
         student.address = (request.form.get("address") or "").strip() or None

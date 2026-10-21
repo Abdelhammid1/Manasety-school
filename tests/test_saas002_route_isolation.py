@@ -72,6 +72,7 @@ def _row(model: str, key: str, side: str = "B"):
         from world import ledger_state
         cls = getattr(M, model)
         rid = B["peer"][key] if side == "A" else B[key]
+        rid = getattr(rid, "id", rid)          # bundles hold ORM rows for the basics
         row = db.session.execute(
             select(cls.__table__).where(cls.__table__.c.id == rid)
         ).mappings().first()
@@ -83,6 +84,51 @@ def _fin(key, model, param, methods=("POST",), form=None, roles=("admin",)):
     return Entry(lambda B, k=key, p=param: {p: B[k]}, methods=methods,
                  form=form, roles=roles,
                  snapshot=_row(model, key) if any(m != "GET" for m in methods) else None)
+
+
+def _id(v):
+    return getattr(v, "id", v)
+
+
+def _cnt(model: str, col: str, key: str):
+    """Snapshot = how many `model` rows (any school) point at B's `key`,
+    + both ledgers: a cross-tenant create shows up as +1."""
+    def snap(B):
+        from app import models as M
+        from world import ledger_state
+        cls = getattr(M, model)
+        return (cls.query.filter(getattr(cls, col) == _id(B[key])).count(), ledger_state(B["pair"]))
+    return snap
+
+
+def _tag_links(B):
+    from app.extensions import db
+    from app.models.student import student_tag_links as t
+    return len(db.session.execute(t.select().where(t.c.student_id == B["student"].id)).fetchall())
+
+
+def _ent(key, model, param, methods=("POST",), form=None, roles=("admin",), snapshot=None, extra=None):
+    """URL id = B's `key`; writes snapshot B's row (or `snapshot`)."""
+    def ids(B, k=key, p=param):
+        out = {p: _id(B[k])}
+        out.update(extra(B) if extra else {})
+        return out
+    writes = any(m != "GET" for m in methods)
+    return Entry(ids, methods=methods, form=form, roles=roles,
+                 snapshot=(snapshot or (_row(model, key) if writes else None)))
+
+
+def _user_row(key):
+    """B's portal account: password hash + active flag must not move."""
+    def snap(B):
+        from app.extensions import db
+        from app.models import User
+        u = db.session.get(User, B[key])
+        return (u.password_hash, u.is_active) if u else None
+    return snap
+
+
+PNG_BYTES = b"\x89PNG\r\n\x1a\n0"
 
 
 # ─── Matrix ──────────────────────────────────────────────────────────
@@ -194,6 +240,87 @@ ROUTE_MATRIX: dict[str, Entry] = {
     "hr.payroll_settle": _fin("payroll", "Payroll", "payroll_id",
                               form=lambda A, B: {"payment_method_id": B["payment_method"],
                                                  "amount": "100"}),
+
+    # SAAS-014 — students / attendance / portal (42).
+    "attendance.mark": _ent("section", "Section", "section_id", ("GET", "POST"),
+                            form=lambda A, B: {"date": "2026-09-07", f"status_{B['enrollment'].id}": "present"},
+                            snapshot=_cnt("Attendance", "enrollment_id", "enrollment")),
+    "attendance.rule_trigger_resolve": _ent("rule_trigger", "AttendanceRuleTriggered", "trigger_id"),
+    "attendance.section_report": _ent("section", "Section", "section_id", ("GET",)),
+    "attendance.student_day_detail": _ent("student", "Student", "student_id", ("GET",),
+                                          extra=lambda B: {"date_str": "2026-09-06"}),
+    "attendance.student_report": _ent("student", "Student", "student_id", ("GET",)),
+    "portal.pickup_ack": _ent("pickup", "PickupCall", "cid"),
+    "portal.pickup_release": _ent("pickup", "PickupCall", "cid"),
+    "students.behavior_add": _ent("student", "Student", "student_id",
+                                  form=lambda A, B: {"category_id": B["behavior_category"], "description": "HACK",
+                                                     "incident_date": "2026-09-08"},
+                                  snapshot=_cnt("BehaviorIncident", "student_id", "student")),
+    "students.behavior_home": _ent("student", "Student", "student_id", ("GET",)),
+    "students.document_delete": _ent("document", "StudentDocument", "doc_id"),
+    "students.document_upload": _ent("student", "Student", "student_id",
+                                     form=lambda A, B: {"document_type": "other",
+                                                        "file": (io.BytesIO(b"%PDF-1.4 x"), "x.pdf")},
+                                     snapshot=_cnt("StudentDocument", "student_id", "student")),
+    "students.documents": _ent("student", "Student", "student_id", ("GET",)),
+    "students.enroll": _ent("student", "Student", "student_id", ("GET", "POST"),
+                            form=lambda A, B: {"section_id": B["section"].id, "year_id": B["year"].id},
+                            snapshot=_cnt("Enrollment", "student_id", "student")),
+    "students.graduate_enrollment": _ent("enrollment", "Enrollment", "enrollment_id"),
+    "students.guardian_account_create": _ent("guardian", "Guardian", "guardian_id"),
+    "students.guardian_account_reset_password": _ent("guardian", "Guardian", "guardian_id",
+                                                     snapshot=_user_row("parent_user")),
+    "students.guardian_account_toggle": _ent("guardian", "Guardian", "guardian_id",
+                                             snapshot=_user_row("parent_user")),
+    "students.guardian_add": _ent("student", "Student", "student_id",
+                                  form=lambda A, B: {"full_name": "HACK", "phone": "0100"},
+                                  snapshot=_cnt("StudentGuardian", "student_id", "student")),
+    "students.guardian_delete": _ent("guardian", "Guardian", "guardian_id"),
+    "students.guardian_detail": _ent("guardian", "Guardian", "guardian_id", ("GET",)),
+    "students.guardian_edit": _ent("guardian", "Guardian", "guardian_id", ("GET", "POST"),
+                                   form=lambda A, B: {"full_name": "HACK"}),
+    "students.guardian_link_delete": _ent("guardian_link", "StudentGuardian", "link_id"),
+    "students.guardian_link_new": _ent("guardian", "Guardian", "guardian_id",
+                                       form=lambda A, B: {"student_id": B["student"].id, "relationship": "uncle"},
+                                       snapshot=_cnt("StudentGuardian", "guardian_id", "guardian")),
+    "students.guardian_link_update": _ent("guardian_link", "StudentGuardian", "link_id",
+                                          form=lambda A, B: {"relationship": "HACK"}),
+    "students.health_incident_add": _ent("student", "Student", "student_id",
+                                         form=lambda A, B: {"description": "HACK", "incident_date": "2026-09-08"},
+                                         snapshot=_cnt("HealthIncident", "student_id", "student")),
+    "students.health_profile": _ent("student", "Student", "student_id", ("GET", "POST"),
+                                    form=lambda A, B: {"allergies": "HACK"},
+                                    snapshot=_row("StudentHealthProfile", "health_profile")),
+    "students.previous_school_add": _ent("student", "Student", "student_id",
+                                         form=lambda A, B: {"name": "HACK"},
+                                         snapshot=_cnt("PreviousSchool", "student_id", "student")),
+    "students.previous_school_delete": _ent("previous_school", "PreviousSchool", "row_id"),
+    "students.save_exit_checklist": _ent("enrollment", "Enrollment", "enrollment_id",
+                                         form=lambda A, B: {"books_returned": "1"}),
+    "students.status_change": _ent("enrollment", "Enrollment", "enrollment_id", ("GET", "POST"),
+                                   form=lambda A, B: {"status": "withdrawn", "reason": "HACK"}),
+    "students.student_360": _ent("student", "Student", "student_id", ("GET",)),
+    "students.student_360_json": _ent("student", "Student", "student_id", ("GET",)),
+    "students.student_account_reset_password": _ent("student", "Student", "student_id",
+                                                    snapshot=_user_row("student_user")),
+    "students.student_account_toggle": _ent("student", "Student", "student_id",
+                                            snapshot=_user_row("student_user")),
+    "students.student_id_card": _ent("student", "Student", "student_id", ("GET",)),
+    "students.student_note_add": _ent("student", "Student", "student_id",
+                                      form=lambda A, B: {"body": "HACK"},
+                                      snapshot=_cnt("StudentNote", "student_id", "student")),
+    "students.student_note_delete": _ent("student_note", "StudentNote", "note_id"),
+    "students.student_photo_upload": _ent("student", "Student", "student_id",
+                                          form=lambda A, B: {"photo": (io.BytesIO(PNG_BYTES), "p.png")}),
+    "students.student_siblings_json": _ent("student", "Student", "student_id", ("GET",)),
+    "students.student_tag_attach": _ent("student", "Student", "student_id",
+                                        form=lambda A, B: {"tag_id": B["student_tag"]},
+                                        snapshot=_tag_links),
+    "students.student_tag_detach": _ent("student", "Student", "student_id",
+                                        form=lambda A, B: {"tag_id": B["student_tag"]},
+                                        snapshot=_tag_links),
+    "students.transfer": _ent("enrollment", "Enrollment", "enrollment_id", ("GET", "POST"),
+                              form=lambda A, B: {"section_id": B["section"].id, "reason": "HACK"}),
 }
 
 
@@ -209,16 +336,16 @@ KNOWN_GAPS: dict[tuple[str, str], str] = {}
 # the coverage test until someone classifies it.
 _PENDING: tuple[str, ...] = (
     "academic.bulk_transfer", "academic.calendar_day_delete",
-    "academic.grade_delete", "academic.grade_detail",
-    "academic.grade_report", "academic.section_delete",
-    "academic.subject_report", "academic.term_delete", "academic.term_edit",
-    "academic.term_new", "academic.terms_list", "academic.year_close",
-    "academic.year_edit", "admin.role_delete", "admin.role_edit",
-    "admin.trash_restore", "admin.user_edit", "admin.user_toggle",
-    "api.mark_notification_read", "api.parent_child_attendance",
-    "api.parent_child_invoices", "api.parent_child_materials",
-    "api.parent_child_results", "api.parent_child_schedule",
-    "api.parent_pickup_release", "api.pickup_ack_api", "api.qbank_set_state",
+    "academic.grade_delete", "academic.grade_detail", "academic.grade_report",
+    "academic.section_delete", "academic.subject_report",
+    "academic.term_delete", "academic.term_edit", "academic.term_new",
+    "academic.terms_list", "academic.year_close", "academic.year_edit",
+    "admin.role_delete", "admin.role_edit", "admin.trash_restore",
+    "admin.user_edit", "admin.user_toggle", "api.mark_notification_read",
+    "api.parent_child_attendance", "api.parent_child_invoices",
+    "api.parent_child_materials", "api.parent_child_results",
+    "api.parent_child_schedule", "api.parent_pickup_release",
+    "api.pickup_ack_api", "api.qbank_set_state",
     "api.student_announcement_detail", "api.student_assignment_detail",
     "api.student_assignment_submit", "api.student_course_detail",
     "api.student_lesson_view", "api.student_quiz_attempt",
@@ -227,13 +354,11 @@ _PENDING: tuple[str, ...] = (
     "api.teacher_assignment_grade", "api.teacher_assignment_submissions",
     "api.teacher_message_thread", "api.teacher_quiz_stats",
     "api.teacher_section_schedule", "api.teacher_template_add_questions",
-    "api.teacher_template_detail", "attendance.mark",
-    "attendance.rule_trigger_resolve", "attendance.section_report",
-    "attendance.student_day_detail", "attendance.student_report",
-    "courses.course_pick_section", "courses.delete", "courses.detail",
-    "courses.grade_terms", "courses.lesson_delete", "courses.lesson_edit",
-    "courses.lesson_new", "courses.lesson_view", "courses.unit_delete",
-    "courses.unit_edit", "courses.unit_new", "lms.announcement_delete", "lms.announcement_pin",
+    "api.teacher_template_detail", "courses.course_pick_section",
+    "courses.delete", "courses.detail", "courses.grade_terms",
+    "courses.lesson_delete", "courses.lesson_edit", "courses.lesson_new",
+    "courses.lesson_view", "courses.unit_delete", "courses.unit_edit",
+    "courses.unit_new", "lms.announcement_delete", "lms.announcement_pin",
     "lms.assignment_analytics", "lms.assignment_delete",
     "lms.assignment_detail", "lms.assignment_edit",
     "lms.assignment_extension_add", "lms.assignment_from_template",
@@ -267,33 +392,14 @@ _PENDING: tuple[str, ...] = (
     "nafis.cycle_edit", "platform.room_delete", "platform.room_detail",
     "platform.room_edit", "platform.room_slot_save",
     "platform.room_slot_unbook", "platform.room_toggle",
-    "platform.user_scopes", "portal.pickup_ack", "portal.pickup_release",
-    "results.grade_sheet", "results.recompute_ranks",
+    "platform.user_scopes", "results.grade_sheet", "results.recompute_ranks",
     "results.rubric_delete", "results.rubric_edit", "results.scale_delete",
     "results.scale_edit", "results.transcript_snapshot",
-    "results.transcript_view", "schedule.day_delete",
-    "schedule.period_delete", "schedule.slot_delete", "schedule.slot_save",
-    "schedule.teacher_schedule", "students.behavior_add",
-    "students.behavior_home", "students.document_delete",
-    "students.document_upload", "students.documents", "students.enroll",
-    "students.graduate_enrollment", "students.guardian_account_create",
-    "students.guardian_account_reset_password",
-    "students.guardian_account_toggle", "students.guardian_add",
-    "students.guardian_delete", "students.guardian_detail",
-    "students.guardian_edit", "students.guardian_link_delete",
-    "students.guardian_link_new", "students.guardian_link_update",
-    "students.health_incident_add", "students.health_profile",
-    "students.previous_school_add", "students.previous_school_delete",
-    "students.save_exit_checklist", "students.status_change",
-    "students.student_360", "students.student_360_json",
-    "students.student_account_reset_password",
-    "students.student_account_toggle", "students.student_id_card",
-    "students.student_note_add", "students.student_note_delete",
-    "students.student_photo_upload", "students.student_siblings_json",
-    "students.student_tag_attach", "students.student_tag_detach",
-    "students.transfer", "teachers.assignment_remove",
-    "teachers.assignment_update", "teachers.section_assignments",
-    "teachers.subject_delete", "teachers.teacher_account_reset_password",
+    "results.transcript_view", "schedule.day_delete", "schedule.period_delete",
+    "schedule.slot_delete", "schedule.slot_save", "schedule.teacher_schedule",
+    "teachers.assignment_remove", "teachers.assignment_update",
+    "teachers.section_assignments", "teachers.subject_delete",
+    "teachers.teacher_account_reset_password",
     "teachers.teacher_account_toggle", "teachers.teacher_detail",
     "teachers.teacher_edit", "teachers.teacher_specialization",
     "teachers.teacher_toggle",
@@ -494,6 +600,25 @@ def _get_q(form):
     return Entry(lambda B: {}, form=form)
 
 
+def _tag_link_count(B):
+    """How many students carry B's tag (any school) — a cross link adds one."""
+    from app.extensions import db
+    from app.models.student import student_tag_links as t
+    return len(db.session.execute(t.select().where(t.c.tag_id == B["student_tag"])).fetchall())
+
+
+def _both(*snaps):
+    def snap(B):
+        return tuple(f(B) for f in snaps)
+    return snap
+
+
+def _in_a(param, key, methods=("POST",), form=None, snapshot=None):
+    """A's own record in the URL, B's ids in the form."""
+    return Entry(lambda B, k=key, p=param: {p: _id(B[k])}, methods=methods, form=form,
+                 mixed=lambda A, B, k=key, p=param: {p: _id(A[k])}, snapshot=snapshot)
+
+
 FORM_ID_MATRIX: dict[str, Entry] = {
     # SAAS-013 — creators that took an FK id from the body unchecked.
     "finance.account_new": _post(
@@ -597,6 +722,41 @@ FORM_ID_MATRIX: dict[str, Entry] = {
         lambda A, B: {"employee_id": B["employee"], "period_year": "2026", "period_month": "10",
                       "base_salary": "1"},
         _xlink("Payroll", ("employee_id", "employee"))),
+    # SAAS-014 — students / portal form ids (10).
+    "students.behavior_add": _in_a("student_id", "student",
+                                   form=lambda A, B: {"category_id": B["behavior_category"],
+                                                      "description": "x", "incident_date": "2026-09-08"},
+                                   snapshot=_xlink("BehaviorIncident", ("category_id", "behavior_category"))),
+    "students.guardian_link_new": _in_a("guardian_id", "guardian",
+                                        form=lambda A, B: {"student_id": B["student"].id, "relationship": "uncle"},
+                                        snapshot=_cnt("StudentGuardian", "student_id", "student")),
+    "students.guardian_new": _post(
+        lambda A, B: {"full_name": "x", "phone": "0100", "student_ids": B["student"].id,
+                      "primary_student_id": B["student"].id},
+        _cnt("StudentGuardian", "student_id", "student")),
+    "students.promotion": _post(
+        lambda A, B: {"from_year_id": B["year"].id, "grade_id": B["grade"].id,
+                      "promote_section_id": B["section"].id, "retain_section_id": B["section"].id},
+        _both(_cnt("Enrollment", "section_id", "section"), _cnt("Enrollment", "student_id", "student"))),
+    "students.student_detail": Entry(lambda B: {"student_id": B["student"].id},
+                                     mixed=lambda A, B: {"student_id": A["student"].id},
+                                     form=lambda A, B: {"new_enrollment_id": B["enrollment"].id}),
+    "students.student_edit": _in_a("student_id", "student",
+                                   form=lambda A, B: {"full_name": "x", "parent_user_id": B["parent_user"]},
+                                   snapshot=_xlink("Student", ("parent_user_id", "parent_user"))),
+    "students.student_new": _post(
+        lambda A, B: {"full_name": "x", "parent_user_id": B["parent_user"],
+                      "existing_guardian_id": B["guardian"]},
+        _both(_xlink("Student", ("parent_user_id", "parent_user")),
+              _cnt("StudentGuardian", "guardian_id", "guardian"))),
+    "students.student_tag_attach": _in_a("student_id", "student",
+                                         form=lambda A, B: {"tag_id": B["student_tag"]},
+                                         snapshot=_tag_link_count),
+    "students.student_tag_detach": _in_a("student_id", "student",
+                                         form=lambda A, B: {"tag_id": B["student_tag"]},
+                                         snapshot=_tag_link_count),
+    "portal.pickup_call": _post(lambda A, B: {"student_id": B["student"].id},
+                                _cnt("PickupCall", "student_id", "student")),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},
@@ -622,23 +782,18 @@ FORM_ID_PENDING: tuple[str, ...] = (
     "api.teacher_attendance_existing", "api.teacher_components",
     "api.teacher_grades_existing", "api.teacher_students",
     "api.teacher_templates", "api.teacher_upload", "courses.lesson_edit",
-    "courses.lesson_new", "courses.new",
-    "lms.announcement_new", "lms.assignment_edit",
-    "lms.assignment_extension_add", "lms.assignment_from_template",
-    "lms.assignment_new", "lms.assignment_pick_from_bank", "lms.bank_home",
-    "lms.objective_new", "lms.qbank_dashboard", "lms.quiz_pick_from_bank",
-    "lms.quiz_submit", "lms.skill_new", "lms.taxonomy_objective_edit",
+    "courses.lesson_new", "courses.new", "lms.announcement_new",
+    "lms.assignment_edit", "lms.assignment_extension_add",
+    "lms.assignment_from_template", "lms.assignment_new",
+    "lms.assignment_pick_from_bank", "lms.bank_home", "lms.objective_new",
+    "lms.qbank_dashboard", "lms.quiz_pick_from_bank", "lms.quiz_submit",
+    "lms.skill_new", "lms.taxonomy_objective_edit",
     "lms.taxonomy_objective_new", "lms.taxonomy_skill_edit",
     "lms.taxonomy_skill_new", "lms.template_detail", "lms.template_home",
-    "lms.template_use", "lms.templates_gallery",
-    "messaging.conversation_new", "nafis.cycle_edit", "nafis.cycle_new",
-    "platform.room_slot_save", "platform.substitution_new",
-    "portal.pickup_call", "results.components", "results.rubric_edit",
-    "results.rubric_new", "schedule.slot_save", "students.behavior_add",
-    "students.guardian_link_new", "students.guardian_new",
-    "students.promotion", "students.student_detail", "students.student_edit",
-    "students.student_new", "students.student_tag_attach",
-    "students.student_tag_detach", "teachers.section_assignments",
+    "lms.template_use", "lms.templates_gallery", "messaging.conversation_new",
+    "nafis.cycle_edit", "nafis.cycle_new", "platform.room_slot_save",
+    "platform.substitution_new", "results.components", "results.rubric_edit",
+    "results.rubric_new", "schedule.slot_save", "teachers.section_assignments",
 )
 
 
@@ -909,3 +1064,34 @@ def test_coverage_report(app):
     REPORT_PATH.write_text(report, encoding="utf-8")
     print("\n" + report)
     assert "endpoints" in report
+
+
+# ─── Sweep rule: a foreign id and a missing id look the same ─────────
+
+def _single_id_gets():
+    out = []
+    for ep, e in sorted(ROUTE_MATRIX.items()):
+        if "GET" in e.methods and e.skip == "":
+            out.append(pytest.param(ep, id=ep))
+    return out
+
+
+@pytest.mark.parametrize("endpoint", _single_id_gets())
+def test_foreign_and_missing_ids_get_the_same_answer(enforce_app, world, login_as, endpoint):
+    """No enumeration (isolation sweep, every ticket): B's id and an id
+    that doesn't exist give the same status — and, apart from the id
+    echoed in the page, the same body."""
+    app = enforce_app
+    A, B = world["A"], world["B"]
+    e = ROUTE_MATRIX[endpoint]
+    real = e.ids(B)
+    fake = {k: (987654321 if isinstance(v, int) else v) for k, v in real.items()}
+    with app.test_client() as c:
+        login_as(c, A["users"][e.roles[0]], base_url=host(A))
+        r1 = c.get(build_url(app, endpoint, real, host(A)), base_url=host(A))
+        r2 = c.get(build_url(app, endpoint, fake, host(A)), base_url=host(A))
+    assert r1.status_code == r2.status_code, f"{endpoint}: foreign {r1.status_code} vs missing {r2.status_code}"
+    def norm(r):
+        # the id is echoed in links / canonical URL: mask every number
+        return re.sub(r"\d+", "N", r.get_data(as_text=True))
+    assert norm(r1) == norm(r2), f"{endpoint}: foreign and missing pages differ"
