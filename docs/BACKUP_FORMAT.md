@@ -16,7 +16,7 @@
 | العضو | المحتوى |
 |---|---|
 | `manifest.json` | `format` = `manasety-school-backup`، `schema_version` (رقم الصيغة، حاليًا 1)، `alembic_version` (مراجعة قاعدة البيانات وقت التصدير)، `school_id`، `slug`، `name`، `created_at`، ولكل جدول `{rows, columns, sha256}`، ولكل ملف `{path, bytes, sha256}` |
-| `school.json` | إعدادات المدرسة نفسها، **من غير** `id`, `code`, `slug`, `status`, `is_active`, `auth_epoch`, `blocked_message`, `smtp_*`, `created_at` (`SCHOOL_ROW_EXCLUDED`) |
+| `school.json` | إعدادات المدرسة نفسها — **قائمة مسموحة** بس (`SCHOOL_ROW_RESTORABLE`): الحقول اللي الأدمن بيعدّلها من صفحة الإعدادات أصلًا، من غير SMTP. أي حقل تاني = الحزمة مرفوضة |
 | `data/<table>.copy` | صفوف المدرسة دي بس، بصيغة PostgreSQL `COPY ... TO` النصية: الأعمدة بترتيب `columns` في الـ manifest، مفصولة بـ tab، `\N` = NULL، `t`/`f` للـ boolean، التواريخ ISO، الـ JSON نص، الـ bytes `\\x<hex>`، والـ `\` و tab و newline و CR متهرّبين. الصفوف مرتبة بالـ primary key |
 | `files/<key>` | الملفات المرفوعة من التخزين المحمي (`UPLOAD_ROOT/<school_id>/…`) بنفس مفاتيحها |
 | `checksums.sha256` | `sha256  <member>` لكل عضو تاني في الحزمة (نفس صيغة `sha256sum`) |

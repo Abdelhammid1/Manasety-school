@@ -80,6 +80,18 @@ SCHOOL_ROW_EXCLUDED = frozenset({
     "smtp_use_tls", "smtp_from_name", "smtp_from_email", "created_at",
 })
 
+# The school-row fields a package carries and a restore may write: exactly
+# what the school admin can already change on the settings page (minus the
+# SMTP credentials). An allowlist, not a denylist: a package is a file the
+# admin can edit, so nothing else may ride in on it (security review).
+SCHOOL_ROW_RESTORABLE = frozenset({
+    "name", "phone", "address", "email", "website", "legal_name_ar", "legal_name_en",
+    "license_number", "tax_number", "logo_url", "attendance_mode", "default_tax_rate", "currency",
+    "currency_symbol", "fiscal_year_start_month", "invoice_prefix", "invoice_start_number",
+    "rounding_policy", "invoice_header_text", "invoice_footer_text", "invoice_policy_text",
+    "show_logo_on_prints", "reminder_days_before", "notify_channels",
+})
+
 MIN_PASSPHRASE = 12
 DEFAULT_MAX_MB = 2048
 
@@ -253,7 +265,7 @@ def _table_bytes(conn, table, school_id) -> tuple[bytes, int, list[str]]:
 def _school_json(conn, school_id) -> dict:
     from ..models import School
     t = School.__table__
-    cols = [c for c in t.c if c.name not in SCHOOL_ROW_EXCLUDED]
+    cols = [c for c in t.c if c.name in SCHOOL_ROW_RESTORABLE and c.name not in SCHOOL_ROW_EXCLUDED]
     r = conn.execute(select(*cols).where(t.c.id == school_id)).first()
     if r is None:
         raise BackupError("المدرسة غير موجودة.")
@@ -580,6 +592,14 @@ def _check_manifest(tar, members, manifest, rep: VerifyReport, expect_school_id)
         return
     if expect_school_id is not None and sid != int(expect_school_id):
         problems.append("الحزمة تخص مدرسة أخرى.")
+        return
+    try:
+        school_keys = set(json.loads(tar.extractfile(members["school.json"]).read()))
+    except (ValueError, TypeError):
+        problems.append("school.json غير صالح.")
+        return
+    if school_keys - SCHOOL_ROW_RESTORABLE:
+        problems.append("school.json فيه حقول غير مسموحة: " + ", ".join(sorted(school_keys - SCHOOL_ROW_RESTORABLE)[:5]))
         return
     rev = manifest.get("alembic_version")
     known = known_revisions()

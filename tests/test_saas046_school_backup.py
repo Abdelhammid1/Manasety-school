@@ -361,3 +361,20 @@ def test_a_package_carrying_a_secret_column_is_refused(bapp, world):
     _rewrite(res.path, members, resum=True)
     rep = _verify(bapp, res.path)
     assert not rep.ok and any("users" in p for p in rep.problems)
+
+
+def test_school_json_is_an_allowlist(bapp, world):
+    """Only settings the admin can already edit travel; a package whose
+    school.json carries anything else is refused (security review)."""
+    from app.services import school_backup as sb
+    res = _export(bapp, world["A"])
+    members = _members(res.path)
+    school = json.loads(members["school.json"])
+    assert set(school) <= sb.SCHOOL_ROW_RESTORABLE
+    for extra in ({"notify_on_support_access": False}, {"approval_threshold": 0}, {"auth_epoch": 0},
+                  {"smtp_host": "evil.test"}, {"status": "active"}):
+        tampered = dict(members)
+        tampered["school.json"] = json.dumps({**school, **extra}).encode()
+        _rewrite(res.path, tampered, resum=True)
+        rep = _verify(bapp, res.path)
+        assert not rep.ok and any("غير مسموحة" in p for p in rep.problems), extra

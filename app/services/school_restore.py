@@ -472,7 +472,11 @@ def apply(pkg: Package, school_id: int, chosen: Iterable[str], mode: str,
     if "settings" in modules:
         schools = db.metadata.tables["schools"]
         values = {k: _school_value(schools.c[k], v) for k, v in pkg.school.items()
-                  if k in schools.c and k not in engine.SCHOOL_ROW_EXCLUDED}
+                  if k in engine.SCHOOL_ROW_RESTORABLE and k in schools.c
+                  and k not in engine.SCHOOL_ROW_EXCLUDED}
+        # a logo is only ever this school's own stored file
+        if values.get("logo_url") and not str(values["logo_url"]).startswith(f"/files/{int(school_id)}/"):
+            values.pop("logo_url")
         conn.execute(schools.update().where(schools.c.id == school_id).values(**values))
         rep.updated["schools"] = 1
 
