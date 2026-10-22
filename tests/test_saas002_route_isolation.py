@@ -1157,6 +1157,8 @@ FORM_ID_MATRIX: dict[str, Entry] = {
     # SAAS-048 — a restore from another school's saved backup.
     "admin.restore_new": _post(lambda A, B: {"backup_id": B["backup"]},
                                _cnt("SchoolRestore", "source_backup_id", "backup")),
+    # SAAS-049 — opening another school's saved backup to browse it.
+    "admin.browse_home": _post(lambda A, B: {"backup_id": B["backup"]}, _row("SchoolBackup", "backup")),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},

@@ -83,8 +83,8 @@ def test_export_runs_from_queue_and_marks_verified(console, two_schools, uploads
         job = PlatformJob.query.filter_by(kind="school_export", school_id=A).one()
         assert job.status == "succeeded" and job.result["verified"]
         assert SchoolOffboarding.query.filter_by(school_id=A).one().export_verified_at is not None
+        SchoolOffboarding.query.delete()          # points at the job: first
         PlatformJob.query.delete()
-        SchoolOffboarding.query.delete()
         db.session.commit()
 
 
@@ -244,6 +244,8 @@ def test_purge_success(console, two_schools, purge_world, backup, uploads):
         assert not any(integrity_report().values())
         from app.models.nafis import LearningOutcome
         assert LearningOutcome.query.count() == global_before
+        from app.models import PlatformInvoiceLine
+        PlatformInvoiceLine.query.filter_by(invoice_id=inv_id).delete()     # lines first (FK)
         PlatformInvoice.query.filter_by(id=inv_id).delete()
         db.session.commit()
         db.session.remove()
