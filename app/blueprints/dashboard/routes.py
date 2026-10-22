@@ -617,10 +617,12 @@ def _teacher_dashboard():
         since = today_ - timedelta(days=30)
         rows = (
             db.session.query(Attendance.status, func.count(Attendance.id))
+            # the section lives on the enrollment, not on the attendance row
+            .join(Enrollment, Enrollment.id == Attendance.enrollment_id)
             .filter(
                 Attendance.school_id == sid,
                 Attendance.date >= since,
-                Attendance.section_id.in_(section_ids),
+                Enrollment.section_id.in_(section_ids),
             )
             .group_by(Attendance.status).all()
         )
