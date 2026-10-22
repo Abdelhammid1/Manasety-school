@@ -8,6 +8,7 @@ the same checks through the Flask test client.
 """
 from __future__ import annotations
 
+import json
 import re
 import socket
 import ssl
@@ -37,6 +38,7 @@ class Result:
     ok: bool
     ms: int
     detail: str = ""
+    skipped: bool = False       # not run (nothing to check here) — never fails the report
 
 
 @dataclass
@@ -45,7 +47,8 @@ class Report:
 
     @property
     def ok(self) -> bool:
-        return bool(self.results) and all(r.ok for r in self.results)
+        ran = [r for r in self.results if not r.skipped]
+        return bool(ran) and all(r.ok for r in ran)
 
 
 class Transport:
@@ -123,14 +126,26 @@ def run(*, base_url: str, console_url: str, school_url: str | None, accounts: di
 
     if school_url:
         def health():
+            # 200 alone proves nothing: a wildcard host (Lamma) answers 200
+            # with an HTML page for a school that doesn't exist yet.
             r = transport.session()("GET", school_url.rstrip("/") + "/_health")
-            return r.status == 200, f"{r.status}"
+            if r.status != 200:
+                return False, f"{r.status}"
+            try:
+                body = json.loads(r.body)
+            except ValueError:
+                return False, "200 but not JSON (another site answered: the school isn't served yet)"
+            if not isinstance(body, dict) or body.get("ok") is not True:
+                return False, '200 but no "ok": true in the JSON'
+            return True, '200 {"ok": true}'
         _timed(rep, f"health {school_url}", health)
 
         creds = (accounts or {}).get((urlsplit(school_url).hostname or "").split(".")[0], {})
         for role in ROLES:
             if role not in creds:
-                rep.results.append(Result(f"login {role}", False, 0, "no account in the accounts file"))
+                # No test schools in this environment: nothing to log in with.
+                rep.results.append(Result(f"login {role}", True, 0,
+                                          "no test account — شغّل flask seed-test-schools", skipped=True))
                 continue
             user, pw = creds[role]
 

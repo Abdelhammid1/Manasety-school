@@ -121,3 +121,51 @@ def test_cli_exit_code(seeded, monkeypatch):
                                              "--accounts-file", str(acc)])
     assert out.exit_code == 0, out.output
     assert "smoke-check: all green" in out.output and out.output.count("PASS") >= 7
+
+
+class WildcardHealthTransport(ClientTransport):
+    """/_health answered by another site: 200 with `health_body`."""
+
+    def __init__(self, app, health_body, **kw):
+        super().__init__(app, **kw)
+        self.health_body = health_body
+
+    def session(self):
+        inner = super().session()
+
+        def fetch(method, url, data=None, headers=None):
+            from app.services.smoke import Resp
+            if urlsplit(url).path == "/_health":
+                return Resp(200, url, self.health_body, {})
+            return inner(method, url, data, headers)
+        return fetch
+
+
+@pytest.mark.parametrize("body", ["<html><body>Lamma</body></html>", '{"status": "up"}', '{"ok": false}'])
+def test_health_needs_ok_true_in_json_not_just_200(seeded, body):
+    """A wildcard host answers 200 with HTML for a school that doesn't exist
+    yet: that must FAIL (Abdelhamid's report)."""
+    app, acc = seeded
+    rep = _run(app, acc, WildcardHealthTransport(app, body))
+    health = [r for r in rep.results if r.name.startswith("health")]
+    assert health and not health[0].ok and not rep.ok
+    assert "200 but" in health[0].detail
+
+
+def test_missing_accounts_file_is_skip_not_fail(seeded, monkeypatch, tmp_path):
+    """No test schools here: the four logins are SKIP and the exit is 0."""
+    app, acc = seeded
+    from app.services import smoke
+    monkeypatch.setattr(smoke, "Transport", lambda timeout=15: ClientTransport(app))
+    args = ["smoke-check", "--base-url", "http://test-a.manasety.ai", "--console-url",
+            "http://console.manasety.ai", "--school-url", "http://test-a.manasety.ai"]
+    out = app.test_cli_runner().invoke(args=args + ["--accounts-file", str(tmp_path / "missing.txt")])
+    assert out.exit_code == 0, out.output
+    assert out.output.count("SKIP") == 4 and "seed-test-schools" in out.output
+    assert "smoke-check: all green" in out.output
+    # the file is there and a login fails → FAIL, exit 1
+    accounts = smoke.read_accounts(acc)
+    _user, pw = accounts["test-a"]["parent"]
+    acc.write_text(acc.read_text(encoding="utf-8").replace(pw, pw + "x"), encoding="utf-8")
+    out = app.test_cli_runner().invoke(args=args + ["--accounts-file", str(acc)])
+    assert out.exit_code == 1 and "FAIL" in out.output and "login parent" in out.output

@@ -345,7 +345,8 @@ flask smoke-check            # الافتراضي: https://lms.manasety.ai و ht
 
 - للقراءة بس: GETs، والـPOST الوحيد هو لوجين حسابات مدرسة الاختبار (`instance/test_accounts.txt` من `seed-test-schools`، أو `--accounts-file`).
 - بيفحص: الصفحة الرئيسية 200، صفحة لوجين اللوحة، `/_health` لمدرسة الاختبار، لوجين admin / معلم / طالب / ولي أمر وفتح الصفحة الرئيسية لكل دور، وإن الشهادة فاضل عليها أكتر من 14 يوم.
-- كل فحص بيطبع `PASS` / `FAIL` بالزمن، والأمر بيخرج بكود غير صفري لو أي فحص فشل.
+- `/_health` لازم يرجّع JSON فيه `"ok": true` — 200 لوحده مش كفاية (الـwildcard بتاع Lamma بيرجّع 200 بصفحة HTML لمدرسة مش موجودة).
+- كل فحص بيطبع `PASS` / `FAIL` / `SKIP` بالزمن، والأمر بيخرج بكود غير صفري لو أي فحص فشل. لو ملف الحسابات مش موجود أو مفيش حساب للمدرسة: اللوجينات `SKIP` ("شغّل flask seed-test-schools") ومن غير ما تأثر على الـexit code؛ لو الحساب موجود واللوجين فشل = `FAIL`.
 - `--school-url ''` لو مدارس الاختبار مش متبنية؛ `--no-cert` لبيئة من غير HTTPS.
 
 **الـCI** (`.github/workflows/ci.yml`): كل push / PR بيشغّل الاختبارات كلها على PostgreSQL حقيقي، `flask db upgrade` من الصفر، رأس migration واحد بس، downgrade لما قبل المنصة وupgrade تاني، `tenant-integrity-check`، وبناء مدارس الاختبار وهدمها على Postgres. **مطلوب من عبدالحميد:** في GitHub ← Settings ← Branches، يخلّي check «ci» إجباري على `main` عشان أي PR بيكسر اختبار أو بيضيف head تاني ما يتدمجش.

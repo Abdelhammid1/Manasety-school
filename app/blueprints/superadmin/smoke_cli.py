@@ -17,7 +17,8 @@ from . import bp
 @click.option("--no-cert", is_flag=True, help="Skip the certificate-expiry checks.")
 @click.option("--timeout", type=float, default=15, show_default=True)
 def smoke_check(base_url, console_url, school_url, accounts_file, no_cert, timeout):
-    """PASS / FAIL per check with its time; non-zero exit on any FAIL."""
+    """PASS / FAIL / SKIP per check with its time; non-zero exit on any FAIL
+    (SKIP — e.g. no test-school accounts here — never fails the run)."""
     from pathlib import Path
     from flask import current_app
     from ...services import smoke
@@ -26,7 +27,8 @@ def smoke_check(base_url, console_url, school_url, accounts_file, no_cert, timeo
     rep = smoke.run(base_url=base_url, console_url=console_url, school_url=school_url or None,
                     accounts=accounts, transport=smoke.Transport(timeout), check_cert=not no_cert)
     for r in rep.results:
-        click.echo(f"{'PASS' if r.ok else 'FAIL'}  {r.ms:>6} ms  {r.name}  {r.detail}")
+        label = "SKIP" if r.skipped else ("PASS" if r.ok else "FAIL")
+        click.echo(f"{label}  {r.ms:>6} ms  {r.name}  {r.detail}")
     click.echo("smoke-check: " + ("all green" if rep.ok else "FAILED"))
     if not rep.ok:
         raise SystemExit(1)

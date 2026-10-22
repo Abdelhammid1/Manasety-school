@@ -187,3 +187,23 @@ def test_full_size_is_the_default(sapp):
     assert res.exit_code == 0, res.output
     assert "students=40" in res.output and "grades=3" in res.output
     assert "https://test-a.manasety.ai/auth/login" in res.output
+
+
+def test_mode_note_reads_the_same_setting_as_the_service(app, monkeypatch, tmp_path):
+    """The service gets TENANT_RESOLUTION_MODE from the environment (.env);
+    the seed's closing note must not say "off" then (Abdelhamid's report)."""
+    monkeypatch.delitem(app.config, "TENANT_RESOLUTION_MODE", raising=False)
+    monkeypatch.setenv("TENANT_RESOLUTION_MODE", "enforce")
+    acc = tmp_path / "acc.txt"
+    res = app.test_cli_runner().invoke(args=["seed-test-schools", "--small", "--backup-file", _backup(tmp_path),
+                                             "--accounts-file", str(acc)])
+    try:
+        assert res.exit_code == 0, res.output
+        assert "TENANT_RESOLUTION_MODE=off" not in res.output
+        assert "(now: enforce)" in acc.read_text(encoding="utf-8")
+    finally:
+        from app.extensions import db
+        from app.services import test_seed as ts
+        with app.app_context():
+            ts.teardown()
+            db.session.remove()

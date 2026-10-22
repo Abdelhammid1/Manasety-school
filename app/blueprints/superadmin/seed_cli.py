@@ -136,7 +136,10 @@ def seed_test_schools(full, students, reset, teardown, dry_run, i_know, backup_f
         click.echo(f"  ✗ {p}")
 
     if built:
-        mode = (current_app.config.get("TENANT_RESOLUTION_MODE") or "off").lower()
+        # The same reading the running service uses (config, then the env
+        # variable) — the config alone said "off" on a server in enforce.
+        from ...services.tenancy import resolution_mode
+        mode = resolution_mode()
         host_note = (f"# hosts resolve when TENANT_RESOLUTION_MODE is log/enforce (now: {mode}); "
                      f"on the server run `flask nginx-sync --from-queue` (queued) for the subdomains")
         path = Path(accounts_file) if accounts_file else Path(current_app.instance_path) / "test_accounts.txt"
