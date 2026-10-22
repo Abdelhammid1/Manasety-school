@@ -294,4 +294,5 @@ def cron_tick_cronfile(app_dir, user, at, log_file):
     click.echo(env.get_template("manasety-school.j2").render(
         minute=minute, hour=hour, user=user, app_dir=app_dir.as_posix(),
         flask=flask_bin.resolve().as_posix(),
-        log_file=Path(log_file or app_dir / "cron-tick.log").as_posix()), nl=False)
+        log_file=Path(log_file or app_dir / "cron-tick.log").as_posix(),
+        backup_log_file=(app_dir / "school-backup.log").as_posix()), nl=False)

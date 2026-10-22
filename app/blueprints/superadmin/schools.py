@@ -140,7 +140,13 @@ def school_detail(school_id):
                            subdomain=school_subdomain_status(school.id), jobs=latest_jobs(5),
                            modules=_modules_view(school.id), limits=_limits_view(school.id),
                            limit_override=db.session.get(SchoolLimitOverride, school.id),
-                           **_control_view(school.id), **_usage_view(school.id))
+                           **_control_view(school.id), **_usage_view(school.id),
+                           **_backups_view(school.id))
+
+
+def _backups_view(school_id):
+    from .school_backups import backups_view
+    return backups_view(school_id)
 
 
 def _usage_view(school_id):

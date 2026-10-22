@@ -244,7 +244,7 @@ def seed_core(bundle: dict) -> dict:
     from app.extensions import db
     from app.models import (
         AssessmentComponent, Assignment, Conversation, ConversationParticipant, Day, GradingScale,
-        Message, NotificationLog,
+        Message, NotificationLog, SchoolBackup,
         NafisCycle, Period, Room, ScheduleSlot, SchoolCalendarDay, Teacher, TranscriptSnapshot,
         UserScope, Vendor,
     )
@@ -276,15 +276,18 @@ def seed_core(bundle: dict) -> dict:
         add(ConversationParticipant(conversation_id=conv.id, user_id=users[u].id))
     msg = Message(school_id=sid, conversation_id=conv.id, sender_user_id=users["admin"].id,
                   body=f"Msg-{slug}")
-    scope = UserScope(school_id=sid, user_id=users["teacher"].id, scope_type="stage",
-                      scope_value=f"Scope-{slug}")
+    scope = UserScope(school_id=sid, user_id=users["teacher"].id, scope_type="section",
+                      scope_value=section)
     snap = TranscriptSnapshot(school_id=sid, student_id=bundle["student"].id,
                               content={"note": f"Transcript-{slug}"}, serial_number=f"TS-{slug}-1")
     comp = AssessmentComponent(school_id=sid, term_id=bundle["term"].id, subject_id=subject,
                                name=f"Comp-{slug}", max_score=10)
     notif = NotificationLog(school_id=sid, student_id=bundle["student"].id, kind="announcement",
                             status="sent", payload="{}")
-    for o in (tasg, slot, msg, snap, scope, comp, notif):
+    backup = SchoolBackup(school_id=sid, status="succeeded", progress=100,
+                          file_name=f"Backup-{slug}.tar.gz", size_bytes=1,
+                          requested_by_user_id=users["admin"].id)
+    for o in (tasg, slot, msg, snap, scope, comp, notif, backup):
         add(o)
     db.session.commit()
     return {
@@ -292,11 +295,12 @@ def seed_core(bundle: dict) -> dict:
         "calendar_day": cal.id, "scale": scale.id, "nafis_cycle": cycle.id,
         "conversation": conv.id, "message": msg.id, "trash_vendor": trash.id,
         "teacher_assignment": tasg.id, "slot": slot.id, "transcript": snap.id, "scope": scope.id,
-        "component": comp.id, "notification": notif.id,
+        "component": comp.id, "notification": notif.id, "backup": backup.id,
         "role": bundle["roles"]["teacher"].id, "admin_user": users["admin"].id,
         "markers": (f"TeacherRec-{slug}", f"Spec-{slug}", f"Day-{slug}", f"Period-{slug}",
                     f"Room-{slug}", f"Scale-{slug}", f"Nafis-{slug}", f"Msg-{slug}",
-                    f"TrashVendor-{slug}", f"Transcript-{slug}", f"Comp-{slug}"),
+                    f"TrashVendor-{slug}", f"Transcript-{slug}", f"Comp-{slug}",
+                    f"Backup-{slug}"),
     }
 
 
@@ -364,6 +368,9 @@ def purge_schools(school_ids) -> None:
     doomed: dict[str, set] = {}
     from app.services.platform_security import audit_prune
     with db.engine.begin() as conn, audit_prune(conn):      # SAAS-036: audit rows are immutable
+        # The schools themselves: rows that point at them under another
+        # name (platform_audit_logs.target_school_id) go too.
+        doomed["schools"] = set(ids)
         for t in tables:
             if "school_id" in t.c and "id" in t.c:
                 doomed[t.name] = {r[0] for r in conn.execute(

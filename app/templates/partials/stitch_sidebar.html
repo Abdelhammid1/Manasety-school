@@ -194,6 +194,7 @@
           {{ nav_item('admin.audit_log',       'سجل النشاط',        'history') }}
           {% if _role == 'admin' %}{{ nav_item('support.log', 'سجل دخول الدعم', 'support_agent') }}{% endif %}
           {{ nav_item('admin.trash_home',      'المحذوفات',         'delete_sweep') }}
+          {% if _role == 'admin' %}{{ nav_item('admin.backups_home', 'النسخ الاحتياطي', 'backup') }}{% endif %}
           {{ nav_item('messaging.inbox',       'الرسائل',            'forum') }}
         {% endcall %}
 

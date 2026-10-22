@@ -166,7 +166,8 @@ def test_cronfile_has_the_real_paths(app):
     out = app.test_cli_runner().invoke(args=["cron-tick-cronfile", "--user", "manasety", "--at", "04:30"])
     assert out.exit_code == 0, out.output
     line = [l for l in out.output.splitlines() if l and not l.startswith(("#", "SHELL", "MAILTO"))]
-    assert len(line) == 1
+    assert len(line) == 2
+    assert line[1].startswith("* * * * * manasety cd ") and "school-backup --from-queue" in line[1]
     assert line[0].startswith("30 4 * * * manasety cd ")
     assert " cron-tick >> " in line[0] and line[0].endswith("cron-tick.log 2>&1")
     assert "--dry-run" not in line[0]

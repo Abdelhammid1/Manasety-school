@@ -60,6 +60,7 @@ from .lms import (
 # Sprint 16 — school-platform expansion (guardians, calendar, audit,
 # health, docs, behavior, messaging, scopes, grading scales, rubrics,
 # discounts, transcripts, rooms, staff attendance, imports).
+from .school_backup import SchoolBackup, BACKUP_STATUSES
 from .platform import (
     Guardian, StudentGuardian,
     SchoolCalendarDay,
@@ -152,4 +153,5 @@ __all__ = [
     "PlatformInvoice", "PlatformInvoiceLine", "PlatformPayment", "PlatformUsageSnapshot", "PlatformAlert",
     "SchoolOffboarding", "PlatformSession", "PlatformSetupToken",
     "BILLING_CYCLES", "SUBSCRIPTION_EVENT_KINDS",
+    "SchoolBackup", "BACKUP_STATUSES",
 ]

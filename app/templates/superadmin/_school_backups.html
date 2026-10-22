@@ -1,0 +1,35 @@
+{# SAAS-047 — included by school_detail.html. Dates and sizes only. #}
+<h2 id="backups">النسخ الاحتياطي للمدرسة</h2>
+<div class="card">
+  <p>الميزة: <span class="chip {{ 'active' if backup_policy.enabled else 'expired' }}">{{ 'مفعّلة' if backup_policy.enabled else 'مقفولة' }}</span>
+     — بنحتفظ بآخر {{ backup_policy.keep }} نسخ.</p>
+  {% if current_user.role == 'owner' %}
+  <form method="post" action="{{ url_for('superadmin.school_backup_policy', school_id=school.id) }}" class="row" style="align-items:center">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="enabled" aria-label="حالة الميزة" style="flex:0 0 140px">
+      <option value="1" {% if backup_policy.enabled %}selected{% endif %}>مفعّلة</option>
+      <option value="0" {% if not backup_policy.enabled %}selected{% endif %}>مقفولة</option>
+    </select>
+    <label style="flex:0 0 auto">الاحتفاظ بـ
+      <input type="number" name="keep" min="1" max="30" value="{{ backup_policy.keep }}" style="width:80px" aria-label="عدد النسخ المحفوظة"> نسخ
+    </label>
+    <button class="btn ghost" type="submit" style="flex:0 0 auto">حفظ</button>
+  </form>
+  {% endif %}
+</div>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>التاريخ</th><th>الحالة</th><th>الحجم</th></tr></thead>
+    <tbody>
+    {% for b in school_backups %}
+      <tr>
+        <td>{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '' }}</td>
+        <td>{{ {'pending':'في الانتظار','running':'جاري التجهيز','succeeded':'جاهزة','failed':'فشلت'}[b.status] }}</td>
+        <td>{% if b.size_bytes %}{{ '%.1f'|format(b.size_bytes / 1048576) }} MB{% else %}—{% endif %}</td>
+      </tr>
+    {% else %}
+      <tr><td colspan="3">لا توجد نسخ.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>

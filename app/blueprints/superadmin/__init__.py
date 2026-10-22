@@ -240,5 +240,7 @@ from . import offboarding     # noqa: E402,F401  SAAS-035
 from . import app_card        # noqa: E402,F401  SAAS-037
 from . import seed_cli        # noqa: E402,F401  SAAS-041
 from . import smoke_cli       # noqa: E402,F401  SAAS-042
+from . import backup_cli      # noqa: E402,F401  SAAS-046
+from . import school_backups  # noqa: E402,F401  SAAS-047
 from . import users           # noqa: E402,F401  SAAS-036
 from . import cli            # noqa: E402,F401

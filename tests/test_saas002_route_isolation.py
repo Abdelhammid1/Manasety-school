@@ -527,6 +527,14 @@ ROUTE_MATRIX: dict[str, Entry] = {
     "courses.unit_new": _ent("course", "Course", "course_id", form=lambda A, B: {"title": "HACK"},
                              snapshot=_cnt("Unit", "course_id", "course")),
 
+    # SAAS-047 — the school owner's backups (the token download is a
+    # string route: test_saas047_admin_backups covers it).
+    "admin.backup_status": _ent("backup", "SchoolBackup", "bid", ('GET',)),
+    "admin.backup_delete": _ent("backup", "SchoolBackup", "bid"),
+    "admin.backup_download_prepare": _ent("backup", "SchoolBackup", "bid",
+                                          form=lambda A, B: {"account_password": "wrong",
+                                                             "passphrase": "p" * 14,
+                                                             "passphrase_confirm": "p" * 14}),
     # SAAS-017 — mobile API (26). Each attack uses the account the
     # endpoint serves; rejection is 404 {"error": "not_found"}.
     "api.mark_notification_read": _ent("notification", "NotificationLog", "notif_id", roles=("parent",)),
@@ -615,6 +623,9 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.school_nginx_sync":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-029 console tests",
+    "superadmin.school_backup_policy":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-047 backup tests",
     "superadmin.school_module_set":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-030 console tests",

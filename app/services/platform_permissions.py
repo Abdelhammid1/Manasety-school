@@ -36,6 +36,7 @@ CAPABILITIES: dict[str, frozenset[str]] = {
     "platform_users": frozenset({OWNER}),            # 036
     "audit": frozenset({OWNER}),
     "apps.settings": frozenset({OWNER}),             # 037
+    "backups.policy": frozenset({OWNER}),            # 047 — feature on / off, how many to keep
 }
 
 G, P = "GET", "POST"
@@ -65,6 +66,7 @@ ROUTES: dict[str, dict[str, str]] = {
     "superadmin.slug_check": {G: "schools.create"},
     "superadmin.school_nginx_sync": {P: "nginx.sync"},
     "superadmin.school_module_set": {P: "modules.write"},
+    "superadmin.school_backup_policy": {P: "backups.policy"},
     "superadmin.school_limits_set": {P: "limits.write"},
     "superadmin.support_start": {P: "support.read_only"},
     "superadmin.support_sessions": {G: "support.sessions"},

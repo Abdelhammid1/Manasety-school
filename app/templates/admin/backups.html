@@ -1,0 +1,158 @@
+{# SAAS-047 — the school owner's own backups: request one, follow its
+   progress, download it encrypted, delete it. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}النسخ الاحتياطي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">النسخ الاحتياطي</span>
+{% endblock %}
+{% block page_content %}
+{% set labels = {'pending': 'في الانتظار', 'running': 'جاري التجهيز', 'succeeded': 'جاهزة', 'failed': 'فشلت'} %}
+{% set tones = {'pending': 'bg-amber-100 text-amber-800', 'running': 'bg-sky-100 text-sky-800',
+                'succeeded': 'bg-emerald-100 text-emerald-800', 'failed': 'bg-rose-100 text-rose-700'} %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+  <section class="rounded-2xl bg-surface-container-lowest shadow-sm p-6 md:p-8">
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div class="flex items-start gap-4">
+        <div class="w-14 h-14 rounded-2xl bg-primary/10 text-primary flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-2xl">backup</span>
+        </div>
+        <div>
+          <h1 class="font-headline-lg font-bold text-on-surface">النسخ الاحتياطي</h1>
+          <p class="mt-1 text-on-surface-variant max-w-2xl">
+            نسخة كاملة من بيانات مدرستك وملفاتها المرفوعة. بنحتفظ بآخر {{ policy.keep }} نسخ،
+            والحد الأقصى {{ daily_limit }} نسخ جديدة في اليوم. التنزيل بيتشفّر بكلمة مرور إنت بتختارها.
+          </p>
+        </div>
+      </div>
+      {% if policy.enabled %}
+      <form method="post" action="{{ url_for('admin.backup_new') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary text-on-primary font-title-sm font-bold shadow-sm hover:shadow-md">
+          <span class="material-symbols-outlined">add_circle</span>إنشاء نسخة الآن
+        </button>
+      </form>
+      {% endif %}
+    </div>
+    {% if not policy.enabled %}
+    <div class="mt-4 rounded-xl bg-amber-50 text-amber-900 p-4 font-body-md">
+      النسخ الاحتياطي مقفول لمدرستك من إدارة المنصة. النسخ الموجودة تقدر تنزّلها أو تحذفها.
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-x-auto">
+    {% if not backups %}
+    <div class="p-space-lg text-center text-outline">
+      <span class="material-symbols-outlined text-4xl">cloud_off</span>
+      <div class="mt-2 font-title-md">لسه مفيش نسخ احتياطية.</div>
+    </div>
+    {% else %}
+    <table class="w-full text-right">
+      <thead>
+        <tr class="bg-surface-container-low text-on-surface-variant font-label-sm">
+          <th class="py-3 px-4 font-semibold">التاريخ</th>
+          <th class="py-3 px-4 font-semibold">الحجم</th>
+          <th class="py-3 px-4 font-semibold">الحالة</th>
+          <th class="py-3 px-4 font-semibold">أنشأها</th>
+          <th class="py-3 px-4 font-semibold text-center">إجراءات</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-surface-container-high/40">
+        {% for b in backups %}
+        <tr data-backup="{{ b.id }}" data-status="{{ b.status }}">
+          <td class="py-3 px-4 font-mono text-on-surface">{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '' }}</td>
+          <td class="py-3 px-4 font-mono text-outline">
+            {% if b.size_bytes %}{{ '%.1f'|format(b.size_bytes / 1048576) }} MB{% else %}—{% endif %}
+          </td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded-full font-label-xs font-bold {{ tones[b.status] }}" data-label>{{ labels[b.status] }}</span>
+            {% if b.status in ('pending', 'running') %}
+            <div class="mt-2 h-1.5 w-40 rounded-full bg-surface-container-high overflow-hidden">
+              <div class="h-full bg-primary transition-all" style="width: {{ b.progress or 0 }}%" data-bar></div>
+            </div>
+            {% elif b.status == 'failed' and b.error %}
+            <div class="mt-1 text-rose-700 font-label-sm">{{ b.error }}</div>
+            {% endif %}
+          </td>
+          <td class="py-3 px-4 text-on-surface-variant">{{ b.requested_by.full_name if b.requested_by else 'النظام' }}</td>
+          <td class="py-3 px-4">
+            <div class="flex items-center justify-center gap-2">
+              {% if b.status == 'succeeded' %}
+              <button type="button" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/15 font-label-md font-bold"
+                      onclick="document.getElementById('dl-{{ b.id }}').showModal()">
+                <span class="material-symbols-outlined text-lg">download</span>تنزيل
+              </button>
+              {% endif %}
+              {% if b.status != 'running' %}
+              <form method="post" action="{{ url_for('admin.backup_delete', bid=b.id) }}"
+                    onsubmit="return confirm('حذف النسخة دي نهائيًا؟')">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-rose-50 text-rose-700 hover:bg-rose-100 font-label-md font-bold">
+                  <span class="material-symbols-outlined text-lg">delete</span>حذف
+                </button>
+              </form>
+              {% endif %}
+            </div>
+            {% if b.status == 'succeeded' %}
+            <dialog id="dl-{{ b.id }}" class="rounded-2xl p-0 w-full max-w-md backdrop:bg-black/40">
+              <form method="post" action="{{ url_for('admin.backup_download_prepare', bid=b.id) }}" class="p-6 space-y-4 text-right">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <h2 class="font-title-lg font-bold text-on-surface">تنزيل النسخة</h2>
+                <p class="text-on-surface-variant font-body-sm">الملف هيتشفّر بكلمة المرور اللي هتختارها دلوقتي. احفظها في مكان آمن — من غيرها الملف ما يتفتحش، ومش بنحتفظ بيها.</p>
+                <label class="block">
+                  <span class="font-label-md text-on-surface">كلمة مرور حسابك</span>
+                  <input type="password" name="account_password" required autocomplete="current-password"
+                         class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+                </label>
+                <label class="block">
+                  <span class="font-label-md text-on-surface">كلمة مرور تشفير الملف ({{ min_passphrase }} حرف على الأقل)</span>
+                  <input type="password" name="passphrase" required minlength="{{ min_passphrase }}" autocomplete="new-password"
+                         class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+                </label>
+                <label class="block">
+                  <span class="font-label-md text-on-surface">تأكيد كلمة مرور التشفير</span>
+                  <input type="password" name="passphrase_confirm" required minlength="{{ min_passphrase }}" autocomplete="new-password"
+                         class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+                </label>
+                <div class="flex gap-2 justify-end pt-2">
+                  <button type="button" class="px-4 py-2 rounded-lg bg-surface-container-high font-label-md"
+                          onclick="this.closest('dialog').close()">إلغاء</button>
+                  <button type="submit" class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md font-bold">تجهيز التنزيل</button>
+                </div>
+              </form>
+            </dialog>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% endif %}
+  </section>
+</div>
+<script>
+  // Follow pending / running rows until they finish, then reload once.
+  (function () {
+    const rows = [...document.querySelectorAll('tr[data-backup]')]
+      .filter(r => ['pending', 'running'].includes(r.dataset.status));
+    if (!rows.length) return;
+    const tick = async () => {
+      let done = false;
+      for (const r of rows) {
+        try {
+          const res = await fetch(`{{ url_for('admin.backups_home') }}/${r.dataset.backup}/status.json`,
+                                  {credentials: 'same-origin'});
+          if (!res.ok) continue;
+          const s = await res.json();
+          const bar = r.querySelector('[data-bar]');
+          if (bar) bar.style.width = `${s.progress}%`;
+          if (!['pending', 'running'].includes(s.status)) done = true;
+        } catch (e) { /* try again next tick */ }
+      }
+      if (done) location.reload(); else setTimeout(tick, 4000);
+    };
+    setTimeout(tick, 4000);
+  })();
+</script>
+{% endblock %}

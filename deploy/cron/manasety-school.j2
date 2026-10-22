@@ -8,3 +8,5 @@
 SHELL=/bin/sh
 MAILTO=""
 {{ minute }} {{ hour }} * * * {{ user }} cd {{ app_dir }} && FLASK_APP=wsgi.py {{ flask }} cron-tick >> {{ log_file }} 2>&1
+# SAAS-047 - school admins' backup requests (the web app only queues them).
+* * * * * {{ user }} cd {{ app_dir }} && FLASK_APP=wsgi.py {{ flask }} school-backup --from-queue >> {{ backup_log_file }} 2>&1

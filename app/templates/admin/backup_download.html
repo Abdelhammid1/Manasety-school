@@ -1,0 +1,28 @@
+{# SAAS-047 — the encrypted package is ready: one short-lived link. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تنزيل النسخة الاحتياطية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.backups_home') }}" class="text-outline hover:text-primary">النسخ الاحتياطي</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تنزيل</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-xl mx-auto pb-16">
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-8 text-center space-y-4">
+    <div class="w-16 h-16 mx-auto rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+      <span class="material-symbols-outlined text-3xl">lock</span>
+    </div>
+    <h1 class="font-headline-sm font-bold text-on-surface">النسخة جاهزة ومشفّرة</h1>
+    <p class="text-on-surface-variant">
+      الرابط صالح لمرة واحدة ولمدة {{ ttl }} دقائق. الملف ما يتفتحش غير بكلمة مرور التشفير اللي اخترتها.
+    </p>
+    <a href="{{ url }}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-primary text-on-primary font-title-sm font-bold shadow-sm hover:shadow-md">
+      <span class="material-symbols-outlined">download</span>تنزيل الملف
+    </a>
+    <div>
+      <a href="{{ url_for('admin.backups_home') }}" class="text-primary font-label-md">رجوع للنسخ الاحتياطية</a>
+    </div>
+  </section>
+</div>
+{% endblock %}
