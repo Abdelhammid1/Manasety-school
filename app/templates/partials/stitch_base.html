@@ -165,16 +165,19 @@
 
     /* Sidebar states — driven by <body> classes */
     .transition-sidebar{transition:all 220ms cubic-bezier(0.4,0,0.2,1)}
-    body.sidebar-mini #app-sidebar{width:72px}
-    body.sidebar-mini #app-sidebar .nav-label,
-    body.sidebar-mini #app-sidebar .search-box,
-    body.sidebar-mini #app-sidebar .brand-text,
-    body.sidebar-mini #app-sidebar .nav-group-label{display:none}
-    body.sidebar-mini #app-sidebar .nav-link{justify-content:center;padding-left:0;padding-right:0}
-    body.sidebar-mini #app-sidebar .nav-link .tooltip{display:block}
-    body.sidebar-mini #app-main-wrapper{padding-right:72px}
-    body.sidebar-mini #app-topnav{right:72px}
-    body.sidebar-mini #toggle-icon{transform:rotate(180deg)}
+    /* mini is a desktop state: the drawer (<=900px) always shows its labels */
+    @media (min-width:901px){
+      body.sidebar-mini #app-sidebar{width:72px}
+      body.sidebar-mini #app-sidebar .nav-label,
+      body.sidebar-mini #app-sidebar .search-box,
+      body.sidebar-mini #app-sidebar .brand-text,
+      body.sidebar-mini #app-sidebar .nav-group-label{display:none}
+      body.sidebar-mini #app-sidebar .nav-link{justify-content:center;padding-left:0;padding-right:0}
+      body.sidebar-mini #app-sidebar .nav-link .tooltip{display:block}
+      body.sidebar-mini #app-main-wrapper{padding-right:72px}
+      body.sidebar-mini #app-topnav{right:72px}
+      body.sidebar-mini #toggle-icon{transform:rotate(180deg)}
+    }
     @media (max-width:900px){
       body:not(.sidebar-mobile-open) #app-sidebar{transform:translateX(100%)}
       #app-sidebar{width:min(300px,86vw)!important;padding-top:env(safe-area-inset-top,0px)}
@@ -208,15 +211,22 @@
       body.has-bottomnav:has(.fixed.bottom-0.right-72) main{padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}
       /* bars sticky to the bottom of a page stop above the navigation */
       body.has-bottomnav main .sticky.bottom-0{bottom:calc(57px + env(safe-area-inset-bottom,0px))}
-      /* their hint line gives way to the actions, which share the width */
+      /* the actions share the width */
       main .sticky.bottom-0.flex,.fixed.bottom-0.right-72.flex{flex-direction:column;align-items:stretch;gap:.5rem}
-      main .sticky.bottom-0.flex > div:first-child:not(:last-child),
-      .fixed.bottom-0.right-72.flex > div:first-child:not(:last-child){display:none}
+      /* a page marks the part that may go (`bar-hint`); summaries stay */
+      .bar-hint{display:none!important}
       main .sticky.bottom-0.flex > div:last-child,.fixed.bottom-0.right-72.flex > div:last-child{display:flex;width:100%;gap:.5rem}
       main .sticky.bottom-0.flex > div:last-child > *,
       .fixed.bottom-0.right-72.flex > div:last-child > *{flex:1 1 auto;justify-content:center;white-space:nowrap}
     }
     .bottomnav-active{font-variation-settings:'FILL' 1}
+    /* typing on a phone: the keyboard takes the bottom of the screen, so the
+       navigation steps aside and the save bars drop to the edge */
+    body.kb-open #app-bottomnav{display:none}
+    @media (max-width:767px){
+      body.kb-open.has-bottomnav .fixed.bottom-0.right-72,
+      body.kb-open.has-bottomnav main .sticky.bottom-0{bottom:0!important}
+    }
     @media (max-width:767px){
       /* room for the bottom navigation under the last row */
       body.has-bottomnav main{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
@@ -241,7 +251,7 @@
        their columns or widening the page (wrapped by the script below). */
     .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;max-width:100%}
     /* "more columns this way": a soft fade on the side that still scrolls */
-    .scroll-hint{position:relative}
+    .scroll-hint{position:relative;min-width:0;max-width:100%}
     .scroll-hint::before,.scroll-hint::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none;
       opacity:0;transition:opacity .15s;z-index:2;border-radius:inherit}
     .scroll-hint::before{left:0;background:linear-gradient(to right,rgba(12,36,97,.14),rgba(12,36,97,0))}
@@ -404,10 +414,12 @@
       });
       // Edge fades on every horizontal table scroller (RTL: scrollLeft runs
       // from 0 at the start, the right edge, to negative values).
+      const updates = [];
       document.querySelectorAll('main .table-scroll, main .overflow-x-auto').forEach(sc => {
         if (!sc.querySelector('table')) return;
         const host = document.createElement('div');
         host.className = 'scroll-hint';
+        host.style.borderRadius = getComputedStyle(sc).borderRadius;   // fades follow a rounded card
         sc.parentNode.insertBefore(host, sc);
         host.appendChild(sc);
         const update = () => {
@@ -419,9 +431,22 @@
           host.classList.toggle('more-left', rtl ? towardEnd : towardStart);
         };
         sc.addEventListener('scroll', update, {passive: true});
-        window.addEventListener('resize', update);
+        updates.push(update);
         update();
       });
+      if (updates.length) window.addEventListener('resize', () => updates.forEach(u => u()), {passive: true});
+    })();
+
+    // Software keyboard open (a text field focused on a touch screen): see
+    // body.kb-open in the CSS above.
+    (function () {
+      if (!window.matchMedia('(pointer: coarse)').matches) return;
+      const typing = (el) => el && (el.isContentEditable || el.tagName === 'TEXTAREA' ||
+        (el.tagName === 'INPUT' && !/^(checkbox|radio|button|submit|reset|file|range|color|image)$/.test(el.type)));
+      document.addEventListener('focusin', (e) => { if (typing(e.target)) document.body.classList.add('kb-open'); });
+      document.addEventListener('focusout', () => setTimeout(() => {
+        if (!typing(document.activeElement)) document.body.classList.remove('kb-open');
+      }, 50));
     })();
 
     // Modal helpers — pages use openModal('#some-modal')

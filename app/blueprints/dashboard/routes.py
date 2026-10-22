@@ -904,11 +904,14 @@ def global_search_json():
 def _search_hits(q, sid, *, limit_each):
     """Runs cheap ILIKE searches across the four most-searched entities
     and returns them as {group: [{title, subtitle, href}]} — the client
-    renders it into the dropdown or the results page as-is."""
+    renders it into the dropdown or the results page as-is.
+    Each group is searched only for a user who may open the page its
+    hits link to (a student / parent never lists the school's students)."""
     like = f"%{q}%"
     out = {}
+    can = current_user.can
 
-    stu = (
+    stu = can("students", "view") and (
         Student.query.filter(Student.school_id == sid)
         .filter(db.or_(
             Student.full_name.ilike(like),
@@ -924,7 +927,7 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "school",
         } for s in stu]
 
-    tch = (
+    tch = can("teachers", "view") and (
         Teacher.query.filter(Teacher.school_id == sid)
         .filter(Teacher.full_name.ilike(like))
         .limit(limit_each).all()
@@ -938,7 +941,7 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "badge",
         } for t in tch]
 
-    inv = (
+    inv = can("finance", "view") and (
         Invoice.query.filter(Invoice.school_id == sid)
         .filter(db.or_(
             Invoice.number.ilike(like),
@@ -967,7 +970,7 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "auto_stories",
         } for c in crs]
 
-    emp = (
+    emp = can("payroll", "view") and (
         Employee.query.filter(Employee.school_id == sid)
         .filter(Employee.full_name.ilike(like))
         .limit(limit_each).all()

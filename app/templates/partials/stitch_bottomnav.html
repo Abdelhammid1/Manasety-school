@@ -42,9 +42,12 @@
   <ul class="flex items-stretch justify-around">
     {% for ep, label, icon, perm in _items %}
       {% if endpoint_on(ep) and (not perm or current_user.can(perm[0], perm[1])) %}
-      {% set _active = _cur == ep or (_cur.split('.')[0] == ep.split('.')[0] and ep != 'dashboard.home') %}
+      {% set _url = url_for(ep) %}
+      {# active on the page itself and the pages under its URL (two lms tabs
+         share a blueprint, so the blueprint alone can't tell them apart) #}
+      {% set _active = _cur == ep or (ep != 'dashboard.home' and request.path.startswith(_url.rstrip('/') ~ '/')) %}
       <li class="flex-1">
-        <a href="{{ url_for(ep) }}" {% if _active %}aria-current="page"{% endif %}
+        <a href="{{ _url }}" {% if _active %}aria-current="page"{% endif %}
            class="bottomnav-link flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 font-label-sm text-label-sm {{ 'text-primary font-bold' if _active else 'text-on-surface-variant' }}">
           <span class="material-symbols-outlined text-[22px] {{ 'bottomnav-active' if _active }}">{{ icon }}</span>
           <span class="truncate max-w-full">{{ label }}</span>

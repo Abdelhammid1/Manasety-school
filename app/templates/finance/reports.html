@@ -41,7 +41,7 @@
         <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
         <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
       </div>
-      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ totals[k]|round(2) }}</div>
+      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ '%.2f'|format((totals[k]) or 0) }}</div>
     </div>
     {% endfor %}
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
@@ -50,7 +50,7 @@
         <span class="font-label-md text-label-md text-on-surface-variant">صافي الدخل</span>
         <span class="material-symbols-outlined" style="color: {% if net_income >= 0 %}#10B981{% else %}#EF4444{% endif %}">insights</span>
       </div>
-      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ net_income|round(2) }}</div>
+      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ '%.2f'|format((net_income) or 0) }}</div>
     </div>
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm relative overflow-hidden">
       <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-primary-container"></div>
@@ -58,7 +58,7 @@
         <span class="font-label-md text-label-md text-on-surface-variant">صافي الأصول</span>
         <span class="material-symbols-outlined text-primary">account_balance</span>
       </div>
-      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ (totals.asset - totals.liability)|round(2) }}</div>
+      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ '%.2f'|format(((totals.asset - totals.liability)) or 0) }}</div>
     </div>
   </div>
 
@@ -73,7 +73,7 @@
           </div>
           <h2 class="font-title-md text-title-md text-primary font-bold">{{ g_labels[key] }}</h2>
         </div>
-        <span class="font-title-md text-title-md tabular-nums font-bold" style="color: {{ g_colors[key] }}">{{ totals[key]|round(2) }}</span>
+        <span class="font-title-md text-title-md tabular-nums font-bold" style="color: {{ '%.2f'|format((g_colors[key] }}">{{ totals[key]) or 0) }}</span>
       </header>
       <table class="min-w-full">
         <tbody>
@@ -81,7 +81,7 @@
           <tr class="border-t border-outline-variant hover:bg-surface-container-low">
             <td class="px-4 py-2"><code class="font-mono text-label-md text-primary" dir="ltr">{{ row.code }}</code></td>
             <td class="px-4 py-2 font-label-md">{{ row.name }}</td>
-            <td class="px-4 py-2 text-left font-label-md tabular-nums font-bold text-primary">{{ row.balance|round(2) }}</td>
+            <td class="px-4 py-2 text-left font-label-md tabular-nums font-bold text-primary">{{ '%.2f'|format((row.balance) or 0) }}</td>
           </tr>
           {% else %}
           <tr><td colspan="3" class="px-4 py-3 text-center text-on-surface-variant">لا حركة في هذه الفئة.</td></tr>

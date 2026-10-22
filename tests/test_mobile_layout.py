@@ -94,3 +94,39 @@ def test_none_is_rendered_as_empty(mapp):
         from flask import render_template_string
         assert render_template_string('<input value="{{ x }}">', x=None) == '<input value="">'
         assert render_template_string("{{ x|tojson }}", x=None) == "null"
+
+
+def test_one_bottom_tab_is_current(mapp, two_schools, login_as):
+    """«واجباتي» and «اختباراتي» share the lms blueprint: only the page's own
+    tab is marked current."""
+    body = _page(mapp, login_as, two_schools["A"], "student", "/lms/quizzes")
+    m = re.search(r'<nav id="app-bottomnav".*?</nav>', body, re.S)
+    assert m, "bottom navigation missing"
+    current = re.findall(r'<a href="([^"]+)" aria-current="page"', m.group(0))
+    assert len(current) == 1 and current[0].startswith("/lms/quizzes"), current
+
+
+def test_search_lists_only_what_the_user_may_open(mapp, two_schools, login_as):
+    """The search icon is on every phone's top bar: a role without the
+    students / teachers / finance / payroll permission gets no such hits."""
+    from app.extensions import db
+    from app.models import Role, Student
+    A = two_schools["A"]
+    with mapp.app_context():
+        role = db.session.get(Role, A["roles"]["parent"].id)
+        assert role is not None
+        perms = dict(role.permissions or {})
+        for module in ("students", "teachers", "finance", "payroll"):
+            perms.pop(module, None)
+        role.permissions = perms
+        stu = Student.query.filter_by(school_id=A["school"].id).first()
+        assert stu is not None
+        name = stu.full_name
+        db.session.commit()
+        db.session.remove()
+    for role_key, sees in (("parent", False), ("admin", True)):
+        c = mapp.test_client()
+        login_as(c, A["users"][role_key], base_url=host(A))
+        r = c.get("/search.json", query_string={"q": name[:4]}, base_url=host(A))
+        assert r.status_code == 200
+        assert ("الطلاب" in (r.get_json() or {}).get("groups", {})) is sees, role_key
