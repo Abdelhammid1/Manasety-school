@@ -168,6 +168,68 @@ def seed_students(bundle: dict) -> dict:
     }
 
 
+def seed_lms(bundle: dict) -> dict:
+    """LMS records for one school (SAAS-015 / 016). App context."""
+    from datetime import datetime, timedelta
+    from app.extensions import db
+    from app.models.lms import (
+        Announcement, AssessmentTemplate, AssessmentTemplateItem, AssignmentExtension,
+        AssignmentQuestion, AssignmentTemplate, BankChoice, BankQuestion, Choice, Course,
+        CourseAssignment, CourseSection, FeedbackTemplate, LearningObjective, Lesson, Passage,
+        Question, QuestionCollection, Quiz, QuizAttempt, Skill, Submission, Unit,
+    )
+    slug, sid = bundle["school"].slug, bundle["school"].id
+    add = db.session.add
+    course = Course(school_id=sid, academic_year_id=bundle["year"].id, grade_id=bundle["grade"].id,
+                    subject_id=bundle["subject"].id, title=f"Course-{slug}", is_published=True)
+    bank = BankQuestion(school_id=sid, prompt=f"BankQ-{slug}")
+    skill = Skill(school_id=sid, title=f"Skill-{slug}")
+    obj = LearningObjective(school_id=sid, title=f"Objective-{slug}")
+    coll = QuestionCollection(school_id=sid, title=f"Collection-{slug}")
+    fb = FeedbackTemplate(school_id=sid, title=f"Feedback-{slug}")
+    atpl = AssignmentTemplate(school_id=sid, title=f"AssignTpl-{slug}")
+    stpl = AssessmentTemplate(school_id=sid, title=f"AssessTpl-{slug}")
+    passage = Passage(school_id=sid, title=f"Passage-{slug}")
+    ann = Announcement(school_id=sid, title=f"Announce-{slug}")
+    for o in (course, bank, skill, obj, coll, fb, atpl, stpl, passage, ann):
+        add(o)
+    db.session.flush()
+    add(CourseSection(course_id=course.id, section_id=bundle["section"].id, is_published=True))
+    add(BankChoice(question_id=bank.id, label=f"BankChoice-{slug}", is_correct=True))
+    unit = Unit(course_id=course.id, title=f"Unit-{slug}")
+    add(unit)
+    db.session.flush()
+    lesson = Lesson(course_id=course.id, unit_id=unit.id, title=f"Lesson-{slug}", body="x")
+    quiz = Quiz(course_id=course.id, title=f"Quiz-{slug}", is_published=True)
+    asg = CourseAssignment(course_id=course.id, title=f"Assign-{slug}", is_published=True)
+    item = AssessmentTemplateItem(template_id=stpl.id, bank_question_id=bank.id)
+    for o in (lesson, quiz, asg, item):
+        add(o)
+    db.session.flush()
+    q = Question(quiz_id=quiz.id, prompt=f"QuizQ-{slug}", kind="mcq", points=1)
+    aq = AssignmentQuestion(assignment_id=asg.id, prompt=f"AssignQ-{slug}")
+    attempt = QuizAttempt(quiz_id=quiz.id, student_id=bundle["student"].id)
+    sub = Submission(assignment_id=asg.id, student_id=bundle["student"].id)
+    ext = AssignmentExtension(assignment_id=asg.id, student_id=bundle["student"].id,
+                              new_due_at=datetime(2026, 12, 1) + timedelta(days=1))
+    for o in (q, aq, attempt, sub, ext):
+        add(o)
+    db.session.flush()
+    add(Choice(question_id=q.id, label=f"Choice-{slug}", is_correct=True))
+    db.session.commit()
+    return {
+        "course": course.id, "unit": unit.id, "lesson": lesson.id, "quiz": quiz.id, "question": q.id,
+        "assignment": asg.id, "assignment_question": aq.id, "attempt": attempt.id, "submission": sub.id,
+        "bank_question": bank.id, "skill": skill.id, "objective": obj.id, "collection": coll.id,
+        "feedback_template": fb.id, "assign_template": atpl.id, "assess_template": stpl.id,
+        "template_item": item.id, "passage": passage.id, "announcement": ann.id, "extension": ext.id,
+        "markers": (f"Course-{slug}", f"BankQ-{slug}", f"Skill-{slug}", f"Objective-{slug}",
+                    f"Collection-{slug}", f"Feedback-{slug}", f"AssignTpl-{slug}", f"AssessTpl-{slug}",
+                    f"Passage-{slug}", f"Announce-{slug}", f"Unit-{slug}", f"Lesson-{slug}",
+                    f"Quiz-{slug}", f"Assign-{slug}", f"QuizQ-{slug}", f"AssignQ-{slug}"),
+    }
+
+
 def ledger_state(school_ids) -> tuple:
     """Accounting fingerprint of the given schools: journal entries,
     debit/credit totals and money-moving rows. Any cross-tenant write

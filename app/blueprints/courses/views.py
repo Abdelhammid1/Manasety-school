@@ -13,6 +13,7 @@ from ...models import (
     Course, CourseSection, Lesson, AcademicYear, Section, Subject, Teacher,
     Grade, Term, Unit, Assignment, Student,
 )
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 # ─── Embed URL normalizer ──────────────────────────────────────────────
@@ -110,7 +111,7 @@ def grade_terms(grade_id):
     """Level 1 — pick a term inside a grade. Open terms are highlighted."""
     sid = getattr(current_user, "school_id", None)
     grade = Grade.query.filter_by(id=grade_id, school_id=sid).first_or_404() \
-        if sid else Grade.query.get_or_404(grade_id)
+        if sid else owned_or_404(Grade, grade_id)
     # Terms in the active year (fallback: most recent year).
     year = (
         AcademicYear.query.filter_by(school_id=sid, status="active").first()
@@ -199,7 +200,7 @@ def course_pick_section(grade_id, subject_id):
 @bp.route("/<int:course_id>", endpoint="detail")
 @login_required
 def detail(course_id):
-    course = Course.query.get_or_404(course_id)
+    course = owned_or_404(Course, course_id)
     # Tenant guard — a URL-poking student from another school can't open
     # a course by id.
     if course.school_id != current_user.school_id:
@@ -418,7 +419,7 @@ def _save_lesson_pdf(course, file_storage):
 @login_required
 @require_permission("lms", "edit")
 def lesson_new(course_id):
-    course = Course.query.get_or_404(course_id)
+    course = owned_or_404(Course, course_id)
     if request.method == "POST":
         kind = request.form.get("kind", "text")
         # Ticket (2026-09-21) — inline PDF upload. When a PDF file is
@@ -488,7 +489,7 @@ def unit_new(course_id):
     """Create a Unit within a Course. Minimal form — title only from a
     modal on the course detail page. Description + reorder come later
     via unit_edit."""
-    course = Course.query.get_or_404(course_id)
+    course = owned_or_404(Course, course_id)
     title = (request.form.get("title") or "").strip()
     if not title:
         flash("عنوان الوحدة مطلوب.", "danger")
@@ -510,7 +511,7 @@ def unit_new(course_id):
 def unit_edit(unit_id):
     """Update the unit's title/description. POST-only — no separate form
     page; inline edit on the course detail page."""
-    unit = Unit.query.get_or_404(unit_id)
+    unit = owned_or_404(Unit, unit_id)
     title = (request.form.get("title") or "").strip()
     if not title:
         flash("عنوان الوحدة مطلوب.", "danger")
@@ -529,7 +530,7 @@ def unit_delete(unit_id):
     """Hard-delete a unit. Its lessons stay — Lesson.unit_id is set to
     NULL via the schema's ON DELETE SET NULL, so lessons fall back into
     the \"no unit\" bucket for later re-tagging."""
-    unit = Unit.query.get_or_404(unit_id)
+    unit = owned_or_404(Unit, unit_id)
     course_id = unit.course_id
     db.session.delete(unit); db.session.commit()
     flash("تم حذف الوحدة. الدروس داخلها انتقلت لبند \"بدون وحدة\".", "success")

@@ -18,6 +18,7 @@ from ...models import (
     LearningObjective, Lesson, QuestionCollection, Skill, Student,
 )
 from ._helpers import _parse_dt
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 # ── Skills (#2) ────────────────────────────────────────────────────
@@ -150,7 +151,7 @@ def assignment_extension_add(aid):
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ("admin", "teacher"):
         abort(403)
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     if a.course.school_id != current_user.school_id:
         abort(403)
     student_id = request.form.get("student_id", type=int)

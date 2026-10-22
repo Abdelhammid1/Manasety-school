@@ -45,6 +45,7 @@ from ...models import (
     AssessmentTemplate, AssessmentTemplateItem,
     Subject, Grade, AcademicYear, Term, Unit, Lesson,
 )
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 
@@ -314,7 +315,7 @@ def _rubrics_for_subject(subject_id):
 @login_required
 @require_permission("lms", "edit")
 def assignment_new(cid):
-    course = Course.query.get_or_404(cid)
+    course = owned_or_404(Course, cid)
     rubrics = _rubrics_for_subject(course.subject_id)
     if request.method == "POST":
         a = CourseAssignment(
@@ -352,7 +353,7 @@ def assignment_analytics(aid):
     submissions: score distribution, late list, avg time to submit
     (using submitted_at - assignment.due_at as a proxy in the absence
     of a proper `started_at`), and a running count of ungraded rows."""
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     if a.course.school_id != current_user.school_id:
         abort(403)
     role = getattr(getattr(current_user, "role", None), "name", None)
@@ -404,7 +405,7 @@ def assignment_analytics(aid):
 @login_required
 @require_permission("lms", "edit")
 def assignment_edit(aid):
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     course = a.course
     rubrics = _rubrics_for_subject(course.subject_id if course else None)
     if request.method == "POST":
@@ -440,7 +441,7 @@ def assignment_edit(aid):
 @bp.route("/assignments/<int:aid>/questions", endpoint="assignment_questions")
 @login_required
 def assignment_questions(aid):
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     return render_template("lms/assignment_questions.html", assignment=a)
 
 
@@ -448,7 +449,7 @@ def assignment_questions(aid):
           endpoint="assignment_question_add")
 @login_required
 def assignment_question_add(aid):
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     last = max((q.order_index for q in a.questions), default=0)
     kind = request.form.get("kind", "mcq")
     q = AssignmentQuestion(
@@ -474,7 +475,7 @@ def assignment_question_add(aid):
           endpoint="assignment_question_update")
 @login_required
 def assignment_question_update(qid):
-    q = AssignmentQuestion.query.get_or_404(qid)
+    q = owned_or_404(AssignmentQuestion, qid)
     if q.is_locked:
         flash(
             "لا يمكن تعديل السؤال بعد إجابة الطلاب عليه.",
@@ -497,7 +498,7 @@ def assignment_question_update(qid):
           endpoint="assignment_question_delete")
 @login_required
 def assignment_question_delete(qid):
-    q = AssignmentQuestion.query.get_or_404(qid)
+    q = owned_or_404(AssignmentQuestion, qid)
     aid = q.assignment_id
     db.session.delete(q); db.session.commit()
     flash("تم حذف السؤال.", "success")
@@ -549,7 +550,7 @@ def assignment_pick_from_bank(aid):
     """Same UX as quiz_pick_from_bank — clone selected BankQuestions
     into AssignmentQuestion + AssignmentChoice rows for this assignment.
     Duplicate-safe on source_bank_id."""
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     _r = _picker_defaults_redirect(
         a.course, "lms.assignment_pick_from_bank", aid=a.id)
     if _r is not None:
@@ -677,7 +678,7 @@ def assignment_save_as_template(aid):
     AssignmentTemplate row so the teacher can re-clone it into other
     courses later. Copy semantics — later edits to either side do not
     cross-contaminate."""
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     course = a.course
     # Ticket #2 — Course now stores grade_id directly.
     grade_id = course.grade_id if course else None
@@ -718,7 +719,7 @@ def assignment_from_template(cid):
     """GET  — template picker page scoped to the target course.
     POST — clone the chosen template into a fresh CourseAssignment
            on this course. Increment the template's usage_count."""
-    course = Course.query.get_or_404(cid)
+    course = owned_or_404(Course, cid)
     sid = current_user.school_id
 
     if request.method == "POST":
@@ -771,7 +772,7 @@ def assignment_from_template(cid):
 @login_required
 @require_permission("lms", "edit")
 def assignment_delete(aid):
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     course_id = a.course_id
     db.session.delete(a); db.session.commit()
     flash("تم حذف الواجب.", "success")
@@ -784,7 +785,7 @@ def assignment_delete(aid):
 @login_required
 @require_permission("lms", "edit")
 def quiz_new(cid):
-    course = Course.query.get_or_404(cid)
+    course = owned_or_404(Course, cid)
     if request.method == "POST":
         q = Quiz(
             course_id=course.id,
@@ -828,7 +829,7 @@ def quiz_new(cid):
 @login_required
 @require_permission("lms", "edit")
 def quiz_edit(qid):
-    q = Quiz.query.get_or_404(qid)
+    q = owned_or_404(Quiz, qid)
     course = q.course
     if request.method == "POST":
         q.title = (request.form.get("title") or "").strip()
@@ -861,7 +862,7 @@ def quiz_edit(qid):
 @login_required
 @require_permission("lms", "edit")
 def quiz_delete(qid):
-    q = Quiz.query.get_or_404(qid)
+    q = owned_or_404(Quiz, qid)
     course_id = q.course_id
     db.session.delete(q); db.session.commit()
     flash("تم حذف الاختبار.", "success")
@@ -873,14 +874,14 @@ def quiz_delete(qid):
 @bp.route("/quizzes/<int:qid>/questions", methods=["GET"], endpoint="quiz_questions")
 @login_required
 def quiz_questions(qid):
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     return render_template("lms/quiz_questions.html", quiz=quiz)
 
 
 @bp.route("/quizzes/<int:qid>/questions/add", methods=["POST"], endpoint="quiz_question_add")
 @login_required
 def quiz_question_add(qid):
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     last = max((qq.order_index for qq in quiz.questions), default=0)
     kind = request.form.get("kind", "mcq")
     q = Question(
@@ -907,7 +908,7 @@ def quiz_question_add(qid):
 @bp.route("/questions/<int:qid>/update", methods=["POST"], endpoint="quiz_question_update")
 @login_required
 def quiz_question_update(qid):
-    q = Question.query.get_or_404(qid)
+    q = owned_or_404(Question, qid)
     # Ticket #19 — refuse silent edits once a student has answered.
     # The teacher can bump version (creating a fresh version so old
     # attempts still refer to their original text). Here we just refuse
@@ -937,7 +938,7 @@ def quiz_question_update(qid):
 @login_required
 @require_permission("lms", "edit")
 def quiz_question_delete(qid):
-    q = Question.query.get_or_404(qid)
+    q = owned_or_404(Question, qid)
     quiz_id = q.quiz_id
     db.session.delete(q); db.session.commit()
     flash("تم حذف السؤال.", "success")
@@ -952,7 +953,7 @@ def quiz_question_new_version(qid):
     Quiz (with version = old.version + 1, is_locked = False, appended
     to the end). The teacher edits the clone; the original stays intact
     so previous QuizAttempts still key on their answered version."""
-    q = Question.query.get_or_404(qid)
+    q = owned_or_404(Question, qid)
     last = max((qq.order_index for qq in q.quiz.questions), default=0)
     clone = Question(
         quiz_id=q.quiz_id, order_index=last + 1,
@@ -976,7 +977,7 @@ def quiz_question_new_version(qid):
           endpoint="assignment_question_new_version")
 @login_required
 def assignment_question_new_version(qid):
-    q = AssignmentQuestion.query.get_or_404(qid)
+    q = owned_or_404(AssignmentQuestion, qid)
     last = max((qq.order_index for qq in q.assignment.questions), default=0)
     clone = AssignmentQuestion(
         assignment_id=q.assignment_id, order_index=last + 1,
@@ -2399,7 +2400,7 @@ def quiz_publish_results(qid):
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ("admin", "teacher"):
         abort(403)
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     if quiz.course.school_id != current_user.school_id:
         abort(403)
     quiz.result_publish_mode = "immediate"
@@ -2418,7 +2419,7 @@ def quiz_analysis(qid):
     Stitch lms_11 card."""
     from ...services import deepseek
     from ...models import Answer as _Ans
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     if quiz.course.school_id != current_user.school_id:
         abort(403)
 
@@ -2717,7 +2718,7 @@ def submission_grade_panel(sid):
     """Renders the Stitch lms_10 AI grading sidebar as a full page."""
     from ...models import Submission
     school_sid = current_user.school_id
-    sub = Submission.query.get_or_404(sid)
+    sub = owned_or_404(Submission, sid)
     if sub.assignment.course.school_id != school_sid:
         abort(403)
     return render_template("lms/submission_grade.html", submission=sub)
@@ -2734,7 +2735,7 @@ def submission_grade_save(sid):
                      total using each RubricCriterion.weight."""
     from ...models import Submission, RubricScore, RubricCriterion
     school_sid = current_user.school_id
-    sub = Submission.query.get_or_404(sid)
+    sub = owned_or_404(Submission, sid)
     if sub.assignment.course.school_id != school_sid:
         abort(403)
 
@@ -2801,7 +2802,7 @@ def submission_ai_grade(sid):
     from ...services import deepseek
     from ...models import Submission
     school_sid = current_user.school_id
-    sub = Submission.query.get_or_404(sid)
+    sub = owned_or_404(Submission, sid)
     if sub.assignment.course.school_id != school_sid:
         abort(403)
     if not deepseek.is_configured():
@@ -2916,7 +2917,7 @@ def quiz_pick_from_bank(qid):
     audit trail. Duplicate picks are skipped so the teacher can safely
     re-run the picker.
     """
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     _r = _picker_defaults_redirect(
         quiz.course, "lms.quiz_pick_from_bank", qid=quiz.id)
     if _r is not None:
@@ -3011,7 +3012,7 @@ def assignment_detail(aid):
     Ticket #30 — when the assignment has `allow_review=False`, the
     student sees the submitted score but no per-question breakdown or
     teacher feedback. Teachers/admins always see full detail."""
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     # Enforce the full student-visibility rule (tenant + course publish +
     # enrollment in a section the course is published to). Non-editors
     # who aren't in an enrolled section 404 the same way they would on
@@ -3045,7 +3046,7 @@ def assignment_submit(aid):
     """Accept a student's submission (body text + optional file upload).
     Deadline is enforced: if past due AND allow_late is False → 400.
     """
-    a = CourseAssignment.query.get_or_404(aid)
+    a = owned_or_404(CourseAssignment, aid)
     # Same visibility rule as the GET side — a student who can't SEE
     # the assignment must not be able to POST a submission to it either.
     _assert_can_view_course_item(a.course)
@@ -3231,7 +3232,7 @@ def quiz_take(qid):
     """Start-or-continue a quiz attempt. Creates a QuizAttempt if the student
     hasn't started yet and the quiz has not exceeded max_attempts. Renders
     the timed quiz-taking UI."""
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     _assert_can_view_course_item(quiz.course)
     # Non-editors can't take a draft quiz. (Teachers may preview their own.)
     if not _is_teacher() and not getattr(quiz, "is_published", True):
@@ -3364,7 +3365,7 @@ def quiz_submit(qid):
     """Save the student's answers, auto-grade objective questions (mcq/tf/short),
     leave essay ungraded for the teacher, and stamp the attempt.
     """
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     # Match the GET-side gate on quiz_take — a student who can't take
     # the quiz must not be able to submit answers to it either.
     _assert_can_view_course_item(quiz.course)
@@ -3375,7 +3376,7 @@ def quiz_submit(qid):
         abort(400)
 
     attempt_id = int(request.form.get("attempt_id") or 0)
-    attempt = QuizAttempt.query.get_or_404(attempt_id)
+    attempt = owned_or_404(QuizAttempt, attempt_id)
     if attempt.quiz_id != quiz.id or attempt.student_id != student.id:
         abort(403)
     if attempt.submitted_at is not None:
@@ -3544,7 +3545,7 @@ def quiz_submit(qid):
 @login_required
 def quiz_result(attempt_id):
     """Post-submission review: per-question status + total + teacher feedback."""
-    attempt = QuizAttempt.query.get_or_404(attempt_id)
+    attempt = owned_or_404(QuizAttempt, attempt_id)
     student = _current_student()
     if not student or attempt.student_id != student.id:
         # Teachers/admins can review any attempt within their school;

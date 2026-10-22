@@ -22,10 +22,11 @@ from ...models import (
     lms_attempt_flagged_questions,
 )
 from ._helpers import _normalize_short_answer
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 def _own_attempt_or_403(attempt_id):
-    attempt = QuizAttempt.query.get_or_404(attempt_id)
+    attempt = owned_or_404(QuizAttempt, attempt_id)
     # Only the student that owns it may write. Teachers can *view*
     # (see live monitor), but write-endpoints stay student-only.
     uid = getattr(current_user, "id", None)
@@ -72,7 +73,7 @@ def attempt_flag(attempt_id):
         qid = int(body.get("question_id"))
     except (TypeError, ValueError):
         return jsonify({"error": "question_id required"}), 400
-    q = Question.query.get_or_404(qid)
+    q = owned_or_404(Question, qid)
     if q.quiz_id != attempt.quiz_id:
         abort(400)
     # Toggle by walking the M:N table directly (avoids a second query).
@@ -119,7 +120,7 @@ def attempt_autosave(attempt_id):
         qid = int(body.get("question_id"))
     except (TypeError, ValueError):
         return jsonify({"error": "question_id required"}), 400
-    q = Question.query.get_or_404(qid)
+    q = owned_or_404(Question, qid)
     if q.quiz_id != attempt.quiz_id:
         abort(400)
 
@@ -162,7 +163,7 @@ def quiz_live_monitor(qid):
     if role not in ("admin", "teacher"):
         abort(403)
     from ...models import Quiz
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     if quiz.course.school_id != current_user.school_id:
         abort(403)
     return render_template("lms/quiz_live_monitor.html", quiz=quiz)
@@ -175,7 +176,7 @@ def quiz_live_monitor_json(qid):
     if role not in ("admin", "teacher"):
         abort(403)
     from ...models import Quiz
-    quiz = Quiz.query.get_or_404(qid)
+    quiz = owned_or_404(Quiz, qid)
     if quiz.course.school_id != current_user.school_id:
         abort(403)
 

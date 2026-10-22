@@ -14,6 +14,7 @@ from ...extensions import db
 from ...models import (
     CourseAssignment, Submission, Rubric, RubricCriterion, RubricScore, Student,
 )
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 def effective_rubric_id(question, parent) -> int | None:
@@ -38,7 +39,7 @@ def submission_rubric_grade(submission_id):
     honoured — the final Submission.score is the weighted sum of each
     criterion's (score / max) × weight × assignment.max_score / 100.
     """
-    sub = Submission.query.get_or_404(submission_id)
+    sub = owned_or_404(Submission, submission_id)
     a = sub.assignment
     if a is None or a.rubric_id is None:
         flash("هذا الواجب لا يستخدم روبريك — استخدم شاشة التصحيح العادية.", "warning")

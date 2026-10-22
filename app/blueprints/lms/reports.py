@@ -18,6 +18,7 @@ from ...models import (
     Question, Quiz, QuizAttempt,
     Section, Student, Subject, Submission, Unit,
 )
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 def _mastery_by_unit(rows):
@@ -160,7 +161,7 @@ def _section_quiz_mastery_rows(student_ids):
 @login_required
 def report_student(student_id):
     """Per-student mastery per subject × unit — one query per side."""
-    student = Student.query.get_or_404(student_id)
+    student = owned_or_404(Student, student_id)
     subjects_data = {}
     for row in _student_assignment_mastery_rows(student.id):
         _accumulate(subjects_data, row)
@@ -175,7 +176,7 @@ def report_student(student_id):
 def report_section(section_id):
     """Per-section mastery — two queries total regardless of size."""
     from ...models import Enrollment
-    section = Section.query.get_or_404(section_id)
+    section = owned_or_404(Section, section_id)
     students = (
         Student.query.join(Enrollment, Enrollment.student_id == Student.id)
         .filter(Enrollment.section_id == section.id,
