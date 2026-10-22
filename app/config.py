@@ -246,6 +246,9 @@ class Config:
     )
     DEFAULT_SCHOOL_CODE = os.environ.get("DEFAULT_SCHOOL_CODE", "SCH")
     WHATSAPP_PROVIDER = os.environ.get("WHATSAPP_PROVIDER", "stub")
+    # SAAS-043 — a demo / staging server: every school is in-app only,
+    # whatever its notify_channels says (no email / WhatsApp / SMS / push).
+    NOTIFY_IN_APP_ONLY = os.environ.get("NOTIFY_IN_APP_ONLY", "").strip().lower() in ("1", "true", "yes")
     LANGUAGES = ["ar"]
     DEFAULT_LANGUAGE = "ar"
     # Sprint 10 Phase 2 — cap uploaded material file size at 10 MB

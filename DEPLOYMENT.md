@@ -645,6 +645,24 @@ sudo crontab -e
 mkdir -p /home/manasety/backups
 ```
 
+### المهام اليومية (cron-tick) — SAAS-043
+`flask cron-tick` بيشغّل لكل مدرسة نشطة: الفواتير الدورية، تحويل المتأخر، التذكيرات، قواعد الحضور، مؤشر الخطر، وتقرير الحضور الشهري (يوم 1). تشغيل واحد في نفس الوقت (advisory lock)، وفشل مدرسة ما بيوقفش الباقي.
+
+الحماية قبل الجدولة:
+- القنوات الخارجية (إيميل / واتساب / SMS) بتشتغل بس لمدرسة مفعّلاها صراحةً في `notify_channels`. مدارس `demo` و`test-a` و`test-b` داخل التطبيق فقط دايمًا، وسيرفر ديمو/staging كله يتقفل بـ `NOTIFY_IN_APP_ONLY=1` في `.env`.
+- تشغيلين ورا بعض = نفس الإشعار مرة واحدة.
+
+الخطوات (بالترتيب، ومن غير ما نتخطى الأولى):
+```bash
+cd ~/manasety && source .venv/bin/activate
+flask cron-tick --dry-run          # بيطبع اللي كان هيتبعت (المستلم متخبّي) — ولا بيكتب ولا بيبعت
+```
+راجعوا الناتج سوا. لو منطقي:
+```bash
+flask cron-tick-cronfile --at 05:00 | sudo tee /etc/cron.d/manasety-school
+```
+كل تشغيل بيكتب سطر ملخص واحد `cron-tick {"schools":…,"ok":…,"failed":…,"notifications":…}` في `~/manasety/cron-tick.log` (من غير بيانات أو مستلمين). راجعوا لوج أول تشغيلين؛ `failed` لازم يكون 0.
+
 ### تحديث التطبيق بعد تعديل في GitHub
 
 ```bash
@@ -671,6 +689,37 @@ tail -f /home/manasety/manasety/error.log  # أخطاء Gunicorn
 sudo systemctl restart manasety
 sudo systemctl restart nginx
 ```
+
+---
+
+## الجزء الخامس: اختبار العزل قبل إضافة مدرسة حقيقية ثانية
+
+برنامج العزل (SAAS-013B → SAAS-018) خلّص: كل route فيه `<int:…>` إما في `ROUTE_MATRIX` (بيتهاجم في كل تشغيل) أو في `ALLOWLIST` بسبب مكتوب، وكل endpoint بياخد id من الفورم / الـ query / الـ JSON في `FORM_ID_MATRIX`. أي route جديد من غير تصنيف بيكسر الـ CI.
+
+### اللي بيتأكد منه تلقائيًا (كل push)
+- حساب مدرسة A (بكل دور مذكور، والـ API بـ Bearer token) على أرقام مدرسة B → 403/404، من غير أي بيان من B، وسجل B ما اتغيرش بعد أي محاولة كتابة.
+- id أجنبي وid مش موجود → نفس الـ status ونفس شكل الـ body (مفيش enumeration).
+- id أجنبي داخل الفورم / الـ JSON مع id سليم في الـ URL → مرفوض، ومفيش ربط بين المدرستين.
+- الـ API: الرفض دايمًا `404 {"error": "not_found"}`، وباقي الـ contract على سجلات A مطابق للـ snapshot (`tests/fixtures/api_contract_saas017.json`).
+- العمليات الجماعية (`recompute_ranks`, `bulk_transfer`, `year_close`) من A ما بتلمسش بيانات B، و`bulk_transfer` بـ id أجنبي واحد ما بيكتبش حاجة.
+- الـ autosave في الاختبار: mcq = 13 استعلام (كان 12 قبل التحقق من الاختيار)، نص = 15 (من غير تغيير).
+- `flask tenant-integrity-check` في الـ CI مرتين: بعد الـ migrations، وبعد `seed-test-schools` على بيانات حقيقية الحجم — أي ربط بين مدرستين بيفشّل البناء.
+
+### تشغيله يدويًا
+```bash
+python -m pytest tests/test_saas002_route_isolation.py tests/test_saas01*_*.py -p no:cacheprovider
+flask tenant-integrity-check        # exit 1 لو فيه أي ربط بين مدرستين
+```
+الاختبارات بتشتغل على قاعدة اختبار منفصلة (أبدًا مش `instance/manasety.db`)؛ لتشغيلين في نفس الوقت اديهم `DATABASE_URL` مختلف.
+
+### الجولة اليدوية على staging (قبل أول مدرسة حقيقية تانية)
+1. `flask seed-test-schools` (بياخد backup قبلها) → مدرستين `test-a` و`test-b` بحساباتهم.
+2. ادخل بأدمن `test-a` وجرب تفتح روابط سجلات `test-b` (غيّر الرقم في الـ URL) في كل موديول: الطلاب، الحضور، المالية، الـ HR، الـ LMS، النتائج، الجدول، الرسائل، نافس، الإدارة، المنصة. المتوقع: صفحة 404 في كل مرة.
+3. نفس الجولة بحساب معلم وطالب وولي أمر من `test-a`، ومن تطبيق الموبايل (الـ API).
+4. `flask tenant-integrity-check` لازم يطلع `0 violation(s)`.
+5. `flask seed-test-schools --teardown` (بياخد backup قبلها).
+
+النتيجة المطلوبة: صفر تسريب. أي تسريب = ما تضيفش المدرسة الحقيقية لحد ما يتصلّح ويتضاف للـ matrix.
 
 ---
 

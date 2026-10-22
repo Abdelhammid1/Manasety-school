@@ -119,6 +119,8 @@ def build_school(slug: str, size: Size, *, today: date | None = None) -> Built:
     _remember(owned_ids() + [res.school_id])         # ours from now on: a failure can be reset
     db.session.commit()
     school = db.session.get(School, res.school_id)
+    school.notify_channels = "in_app"               # SAAS-043: test schools never reach anyone
+    db.session.commit()
     built = Built(slug=slug, school_id=school.id, url=res.url)
     try:
         with tenant_context(school.id):

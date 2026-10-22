@@ -1250,9 +1250,13 @@ def send_installment_reminders(school_id: int):
     from ..models import School, Student, Enrollment
     from ..services.reports import installments_due_for_reminder
     from ..services import mailer as _mailer
+    from .notifications import external_channels, record_dry_run
     school = db.session.get(School, school_id)
     if not school or not _mailer.is_configured(school):
         return {"school_id": school_id, "sent": 0, "skipped_no_smtp": True}
+    # SAAS-043 — email only when the school enabled the channel.
+    if "email" not in external_channels(school):
+        return {"school_id": school_id, "sent": 0, "skipped_channel_off": True}
     days = int(school.installment_reminder_days_before or 3)
     pairs = installments_due_for_reminder(school_id, days)
     sent = 0
@@ -1267,6 +1271,9 @@ def send_installment_reminders(school_id: int):
         except Exception:
             parent_email = None
         if not parent_email:
+            continue
+        if record_dry_run(school_id, "installment_reminder", {"email"}, parent_email):
+            sent += 1
             continue
         try:
             _mailer.send(
