@@ -36,6 +36,7 @@ DAILY_LIMIT = 3
 DEFAULT_KEEP = 5
 POLICY_KEY = "school_backup_policy"
 DOWNLOAD_TTL = 600          # seconds a prepared download stays valid
+PREPARE_PER_HOUR = 5        # encrypted downloads one admin may prepare an hour
 
 
 class BackupRefused(Exception):
@@ -112,7 +113,8 @@ def request_backup(school_id: int, user):
     q = SchoolBackup.query.filter(SchoolBackup.school_id == school_id)
     if q.filter(SchoolBackup.status.in_(("pending", "running"))).first():
         raise BackupRefused("فيه نسخة جاري تجهيزها بالفعل.")
-    if q.filter(SchoolBackup.created_at >= _today_start()).count() >= DAILY_LIMIT:
+    if q.filter(SchoolBackup.kind == "manual",
+                SchoolBackup.created_at >= _today_start()).count() >= DAILY_LIMIT:
         raise BackupRefused(f"الحد الأقصى {DAILY_LIMIT} نسخ في اليوم.")
     if not disk_ok():
         raise BackupRefused("المساحة على السيرفر غير كافية حاليًا — تواصل مع الدعم.")
@@ -184,7 +186,7 @@ def prune(school_id: int) -> int:
     """Keep the newest `keep` successful backups; delete older files and rows."""
     from ..models import SchoolBackup
     keep = policy(school_id)["keep"]
-    done = (SchoolBackup.query.filter_by(school_id=school_id, status="succeeded")
+    done = (SchoolBackup.query.filter_by(school_id=school_id, status="succeeded", kind="manual")
             .order_by(SchoolBackup.created_at.desc(), SchoolBackup.id.desc()).all())
     gone = 0
     for b in done[keep:]:
@@ -225,12 +227,26 @@ def _signer():
 def prepare_download(b, user, account_password: str, passphrase: str) -> str:
     """Encrypt the package for this download; returns a signed token for
     the GET that streams it. Refuses without the right account password."""
+    from datetime import timedelta
+    from ..models import AuditLog
     if b.status != "succeeded":
         raise BackupRefused("النسخة دي مش جاهزة.")
+    # Same lockout as the login form: wrong passwords here count too.
+    if user.is_locked():
+        raise BackupRefused("الحساب مقفول مؤقتًا بعد محاولات فاشلة — حاول لاحقًا.")
     if not account_password or not user.check_password(account_password):
+        user.failed_attempts = (user.failed_attempts or 0) + 1
+        if user.failed_attempts >= current_app.config["LOCKOUT_MAX_ATTEMPTS"]:
+            user.locked_until = datetime.utcnow() + timedelta(minutes=current_app.config["LOCKOUT_MINUTES"])
+            user.failed_attempts = 0
         _audit("backup_download_refused", b, user, reason="wrong account password")
         db.session.commit()
         raise BackupRefused("كلمة مرور الحساب غير صحيحة.")
+    user.failed_attempts = 0
+    hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
+    if AuditLog.query.filter(AuditLog.user_id == user.id, AuditLog.action == "backup_download_prepared",
+                             AuditLog.created_at >= hour_ago).count() >= PREPARE_PER_HOUR:
+        raise BackupRefused(f"الحد الأقصى {PREPARE_PER_HOUR} تنزيلات في الساعة.")
     try:
         engine.check_passphrase(passphrase)
     except engine.BackupError as e:
@@ -239,7 +255,12 @@ def prepare_download(b, user, account_password: str, passphrase: str) -> str:
     if not src or not src.is_file():
         raise BackupRefused("ملف النسخة غير موجود.")
     sweep_downloads(b.school_id)
-    name = secrets.token_hex(16) + ".mbk"
+    # One prepared file per backup at a time, and room for it on disk.
+    for old in _downloads_dir(b.school_id).glob(f"b{b.id}-*.mbk"):
+        old.unlink(missing_ok=True)
+    if not disk_ok() or shutil.disk_usage(engine.backups_root()).free < 2 * src.stat().st_size:
+        raise BackupRefused("المساحة على السيرفر غير كافية حاليًا — تواصل مع الدعم.")
+    name = f"b{b.id}-{secrets.token_hex(16)}.mbk"
     engine.encrypt_file(src, _downloads_dir(b.school_id) / name, passphrase)
     _audit("backup_download_prepared", b, user)
     db.session.commit()
@@ -258,7 +279,8 @@ def open_download(token: str, user, school_id: int):
     if data.get("u") != user.id or data.get("s") != school_id:
         return None
     name = str(data.get("f") or "")
-    if not name.endswith(".mbk") or "/" in name or "\\" in name or ".." in name:
+    if not name.endswith(".mbk") or "/" in name or "\\" in name or ".." in name \
+            or not name.startswith(f"b{data.get('b')}-"):
         return None
     b = SchoolBackup.query.filter_by(id=data.get("b"), school_id=school_id).first()
     path = _downloads_dir(school_id) / name

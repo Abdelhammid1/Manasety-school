@@ -25,6 +25,20 @@ def bapp(app, monkeypatch, tmp_path):
     return app
 
 
+@pytest.fixture(autouse=True)
+def _clear_policy(app):
+    """The policy is a platform setting keyed by school id: no test
+    school's policy may outlive the test."""
+    yield
+    from app.extensions import db
+    from app.models import PlatformSetting
+    from app.services.school_backups import POLICY_KEY
+    with app.app_context():
+        PlatformSetting.query.filter_by(key=POLICY_KEY).delete()
+        db.session.commit()
+        db.session.remove()
+
+
 def _client(app, login_as, bundle, role="admin"):
     c = app.test_client()
     login_as(c, bundle["users"][role], base_url=host(bundle))
@@ -267,3 +281,39 @@ def test_console_lists_dates_and_sizes_and_owner_sets_the_policy(console, world)
     with console.app_context():
         assert svc.policy(sid) == {"enabled": False, "keep": 3}
         db.session.remove()
+
+
+def test_wrong_account_passwords_lock_like_the_login(bapp, world, login_as):
+    from app.extensions import db
+    from app.models import User
+    A = world["A"]
+    c, bid = _ready(bapp, login_as, A)
+    url = f"/admin/backups/{bid}/download"
+    for _ in range(bapp.config["LOCKOUT_MAX_ATTEMPTS"]):
+        c.post(url, base_url=host(A), data={"account_password": "wrong", "passphrase": PASS,
+                                             "passphrase_confirm": PASS})
+    r = c.post(url, base_url=host(A), follow_redirects=True,
+               data={"account_password": ACCOUNT_PASSWORD, "passphrase": PASS, "passphrase_confirm": PASS})
+    assert "مقفول" in r.get_data(as_text=True)
+    with bapp.app_context():
+        u = db.session.get(User, A["users"]["admin"].id)
+        assert u.is_locked()
+        u.locked_until, u.failed_attempts = None, 0
+        db.session.commit()
+        db.session.remove()
+
+
+def test_prepared_downloads_are_capped(bapp, world, login_as, monkeypatch):
+    from app.services import school_backup as engine
+    from app.services import school_backups as svc
+    A = world["A"]
+    c, bid = _ready(bapp, login_as, A)
+    url = f"/admin/backups/{bid}/download"
+    ok = {"account_password": ACCOUNT_PASSWORD, "passphrase": PASS, "passphrase_confirm": PASS}
+    for _ in range(svc.PREPARE_PER_HOUR):
+        assert c.post(url, base_url=host(A), data=ok).status_code == 200
+    with bapp.app_context():
+        prepared = list((engine.backups_dir(A["school"].id) / "downloads").glob("*.mbk"))
+    assert len(prepared) == 1                     # one prepared file per backup at a time
+    r = c.post(url, base_url=host(A), data=ok, follow_redirects=True)
+    assert "في الساعة" in r.get_data(as_text=True)

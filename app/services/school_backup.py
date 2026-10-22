@@ -59,7 +59,17 @@ BACKUP_EXCLUDED: dict[str, str] = {
     "account_setup_tokens": "short-lived account set-up links — reissued, never restored",
     "device_tokens": "push tokens of signed-in devices (sessions) — re-registered on next login",
     "school_backups": "the list of the school's backups itself — a restore must not rewrite it",
+    "school_restores": "the restore history itself (and its undo links) — never rewritten by a restore",
 }
+
+
+def backup_columns(table):
+    """The columns a package carries: every column except secrets
+    (password hashes, TOTP secrets, tokens — audit.is_secret_field). A
+    package goes to a personal device; credentials never leave the server.
+    A restored account that didn't exist gets an unusable password."""
+    from .audit import is_secret_field
+    return [c for c in table.c if not is_secret_field(c.name)]
 
 # Columns of the school's own row that never travel in a package: the
 # tenant's identity, plan / state, mail credentials and session epoch.
@@ -226,7 +236,7 @@ def _snapshot_conn():
 
 
 def _table_bytes(conn, table, school_id) -> tuple[bytes, int, list[str]]:
-    cols = list(table.c)
+    cols = backup_columns(table)
     cond = table.c.school_id == school_id
     extra = _row_filter(table)
     if extra is not None:
@@ -588,7 +598,8 @@ def _check_manifest(tar, members, manifest, rep: VerifyReport, expect_school_id)
             problems.append(f"جدول غير مسموح: {name}")
             continue
         cols = meta.get("columns") or []
-        unknown = [c for c in cols if c not in table.c]
+        allowed_cols = {c.name for c in backup_columns(table)}
+        unknown = [c for c in cols if c not in allowed_cols]      # secrets / unknown columns
         if unknown or "school_id" not in cols:
             problems.append(f"أعمدة غير معروفة في {name}")
             continue

@@ -335,3 +335,29 @@ def test_backup_job_runs_from_the_queue(bapp, world):
         db.session.delete(job)
         db.session.commit()
         db.session.remove()
+
+
+def test_no_secret_column_leaves_the_server(bapp, world):
+    """Password hashes, TOTP secrets and tokens are never in a package
+    (security review of 10fdd41)."""
+    from app.services.audit import is_secret_field
+    res = _export(bapp, world["A"])
+    for name, meta in res.manifest["tables"].items():
+        assert not [c for c in meta["columns"] if is_secret_field(c)], name
+    assert "password_hash" not in res.manifest["tables"]["users"]["columns"]
+    blob = b"".join(_members(res.path).values())
+    assert b"$2b$" not in blob and b"$2a$" not in blob
+
+
+def test_a_package_carrying_a_secret_column_is_refused(bapp, world):
+    res = _export(bapp, world["A"])
+    members = _members(res.path)
+    manifest = json.loads(members["manifest.json"])
+    meta = manifest["tables"]["users"]
+    meta["columns"].append("password_hash")
+    members["data/users.copy"] = b"".join(line + b"\tx\n" for line in members["data/users.copy"].splitlines())
+    meta["sha256"] = hashlib.sha256(members["data/users.copy"]).hexdigest()
+    members["manifest.json"] = json.dumps(manifest).encode()
+    _rewrite(res.path, members, resum=True)
+    rep = _verify(bapp, res.path)
+    assert not rep.ok and any("users" in p for p in rep.problems)
