@@ -82,7 +82,10 @@
           <span class="material-symbols-outlined text-secondary">payments</span>
           الرسوم والفواتير
         </h3>
+        {# the full invoices page is for finance staff; a parent sees their child's invoices right here #}
+        {% if current_user.can('finance', 'view') %}
         <a href="{{ url_for('finance.invoices_list') }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
+        {% endif %}
       </div>
       {% if invoices %}
       <div class="flex flex-col gap-2">

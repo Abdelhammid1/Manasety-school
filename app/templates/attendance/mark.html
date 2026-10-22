@@ -240,24 +240,24 @@
     </div><!-- /dailyPane -->
 
     <!-- Sticky save bar -->
-    <div class="sticky bottom-0 mt-space-lg bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_-4px_20px_rgba(12,36,97,0.08)] flex items-center justify-between gap-space-md z-30">
-      <div class="flex items-center gap-space-sm">
+    <div class="sticky bottom-0 mt-space-lg bg-surface-container-lowest rounded-2xl p-space-md shadow-[0_-4px_20px_rgba(12,36,97,0.08)] flex flex-col sm:flex-row sm:items-center justify-between gap-space-sm sm:gap-space-md z-30">
+      <div class="hidden sm:flex items-center gap-space-sm">
         <span class="material-symbols-outlined text-secondary">info</span>
         <span class="font-label-md text-label-md text-on-surface-variant">
           يُرسل إشعار واتساب/دفع تلقائياً لولي أمر أي طالب سُجّل غائباً.
         </span>
       </div>
-      <div class="flex items-center gap-space-sm">
+      <div class="flex items-center gap-space-sm w-full sm:w-auto">
         <a href="{{ url_for('attendance.section_report', section_id=section.id) }}"
-           class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
+           class="shrink-0 h-11 px-4 sm:px-5 rounded-xl bg-surface-container-low text-primary font-label-lg text-label-lg font-bold flex items-center gap-2 hover:bg-surface-container transition-colors">
           <span class="material-symbols-outlined text-lg">insights</span>
           <span>تقرير الفصل</span>
         </a>
         <button type="submit"
-                class="h-11 px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
+                class="flex-1 sm:flex-none justify-center h-11 px-4 sm:px-6 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all whitespace-nowrap"
                 style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
           <span class="material-symbols-outlined text-xl">save</span>
-          <span>حفظ الرصد وإرسال الإشعارات</span>
+          <span class="sm:hidden">حفظ الرصد</span><span class="hidden sm:inline">حفظ الرصد وإرسال الإشعارات</span>
         </button>
       </div>
     </div>

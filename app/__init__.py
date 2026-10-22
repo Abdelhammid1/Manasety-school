@@ -200,6 +200,9 @@ def create_app(config_class=Config):
     # ask for the current date without help from the view.
     from datetime import date as _date_cls
     app.jinja_env.globals["today"] = _date_cls.today
+    # An empty optional field renders as nothing, not as the word "None"
+    # (value="{{ F.phone if F else '' }}" printed "None" for a NULL phone).
+    app.jinja_env.finalize = lambda v: "" if v is None else v
 
     @app.context_processor
     def inject_globals():

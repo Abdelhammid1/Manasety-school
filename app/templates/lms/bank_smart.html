@@ -271,7 +271,7 @@
          snippet at the caret. Arabic-digits toggle rewrites the
          textarea's numerals in place. #}
       <div class="rounded-xl bg-surface-container-low p-space-sm flex flex-wrap items-center gap-2 select-none" id="mathToolbar">
-        <div class="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg">
+        <div class="flex flex-wrap items-center gap-1 bg-surface-container-lowest p-1 rounded-lg">
           {% for lbl, snip in [('B','**|**'), ('I','_|_'), ('U','<u>|</u>')] %}
             <button type="button" data-insert="{{ snip }}"
                     class="w-8 h-8 rounded flex items-center justify-center font-bold text-on-surface hover:bg-surface-container-low cursor-pointer">{{ lbl }}</button>
@@ -289,7 +289,7 @@
           <button type="button" id="digitsBtn" title="تبديل الأرقام (عربي/إنجليزي)"
                   class="w-8 h-8 rounded flex items-center justify-center font-bold text-primary hover:bg-surface-container-low cursor-pointer">١٢</button>
         </div>
-        <div class="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg text-on-surface font-title-md text-title-md" style="font-family:'Cambria Math','Latin Modern Math',serif;">
+        <div class="flex flex-wrap items-center gap-1 bg-surface-container-lowest p-1 rounded-lg text-on-surface font-title-md text-title-md" style="font-family:'Cambria Math','Latin Modern Math',serif;">
           {% for glyph, snip in [
               ('x²',  '$$x^{|}$$'),
               ('√',   '$$\\sqrt{|}$$'),

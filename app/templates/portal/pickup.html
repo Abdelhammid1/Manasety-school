@@ -72,7 +72,7 @@
           class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm border border-surface-container-low flex items-center gap-space-md flex-wrap">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <input type="hidden" name="student_id" value="{{ kid.id }}">
-      <div class="flex items-center gap-space-sm min-w-0 flex-1">
+      <div class="flex items-center gap-space-sm min-w-0 basis-full sm:basis-0 flex-1">
         <div class="w-14 h-14 rounded-2xl bg-primary-fixed text-primary flex items-center justify-center shrink-0">
           <span class="material-symbols-outlined text-2xl">school</span>
         </div>
@@ -81,7 +81,7 @@
           <div class="font-label-sm text-on-surface-variant" dir="ltr">{{ kid.permanent_code }}</div>
         </div>
       </div>
-      <select name="gate" class="h-11 px-3 rounded-xl bg-surface-container-low font-label-md">
+      <select name="gate" aria-label="البوابة" class="flex-1 sm:flex-none min-w-0 h-11 px-3 rounded-xl bg-surface-container-low font-label-md">
         <option value="البوابة الرئيسية">البوابة الرئيسية</option>
         <option value="بوابة الحافلات">بوابة الحافلات</option>
         <option value="بوابة الروضة">بوابة الروضة</option>

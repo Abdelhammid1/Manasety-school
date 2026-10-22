@@ -13,7 +13,9 @@
 <html dir="rtl" lang="ar" data-role="{{ (current_user.role.name if current_user.is_authenticated and current_user.role else 'guest') }}">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {# viewport-fit=cover: content can use the notch area (padded back with env(safe-area-inset-*));
+     interactive-widget: the Android keyboard resizes the layout like iOS. Zoom stays allowed. #}
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
   <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
   <meta name="description" content="{% block description %}منصتي — منصة التعلم الذكية للمدارس{% endblock %}">
   <meta name="application-name" content="منصتي">
@@ -45,6 +47,8 @@
   <script>
     tailwind.config = {
       darkMode: 'class',
+      // hover: styles only where the device can hover — no hover state stuck after a tap
+      future: { hoverOnlyWhenSupported: true },
       theme: {
         extend: {
           colors: {
@@ -173,15 +177,92 @@
     body.sidebar-mini #toggle-icon{transform:rotate(180deg)}
     @media (max-width:900px){
       body:not(.sidebar-mobile-open) #app-sidebar{transform:translateX(100%)}
+      #app-sidebar{width:min(300px,86vw)!important;padding-top:env(safe-area-inset-top,0px)}
       #app-main-wrapper{padding-right:0!important}
       #app-topnav{right:0!important}
+      body.sidebar-mobile-open{overflow:hidden}
+      body.sidebar-mobile-open #sidebar-backdrop{display:block}
+      .menu-toggle{display:inline-flex!important}
+    }
+    .menu-toggle{display:none}
+    #sidebar-backdrop{display:none;position:fixed;inset:0;z-index:45;background:rgba(12,36,97,0.4);backdrop-filter:blur(2px)}
+
+    /* ── Mobile — the platform layer (mobile-native) ─────────────────── */
+    html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+    #app-main-wrapper{min-height:100vh;min-height:100dvh}
+    /* iOS zooms into any field under 16px and never zooms back out */
+    @media (pointer:coarse){input,select,textarea{font-size:16px!important}}
+    /* no 300ms double-tap wait; long-press doesn't select a control's label */
+    a,button,summary,label,[role=button],input[type=submit]{touch-action:manipulation}
+    button,summary,[role=button],.nav-link,.bottomnav-link{-webkit-user-select:none;user-select:none}
+    /* press feedback on touch, where :hover is off */
+    .bottomnav-link:active,.nav-link:active{opacity:.7}
+    #app-topnav{padding-left:max(1rem,env(safe-area-inset-left));padding-right:max(1rem,env(safe-area-inset-right))}
+    #app-bottomnav{padding-bottom:env(safe-area-inset-bottom,0px)}
+    /* Page action bars pinned to the bottom (editor pages: "fixed bottom-0
+       right-72" leaves room for the desktop sidebar): full width once the
+       sidebar is hidden, and above the bottom navigation on phones. */
+    @media (max-width:900px){ .fixed.bottom-0.right-72{right:0!important} }
+    @media (max-width:767px){
+      body.has-bottomnav .fixed.bottom-0.right-72{bottom:calc(57px + env(safe-area-inset-bottom,0px))!important;padding-left:1rem!important;padding-right:1rem!important}
+      body.has-bottomnav:has(.fixed.bottom-0.right-72) main{padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+      /* bars sticky to the bottom of a page stop above the navigation */
+      body.has-bottomnav main .sticky.bottom-0{bottom:calc(57px + env(safe-area-inset-bottom,0px))}
+      /* their hint line gives way to the actions, which share the width */
+      main .sticky.bottom-0.flex,.fixed.bottom-0.right-72.flex{flex-direction:column;align-items:stretch;gap:.5rem}
+      main .sticky.bottom-0.flex > div:first-child:not(:last-child),
+      .fixed.bottom-0.right-72.flex > div:first-child:not(:last-child){display:none}
+      main .sticky.bottom-0.flex > div:last-child,.fixed.bottom-0.right-72.flex > div:last-child{display:flex;width:100%;gap:.5rem}
+      main .sticky.bottom-0.flex > div:last-child > *,
+      .fixed.bottom-0.right-72.flex > div:last-child > *{flex:1 1 auto;justify-content:center;white-space:nowrap}
+    }
+    .bottomnav-active{font-variation-settings:'FILL' 1}
+    @media (max-width:767px){
+      /* room for the bottom navigation under the last row */
+      body.has-bottomnav main{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
+      main{padding-left:1rem!important;padding-right:1rem!important}
+      /* a form laid out as one row (fields + button) wraps instead of
+         pushing the page wider */
+      main form.flex:not(.flex-col){flex-wrap:wrap}
+      /* in a wrapping row (title block + side card), the flexible block takes
+         the whole line instead of shrinking to a word per line */
+      main .flex-wrap > .flex-1.min-w-0{flex-basis:100%}
+    }
+    /* A select sizes to its longest option and a file input to its own
+       chrome: neither may push its container (and the page) wider. */
+    main input,main select,main textarea{max-width:100%}
+    main .grid > *{min-width:0}
+    /* flex items default to min-width:auto (their content's width): a row
+       of inputs or a scroller inside one would widen the page instead */
+    main .flex > input:not([type=checkbox]):not([type=radio]),main .flex > select,main .flex > textarea,
+    main .overflow-x-auto,main .table-scroll{min-width:0}
+    main code{overflow-wrap:anywhere}
+    /* Wide tables scroll sideways inside their own box instead of crushing
+       their columns or widening the page (wrapped by the script below). */
+    .table-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain;max-width:100%}
+    /* "more columns this way": a soft fade on the side that still scrolls */
+    .scroll-hint{position:relative}
+    .scroll-hint::before,.scroll-hint::after{content:"";position:absolute;top:0;bottom:0;width:28px;pointer-events:none;
+      opacity:0;transition:opacity .15s;z-index:2;border-radius:inherit}
+    .scroll-hint::before{left:0;background:linear-gradient(to right,rgba(12,36,97,.14),rgba(12,36,97,0))}
+    .scroll-hint::after{right:0;background:linear-gradient(to left,rgba(12,36,97,.14),rgba(12,36,97,0))}
+    .scroll-hint.more-left::before,.scroll-hint.more-right::after{opacity:1}
+    @media (max-width:767px){
+      main table th{white-space:nowrap}
+      /* every wide table sits in a horizontal scroller (its own or ours) */
+      main table.is-wide{min-width:var(--table-min,640px)}
     }
 
     /* Modal backdrop */
     .modal-open{overflow:hidden}
     .modal-backdrop{position:fixed;inset:0;background:rgba(12,36,97,0.4);backdrop-filter:blur(8px);z-index:60;display:flex;align-items:center;justify-content:center;padding:1rem}
     .modal-backdrop[hidden]{display:none}
-    .modal-card{background:#fff;border-radius:16px;box-shadow:0 20px 40px rgba(12,36,97,0.16);width:100%;max-height:90vh;overflow-y:auto}
+    .modal-card{background:#fff;border-radius:16px;box-shadow:0 20px 40px rgba(12,36,97,0.16);width:100%;max-height:90vh;max-height:90dvh;overflow-y:auto;overscroll-behavior:contain}
+    /* phones: modals rise from the bottom as a sheet */
+    @media (max-width:640px){
+      .modal-backdrop{align-items:flex-end;padding:0}
+      .modal-card{border-radius:20px 20px 0 0;max-height:92dvh;padding-bottom:env(safe-area-inset-bottom,0px)}
+    }
     .modal-card.size-standard{max-width:720px}
     .modal-card.size-split{max-width:960px}
 
@@ -191,7 +272,7 @@
 
   {% block extra_head %}{% endblock %}
 </head>
-<body class="bg-surface font-body text-body-md text-on-surface antialiased{% block body_class %}{% endblock %}">
+<body class="bg-surface font-body text-body-md text-on-surface antialiased{% if not shell_hidden and current_user.is_authenticated %} has-bottomnav{% endif %}{% block body_class %}{% endblock %}">
   {% if support_banner %}
   {# SAAS-031 — support session banner: always shown, can't be hidden. #}
   <div role="alert" id="supportBanner" data-seconds="{{ support_banner.seconds_left }}"
@@ -210,6 +291,9 @@
   {% else %}
     {# Full app shell #}
     {% include "partials/stitch_sidebar.html" %}
+    {# phones / small tablets: tap outside the open menu to close it #}
+    <div id="sidebar-backdrop" onclick="toggleSidebarMobile(false)" aria-hidden="true"></div>
+    {% include "partials/stitch_bottomnav.html" %}
     <div id="app-main-wrapper" class="pr-[280px] transition-sidebar min-h-screen flex flex-col">
       {% include "partials/stitch_topbar.html" %}
       {% if current_user.is_authenticated %}{% include "partials/pickup_banner.html" %}{% endif %}
@@ -273,12 +357,72 @@
     } catch (_) {}
     // Toggle handler
     window.toggleSidebar = function () {
+      // Where the sidebar is a drawer (≤900px) its collapse arrow closes it.
+      if (window.matchMedia('(max-width: 900px)').matches) { window.toggleSidebarMobile(false); return; }
       document.body.classList.toggle('sidebar-mini');
       try { localStorage.setItem('sidebarState', document.body.classList.contains('sidebar-mini') ? 'mini' : 'expanded'); } catch (_) {}
     };
-    window.toggleSidebarMobile = function () {
-      document.body.classList.toggle('sidebar-mobile-open');
+    window.toggleSidebarMobile = function (open) {
+      const on = document.body.classList.toggle('sidebar-mobile-open', open);
+      document.querySelectorAll('[aria-controls="app-sidebar"]').forEach(b => b.setAttribute('aria-expanded', on));
     };
+    // The open mobile menu closes on a link tap and on Escape.
+    document.addEventListener('click', (e) => {
+      if (document.body.classList.contains('sidebar-mobile-open') && e.target.closest && e.target.closest('#app-sidebar a[href]')) {
+        window.toggleSidebarMobile(false);
+      }
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && document.body.classList.contains('sidebar-mobile-open')) window.toggleSidebarMobile(false);
+    });
+
+    // Wide tables scroll inside their own box on phones (instead of widening
+    // the page or crushing columns). Tables already in a scroller are left as is.
+    (function () {
+      function scrolls(el) {
+        for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+          const ox = getComputedStyle(p).overflowX;
+          if (ox === 'auto' || ox === 'scroll') return true;
+        }
+        return false;
+      }
+      document.querySelectorAll('main table').forEach(t => {
+        const cols = t.rows[0] ? [...t.rows[0].cells].reduce((n, c) => n + (c.colSpan || 1), 0) : 0;
+        // an empty state (one row spanning every column) stays at screen width
+        const body = t.tBodies[0];
+        const emptyState = body && body.rows.length === 1 && body.rows[0].cells.length === 1;
+        if (cols >= 4 && !emptyState) {
+          t.classList.add('is-wide');
+          t.style.setProperty('--table-min', Math.min(cols * 120, 960) + 'px');
+        }
+        if (!scrolls(t)) {
+          const w = document.createElement('div');
+          w.className = 'table-scroll';
+          t.parentNode.insertBefore(w, t);
+          w.appendChild(t);
+        }
+      });
+      // Edge fades on every horizontal table scroller (RTL: scrollLeft runs
+      // from 0 at the start, the right edge, to negative values).
+      document.querySelectorAll('main .table-scroll, main .overflow-x-auto').forEach(sc => {
+        if (!sc.querySelector('table')) return;
+        const host = document.createElement('div');
+        host.className = 'scroll-hint';
+        sc.parentNode.insertBefore(host, sc);
+        host.appendChild(sc);
+        const update = () => {
+          const max = sc.scrollWidth - sc.clientWidth;
+          const pos = Math.abs(sc.scrollLeft);
+          const rtl = getComputedStyle(sc).direction === 'rtl';
+          const towardStart = pos > 2, towardEnd = max - pos > 2;
+          host.classList.toggle('more-right', rtl ? towardStart : towardEnd);
+          host.classList.toggle('more-left', rtl ? towardEnd : towardStart);
+        };
+        sc.addEventListener('scroll', update, {passive: true});
+        window.addEventListener('resize', update);
+        update();
+      });
+    })();
 
     // Modal helpers — pages use openModal('#some-modal')
     window.openModal = function (sel) {

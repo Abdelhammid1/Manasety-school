@@ -4,7 +4,7 @@
 <html dir="rtl" lang="ar">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}لوحة المنصة{% endblock %} — منصتي</title>
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
@@ -56,7 +56,15 @@
     .mono{font-family:ui-monospace,monospace;direction:ltr;unicode-bidi:isolate}
     span.mono{display:inline-block;word-break:break-all}
     .table-wrap{overflow-x:auto}
-    @media (max-width:640px){.narrow{margin:24px auto}.top{padding:10px 16px;flex-wrap:wrap}.nav{gap:10px;font-size:14px}.nav .tag{display:none}.brand span{white-space:nowrap}}
+    @media (max-width:640px){.narrow{margin:24px auto}.top{padding:10px 16px;flex-wrap:wrap}.nav{gap:10px;font-size:14px}.nav .tag{display:none}.brand span{white-space:nowrap}
+      /* the console's links: one swipeable row instead of several lines */
+      .nav{flex-wrap:nowrap;overflow-x:auto;width:100%;padding-bottom:4px;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+      .nav > *{flex:0 0 auto;white-space:nowrap}}
+    /* phones: no tap flash, no 300ms wait, no zoom-in on a field */
+    html{-webkit-tap-highlight-color:transparent;-webkit-text-size-adjust:100%}
+    a,button,summary,label{touch-action:manipulation}
+    @media (pointer:coarse){input,select,textarea{font-size:16px!important}}
+    .top{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
   </style>
 </head>
 <body>

@@ -1,0 +1,64 @@
+{#
+  Mobile bottom navigation (DESIGN.md: "Navigation shifts to a persistent
+  bottom navigation bar optimized for thumb reach" below 768px). Four
+  role-specific destinations + «المزيد», which opens the full sidebar.
+  Hidden at md and up (the sidebar is the navigation there). Same
+  visibility rules as the sidebar: the school's modules (endpoint_on)
+  and the user's permissions (current_user.can).
+#}
+{% if current_user.is_authenticated %}
+{% set _role = current_user.role.name if current_user.role else '' %}
+{% if _role == 'teacher' %}
+  {% set _items = [
+    ('dashboard.home', 'الرئيسية', 'home', None),
+    ('attendance.index', 'الحضور', 'fact_check', ('attendance', 'view')),
+    ('results.grades_index', 'الدرجات', 'grading', ('results', 'view')),
+    ('schedule.index', 'جدولي', 'calendar_month', None),
+  ] %}
+{% elif _role == 'student' %}
+  {% set _items = [
+    ('dashboard.home', 'صفحتي', 'home', None),
+    ('courses.list_courses', 'مقرّراتي', 'auto_stories', None),
+    ('lms.assignments_home', 'واجباتي', 'assignment', None),
+    ('lms.quizzes_home', 'اختباراتي', 'quiz', None),
+  ] %}
+{% elif _role == 'parent' %}
+  {% set _items = [
+    ('dashboard.home', 'الرئيسية', 'family_restroom', None),
+    ('portal.pickup_home', 'النداء', 'campaign', None),
+    ('lms.announcements_home', 'الإعلانات', 'notifications', None),
+  ] %}
+{% else %}
+  {% set _items = [
+    ('dashboard.home', 'الرئيسية', 'dashboard', None),
+    ('students.students_list', 'الطلاب', 'school', ('students', 'view')),
+    ('attendance.index', 'الحضور', 'fact_check', ('attendance', 'view')),
+    ('finance.dashboard', 'المالية', 'payments', ('finance', 'view')),
+  ] %}
+{% endif %}
+{% set _cur = request.endpoint or '' %}
+<nav id="app-bottomnav" aria-label="التنقل السريع"
+     class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl border-t border-outline-variant">
+  <ul class="flex items-stretch justify-around">
+    {% for ep, label, icon, perm in _items %}
+      {% if endpoint_on(ep) and (not perm or current_user.can(perm[0], perm[1])) %}
+      {% set _active = _cur == ep or (_cur.split('.')[0] == ep.split('.')[0] and ep != 'dashboard.home') %}
+      <li class="flex-1">
+        <a href="{{ url_for(ep) }}" {% if _active %}aria-current="page"{% endif %}
+           class="bottomnav-link flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 font-label-sm text-label-sm {{ 'text-primary font-bold' if _active else 'text-on-surface-variant' }}">
+          <span class="material-symbols-outlined text-[22px] {{ 'bottomnav-active' if _active }}">{{ icon }}</span>
+          <span class="truncate max-w-full">{{ label }}</span>
+        </a>
+      </li>
+      {% endif %}
+    {% endfor %}
+    <li class="flex-1">
+      <button type="button" onclick="toggleSidebarMobile()" aria-label="القائمة الكاملة" aria-controls="app-sidebar"
+              class="bottomnav-link w-full flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 font-label-sm text-label-sm text-on-surface-variant">
+        <span class="material-symbols-outlined text-[22px]">menu</span>
+        <span>المزيد</span>
+      </button>
+    </li>
+  </ul>
+</nav>
+{% endif %}

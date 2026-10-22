@@ -51,8 +51,8 @@
         <span class="font-label-md text-label-md text-on-surface-variant">{{ label }}</span>
         <span class="material-symbols-outlined" style="color: {{ color }}">{{ icon }}</span>
       </div>
-      <div class="font-headline-md text-headline-md text-primary font-bold mt-2 tabular-nums">
-        {% if val is number and label != 'متأخرة' %}{{ val|round(2) }} <span class="text-body-md text-on-surface-variant font-normal">ر.س</span>{% elif val is number %}{{ val }}{% else %}{{ val }}{% endif %}
+      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">
+        {% if val is number and label != 'متأخرة' %}{{ '%.2f'|format(val) }} <span class="text-body-md text-on-surface-variant font-normal">ر.س</span>{% elif val is number %}{{ val }}{% else %}{{ val }}{% endif %}
       </div>
     </div>
     {% endfor %}

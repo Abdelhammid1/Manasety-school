@@ -10,9 +10,10 @@
 #}
 {% set _role = (current_user.role.name if current_user.is_authenticated and current_user.role else 'guest') %}
 
-{% macro nav_item(endpoint, label, icon, extra_endpoints=None) -%}
-  {# SAAS-030 — a link into a module the school doesn't have isn't shown. #}
-  {% if endpoint_on(endpoint) %}
+{% macro nav_item(endpoint, label, icon, extra_endpoints=None, perm=None) -%}
+  {# SAAS-030 — a link into a module the school doesn't have isn't shown;
+     `perm` (module, action): nor a page this user's role can't open. #}
+  {% if endpoint_on(endpoint) and (not perm or current_user.can(perm[0], perm[1])) %}
   {% set _cur = request.endpoint or '' %}
   {% set _active = (_cur == endpoint) or (extra_endpoints and _cur in extra_endpoints) or (_cur and _cur.split('.')[0] == endpoint.split('.')[0] and endpoint.endswith('.index')) %}
   <div class="group relative">
@@ -204,7 +205,7 @@
           {{ nav_item('portal.home',    'بوابتي',       'workspaces') }}
         {% endcall %}
         {% call group('teacher-classes', 'صفوفي والمقرّرات', 'menu_book') %}
-          {{ nav_item('teachers.subjects_list','المواد الدراسية','book') }}
+          {{ nav_item('teachers.subjects_list','المواد الدراسية','book', perm=('teachers', 'view')) }}
           {{ nav_item('courses.list_courses',  'مقرّراتي وحصصي','auto_stories') }}
           {{ nav_item('portal.materials',      'المكتبة الرقمية','folder_open') }}
           {{ nav_item('lms.qbank_dashboard',    'بنك الأسئلة',   'inventory_2') }}
@@ -228,7 +229,7 @@
         {% if module_on('portal') %}
         {% call group('parent-updates', 'المتابعة والرسوم', 'campaign') %}
           {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
-          {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long') }}
+          {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long', perm=('finance', 'view')) }}
         {% endcall %}
         {% endif %}
 

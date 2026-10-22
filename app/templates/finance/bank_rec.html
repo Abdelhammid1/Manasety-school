@@ -22,7 +22,7 @@
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="flex flex-col gap-1">
         <label class="font-label-md font-bold text-on-surface">الحساب البنكي</label>
-        <select name="account_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
+        <select name="account_id" required class="w-full min-w-0 h-11 px-3 rounded-lg bg-surface-container-low">
           {% for a in bank_accounts %}
           <option value="{{ a.id }}" {% if a.id == account_id %}selected{% endif %}>{{ a.code }} — {{ a.name }}</option>
           {% endfor %}
@@ -31,7 +31,7 @@
       <div class="flex flex-col gap-1">
         <label class="font-label-md font-bold text-on-surface">ملف كشف الحساب (CSV)</label>
         <input type="file" name="statement" accept=".csv,text/csv" required
-               class="h-11 px-3 rounded-lg bg-surface-container-low">
+               class="w-full min-w-0 h-11 px-3 rounded-lg bg-surface-container-low">
       </div>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
               style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
@@ -40,7 +40,7 @@
     </form>
   </section>
 
-  <form method="get" action="{{ url_for('finance.bank_rec') }}" class="flex items-center gap-space-sm">
+  <form method="get" action="{{ url_for('finance.bank_rec') }}" class="flex flex-wrap items-center gap-space-sm">
     <label class="font-label-md">عرض:</label>
     <select name="account_id" onchange="this.form.submit()"
             class="h-10 px-3 rounded-lg bg-surface-container-low">

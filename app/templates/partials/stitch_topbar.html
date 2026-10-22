@@ -7,9 +7,10 @@
         class="fixed top-0 right-[280px] left-0 h-16 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(0,0,0,0.04)] z-40 flex items-center justify-between px-space-lg transition-sidebar">
   <div class="flex items-center gap-space-md">
     {# Mobile menu toggle #}
+    {# shown whenever the sidebar is hidden (≤900px — see .menu-toggle in stitch_base) #}
     <button type="button" onclick="toggleSidebarMobile()"
-            class="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors md:hidden"
-            aria-label="فتح القائمة">
+            class="menu-toggle items-center justify-center min-w-[44px] min-h-[44px] p-2 rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors"
+            aria-label="فتح القائمة" aria-controls="app-sidebar" aria-expanded="false">
       <span class="material-symbols-outlined text-xl">menu</span>
     </button>
     {# Breadcrumb — page provides {% block topbar_crumb %} #}
@@ -19,7 +20,7 @@
     </div>
   </div>
 
-  <div class="flex items-center gap-space-md">
+  <div class="flex items-center gap-1 sm:gap-space-md">
     {% if active_year %}
     <div class="hidden sm:flex items-center gap-space-xs bg-surface-container-low px-space-sm py-1 rounded-lg text-on-surface-variant font-label-md text-label-md">
       <span class="material-symbols-outlined text-sm text-secondary">event</span>
@@ -41,6 +42,14 @@
       <div class="hidden absolute top-11 right-0 w-96 max-h-[70vh] overflow-y-auto bg-surface-container-lowest rounded-2xl shadow-2xl z-50 p-2"
            data-suggestions></div>
     </form>
+
+    {# Search on phones / tablets: the full results page (the inline box is lg+) #}
+    {% if current_user.is_authenticated %}
+    <a href="{{ url_for('dashboard.global_search') }}" title="بحث" aria-label="بحث"
+       class="lg:hidden inline-flex items-center justify-center min-w-[44px] min-h-[44px] rounded-lg text-on-surface-variant hover:bg-surface-container-high transition-colors">
+      <span class="material-symbols-outlined text-xl">search</span>
+    </a>
+    {% endif %}
 
     {# Notifications #}
     <button type="button" title="الإشعارات"
