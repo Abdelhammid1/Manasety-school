@@ -156,3 +156,51 @@ def test_teacher_upload_lands_under_the_schools_folder(papp, world, tmp_path, mo
     assert key.startswith(f"{A['school'].id}/materials/{A['section'].id}/")
     assert (tmp_path / key).is_file()
     assert not list(tmp_path.glob(f"{world['B']['school'].id}/**/*.pdf"))
+
+
+def test_student_reaches_only_courses_published_to_their_section(papp, world):
+    """Same school, published course, but not published to the student's
+    section (or the student has no active enrollment): not_found, as on
+    the web (lms._assert_can_view_course_item)."""
+    from app.extensions import db
+    from app.models import Course, CourseAssignment, Enrollment, Lesson, Quiz
+    A = world["A"]
+    with papp.app_context():
+        other = Course(school_id=A["school"].id, academic_year_id=A["year"].id, grade_id=A["grade"].id,
+                       subject_id=A["subject"].id, title="Hidden-alpha", is_published=True)
+        db.session.add(other)
+        db.session.flush()
+        lesson = Lesson(course_id=other.id, title="HiddenL-alpha", body="x")
+        quiz = Quiz(course_id=other.id, title="HiddenQ-alpha", is_published=True)
+        asg = CourseAssignment(course_id=other.id, title="HiddenA-alpha", is_published=True)
+        db.session.add_all([lesson, quiz, asg])
+        db.session.commit()
+        ids = {"course": other.id, "lesson": lesson.id, "quiz": quiz.id, "assignment": asg.id}
+        db.session.remove()
+    calls = [("GET", "/api/student/courses/{course}", None),
+             ("GET", "/api/student/lessons/{lesson}", None),
+             ("GET", "/api/student/assignments/{assignment}", None),
+             ("POST", "/api/student/assignments/{assignment}/submit", {"body": "x"}),
+             ("GET", "/api/student/quizzes/{quiz}/attempt", None),
+             ("POST", "/api/student/quizzes/{quiz}/submit", {"answers": {}})]
+    c = _api(papp, A, "student")
+    for method, path, body in calls:
+        r = c.open(path.format(**ids), method=method, json=body, base_url=host(A))
+        assert (r.status_code, r.get_json()) == (404, NOT_FOUND), path
+        assert "Hidden" not in r.get_data(as_text=True)
+    # A's own course (published to the student's section) still opens …
+    assert c.get(f"/api/student/courses/{A['course']}", base_url=host(A)).status_code == 200
+    # … and fails closed once the student has no active enrollment.
+    with papp.app_context():
+        e = db.session.get(Enrollment, A["enrollment"].id)
+        e.status = "withdrawn"
+        db.session.commit()
+        db.session.remove()
+    try:
+        r = c.get(f"/api/student/courses/{A['course']}", base_url=host(A))
+        assert (r.status_code, r.get_json()) == (404, NOT_FOUND)
+    finally:
+        with papp.app_context():
+            db.session.get(Enrollment, A["enrollment"].id).status = "active"
+            db.session.commit()
+            db.session.remove()

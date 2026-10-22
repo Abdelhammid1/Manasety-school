@@ -2166,6 +2166,20 @@ def _student_for(user):
     return Student.query.filter_by(school_id=user.school_id, user_id=user.id).first()
 
 
+def _student_sees_course(student, course) -> bool:
+    """SAAS-017 — same rule as the web (lms._assert_can_view_course_item):
+    a published course of this school, published to a section the student
+    is actively enrolled in. Fails closed (no enrollment = no access)."""
+    from ...models import CourseSection
+    if course is None or course.school_id != _sid() or not course.is_published:
+        return False
+    section_ids = {e.section_id for e in Enrollment.query.filter_by(
+        student_id=student.id, status="active") if e.section_id is not None}
+    return bool(section_ids) and CourseSection.query.filter(
+        CourseSection.course_id == course.id, CourseSection.is_published.is_(True),
+        CourseSection.section_id.in_(section_ids)).first() is not None
+
+
 def _active_enrollment(student):
     year = _active_year()
     if not year:
@@ -2366,7 +2380,7 @@ def student_course_detail(course_id):
     if not student:
         return _err("student profile not linked", 404)
     course = _owned(Course, course_id)
-    if not course:
+    if not course or not _student_sees_course(student, course):
         return _not_found()
     subject_name = None
     if course.subject_id:
@@ -2605,17 +2619,10 @@ def student_lesson_view(lid):
     if not student:
         return _err("student profile not linked", 404)
     lesson = _owned(Lesson, lid)
-    if not lesson or not lesson.is_published:
+    # Access: a published course published to one of the student's
+    # sections (fails closed, like the web).
+    if not lesson or not lesson.is_published or not _student_sees_course(student, lesson.course):
         return _not_found()
-    # Access check: student must be enrolled in a section that publishes
-    # the parent course.
-    enr = _active_enrollment(student)
-    if enr:
-        allowed = CourseSection.query.filter_by(
-            course_id=lesson.course_id, section_id=enr.section_id,
-        ).first()
-        if not allowed:
-            return _err("not authorised", 403)
     return jsonify({
         "id": lesson.id,
         "course_id": lesson.course_id,
@@ -2639,7 +2646,7 @@ def student_assignment_detail(aid):
     if not student:
         return _err("student profile not linked", 404)
     a = _owned(CourseAssignment, aid)
-    if not a or not a.is_published:
+    if not a or not a.is_published or not _student_sees_course(student, a.course):
         return _not_found()
     # Questions + choices, if the assignment has any (smart assignments).
     qs = (
@@ -2689,7 +2696,7 @@ def student_assignment_submit(aid):
     if not student:
         return _err("student profile not linked", 404)
     a = _owned(CourseAssignment, aid)
-    if not a or not a.is_published:
+    if not a or not a.is_published or not _student_sees_course(student, a.course):
         return _not_found()
 
     data = request.get_json(silent=True) or {}
@@ -2801,7 +2808,7 @@ def student_quiz_attempt(qid):
     if not student:
         return _err("student profile not linked", 404)
     q = _owned(Quiz, qid)
-    if not q or not q.is_published:
+    if not q or not q.is_published or not _student_sees_course(student, q.course):
         return _not_found()
     questions = (
         Question.query.filter_by(quiz_id=q.id)
@@ -2837,7 +2844,7 @@ def student_quiz_submit(qid):
     if not student:
         return _err("student profile not linked", 404)
     q = _owned(Quiz, qid)
-    if not q or not q.is_published:
+    if not q or not q.is_published or not _student_sees_course(student, q.course):
         return _not_found()
 
     data = request.get_json(silent=True) or {}
