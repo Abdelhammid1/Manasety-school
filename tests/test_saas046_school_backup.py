@@ -378,3 +378,35 @@ def test_school_json_is_an_allowlist(bapp, world):
         _rewrite(res.path, tampered, resum=True)
         rep = _verify(bapp, res.path)
         assert not rep.ok and any("غير مسموحة" in p for p in rep.problems), extra
+
+
+def test_a_package_with_a_support_account_is_refused(bapp, world):
+    """Real exports never carry platform support accounts (security review)."""
+    from app.services import school_backup as sb
+    res = _export(bapp, world["A"])
+    members = _members(res.path)
+    manifest = json.loads(members["manifest.json"])
+    cols = manifest["tables"]["users"]["columns"]
+    line = members["data/users.copy"].decode().splitlines()[0]
+    vals = sb.parse_copy_line(line)
+    vals[cols.index("id")] = "999777"
+    vals[cols.index("username")] = "ghost_support"
+    vals[cols.index("is_platform_support")] = "t"
+    members["data/users.copy"] += sb.copy_line(vals).encode()
+    manifest["tables"]["users"]["rows"] += 1
+    members["manifest.json"] = json.dumps(manifest).encode()
+    _rewrite(res.path, members, resum=True)
+    rep = _verify(bapp, res.path)
+    assert not rep.ok and any("حساب دعم" in p for p in rep.problems)
+
+
+def test_unpacked_size_is_capped(bapp, world, monkeypatch):
+    """A small file must not unpack into a huge one (security review)."""
+    res = _export(bapp, world["A"])
+    monkeypatch.setitem(bapp.config, "SCHOOL_BACKUP_MAX_UNPACKED_MB", 0)
+    members = _members(res.path)
+    members["data/students.copy"] += b"x" * (2 * 1024 * 1024)       # 2 MB, compresses to almost nothing
+    _rewrite(res.path, members, resum=True)
+    monkeypatch.setitem(bapp.config, "SCHOOL_BACKUP_MAX_UNPACKED_MB", 1)
+    rep = _verify(bapp, res.path)
+    assert not rep.ok and any("فك الضغط" in p for p in rep.problems)

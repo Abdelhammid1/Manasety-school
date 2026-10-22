@@ -29,6 +29,7 @@ removed doesn't trip a constraint midway. They're checked before commit.
 """
 from __future__ import annotations
 
+import io
 import json
 import secrets
 import shutil
@@ -218,9 +219,10 @@ class Package:
         if not meta:
             return []
         cols = [table.c[c] for c in meta["columns"]]
-        fh = self._tar.extractfile(self._members[f"data/{table.name}.copy"])
+        raw = self._tar.extractfile(self._members[f"data/{table.name}.copy"])
         out = []
-        for line in fh.read().decode("utf-8").splitlines():
+        # streamed line by line (the package's unpacked size is capped at verify)
+        for line in io.TextIOWrapper(raw, encoding="utf-8", newline="\n"):
             vals = engine.parse_copy_line(line)
             out.append({c.name: _convert(c, v) for c, v in zip(cols, vals)})
         return out
@@ -453,6 +455,8 @@ def apply(pkg: Package, school_id: int, chosen: Iterable[str], mode: str,
                 skipped += 1
                 continue
             row = _with_secrets(t, k, dict(r), live_secrets.get(name, {}), secret_cache)
+            if name == "users" and "is_platform_support" in t.c:
+                row["is_platform_support"] = False     # only the platform makes support accounts
             row, n_null, ok = _resolve_links(conn, t, row, selected)
             nulled += n_null
             if ok:

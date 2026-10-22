@@ -133,6 +133,13 @@ def max_bytes() -> int:
     return int(current_app.config.get("SCHOOL_BACKUP_MAX_MB") or DEFAULT_MAX_MB) * 1024 * 1024
 
 
+def max_unpacked_bytes() -> int:
+    """Cap on a package's UNCOMPRESSED size (a small file must not unpack
+    into gigabytes): SCHOOL_BACKUP_MAX_UNPACKED_MB, default 4 x the cap."""
+    mb = current_app.config.get("SCHOOL_BACKUP_MAX_UNPACKED_MB")
+    return int(mb) * 1024 * 1024 if mb else 4 * max_bytes()
+
+
 def current_revision(conn=None) -> Optional[str]:
     """The database's migration revision (None on a create_all test DB).
     Checked first: a failed SELECT would abort a Postgres transaction."""
@@ -543,6 +550,8 @@ def _verify_plain(path: Path, expect_school_id: Optional[int]) -> VerifyReport:
             members = _safe_members(tar)
         except (tarfile.TarError, EOFError, OSError):
             raise BackupError("الملف مش حزمة نسخة احتياطية صالحة.") from None
+        if sum(m.size for m in members.values()) > max_unpacked_bytes():
+            raise BackupError("محتوى الحزمة بعد فك الضغط أكبر من الحد المسموح.")
         for need in ("manifest.json", "checksums.sha256", "school.json"):
             if need not in members:
                 raise BackupError("الحزمة ناقصة (manifest / checksums).")
@@ -624,6 +633,8 @@ def _check_manifest(tar, members, manifest, rep: VerifyReport, expect_school_id)
             problems.append(f"أعمدة غير معروفة في {name}")
             continue
         sid_at = cols.index("school_id")
+        # A real export never carries platform support accounts.
+        support_at = cols.index("is_platform_support") if name == "users" and "is_platform_support" in cols else None
         n = 0
         fh = io.TextIOWrapper(tar.extractfile(members[f"data/{name}.copy"]), encoding="utf-8", newline="\n")
         for line in fh:
@@ -634,6 +645,9 @@ def _check_manifest(tar, members, manifest, rep: VerifyReport, expect_school_id)
             if vals[sid_at] != str(sid):
                 # One foreign row refuses the whole package (never skipped).
                 problems.append(f"صف يخص مدرسة أخرى في {name}")
+                break
+            if support_at is not None and vals[support_at] == "t":
+                problems.append("الحزمة فيها حساب دعم من المنصة")
                 break
             n += 1
         else:
