@@ -1,0 +1,47 @@
+{# SAAS-049 — first rows of one table (optionally one student's) + export. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}{{ label }} — من النسخة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.browse_view', token=token) }}" class="text-outline hover:text-primary">محتوى النسخة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ label }}</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1400px] mx-auto space-y-6 pb-16">
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-4">
+    <h1 class="font-headline-sm font-bold text-on-surface">{{ label }}{% if student %} — طالب #{{ student }}{% endif %}</h1>
+    <p class="text-on-surface-variant">أول {{ preview_rows }} صف للمعاينة. التصدير بيشمل كل الصفوف.</p>
+    <form method="post" action="{{ url_for('admin.browse_export', token=token, table=table) }}" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      {% if student %}<input type="hidden" name="student" value="{{ student }}">{% endif %}
+      <label class="block">
+        <span class="font-label-md">الصيغة</span>
+        <select name="format" class="mt-1 rounded-lg border border-outline-variant px-3 py-2">
+          <option value="xlsx">Excel</option><option value="csv">CSV</option>
+        </select>
+      </label>
+      <label class="block">
+        <span class="font-label-md">كلمة مرور حسابك</span>
+        <input type="password" name="account_password" required autocomplete="current-password"
+               class="mt-1 rounded-lg border border-outline-variant px-3 py-2">
+      </label>
+      <button class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md font-bold">
+        <span class="material-symbols-outlined">download</span>تصدير
+      </button>
+    </form>
+  </section>
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-x-auto">
+    {% if data %}
+    <table class="w-full text-right font-body-sm">
+      <thead><tr class="bg-surface-container-low text-on-surface-variant">
+        {% for c in cols %}<th class="py-2 px-3 font-semibold whitespace-nowrap">{{ c }}</th>{% endfor %}
+      </tr></thead>
+      <tbody class="divide-y divide-surface-container-high/40">
+        {% for r in data %}<tr>{% for v in r %}<td class="py-2 px-3 whitespace-nowrap">{{ '' if v is none else v }}</td>{% endfor %}</tr>{% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="p-6 text-outline">مفيش صفوف.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

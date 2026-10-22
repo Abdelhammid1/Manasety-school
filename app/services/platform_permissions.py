@@ -37,6 +37,7 @@ CAPABILITIES: dict[str, frozenset[str]] = {
     "audit": frozenset({OWNER}),
     "apps.settings": frozenset({OWNER}),             # 037
     "backups.policy": frozenset({OWNER}),            # 047 — feature on / off, how many to keep
+    "backups.restore": frozenset({OWNER}),           # 048 — restore on behalf (reason required)
 }
 
 G, P = "GET", "POST"
@@ -67,6 +68,8 @@ ROUTES: dict[str, dict[str, str]] = {
     "superadmin.school_nginx_sync": {P: "nginx.sync"},
     "superadmin.school_module_set": {P: "modules.write"},
     "superadmin.school_backup_policy": {P: "backups.policy"},
+    "superadmin.school_restore_new": {P: "backups.restore"},
+    "superadmin.school_restore_confirm": {P: "backups.restore"},
     "superadmin.school_limits_set": {P: "limits.write"},
     "superadmin.support_start": {P: "support.read_only"},
     "superadmin.support_sessions": {G: "support.sessions"},

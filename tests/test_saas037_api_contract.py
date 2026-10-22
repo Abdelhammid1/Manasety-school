@@ -211,7 +211,8 @@ def test_upgrade_check_skips_public_and_headerless(papp, two_schools):
 # ─── the error-code contract ─────────────────────────────────────────
 
 CODES = ("unauthorized", "subscription_blocked", "subscription_read_only", "module_disabled",
-         "limit_reached", "school_moved", "upgrade_required", "rate_limited")
+         "limit_reached", "school_moved", "upgrade_required", "rate_limited", "not_found",
+         "maintenance")
 
 
 def test_every_code_has_one_line_in_the_doc():

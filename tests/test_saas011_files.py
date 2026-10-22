@@ -293,6 +293,15 @@ def test_api_submit_refuses_stored_file_keys(files_app, lms_world):
         asg = CourseAssignment.query.join(Submission).filter(
             Submission.id == lms_world["ids"]["submission"]).one()
         asg.is_published = True
+        # SAAS-017 review: the API serves a student only courses published
+        # to one of their sections — publish this one to the student's.
+        from app.models import CourseSection, Enrollment, Student
+        course = asg.course
+        course.is_published = True
+        stu = Student.query.filter_by(user_id=A["users"]["student"].id).one()
+        for e in Enrollment.query.filter_by(student_id=stu.id, status="active"):
+            if not CourseSection.query.filter_by(course_id=course.id, section_id=e.section_id).first():
+                db.session.add(CourseSection(course_id=course.id, section_id=e.section_id, is_published=True))
         db.session.commit()
         aid = asg.id
         token = issue_token(db.session.get(User, A["users"]["student"].id))

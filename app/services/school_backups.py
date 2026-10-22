@@ -84,6 +84,7 @@ def set_policy(school_id: int, *, enabled: bool, keep: int, platform_user) -> di
 
 def _audit(action: str, backup, user=None, **meta) -> None:
     from ..models import AuditLog
+    assert len(action) <= 16, action          # audit_logs.action is VARCHAR(16)
     ip = ua = None
     if has_request_context():
         ip = request.remote_addr
@@ -193,7 +194,7 @@ def prune(school_id: int) -> int:
         p = _path(b)
         if p:
             p.unlink(missing_ok=True)
-        _audit("backup_retention_delete", b)
+        _audit("backup_pruned", b)
         db.session.delete(b)
         gone += 1
     db.session.commit()
@@ -239,12 +240,12 @@ def prepare_download(b, user, account_password: str, passphrase: str) -> str:
         if user.failed_attempts >= current_app.config["LOCKOUT_MAX_ATTEMPTS"]:
             user.locked_until = datetime.utcnow() + timedelta(minutes=current_app.config["LOCKOUT_MINUTES"])
             user.failed_attempts = 0
-        _audit("backup_download_refused", b, user, reason="wrong account password")
+        _audit("backup_dl_denied", b, user, reason="wrong account password")
         db.session.commit()
         raise BackupRefused("كلمة مرور الحساب غير صحيحة.")
     user.failed_attempts = 0
     hour_ago = datetime.now(timezone.utc) - timedelta(hours=1)
-    if AuditLog.query.filter(AuditLog.user_id == user.id, AuditLog.action == "backup_download_prepared",
+    if AuditLog.query.filter(AuditLog.user_id == user.id, AuditLog.action == "backup_dl_ready",
                              AuditLog.created_at >= hour_ago).count() >= PREPARE_PER_HOUR:
         raise BackupRefused(f"الحد الأقصى {PREPARE_PER_HOUR} تنزيلات في الساعة.")
     try:
@@ -262,7 +263,7 @@ def prepare_download(b, user, account_password: str, passphrase: str) -> str:
         raise BackupRefused("المساحة على السيرفر غير كافية حاليًا — تواصل مع الدعم.")
     name = f"b{b.id}-{secrets.token_hex(16)}.mbk"
     engine.encrypt_file(src, _downloads_dir(b.school_id) / name, passphrase)
-    _audit("backup_download_prepared", b, user)
+    _audit("backup_dl_ready", b, user)
     db.session.commit()
     return _signer().dumps({"b": b.id, "u": user.id, "s": b.school_id, "f": name})
 
@@ -293,7 +294,7 @@ def open_download(token: str, user, school_id: int):
         os.replace(path, sending)
     except OSError:
         return None
-    _audit("backup_downloaded", b, user)
+    _audit("backup_dl", b, user)
     db.session.commit()
     return sending, (b.file_name or "backup.tar.gz").replace(".tar.gz", ".mbk"), b
 

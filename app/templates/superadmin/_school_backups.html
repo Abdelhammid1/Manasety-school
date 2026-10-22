@@ -33,3 +33,47 @@
     </tbody>
   </table>
 </div>
+
+<h3>الاسترجاع بالنيابة عن المدرسة</h3>
+{% if current_user.role == 'owner' %}
+<div class="card">
+  <form method="post" action="{{ url_for('superadmin.school_restore_new', school_id=school.id) }}" class="row" style="align-items:center">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <select name="backup_id" required aria-label="النسخة" style="flex:0 0 220px">
+      {% for b in school_backups if b.status == 'succeeded' %}
+      <option value="{{ b.id }}">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}{% if b.kind == 'restore_point' %} (نقطة أمان){% endif %}</option>
+      {% endfor %}
+    </select>
+    <input name="reason" required minlength="5" placeholder="السبب (إلزامي)" aria-label="السبب" style="flex:1 1 200px">
+    <button class="btn ghost" type="submit" style="flex:0 0 auto">معاينة</button>
+  </form>
+</div>
+{% endif %}
+{% for r in school_restores %}
+<div class="card">
+  <p>#{{ r.id }} — {{ r.created_at.strftime('%Y-%m-%d %H:%M') }} — {{ r.status }}{% if r.reason %} — {{ r.reason }}{% endif %}{% if r.error %} — {{ r.error }}{% endif %}</p>
+  {% if r.status == 'previewed' and r.preview and current_user.role == 'owner' %}
+  <form method="post" action="{{ url_for('superadmin.school_restore_confirm', school_id=school.id, rid=r.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th>الوحدة</th><th>الحالي</th><th>في النسخة</th><th>هيتمسح</th></tr></thead>
+      <tbody>
+      {% for m in r.preview.modules %}
+        <tr><td><input type="checkbox" name="modules" value="{{ m.key }}" aria-label="{{ m.label }}"></td>
+            <td>{{ m.label }}</td><td>{{ m.tables|sum(attribute='live') }}</td>
+            <td>{{ m.tables|sum(attribute='package') }}</td><td>{{ m.tables|sum(attribute='delete') }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table></div>
+    <div class="row" style="align-items:center">
+      <select name="mode" required aria-label="الوضع" style="flex:0 0 180px">
+        <option value="replace">استبدال</option><option value="add_missing">إضافة الناقص فقط</option>
+      </select>
+      <input name="school_name" required placeholder="اكتب اسم المدرسة: {{ school.name }}" aria-label="اسم المدرسة" style="flex:1 1 200px">
+      <input name="reason" required minlength="5" value="{{ r.reason or '' }}" aria-label="السبب" style="flex:1 1 200px">
+      <button class="btn" type="submit" style="flex:0 0 auto">تأكيد الاسترجاع</button>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endfor %}

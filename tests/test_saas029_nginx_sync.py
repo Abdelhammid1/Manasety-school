@@ -291,7 +291,8 @@ def test_no_docker_or_subprocess_outside_nginx_sync():
     offenders = []
     for p in (ROOT / "app").rglob("*.py"):
         rel = p.relative_to(ROOT).as_posix()
-        if rel == "app/services/nginx_sync.py":
+        # SAAS-050: system-restore (server CLI only) runs psql to load a dump
+        if rel in ("app/services/nginx_sync.py", "app/services/system_restore.py"):
             continue
         text = p.read_text(encoding="utf-8")
         if re.search(r"\bsubprocess\b|os\.system|os\.popen|[\"']docker[\"']", text):

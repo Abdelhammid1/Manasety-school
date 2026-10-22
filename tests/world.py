@@ -244,7 +244,7 @@ def seed_core(bundle: dict) -> dict:
     from app.extensions import db
     from app.models import (
         AssessmentComponent, Assignment, Conversation, ConversationParticipant, Day, GradingScale,
-        Message, NotificationLog, SchoolBackup,
+        Message, NotificationLog, SchoolBackup, SchoolRestore,
         NafisCycle, Period, Room, ScheduleSlot, SchoolCalendarDay, Teacher, TranscriptSnapshot,
         UserScope, Vendor,
     )
@@ -289,13 +289,18 @@ def seed_core(bundle: dict) -> dict:
                           requested_by_user_id=users["admin"].id)
     for o in (tasg, slot, msg, snap, scope, comp, notif, backup):
         add(o)
+    db.session.flush()
+    restore = SchoolRestore(school_id=sid, status="succeeded", mode="replace", modules=["academic"],
+                            package_file=backup.file_name, source_backup_id=backup.id,
+                            restore_point_backup_id=backup.id, requested_by_user_id=users["admin"].id)
+    add(restore)
     db.session.commit()
     return {
         "teacher": teacher.id, "day": day.id, "period": period.id, "room": room.id,
         "calendar_day": cal.id, "scale": scale.id, "nafis_cycle": cycle.id,
         "conversation": conv.id, "message": msg.id, "trash_vendor": trash.id,
         "teacher_assignment": tasg.id, "slot": slot.id, "transcript": snap.id, "scope": scope.id,
-        "component": comp.id, "notification": notif.id, "backup": backup.id,
+        "component": comp.id, "notification": notif.id, "backup": backup.id, "restore": restore.id,
         "role": bundle["roles"]["teacher"].id, "admin_user": users["admin"].id,
         "markers": (f"TeacherRec-{slug}", f"Spec-{slug}", f"Day-{slug}", f"Period-{slug}",
                     f"Room-{slug}", f"Scale-{slug}", f"Nafis-{slug}", f"Msg-{slug}",

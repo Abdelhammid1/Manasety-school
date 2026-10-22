@@ -1,0 +1,159 @@
+{# SAAS-048 — one restore: preview per module, choose modules + mode,
+   confirm with the school's name and your password, result, undo. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}استرجاع — معاينة وتأكيد{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.restore_home') }}" class="text-outline hover:text-primary">استرجاع</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">#{{ r.id }}</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-6 pb-16" data-restore="{{ r.id }}" data-status="{{ r.status }}">
+
+  {% if r.status in ('pending_preview', 'previewing', 'confirmed', 'running') %}
+  <section class="rounded-2xl bg-sky-50 text-sky-900 p-6 flex items-center gap-3">
+    <span class="material-symbols-outlined animate-spin">progress_activity</span>
+    <span class="font-title-md">
+      {% if r.status in ('pending_preview', 'previewing') %}جاري تجهيز المعاينة…
+      {% else %}جاري الاسترجاع — المدرسة في صيانة قصيرة لحد ما يخلص.{% endif %}
+    </span>
+  </section>
+  {% endif %}
+
+  {% if r.status == 'failed' %}
+  <section class="rounded-2xl bg-rose-50 text-rose-800 p-6">
+    <div class="font-title-md font-bold">فشل — مفيش أي بيانات اتغيّرت.</div>
+    <div class="mt-1">{{ r.error }}</div>
+  </section>
+  {% endif %}
+
+  {% if r.status == 'succeeded' %}
+  <section class="rounded-2xl bg-emerald-50 text-emerald-900 p-6 space-y-3">
+    <div class="font-title-md font-bold">تم الاسترجاع.</div>
+    {% set res = r.result or {} %}
+    <div class="font-body-md">
+      الوحدات: {% for m in res.modules or [] %}{{ labels[m] }}{% if not loop.last %}، {% endif %}{% endfor %}
+      — صفوف مضافة: {{ (res.inserted or {}).values()|sum }}، محذوفة: {{ (res.deleted or {}).values()|sum }}،
+      متجاهَلة: {{ (res.skipped or {}).values()|sum }}، روابط بقت فاضية: {{ (res.nulled or {}).values()|sum }}، ملفات: {{ res.files or 0 }}.
+    </div>
+    {% if r.restore_point_backup_id %}
+    <form method="post" action="{{ url_for('admin.restore_undo', rid=r.id) }}" class="flex flex-wrap items-end gap-3">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <label class="block">
+        <span class="font-label-md">كلمة مرور حسابك</span>
+        <input type="password" name="account_password" required autocomplete="current-password"
+               class="mt-1 rounded-lg border border-outline-variant px-3 py-2 bg-white">
+      </label>
+      <button type="submit" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-white text-emerald-900 border border-emerald-300 font-label-md font-bold">
+        <span class="material-symbols-outlined">undo</span>تراجع (رجوع للحالة قبل الاسترجاع)
+      </button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+
+  {% if r.preview %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-4">
+    <h1 class="font-headline-sm font-bold text-on-surface">المعاينة</h1>
+    <p class="text-on-surface-variant">
+      النسخة من {{ (r.preview.created_at or '')[:16]|replace('T', ' ') }}. الأرقام لوضع «استبدال»: هيتمسح الموجود في الوحدة ويتحط اللي في النسخة.
+    </p>
+    {% for n in r.preview.notes or [] %}<p class="rounded-lg bg-amber-50 text-amber-900 p-3">{{ n }}</p>{% endfor %}
+
+    {% if r.status == 'previewed' %}
+    <form method="post" action="{{ url_for('admin.restore_confirm', rid=r.id) }}" class="space-y-5">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% endif %}
+      <div class="overflow-x-auto">
+        <table class="w-full text-right">
+          <thead>
+            <tr class="bg-surface-container-low text-on-surface-variant font-label-sm">
+              {% if r.status == 'previewed' %}<th class="py-3 px-3"></th>{% endif %}
+              <th class="py-3 px-3 font-semibold">الوحدة</th>
+              <th class="py-3 px-3 font-semibold">الحالي</th>
+              <th class="py-3 px-3 font-semibold">في النسخة</th>
+              <th class="py-3 px-3 font-semibold">هيتضاف</th>
+              <th class="py-3 px-3 font-semibold">هيتحدّث</th>
+              <th class="py-3 px-3 font-semibold">هيتمسح</th>
+              <th class="py-3 px-3 font-semibold">ملفات</th>
+              <th class="py-3 px-3 font-semibold">تعتمد على</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-surface-container-high/40">
+            {% for m in r.preview.modules %}
+            {% set t = m.tables %}
+            <tr>
+              {% if r.status == 'previewed' %}
+              <td class="py-3 px-3"><input type="checkbox" name="modules" value="{{ m.key }}" aria-label="{{ m.label }}"></td>
+              {% endif %}
+              <td class="py-3 px-3 font-bold text-on-surface">{{ m.label }}</td>
+              <td class="py-3 px-3 font-mono">{{ t|sum(attribute='live') }}</td>
+              <td class="py-3 px-3 font-mono">{{ t|sum(attribute='package') }}</td>
+              <td class="py-3 px-3 font-mono text-emerald-700">{{ t|sum(attribute='insert') }}</td>
+              <td class="py-3 px-3 font-mono">{{ t|sum(attribute='update') }}</td>
+              <td class="py-3 px-3 font-mono text-rose-700">{{ t|sum(attribute='delete') }}</td>
+              <td class="py-3 px-3 font-mono">{{ m.files }}</td>
+              <td class="py-3 px-3 text-on-surface-variant font-label-sm">
+                {% for d in deps.get(m.key, []) %}{{ labels[d] }}{% if not loop.last %}، {% endif %}{% else %}—{% endfor %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% if r.preview.blockers %}
+      <div class="rounded-lg bg-rose-50 text-rose-800 p-3">
+        {% for b in r.preview.blockers %}<div>{{ b }}</div>{% endfor %}
+      </div>
+      {% endif %}
+
+    {% if r.status == 'previewed' %}
+      <p class="text-on-surface-variant font-body-sm">
+        الوحدات اللي بتعتمد على وحدة تانية بتضيفها تلقائيًا (مكتوب السبب في التقرير). «الحسابات» ما بتتضافش إلا لو اخترتها بنفسك،
+        وحسابك وصلاحياتك ما بيتأثروش.
+      </p>
+      <fieldset class="space-y-2">
+        <legend class="font-label-md text-on-surface">الوضع</legend>
+        <label class="flex items-center gap-2"><input type="radio" name="mode" value="replace" required>
+          استبدال — يمسح بيانات الوحدة الحالية ويحط اللي في النسخة</label>
+        <label class="flex items-center gap-2"><input type="radio" name="mode" value="add_missing">
+          إضافة الناقص فقط — يضيف السجلات المحذوفة من غير ما يعدّل الموجود</label>
+      </fieldset>
+      <div class="grid md:grid-cols-2 gap-4">
+        <label class="block">
+          <span class="font-label-md text-on-surface">اكتب اسم المدرسة للتأكيد: <b>{{ school.name }}</b></span>
+          <input name="school_name" required autocomplete="off" class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+        </label>
+        <label class="block">
+          <span class="font-label-md text-on-surface">كلمة مرور حسابك</span>
+          <input type="password" name="account_password" required autocomplete="current-password"
+                 class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+        </label>
+      </div>
+      <button type="submit" class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-rose-600 text-white font-title-sm font-bold shadow-sm">
+        <span class="material-symbols-outlined">settings_backup_restore</span>تأكيد الاسترجاع
+      </button>
+    </form>
+    {% endif %}
+  </section>
+  {% endif %}
+</div>
+{% if r.status in ('pending_preview', 'previewing', 'confirmed', 'running') %}
+<script>
+  (function () {
+    const tick = async () => {
+      try {
+        const res = await fetch("{{ url_for('admin.restore_status', rid=r.id) }}", {credentials: 'same-origin'});
+        if (res.ok) {
+          const s = await res.json();
+          if (s.status !== "{{ r.status }}") { location.reload(); return; }
+        }
+      } catch (e) { /* next tick */ }
+      setTimeout(tick, 4000);
+    };
+    setTimeout(tick, 4000);
+  })();
+</script>
+{% endif %}
+{% endblock %}

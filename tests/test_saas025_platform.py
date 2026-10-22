@@ -41,6 +41,9 @@ SUPERADMIN_ROUTES = {
     "superadmin.slug_check": {"GET"},
     "superadmin.school_nginx_sync": {"POST"},                       # SAAS-029
     "superadmin.school_module_set": {"POST"},                       # SAAS-030
+    "superadmin.school_backup_policy": {"POST"},                    # SAAS-047
+    "superadmin.school_restore_new": {"POST"},                      # SAAS-048
+    "superadmin.school_restore_confirm": {"POST"},                  # SAAS-048
     "superadmin.school_limits_set": {"POST"},
     "superadmin.support_start": {"POST"},                           # SAAS-031
     "superadmin.support_sessions": {"GET"},
@@ -100,6 +103,8 @@ CONSOLE_WRITES = {
     "superadmin.school_new_step", "superadmin.school_create",                 # SAAS-028
     "superadmin.school_nginx_sync",                                           # SAAS-029
     "superadmin.school_module_set", "superadmin.school_limits_set",           # SAAS-030
+    "superadmin.school_backup_policy",                                        # SAAS-047
+    "superadmin.school_restore_new", "superadmin.school_restore_confirm",     # SAAS-048
     "superadmin.support_start", "superadmin.support_revoke",                  # SAAS-031
     "superadmin.school_edit",
     "superadmin.school_lifecycle",
@@ -170,6 +175,19 @@ def puser(papp):
                 synchronize_session=False)
         PlatformRecoveryCode.query.filter(PlatformRecoveryCode.platform_user_id.in_(created)).delete(
             synchronize_session=False)
+        # Every other row pointing at these users (sessions, setup links,
+        # settings…): PostgreSQL enforces the FKs SQLite lets slide.
+        conn = db.session.connection()
+        for t in db.metadata.sorted_tables:
+            if t.name in ("platform_users", "platform_audit_logs"):
+                continue
+            for fk in t.foreign_keys:
+                if fk.column.table.name != "platform_users":
+                    continue
+                if fk.parent.nullable:
+                    conn.execute(t.update().where(fk.parent.in_(created)).values({fk.parent.name: None}))
+                else:
+                    conn.execute(t.delete().where(fk.parent.in_(created)))
         PlatformUser.query.filter(PlatformUser.id.in_(created)).delete(synchronize_session=False)
         db.session.commit()
         db.session.remove()
@@ -603,7 +621,9 @@ def test_read_scope_refuses_school_writes(papp, two_schools, puser):
 def test_read_scope_used_only_by_platform_code():
     root = Path(__file__).parents[1] / "app"
     # SAAS-035: the offboarding export / its verification read one school
-    allowed = ("blueprints/superadmin/", "services/platform", "services/school_export.py")
+    # SAAS-046: the school backup package reads one school the same way
+    allowed = ("blueprints/superadmin/", "services/platform", "services/school_export.py",
+               "services/school_backup.py")
     offenders = []
     for f in root.rglob("*.py"):
         rel = f.relative_to(root).as_posix()

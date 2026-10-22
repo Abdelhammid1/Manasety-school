@@ -211,7 +211,7 @@ def test_download_needs_the_account_password_and_is_encrypted(bapp, world, login
         acts = [a.action for a in AuditLog.query.filter_by(entity_type="SchoolBackup", entity_id=bid)
                 .order_by(AuditLog.id)]
         db.session.remove()
-    assert "backup_download_refused" in acts and acts[-1] == "backup_downloaded"
+    assert "backup_dl_denied" in acts and acts[-1] == "backup_dl"
     # single use
     assert c.get(link, base_url=host(A)).status_code == 404
 

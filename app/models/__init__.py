@@ -157,3 +157,19 @@ __all__ = [
     "SchoolBackup", "SchoolRestore", "BACKUP_STATUSES", "BACKUP_KINDS",
     "RESTORE_STATUSES", "RESTORE_MODES",
 ]
+
+
+# SAAS-048 — every foreign key is DEFERRABLE INITIALLY IMMEDIATE: checked
+# at once, as always, except inside a school restore's transaction, which
+# defers them so a module's rows can be deleted and re-inserted, then
+# checks them before commit (services/school_restore.py). Set here so
+# create_all (tests) and the migrations (c4d6f8a0b2c4) agree.
+def _deferrable_foreign_keys():
+    from ..extensions import db as _db
+    for _t in _db.metadata.tables.values():
+        for _fk in _t.foreign_key_constraints:
+            _fk.deferrable = True
+            _fk.initially = "IMMEDIATE"
+
+
+_deferrable_foreign_keys()

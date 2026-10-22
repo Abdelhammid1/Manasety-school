@@ -1,0 +1,96 @@
+{# SAAS-048 — start a restore: a saved backup or an uploaded package. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}استرجاع نسخة احتياطية{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.backups_home') }}" class="text-outline hover:text-primary">النسخ الاحتياطي</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">استرجاع</span>
+{% endblock %}
+{% block page_content %}
+{% set labels = {'pending_preview': 'بانتظار المعاينة', 'previewing': 'جاري المعاينة', 'previewed': 'جاهز للتأكيد',
+                 'confirmed': 'مؤكَّد — هيبدأ قريب', 'running': 'جاري الاسترجاع', 'succeeded': 'تم', 'failed': 'فشل'} %}
+<div class="w-full max-w-[1100px] mx-auto space-y-6 pb-16">
+  <section class="rounded-2xl bg-surface-container-lowest shadow-sm p-6 md:p-8">
+    <div class="flex items-start gap-4">
+      <div class="w-14 h-14 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+        <span class="material-symbols-outlined text-2xl">settings_backup_restore</span>
+      </div>
+      <div>
+        <h1 class="font-headline-lg font-bold text-on-surface">استرجاع نسخة احتياطية</h1>
+        <p class="mt-1 text-on-surface-variant max-w-3xl">
+          الاسترجاع بيكتب على بيانات مدرستك. قبل أي تعديل بناخد نسخة أمان تلقائية، وبعده بنفحص سلامة البيانات؛
+          لو أي فحص فشل بيرجع كل شيء زي ما كان. هتشوف معاينة كاملة قبل ما تأكّد.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <div class="grid md:grid-cols-2 gap-6">
+    <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-4">
+      <h2 class="font-title-lg font-bold text-on-surface">من نسخة محفوظة</h2>
+      {% if backups %}
+      <form method="post" action="{{ url_for('admin.restore_new') }}" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="block">
+          <span class="font-label-md text-on-surface">النسخة</span>
+          <select name="backup_id" required class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+            {% for b in backups %}
+            <option value="{{ b.id }}">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}{% if b.kind == 'restore_point' %} — نقطة أمان تلقائية{% endif %}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md font-bold">
+          <span class="material-symbols-outlined">preview</span>معاينة
+        </button>
+      </form>
+      {% else %}
+      <p class="text-outline">مفيش نسخ محفوظة.</p>
+      {% endif %}
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-4">
+      <h2 class="font-title-lg font-bold text-on-surface">من ملف عندك</h2>
+      <form method="post" action="{{ url_for('admin.restore_new') }}" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="block">
+          <span class="font-label-md text-on-surface">ملف النسخة (حتى {{ max_mb }} MB)</span>
+          <input type="file" name="package" required class="mt-1 w-full">
+        </label>
+        <label class="block">
+          <span class="font-label-md text-on-surface">كلمة مرور تشفير الملف</span>
+          <input type="password" name="passphrase" autocomplete="off" class="mt-1 w-full rounded-lg border border-outline-variant px-3 py-2">
+        </label>
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md font-bold">
+          <span class="material-symbols-outlined">upload_file</span>رفع ومعاينة
+        </button>
+      </form>
+    </section>
+  </div>
+
+  {% if restores %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-x-auto">
+    <table class="w-full text-right">
+      <thead>
+        <tr class="bg-surface-container-low text-on-surface-variant font-label-sm">
+          <th class="py-3 px-4 font-semibold">التاريخ</th>
+          <th class="py-3 px-4 font-semibold">الحالة</th>
+          <th class="py-3 px-4 font-semibold">الوضع</th>
+          <th class="py-3 px-4 font-semibold"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-surface-container-high/40">
+        {% for r in restores %}
+        <tr>
+          <td class="py-3 px-4 font-mono">{{ r.created_at.strftime('%Y-%m-%d %H:%M') }}{% if r.undo_of_id %} <span class="text-outline">(تراجع)</span>{% endif %}</td>
+          <td class="py-3 px-4">{{ labels[r.status] }}</td>
+          <td class="py-3 px-4">{{ {'replace': 'استبدال', 'add_missing': 'إضافة الناقص فقط'}[r.mode] if r.status not in ('pending_preview', 'previewing', 'previewed') else '—' }}</td>
+          <td class="py-3 px-4"><a class="text-primary font-label-md font-bold" href="{{ url_for('admin.restore_detail', rid=r.id) }}">فتح</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

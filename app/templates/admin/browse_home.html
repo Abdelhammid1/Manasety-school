@@ -1,0 +1,48 @@
+{# SAAS-049 — open an old backup to look inside (nothing is restored). #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}استعراض نسخة قديمة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.backups_home') }}" class="text-outline hover:text-primary">النسخ الاحتياطي</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">استعراض</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-6 pb-16">
+  <section class="rounded-2xl bg-surface-container-lowest shadow-sm p-6 md:p-8">
+    <h1 class="font-headline-lg font-bold text-on-surface">استعراض نسخة قديمة</h1>
+    <p class="mt-1 text-on-surface-variant max-w-3xl">
+      تشوف البيانات زي ما كانت في النسخة وتنزّل اللي محتاجه (مثلًا درجات طالب أو فواتير شهر) كملف Excel أو CSV —
+      من غير ما يتغيّر أي حاجة في بيانات المدرسة الحالية.
+    </p>
+  </section>
+  <div class="grid md:grid-cols-2 gap-6">
+    <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-4">
+      <h2 class="font-title-lg font-bold text-on-surface">من نسخة محفوظة</h2>
+      {% if backups %}
+      <form method="post" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <select name="backup_id" required aria-label="النسخة" class="w-full rounded-lg border border-outline-variant px-3 py-2">
+          {% for b in backups %}<option value="{{ b.id }}">{{ b.created_at.strftime('%Y-%m-%d %H:%M') }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md font-bold">
+          <span class="material-symbols-outlined">folder_open</span>فتح
+        </button>
+      </form>
+      {% else %}<p class="text-outline">مفيش نسخ محفوظة.</p>{% endif %}
+    </section>
+    <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-4">
+      <h2 class="font-title-lg font-bold text-on-surface">من ملف عندك</h2>
+      <form method="post" enctype="multipart/form-data" class="space-y-4">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="file" name="package" required aria-label="ملف النسخة" class="w-full">
+        <input type="password" name="passphrase" autocomplete="off" placeholder="كلمة مرور تشفير الملف" aria-label="كلمة مرور تشفير الملف"
+               class="w-full rounded-lg border border-outline-variant px-3 py-2">
+        <button type="submit" class="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-primary text-on-primary font-label-md font-bold">
+          <span class="material-symbols-outlined">upload_file</span>رفع وفتح
+        </button>
+      </form>
+    </section>
+  </div>
+</div>
+{% endblock %}

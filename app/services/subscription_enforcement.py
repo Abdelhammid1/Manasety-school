@@ -185,6 +185,24 @@ def install(app) -> None:
         return None
 
     @app.before_request
+    def _maintenance_gate():
+        """SAAS-048 — a school being restored answers 503 (this school
+        only; every other school keeps working)."""
+        resolved = getattr(g, "tenant_resolved", None)
+        school = getattr(resolved, "school", None)
+        if school is None or request.endpoint in ("static", "cron.tick"):
+            return None
+        from .school_restore import in_maintenance
+        from .tenancy import _request_settings
+        if not in_maintenance(school.id, _request_settings()):
+            return None
+        msg = "المدرسة في صيانة قصيرة لاسترجاع نسخة احتياطية — حاول بعد دقائق."
+        if _is_api():
+            return jsonify({"error": "maintenance", "message_ar": msg}), 503
+        from flask import render_template
+        return render_template("errors/error.html", code=503, title="صيانة مؤقتة", msg=msg), 503
+
+    @app.before_request
     def _kill_stale_sessions():
         from flask_login import current_user, logout_user
         if not getattr(current_user, "is_authenticated", False):

@@ -535,6 +535,16 @@ ROUTE_MATRIX: dict[str, Entry] = {
                                           form=lambda A, B: {"account_password": "wrong",
                                                              "passphrase": "p" * 14,
                                                              "passphrase_confirm": "p" * 14}),
+    # SAAS-048 — restore pages (owner only).
+    "admin.restore_detail": _ent("restore", "SchoolRestore", "rid", ('GET',)),
+    "admin.restore_status": _ent("restore", "SchoolRestore", "rid", ('GET',)),
+    "admin.restore_confirm": _ent("restore", "SchoolRestore", "rid",
+                                  form=lambda A, B: {"modules": "academic", "mode": "replace",
+                                                     "school_name": B["school"].name,
+                                                     "account_password": "wrong"}),
+    "admin.restore_undo": _ent("restore", "SchoolRestore", "rid",
+                               form=lambda A, B: {"account_password": "wrong"},
+                               snapshot=_cnt("SchoolRestore", "undo_of_id", "restore")),
     # SAAS-017 — mobile API (26). Each attack uses the account the
     # endpoint serves; rejection is 404 {"error": "not_found"}.
     "api.mark_notification_read": _ent("notification", "NotificationLog", "notif_id", roles=("parent",)),
@@ -626,6 +636,12 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.school_backup_policy":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-047 backup tests",
+    "superadmin.school_restore_new":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-048 restore tests",
+    "superadmin.school_restore_confirm":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by the SAAS-048 restore tests",
     "superadmin.school_module_set":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-030 console tests",
@@ -1138,6 +1154,9 @@ FORM_ID_MATRIX: dict[str, Entry] = {
                                                    "title": "x",
                                                    "file": (io.BytesIO(b"%PDF-1.4 x"), "x.pdf")},
                                 snapshot=_cnt("Material", "section_id", "section")),
+    # SAAS-048 — a restore from another school's saved backup.
+    "admin.restore_new": _post(lambda A, B: {"backup_id": B["backup"]},
+                               _cnt("SchoolRestore", "source_backup_id", "backup")),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},
@@ -1156,6 +1175,8 @@ FORM_ID_PLATFORM: dict[str, str] = {
     "superadmin.subscription_change_plan": "plan_id → plans (platform table, SAAS-026)",
     "superadmin.subscription_trial": "plan_id → plans (platform table, SAAS-026)",
     "superadmin.invoice_new": "plan_id → plans (platform table, SAAS-033)",
+    "superadmin.school_restore_new": "console (owner): backup_id is looked up WITH school_id = the "
+                                     "school in the URL (SAAS-048) — test_saas048_restore_pages",
 }
 
 

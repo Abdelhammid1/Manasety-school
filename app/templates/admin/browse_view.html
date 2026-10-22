@@ -1,0 +1,49 @@
+{# SAAS-049 — what's inside the backup: modules → tables, and a student search. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}محتوى النسخة{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('admin.browse_home') }}" class="text-outline hover:text-primary">استعراض نسخة</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">{{ (info.created_at or '')[:16]|replace('T', ' ') }}</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-[1100px] mx-auto space-y-6 pb-16">
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm p-6 space-y-3">
+    <h1 class="font-headline-sm font-bold text-on-surface">نسخة {{ info.name }} — {{ (info.created_at or '')[:16]|replace('T', ' ') }}</h1>
+    <form method="get" class="flex flex-wrap gap-2 items-center">
+      <input name="q" value="{{ q }}" placeholder="اسم الطالب أو كوده" aria-label="بحث عن طالب"
+             class="flex-1 min-w-[220px] rounded-lg border border-outline-variant px-3 py-2">
+      <button class="px-4 py-2 rounded-lg bg-primary text-on-primary font-label-md font-bold">بحث</button>
+    </form>
+    {% if q %}
+      {% if students %}
+      <ul class="divide-y divide-surface-container-high/40">
+        {% for s in students %}
+        <li class="py-2 flex flex-wrap gap-3 items-center">
+          <span class="font-bold">{{ s.full_name }}</span><span class="font-mono text-outline">{{ s.permanent_code }}</span>
+          <a class="text-primary font-label-md" href="{{ url_for('admin.browse_table', token=token, table='grade_entries', student=s.id) }}">الدرجات</a>
+          <a class="text-primary font-label-md" href="{{ url_for('admin.browse_table', token=token, table='attendance', student=s.id) }}">الحضور</a>
+          <a class="text-primary font-label-md" href="{{ url_for('admin.browse_table', token=token, table='invoices', student=s.id) }}">الفواتير</a>
+          <a class="text-primary font-label-md" href="{{ url_for('admin.browse_table', token=token, table='year_results', student=s.id) }}">النتائج</a>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="text-outline">مفيش طالب بالاسم أو الكود ده في النسخة.</p>{% endif %}
+    {% endif %}
+  </section>
+  {% for g in info.groups %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm">
+    <div class="p-4 border-b border-surface-container-low font-title-md font-bold text-on-surface">{{ g.label }}</div>
+    <ul class="divide-y divide-surface-container-high/40">
+      {% for t in g.tables %}
+      <li class="px-4 py-2.5 flex justify-between">
+        <a class="text-primary font-label-md" href="{{ url_for('admin.browse_table', token=token, table=t.name) }}">{{ t.label }}</a>
+        <span class="font-mono text-outline">{{ t.rows }}</span>
+      </li>
+      {% endfor %}
+    </ul>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}
