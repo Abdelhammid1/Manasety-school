@@ -565,9 +565,13 @@ def _check(conn, school_id: int, selected: set, finance: bool) -> None:
             if t.name not in selected and fk.column.table.name not in selected:
                 continue
             parent = fk.column.table
+            # aliased: in a self-reference (accounts.parent_id → accounts) the
+            # subquery would otherwise correlate to the outer row and compare
+            # each row with itself — every child account an "orphan"
+            p = parent.alias("p")
             n = conn.execute(sa.select(sa.func.count()).select_from(t)
                              .where(t.c.school_id == school_id, fk.parent.isnot(None),
-                                    ~sa.exists().where(fk.column == fk.parent))).scalar()
+                                    ~sa.exists().where(p.c[fk.column.name] == fk.parent))).scalar()
             if n:
                 problems.append(f"{t.name}.{fk.parent.name} → {parent.name}: {n}")
     from .tenant_guard import edges

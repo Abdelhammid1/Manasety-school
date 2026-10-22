@@ -214,6 +214,29 @@ def test_unbalanced_journal_in_the_package_is_rolled_back(rapp, world):
     assert _state(rapp, A) == before
 
 
+def test_a_chart_of_accounts_with_sub_accounts_restores(rapp, world):
+    """accounts.parent_id points into its own table: the orphan check
+    must look for the parent among the other rows, not the row itself."""
+    from app.extensions import db
+    from app.models import Account
+    A = world["A"]
+    sid = A["school"].id
+    with rapp.app_context():
+        top = Account(school_id=sid, code="T-900", name="Top", type="asset")
+        db.session.add(top); db.session.flush()
+        db.session.add(Account(school_id=sid, code="T-901", name="Child", type="asset", parent_id=top.id))
+        db.session.commit()
+        db.session.remove()
+    path = _export(rapp, A)
+    snapshot = _state(rapp, A)
+    _restore(rapp, A, path, modules=["finance"])
+    assert _state(rapp, A) == snapshot
+    with rapp.app_context():
+        child = Account.query.filter_by(school_id=sid, code="T-901").one()
+        assert child.parent is not None and child.parent.code == "T-900"
+        db.session.remove()
+
+
 def test_the_acting_admin_and_the_school_row_are_protected(rapp, world):
     """Accounts chosen explicitly: the admin running it keeps password and
     role; plan / slug / SMTP / status never move."""
