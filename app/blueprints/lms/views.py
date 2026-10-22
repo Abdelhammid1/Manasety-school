@@ -44,8 +44,9 @@ from ...models import (
     AssignmentTemplate, AssignmentTemplateQuestion, AssignmentTemplateChoice,
     AssessmentTemplate, AssessmentTemplateItem,
     Subject, Grade, AcademicYear, Term, Unit, Lesson,
+    Axis, Indicator, Passage, Rubric,
 )
-from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
+from ...services.scoping import owned_id, owned_or_404  # isolation sweep: school-scoped get
 
 
 
@@ -335,7 +336,7 @@ def assignment_new(cid):
             allow_resubmit=bool(request.form.get("allow_resubmit")),
             allow_review=request.form.get("allow_review", "1") == "1",
             is_published=bool(request.form.get("is_published")),
-            rubric_id=request.form.get("rubric_id", type=int) or None,
+            rubric_id=owned_id(Rubric, request.form.get("rubric_id", type=int)),
         )
         if not a.title:
             flash("عنوان الواجب مطلوب.", "danger")
@@ -424,7 +425,7 @@ def assignment_edit(aid):
         a.allow_resubmit = bool(request.form.get("allow_resubmit"))
         a.allow_review = request.form.get("allow_review", "1") == "1"
         a.is_published = bool(request.form.get("is_published"))
-        a.rubric_id = request.form.get("rubric_id", type=int) or None
+        a.rubric_id = owned_id(Rubric, request.form.get("rubric_id", type=int))
         db.session.commit()
         flash("تم حفظ الواجب.", "success")
         return redirect(url_for("courses.detail", course_id=course.id))
@@ -2105,17 +2106,17 @@ def _bank_save(item):
     tags_raw = (request.form.get("tags") or "").strip()
     item.tags = tags_raw
     _sync_bank_tags(item, tags_raw)
-    item.subject_id       = request.form.get("subject_id", type=int) or None
-    item.grade_id         = request.form.get("grade_id",   type=int) or None
-    item.academic_year_id = request.form.get("year_id",    type=int) or None
-    item.term_id          = request.form.get("term_id",    type=int) or None
-    item.unit_id          = request.form.get("unit_id",    type=int) or None
-    item.lesson_id        = request.form.get("lesson_id",  type=int) or None
+    item.subject_id       = owned_id(Subject,      request.form.get("subject_id", type=int))
+    item.grade_id         = owned_id(Grade,        request.form.get("grade_id",   type=int))
+    item.academic_year_id = owned_id(AcademicYear, request.form.get("year_id",    type=int))
+    item.term_id          = owned_id(Term,         request.form.get("term_id",    type=int))
+    item.unit_id          = owned_id(Unit,         request.form.get("unit_id",    type=int))
+    item.lesson_id        = owned_id(Lesson,       request.form.get("lesson_id",  type=int))
     # Qdrat-parity pt2 — axis + indicator (2-level skill taxonomy),
     # printable code + anti-piracy UUID (auto-fill on first save).
-    item.axis_id       = request.form.get("axis_id",      type=int) or None
-    item.indicator_id  = request.form.get("indicator_id", type=int) or None
-    item.passage_id    = request.form.get("passage_id",   type=int) or None
+    item.axis_id       = owned_id(Axis,      request.form.get("axis_id",      type=int))
+    item.indicator_id  = owned_id(Indicator, request.form.get("indicator_id", type=int))
+    item.passage_id    = owned_id(Passage,   request.form.get("passage_id",   type=int))
     posted_code = (request.form.get("code") or "").strip()
     if posted_code:
         item.code = posted_code

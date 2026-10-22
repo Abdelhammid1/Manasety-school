@@ -589,11 +589,30 @@ _JSON_ID_RE = re.compile(r"request\.(?:get_json|json)[^\n]*?[\"'](\w*_id)[\"']")
 _NOT_AN_FK = {"national_id"}
 
 
+_HELPER_CALL_RE = re.compile(r"(?<![\w.])(_\w+)\(")
+
+
+def _view_source(fn) -> str:
+    """The view's source + the same-module `_helpers` it calls (one level):
+    a shared create/update helper reads the form for the view."""
+    fn = inspect.unwrap(fn)
+    src = inspect.getsource(fn)
+    mod = inspect.getmodule(fn)
+    for name in set(_HELPER_CALL_RE.findall(src)):
+        helper = getattr(mod, name, None)
+        if inspect.isfunction(helper) and helper.__module__ == fn.__module__:
+            try:
+                src += inspect.getsource(helper)
+            except (OSError, TypeError):
+                pass
+    return src
+
+
 def discover_form_id_endpoints(app) -> dict[str, list[str]]:
     out = {}
     for ep, fn in app.view_functions.items():
         try:
-            src = inspect.getsource(inspect.unwrap(fn))
+            src = _view_source(fn)
         except (OSError, TypeError):
             continue
         ids = (set(_FORM_ID_RE.findall(src)) | set(_JSON_ID_RE.findall(src))) - _NOT_AN_FK
@@ -652,6 +671,16 @@ def _tag_link_count(B):
 def _both(*snaps):
     def snap(B):
         return tuple(f(B) for f in snaps)
+    return snap
+
+
+def _titled(model: str, prefix: str):
+    """Rows of `model` (any school) whose title starts with B's marker —
+    a copy of B's content into A shows up here."""
+    def snap(B):
+        from app import models as M
+        cls = getattr(M, model)
+        return cls.query.filter(cls.title.like(f"{prefix}-{B['school'].slug}%")).count()
     return snap
 
 
@@ -799,6 +828,96 @@ FORM_ID_MATRIX: dict[str, Entry] = {
                                          snapshot=_tag_link_count),
     "portal.pickup_call": _post(lambda A, B: {"student_id": B["student"].id},
                                 _cnt("PickupCall", "student_id", "student")),
+    # SAAS-015 — LMS form ids (+ lms.quiz_submit for SAAS-016).
+    "lms.announcement_new": _post(
+        lambda A, B: {"title": "x", "body": "x", "section_id": B["section"].id},
+        _xlink("Announcement", ("section_id", "section"))),
+    "lms.assignment_edit": _in_a("aid", "assignment",
+                                 form=lambda A, B: {"title": "x", "rubric_id": B["rubric"]},
+                                 snapshot=_xlink("CourseAssignment", ("rubric_id", "rubric"))),
+    "lms.assignment_extension_add": _in_a("aid", "assignment",
+                                          form=lambda A, B: {"student_id": B["student"].id,
+                                                             "new_due_at": "2027-01-01T10:00"},
+                                          snapshot=_cnt("AssignmentExtension", "student_id", "student")),
+    "lms.assignment_from_template": _in_a("cid", "course", methods=("GET", "POST"),
+                                          form=lambda A, B: {"template_id": B["assign_template"]},
+                                          snapshot=_titled("CourseAssignment", "AssignTpl")),
+    "lms.assignment_new": _in_a("cid", "course",
+                                form=lambda A, B: {"title": "x", "rubric_id": B["rubric"]},
+                                snapshot=_xlink("CourseAssignment", ("rubric_id", "rubric"))),
+    "lms.assignment_pick_from_bank": _in_a("aid", "assignment",
+                                           form=lambda A, B: {"bank_ids": B["bank_question"]},
+                                           snapshot=_cnt("AssignmentQuestion", "source_bank_id", "bank_question")),
+    "lms.bank_home": _get_q(lambda A, B: {"subject_id": B["subject"].id, "grade_id": B["grade"].id,
+                                          "lesson_id": B["lesson"], "unit_id": B["unit"]}),
+    "lms.objective_new": _post(lambda A, B: {"title": "x", "lesson_id": B["lesson"]},
+                               _xlink("LearningObjective", ("lesson_id", "lesson"))),
+    "lms.qbank_dashboard": _get_q(lambda A, B: {"subject_id": B["subject"].id}),
+    "lms.quiz_pick_from_bank": _in_a("qid", "quiz",
+                                     form=lambda A, B: {"bank_ids": B["bank_question"]},
+                                     snapshot=_cnt("Question", "source_bank_id", "bank_question")),
+    "lms.quiz_submit": _in_a("qid", "quiz", form=lambda A, B: {"attempt_id": B["attempt"]},
+                             snapshot=_row("QuizAttempt", "attempt")),
+    "lms.skill_new": _post(lambda A, B: {"title": "x", "parent_id": B["skill"]},
+                           _xlink("Skill", ("parent_id", "skill"))),
+    "lms.taxonomy_objective_edit": _in_a("oid", "objective",
+                                         form=lambda A, B: {"title": "x", "lesson_id": B["lesson"]},
+                                         snapshot=_xlink("LearningObjective", ("lesson_id", "lesson"))),
+    "lms.taxonomy_objective_new": _post(lambda A, B: {"title": "x", "lesson_id": B["lesson"]},
+                                        _xlink("LearningObjective", ("lesson_id", "lesson"))),
+    "lms.taxonomy_skill_edit": _in_a("sid", "skill",
+                                     form=lambda A, B: {"title": "x", "parent_id": B["skill"]},
+                                     snapshot=_xlink("Skill", ("parent_id", "skill"))),
+    "lms.taxonomy_skill_new": _post(lambda A, B: {"title": "x", "parent_id": B["skill"]},
+                                    _xlink("Skill", ("parent_id", "skill"))),
+    "lms.template_detail": Entry(lambda B: {"tid": B["assess_template"]},
+                                 mixed=lambda A, B: {"tid": A["assess_template"]},
+                                 form=lambda A, B: {"subject_id": B["subject"].id}),
+    "lms.template_home": _get_q(lambda A, B: {"subject_id": B["subject"].id, "grade_id": B["grade"].id}),
+    "lms.template_use": _in_a("tid", "assess_template",
+                              form=lambda A, B: {"section_id": B["section"].id},
+                              snapshot=_cnt("CourseSection", "section_id", "section")),
+    "lms.templates_gallery": _get_q(lambda A, B: {"subject_id": B["subject"].id}),
+    # SAAS-015 — create/update helpers the detector now reads (_bank_save,
+    # _passage_form, _employee_bind) + read-only filters.
+    "lms.bank_new": _post(lambda A, B: {"prompt": "x", "kind": "short", "correct_short": "x",
+                          "subject_id": B["subject"].id, "grade_id": B["grade"].id,
+                          "year_id": B["year"].id, "term_id": B["term"].id,
+                          "unit_id": B["unit"], "lesson_id": B["lesson"], "passage_id": B["passage"]},
+                          _xlink("BankQuestion", ("subject_id", "subject"), ("grade_id", "grade"),
+                           ("term_id", "term"), ("unit_id", "unit"), ("lesson_id", "lesson"),
+                           ("passage_id", "passage"))),
+    "lms.bank_smart_new": _post(lambda A, B: {"prompt": "x", "kind": "short", "correct_short": "x",
+                          "subject_id": B["subject"].id, "grade_id": B["grade"].id,
+                          "year_id": B["year"].id, "term_id": B["term"].id,
+                          "unit_id": B["unit"], "lesson_id": B["lesson"], "passage_id": B["passage"]},
+                                _xlink("BankQuestion", ("subject_id", "subject"), ("grade_id", "grade"),
+                           ("term_id", "term"), ("unit_id", "unit"), ("lesson_id", "lesson"),
+                           ("passage_id", "passage"))),
+    "lms.bank_edit": _in_a("bid", "bank_question", form=lambda A, B: {"prompt": "x", "kind": "short", "correct_short": "x",
+                          "subject_id": B["subject"].id, "grade_id": B["grade"].id,
+                          "year_id": B["year"].id, "term_id": B["term"].id,
+                          "unit_id": B["unit"], "lesson_id": B["lesson"], "passage_id": B["passage"]},
+                           snapshot=_xlink("BankQuestion", ("subject_id", "subject"), ("grade_id", "grade"),
+                           ("term_id", "term"), ("unit_id", "unit"), ("lesson_id", "lesson"),
+                           ("passage_id", "passage"))),
+    "lms.passage_new": _post(lambda A, B: {"title": "x", "subject_id": B["subject"].id,
+                                           "grade_id": B["grade"].id},
+                             _xlink("Passage", ("subject_id", "subject"), ("grade_id", "grade"))),
+    "lms.passage_edit": _in_a("pid", "passage",
+                              form=lambda A, B: {"title": "x", "subject_id": B["subject"].id,
+                                                 "grade_id": B["grade"].id},
+                              snapshot=_xlink("Passage", ("subject_id", "subject"), ("grade_id", "grade"))),
+    "hr.employee_new": _post(lambda A, B: {"full_name": "x", "job_title": "x",
+                                           "user_id": B["users"]["teacher"].id},
+                             _cnt("Employee", "user_id", "teacher_user")),
+    "hr.employee_edit": _in_a("employee_id", "employee",
+                              form=lambda A, B: {"full_name": "x", "job_title": "x",
+                                                 "user_id": B["users"]["teacher"].id},
+                              snapshot=_cnt("Employee", "user_id", "teacher_user")),
+    "dashboard.home": _get_q(lambda A, B: {"child_id": B["student"].id}),
+    "platform.audit_log_viewer": _get_q(lambda A, B: {"user_id": B["users"]["admin"].id}),
+    "platform.audit_log_export": _get_q(lambda A, B: {"user_id": B["users"]["admin"].id}),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},
@@ -820,22 +939,17 @@ FORM_ID_PLATFORM: dict[str, str] = {
 }
 
 FORM_ID_PENDING: tuple[str, ...] = (
-    "academic.bulk_transfer", "admin.audit_log", "api.qbank_questions",
+    "academic.bulk_transfer", "academic.subject_prerequisites",
+    "admin.audit_log", "api.qbank_questions",
     "api.teacher_attendance_existing", "api.teacher_components",
     "api.teacher_grades_existing", "api.teacher_students",
     "api.teacher_templates", "api.teacher_upload", "courses.lesson_edit",
-    "courses.lesson_new", "courses.new", "lms.announcement_new",
-    "lms.assignment_edit", "lms.assignment_extension_add",
-    "lms.assignment_from_template", "lms.assignment_new",
-    "lms.assignment_pick_from_bank", "lms.bank_home", "lms.objective_new",
-    "lms.qbank_dashboard", "lms.quiz_pick_from_bank", "lms.quiz_submit",
-    "lms.skill_new", "lms.taxonomy_objective_edit",
-    "lms.taxonomy_objective_new", "lms.taxonomy_skill_edit",
-    "lms.taxonomy_skill_new", "lms.template_detail", "lms.template_home",
-    "lms.template_use", "lms.templates_gallery", "messaging.conversation_new",
+    "courses.lesson_new", "courses.new", "messaging.conversation_new",
     "nafis.cycle_edit", "nafis.cycle_new", "platform.room_slot_save",
-    "platform.substitution_new", "results.components", "results.rubric_edit",
-    "results.rubric_new", "schedule.slot_save", "teachers.section_assignments",
+    "platform.substitution_new", "results.class_average_report",
+    "results.components", "results.missing_grades_report",
+    "results.rubric_edit", "results.rubric_new", "schedule.slot_save",
+    "teachers.section_assignments",
 )
 
 

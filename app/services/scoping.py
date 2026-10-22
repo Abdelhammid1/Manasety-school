@@ -61,3 +61,10 @@ def owned_many_or_404(model, ids: Iterable, *, include_deleted: bool = False) ->
         abort(404)
     by_id = {r.id: r for r in rows}
     return [by_id[i] for i in sorted(wanted)]
+
+
+def owned_id(model, oid, *, include_deleted: bool = False):
+    """The id of an OPTIONAL reference (form / query / JSON) after the
+    same check: None when empty, 404 when foreign or missing."""
+    obj = owned_or_none(model, oid, include_deleted=include_deleted)
+    return obj.id if obj is not None else None

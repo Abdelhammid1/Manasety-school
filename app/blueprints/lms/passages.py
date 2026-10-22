@@ -7,6 +7,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import BankQuestion, Grade, Passage, Subject
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 
 
 @bp.route("/passages", endpoint="passages_home")
@@ -55,8 +56,8 @@ def _passage_form(p):
         p.body = body
         p.source = (request.form.get("source") or "").strip()
         p.language = (request.form.get("language") or "ar").strip()
-        p.subject_id = request.form.get("subject_id", type=int) or None
-        p.grade_id   = request.form.get("grade_id",   type=int) or None
+        p.subject_id = owned_id(Subject, request.form.get("subject_id", type=int))
+        p.grade_id   = owned_id(Grade,   request.form.get("grade_id",   type=int))
         p.state      = (request.form.get("state") or "published").strip()
         p.word_count = len([w for w in (body or "").split() if w])
         db.session.commit()

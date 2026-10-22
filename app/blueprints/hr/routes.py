@@ -8,6 +8,7 @@ from . import bp
 from ..utils import require_permission
 from ...extensions import db
 from ...models import Account, Employee, JournalEntry, Payroll, User
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 from ...services.accounting import post_journal
 
 
@@ -45,7 +46,7 @@ def _employee_bind(e):
     e.email        = (request.form.get("email")        or "").strip() or None
     e.bank_account = (request.form.get("bank_account") or "").strip() or None
     e.hire_date    = _parse_date(request.form.get("hire_date"))
-    e.user_id      = request.form.get("user_id", type=int) or None
+    e.user_id      = owned_id(User, request.form.get("user_id", type=int))
 
 
 @bp.route("/employees/new", methods=["GET", "POST"])

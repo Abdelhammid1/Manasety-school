@@ -163,6 +163,7 @@ def seed_students(bundle: dict) -> dict:
         "behavior_category": cat.id, "behavior": beh.id, "rule_trigger": trig.id,
         "attendance": att.id, "pickup": pick.id, "health_profile": health.id,
         "parent_user": bundle["users"]["parent"].id, "student_user": bundle["users"]["student"].id,
+        "teacher_user": bundle["users"]["teacher"].id,
         "markers": (f"Note-{slug}", f"Tag-{slug}", f"Prev-{slug}", f"Health-{slug}",
                     f"doc-{slug}", f"BehCat-{slug}", f"Behavior-{slug}", f"Rule-{slug}"),
     }
@@ -190,6 +191,9 @@ def seed_lms(bundle: dict) -> dict:
     atpl = AssignmentTemplate(school_id=sid, title=f"AssignTpl-{slug}")
     stpl = AssessmentTemplate(school_id=sid, title=f"AssessTpl-{slug}")
     passage = Passage(school_id=sid, title=f"Passage-{slug}")
+    from app.models import Rubric
+    rubric = Rubric(school_id=sid, title=f"Rubric-{slug}")
+    add(rubric)
     ann = Announcement(school_id=sid, title=f"Announce-{slug}")
     for o in (course, bank, skill, obj, coll, fb, atpl, stpl, passage, ann):
         add(o)
@@ -223,10 +227,12 @@ def seed_lms(bundle: dict) -> dict:
         "bank_question": bank.id, "skill": skill.id, "objective": obj.id, "collection": coll.id,
         "feedback_template": fb.id, "assign_template": atpl.id, "assess_template": stpl.id,
         "template_item": item.id, "passage": passage.id, "announcement": ann.id, "extension": ext.id,
+        "rubric": rubric.id,
         "markers": (f"Course-{slug}", f"BankQ-{slug}", f"Skill-{slug}", f"Objective-{slug}",
                     f"Collection-{slug}", f"Feedback-{slug}", f"AssignTpl-{slug}", f"AssessTpl-{slug}",
                     f"Passage-{slug}", f"Announce-{slug}", f"Unit-{slug}", f"Lesson-{slug}",
-                    f"Quiz-{slug}", f"Assign-{slug}", f"QuizQ-{slug}", f"AssignQ-{slug}"),
+                    f"Quiz-{slug}", f"Assign-{slug}", f"QuizQ-{slug}", f"AssignQ-{slug}",
+                    f"Rubric-{slug}"),
     }
 
 

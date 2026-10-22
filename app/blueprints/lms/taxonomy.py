@@ -18,7 +18,7 @@ from ...models import (
     LearningObjective, Lesson, QuestionCollection, Skill, Student,
 )
 from ._helpers import _parse_dt
-from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
+from ...services.scoping import owned_id, owned_or_404  # isolation sweep: school-scoped get
 
 
 # ── Skills (#2) ────────────────────────────────────────────────────
@@ -28,7 +28,7 @@ def skill_new():
     title = (request.form.get("title") or "").strip()
     if not title:
         return jsonify({"error": "title required"}), 400
-    parent_id = request.form.get("parent_id", type=int) or None
+    parent_id = owned_id(Skill, request.form.get("parent_id", type=int))
     s = Skill(school_id=current_user.school_id, title=title,
               parent_id=parent_id,
               description=(request.form.get("description") or "").strip())
@@ -54,7 +54,7 @@ def objective_new():
     o = LearningObjective(
         school_id=current_user.school_id, title=title,
         code=(request.form.get("code") or "").strip() or None,
-        lesson_id=request.form.get("lesson_id", type=int) or None,
+        lesson_id=owned_id(Lesson, request.form.get("lesson_id", type=int)),
         description=(request.form.get("description") or "").strip(),
     )
     db.session.add(o); db.session.commit()
@@ -264,7 +264,7 @@ def taxonomy_skill_edit(sid):
     if not title:
         flash("عنوان المهارة مطلوب.", "danger")
         return redirect(url_for("lms.taxonomy_home"))
-    new_parent = request.form.get("parent_id", type=int) or None
+    new_parent = owned_id(Skill, request.form.get("parent_id", type=int))
     if new_parent == s.id:
         flash("لا يمكن جعل المهارة أمًا لنفسها.", "danger")
         return redirect(url_for("lms.taxonomy_home"))
