@@ -26,6 +26,7 @@ import os
 import re
 import shutil
 import subprocess
+import time
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -37,6 +38,16 @@ SLUG_RE = re.compile(r"^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$")   # = ck_schools
 BLOCK_RE = re.compile(r"^# (school|moved): (\S+).*?^# end \1: \2\n", re.M | re.S)
 CERT_WARN_DAYS = 21
 LOG_LIMIT = 8000
+
+
+# After `nginx -s reload` the new workers take a moment: a probe sent at once
+# can reach an old worker (Lamma's wildcard page). Up to PROBE_ATTEMPTS tries,
+# PROBE_DELAY seconds apart, PROBE_TIMEOUT seconds each — at most
+# 5 x 5 + 4 x 1 = 29 s per host (DEPLOYMENT.md). Rollback only after all fail.
+PROBE_ATTEMPTS = 5
+PROBE_DELAY = 1.0
+PROBE_TIMEOUT = 5
+_sleep = time.sleep
 
 
 class SyncError(RuntimeError):
@@ -80,7 +91,7 @@ class Runner:
         return self.run(["docker", "exec", self.container, "nginx", "-s", "reload"])
 
     def health(self, host: str) -> tuple[int, str]:
-        return self.run(["curl", "-sk", "-o", "-", "-w", "\n%{http_code}", "--max-time", "10",
+        return self.run(["curl", "-sk", "-o", "-", "-w", "\n%{http_code}", "--max-time", str(PROBE_TIMEOUT),
                          "--resolve", f"{host}:443:127.0.0.1", f"https://{host}/_health"])
 
     def cert_enddate(self, path: str):
@@ -289,6 +300,15 @@ def _diff(old: str, new: str) -> str:
                                         "schools.conf", "schools.conf.new"))
 
 
+def _healthy_with_retry(runner: "Runner", host: str) -> bool:
+    for attempt in range(PROBE_ATTEMPTS):
+        if _healthy(runner, host):
+            return True
+        if attempt < PROBE_ATTEMPTS - 1:
+            _sleep(PROBE_DELAY)
+    return False
+
+
 def _healthy(runner: Runner, host: str) -> bool:
     """200 + {"ok": true} from the app's /_health on that host."""
     import json
@@ -381,7 +401,7 @@ def run_sync(*, runner: Runner | None = None, st: Settings | None = None, check:
         school_hosts = {f"{s}.{st.base_domain}" for s in res.slugs}
         # Removed blocks have nothing to verify; redirect blocks answer
         # 301 rather than /_health.
-        bad = [h for h in res.changed_hosts if h in school_hosts and not _healthy(runner, h)]
+        bad = [h for h in res.changed_hosts if h in school_hosts and not _healthy_with_retry(runner, h)]
         if bad:
             restore("verification failed: " + ", ".join(bad))
             runner.nginx_test()

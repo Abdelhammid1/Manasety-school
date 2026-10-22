@@ -129,6 +129,55 @@ def test_nginx_t_failure_restores_and_never_reloads(app, st, two_schools):
     assert not (st.conf_dir / "schools.conf.new").exists()
 
 
+@pytest.fixture(autouse=True)
+def _no_real_sleep(monkeypatch):
+    """The probe's pauses are recorded, not slept."""
+    from app.services import nginx_sync
+    slept = []
+    monkeypatch.setattr(nginx_sync, "_sleep", slept.append)
+    return slept
+
+
+class SlowWorkersRunner(FakeRunner):
+    """/_health answers the old worker's HTML `html_first` times per host,
+    then the app's JSON (nginx workers still starting after a reload)."""
+
+    def __init__(self, html_first, **kw):
+        super().__init__(**kw)
+        self.html_first, self.seen = html_first, {}
+
+    def health(self, h):
+        self.calls.append(f"health:{h}")
+        n = self.seen[h] = self.seen.get(h, 0) + 1
+        return (0, "<html>Lamma</html>\n200") if n <= self.html_first else (0, '{"ok": true}\n200')
+
+
+def test_probe_retries_until_the_new_workers_answer(app, st, two_schools, _no_real_sleep):
+    """Two HTML answers (old worker), then JSON: applied, no rollback."""
+    from app.services import nginx_sync
+    st.target.write_text("# old file\n", encoding="utf-8")
+    r = SlowWorkersRunner(html_first=2)
+    res = _sync(app, st, r)
+    assert res.status == "applied", res.log
+    assert r.calls.count("reload") == 1
+    assert all(n == 3 for n in r.seen.values()) and r.seen
+    assert _no_real_sleep == [nginx_sync.PROBE_DELAY] * (2 * len(r.seen))
+
+
+def test_probe_rolls_back_only_after_every_attempt_fails(app, st, two_schools, _no_real_sleep):
+    from app.services import nginx_sync
+    st.target.write_text("# old file\n", encoding="utf-8")
+    r = SlowWorkersRunner(html_first=99)
+    res = _sync(app, st, r)
+    assert res.status == "failed"
+    assert st.target.read_text(encoding="utf-8") == "# old file\n"
+    assert r.calls.count("reload") == 2
+    first = next(iter(r.seen))
+    assert r.seen[first] == nginx_sync.PROBE_ATTEMPTS
+    # bounded: attempts x per-try timeout + pauses
+    assert nginx_sync.PROBE_ATTEMPTS * nginx_sync.PROBE_TIMEOUT +         (nginx_sync.PROBE_ATTEMPTS - 1) * nginx_sync.PROBE_DELAY <= 30
+
+
 def test_verification_failure_rolls_back(app, st, two_schools):
     st.target.write_text("# old file\n", encoding="utf-8")
     r = FakeRunner(healthy=False)

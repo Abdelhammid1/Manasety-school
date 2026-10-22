@@ -218,7 +218,7 @@ flask school-provision --name "اسم المدرسة" --slug myschool --admin-na
 
 #### أتمتة الـsubdomain — `flask nginx-sync` (SAAS-029)
 
-اللوحة ما بتلمسش nginx ولا docker: بتسجّل طلب في `platform_jobs` بس (إنشاء مدرسة، إيقاف/استئناف، زر "مزامنة الآن"). الأمر على السيرفر هو اللي بينفّذ، بالترتيب: قفل ملف ← توليد `schools.conf.new` ← لو مفيش فرق خروج من غير reload ← فحص تعارض الأسماء مع `nginx -T` (أي `server_name` خارج `schools.conf`، والـwildcard بتاع Lamma مستثنى) ← نسخة احتياطية في `/opt/manasety/nginx.bak_<تاريخ>/schools.conf` ← استبدال ذرّي ← `nginx -t` (لو فشل: استرجاع فوري ومن غير reload) ← `nginx -s reload` ← تحقق `GET /_health` لكل host اتغيّر (`curl --resolve` على 127.0.0.1)، ولو فشل: استرجاع + `nginx -t` + reload والطلب بيتعلّم failed.
+اللوحة ما بتلمسش nginx ولا docker: بتسجّل طلب في `platform_jobs` بس (إنشاء مدرسة، إيقاف/استئناف، زر "مزامنة الآن"). الأمر على السيرفر هو اللي بينفّذ، بالترتيب: قفل ملف ← توليد `schools.conf.new` ← لو مفيش فرق خروج من غير reload ← فحص تعارض الأسماء مع `nginx -T` (أي `server_name` خارج `schools.conf`، والـwildcard بتاع Lamma مستثنى) ← نسخة احتياطية في `/opt/manasety/nginx.bak_<تاريخ>/schools.conf` ← استبدال ذرّي ← `nginx -t` (لو فشل: استرجاع فوري ومن غير reload) ← `nginx -s reload` ← تحقق `GET /_health` لكل host اتغيّر (`curl --resolve` على 127.0.0.1): لازم 200 + `{"ok": true}`، وبيتعاد لحد 5 محاولات بينهم ثانية (الـ workers الجداد بياخدوا لحظة بعد الـ reload)، كل محاولة 5 ثواني بحد أقصى — يعني أقصى انتظار 29 ثانية للـ host، ولو كل المحاولات فشلت: استرجاع + `nginx -t` + reload والطلب بيتعلّم failed.
 
 | المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |
 |---|---|---|---|
