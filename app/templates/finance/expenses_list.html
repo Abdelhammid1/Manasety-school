@@ -36,7 +36,7 @@
         <span class="font-label-md text-label-md text-on-surface-variant">إجمالي المصروفات</span>
         <span class="material-symbols-outlined text-error">payments</span>
       </div>
-      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ '%.2f'|format((total) or 0) }}</div>
+      <div class="font-headline-md text-headline-sm sm:text-headline-md text-primary font-bold mt-2 tabular-nums break-words">{{ '%.2f'|format(total or 0) }}</div>
     </div>
   </div>
 
@@ -60,7 +60,7 @@
             <td class="px-4 py-3 font-label-lg text-primary font-bold">{{ e.description }}</td>
             <td class="px-4 py-3 font-label-md">{{ e.vendor.name if e.vendor else '—' }}</td>
             <td class="px-4 py-3 font-label-md text-on-surface-variant">{{ e.expense_account.name if e.expense_account else '—' }}</td>
-            <td class="px-4 py-3 text-left font-label-lg text-error font-bold tabular-nums">{{ '%.2f'|format((e.amount) or 0) }}</td>
+            <td class="px-4 py-3 text-left font-label-lg text-error font-bold tabular-nums">{{ '%.2f'|format(e.amount or 0) }}</td>
             <td class="px-4 py-3">
               <div class="flex items-center justify-center gap-1">
                 <a href="{{ url_for('finance.expense_edit', exp_id=e.id) }}"

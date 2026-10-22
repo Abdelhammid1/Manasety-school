@@ -963,7 +963,8 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "receipt_long",
         } for i in inv]
 
-    crs = (
+    # the courses hub sends non-editors back to their dashboard
+    crs = can("lms", "edit") and (
         Course.query.filter(Course.school_id == sid)
         .filter(Course.title.ilike(like))
         .limit(limit_each).all()
@@ -976,7 +977,7 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "auto_stories",
         } for c in crs]
 
-    emp = can("payroll", "view") and (
+    emp = can("payroll", "view") and _has_endpoint("hr.employees_list") and (
         Employee.query.filter(Employee.school_id == sid)
         .filter(Employee.full_name.ilike(like))
         .limit(limit_each).all()
@@ -985,7 +986,7 @@ def _search_hits(q, sid, *, limit_each):
         out["الموظفون"] = [{
             "title": e.full_name,
             "subtitle": getattr(e, "job_title", "") or "",
-            "href": url_for("hr.employees_list") if _has_endpoint("hr.employees_list") else "#",
+            "href": url_for("hr.employees_list"),
             "icon": "work",
         } for e in emp]
 

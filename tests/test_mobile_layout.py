@@ -171,3 +171,53 @@ def test_invoice_search_follows_the_invoice_page_rule(mapp, two_schools, login_a
                     db.session.flush()
             db.session.commit()
             db.session.remove()
+
+
+def test_every_template_compiles(mapp):
+    """A broken expression in any template is a 500 on its page: compile
+    them all (a sed-style edit once split one across two `{{ }}`)."""
+    env = mapp.jinja_env
+    bad = []
+    for name in env.list_templates(extensions=["html"]):
+        try:
+            env.get_template(name)
+        except Exception as e:          # noqa: BLE001 — report every one
+            bad.append(f"{name}: {e}")
+    assert not bad, bad
+
+
+@pytest.mark.parametrize("path", ["/finance/reports", "/finance/expenses", "/finance/invoices"])
+def test_finance_money_pages_render(mapp, two_schools, login_as, path):
+    _page(mapp, login_as, two_schools["A"], "admin", path)
+
+
+def test_tab_stays_current_on_its_blueprints_pages(mapp, two_schools, login_as):
+    body = _page(mapp, login_as, two_schools["A"], "admin", "/finance/invoices")
+    m = re.search(r'<nav id="app-bottomnav".*?</nav>', body, re.S)
+    assert m, "bottom navigation missing"
+    current = re.findall(r'<a href="([^"]+)" aria-current="page"', m.group(0))
+    assert len(current) == 1 and current[0].startswith("/finance"), current
+
+
+def test_course_search_only_for_course_editors(mapp, two_schools, login_as):
+    from app.extensions import db
+    from app.models import Course
+    A = two_schools["A"]
+    with mapp.app_context():
+        c = Course(school_id=A["school"].id, academic_year_id=A["year"].id, grade_id=A["grade"].id,
+                   subject_id=A["subject"].id, title="SrchCourse-x")
+        db.session.add(c); db.session.commit()
+        cid = c.id
+        db.session.remove()
+    try:
+        for role_key, sees in (("student", False), ("admin", True)):
+            cl = mapp.test_client()
+            login_as(cl, A["users"][role_key], base_url=host(A))
+            r = cl.get("/search.json", query_string={"q": "SrchCourse"}, base_url=host(A))
+            assert ("المقررات" in (r.get_json() or {}).get("groups", {})) is sees, role_key
+    finally:
+        with mapp.app_context():
+            row = db.session.get(Course, cid)
+            if row is not None:
+                db.session.delete(row); db.session.commit()
+            db.session.remove()

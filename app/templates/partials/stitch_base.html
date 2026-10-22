@@ -208,7 +208,7 @@
     @media (max-width:900px){ .fixed.bottom-0.right-72{right:0!important} }
     @media (max-width:767px){
       body.has-bottomnav .fixed.bottom-0.right-72{bottom:calc(57px + env(safe-area-inset-bottom,0px))!important;padding-left:1rem!important;padding-right:1rem!important}
-      body.has-bottomnav:has(.fixed.bottom-0.right-72) main{padding-bottom:calc(160px + env(safe-area-inset-bottom,0px))}
+      body.has-bottomnav:has(.fixed.bottom-0.right-72) main{padding-bottom:calc(200px + env(safe-area-inset-bottom,0px))}
       /* bars sticky to the bottom of a page stop above the navigation */
       body.has-bottomnav main .sticky.bottom-0{bottom:calc(57px + env(safe-area-inset-bottom,0px))}
       /* the actions share the width */
@@ -447,6 +447,17 @@
       document.addEventListener('focusout', () => setTimeout(() => {
         if (!typing(document.activeElement)) document.body.classList.remove('kb-open');
       }, 50));
+      // closed without leaving the field (Android back, iOS "Done"): the
+      // visible height comes back to its tallest
+      const vv = window.visualViewport;
+      if (vv) {
+        let tallest = vv.height;
+        vv.addEventListener('resize', () => {
+          tallest = Math.max(tallest, vv.height);
+          if (vv.height > tallest - 120) document.body.classList.remove('kb-open');
+          else if (typing(document.activeElement)) document.body.classList.add('kb-open');
+        });
+      }
     })();
 
     // Modal helpers — pages use openModal('#some-modal')

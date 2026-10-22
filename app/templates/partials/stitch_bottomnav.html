@@ -37,15 +37,20 @@
   ] %}
 {% endif %}
 {% set _cur = request.endpoint or '' %}
+{# a tab is current on its blueprint's pages; two tabs sharing a blueprint
+   (student lms: assignments / quizzes) are told apart by URL instead #}
+{% set _eps = ' ' ~ _items|map(attribute=0)|join(' ') %}
+{% set _here = request.script_root ~ request.path %}
 <nav id="app-bottomnav" aria-label="التنقل السريع"
      class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl border-t border-outline-variant">
   <ul class="flex items-stretch justify-around">
     {% for ep, label, icon, perm in _items %}
       {% if endpoint_on(ep) and (not perm or current_user.can(perm[0], perm[1])) %}
       {% set _url = url_for(ep) %}
-      {# active on the page itself and the pages under its URL (two lms tabs
-         share a blueprint, so the blueprint alone can't tell them apart) #}
-      {% set _active = _cur == ep or (ep != 'dashboard.home' and request.path.startswith(_url.rstrip('/') ~ '/')) %}
+      {% set _bp = ep.split('.')[0] %}
+      {% set _shared = _eps.count(' ' ~ _bp ~ '.') > 1 %}
+      {% set _active = _cur == ep or (ep != 'dashboard.home' and (
+            _here.startswith(_url.rstrip('/') ~ '/') if _shared else _cur.split('.')[0] == _bp)) %}
       <li class="flex-1">
         <a href="{{ _url }}" {% if _active %}aria-current="page"{% endif %}
            class="bottomnav-link flex flex-col items-center justify-center gap-0.5 min-h-[56px] px-1 font-label-sm text-label-sm {{ 'text-primary font-bold' if _active else 'text-on-surface-variant' }}">
