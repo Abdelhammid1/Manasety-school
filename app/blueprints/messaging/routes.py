@@ -37,6 +37,7 @@ from ...models import (
     NotificationPreference,
     User, Student, StudentGuardian, Guardian, Assignment, Section,
 )
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 def _sid() -> int:
@@ -325,7 +326,7 @@ def messages_search():
 def message_delete(msg_id):
     """Soft-delete a message the current user sent. Deleted rows stay in
     the DB (with deleted_at set) for the audit trail."""
-    m = Message.query.get_or_404(msg_id)
+    m = owned_or_404(Message, msg_id)
     if m.sender_user_id != current_user.id:
         abort(403)
     m.deleted_at = datetime.now(timezone.utc)

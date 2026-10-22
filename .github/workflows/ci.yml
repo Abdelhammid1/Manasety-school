@@ -59,4 +59,7 @@ jobs:
       - name: Seed the test schools on PostgreSQL (SAAS-041)
         run: |
           flask seed-test-schools --small --no-backup --accounts-file /tmp/acc.txt
+          # isolation sweep closing: the scan on populated data, not only
+          # on the empty post-migration schema — any cross-school link fails
+          flask tenant-integrity-check
           flask seed-test-schools --teardown --no-backup

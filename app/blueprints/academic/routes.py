@@ -156,10 +156,15 @@ def year_close(year_id):
     # cause was simply "year id belongs to another school". Give a
     # friendlier flash + redirect so admins that mis-typed the URL
     # land on the years list instead of hitting a dead end.
+    # SAAS-018: same message + a link to the years list, but as a real
+    # 404 (a foreign id must not look like a successful redirect).
     year = AcademicYear.query.filter_by(id=year_id, school_id=_sid()).first()
     if year is None:
-        flash("السنة الدراسية غير موجودة أو غير مسموح لك بالوصول لها.", "warning")
-        return redirect(url_for("academic.years_list"))
+        return render_template(
+            "errors/error.html", code=404, title="السنة الدراسية غير موجودة",
+            msg="السنة الدراسية غير موجودة أو غير مسموح لك بالوصول لها.",
+            back_url=url_for("academic.years_list"), back_label="قائمة السنوات الدراسية",
+        ), 404
 
     # GET (or an explicit dry_run POST) → preview screen.
     is_preview = request.method == "GET" or request.form.get("dry_run") == "1"

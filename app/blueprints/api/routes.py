@@ -34,6 +34,24 @@ def _user():
     return g.api_user
 
 
+def _not_found():
+    """SAAS-017 — the one rejection shape for an id that is missing,
+    soft-deleted, of another school, or not linked to the caller."""
+    return jsonify({"error": "not_found"}), 404
+
+
+def _owned(model, oid):
+    """The `model` row with this id in the caller's school, else None."""
+    try:
+        oid = int(oid)
+    except (TypeError, ValueError):
+        return None
+    q = model.query.filter(model.id == oid, model.school_id == _sid())
+    if hasattr(model, "deleted_at"):
+        q = q.filter(model.deleted_at.is_(None))
+    return q.first()
+
+
 def _sid() -> int:
     # SAAS-005 — central tenant source of truth. One function
     # here so no blueprint reads current_user.school_id directly.
@@ -230,7 +248,13 @@ def teacher_section_schedule(section_id):
         return _err("not a teacher", 403)
     section = Section.query.filter_by(id=section_id, school_id=_sid()).first()
     if not section:
-        return _err("section not found", 404)
+        return _not_found()
+    # SAAS-017 — a teacher reads the schedule of the sections he teaches.
+    if not Assignment.query.filter_by(
+        teacher_id=t.id, section_id=section.id,
+        year_id=section.year_id, is_active=True,
+    ).first():
+        return _err("teacher not assigned to this section", 403)
     slots = (
         ScheduleSlot.query.filter_by(
             school_id=_sid(), year_id=section.year_id, section_id=section.id,
@@ -449,12 +473,21 @@ def teacher_home():
 @bp.route("/teacher/students", methods=["GET"])
 @jwt_required
 def teacher_students():
+    # SAAS-017 — the roster is for a teacher of that section only.
+    t = _teacher_for(_user())
+    if not t:
+        return _err("not a teacher", 403)
     section_id = request.args.get("section_id", type=int)
     if not section_id:
         return _err("section_id required")
     section = Section.query.filter_by(id=section_id, school_id=_sid()).first()
     if not section:
-        return _err("section not found", 404)
+        return _not_found()
+    if not Assignment.query.filter_by(
+        teacher_id=t.id, section_id=section.id,
+        year_id=section.year_id, is_active=True,
+    ).first():
+        return _err("teacher not assigned to this section", 403)
     enrollments = (
         Enrollment.query.filter_by(
             school_id=_sid(), year_id=section.year_id, section_id=section.id, status="active"
@@ -656,6 +689,8 @@ def teacher_components():
     term_id = request.args.get("term_id", type=int)
     if not (subject_id and term_id):
         return _err("subject_id and term_id required")
+    if not (_owned(Subject, subject_id) and _owned(Term, term_id)):
+        return _not_found()
     comps = AssessmentComponent.query.filter_by(
         school_id=_sid(), subject_id=subject_id, term_id=term_id,
     ).order_by(AssessmentComponent.id).all()
@@ -680,13 +715,15 @@ def teacher_grades_existing():
         return _err("missing query params")
     section = Section.query.filter_by(id=section_id, school_id=_sid()).first()
     if not section:
-        return _err("section not found", 404)
+        return _not_found()
     # Reuse the same scope check the POST already applies
     if not Assignment.query.filter_by(
         teacher_id=t.id, section_id=section.id, subject_id=subject_id,
         year_id=section.year_id, is_active=True,
     ).first():
         return _err("teacher not assigned to this subject in this section", 403)
+    if not _owned(AssessmentComponent, component_id):
+        return _not_found()
     eids = [
         e.id for e in Enrollment.query.filter_by(
             school_id=_sid(), year_id=section.year_id,
@@ -716,7 +753,7 @@ def teacher_attendance_existing():
     on_date = _parse_date(request.args.get("date")) or date.today()
     section = Section.query.filter_by(id=section_id, school_id=_sid()).first()
     if not section:
-        return _err("section not found", 404)
+        return _not_found()
     if not Assignment.query.filter_by(
         teacher_id=t.id, section_id=section.id,
         year_id=section.year_id, is_active=True,
@@ -765,7 +802,7 @@ def teacher_upload():
         return _err("missing file or fields")
     section = Section.query.filter_by(id=section_id, school_id=_sid()).first()
     if not section:
-        return _err("section not found", 404)
+        return _not_found()
     # Same Assignment scope check
     if not Assignment.query.filter_by(
         teacher_id=t.id, section_id=section.id, subject_id=subject_id,
@@ -858,8 +895,14 @@ def unregister_device_token():
 def mark_notification_read(notif_id):
     """Mark a parent notification as read (from a push tap or tab visit)."""
     n = NotificationLog.query.filter_by(id=notif_id, school_id=_sid()).first()
-    if not n:
-        return _err("not found", 404)
+    # Same rule as the parent's notification list: it is about one of the
+    # caller's children (or the calling student).
+    u = _user()
+    mine = {s.id for s in Student.query.filter(
+        Student.school_id == _sid(),
+        (Student.parent_user_id == u.id) | (Student.user_id == u.id)).all()}
+    if not n or n.student_id not in mine:
+        return _not_found()
     n.read_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"ok": True, "read_at": n.read_at.isoformat()})
@@ -977,9 +1020,9 @@ def teacher_assignment_detail(aid):
     t = _teacher_for(_user())
     if not t:
         return _err("not a teacher", 403)
-    ca = CourseAssignment.query.get(aid)
+    ca = _owned(CourseAssignment, aid)
     if not ca:
-        return _err("not found", 404)
+        return _not_found()
     my_courses = {c.id for c in _teacher_courses(t, _active_year())}
     if ca.course_id not in my_courses:
         return _err("forbidden", 403)
@@ -997,9 +1040,9 @@ def teacher_assignment_submissions(aid):
     t = _teacher_for(_user())
     if not t:
         return _err("not a teacher", 403)
-    ca = CourseAssignment.query.get(aid)
+    ca = _owned(CourseAssignment, aid)
     if not ca:
-        return _err("not found", 404)
+        return _not_found()
     my_courses = {c.id for c in _teacher_courses(t, _active_year())}
     if ca.course_id not in my_courses:
         return _err("forbidden", 403)
@@ -1030,9 +1073,9 @@ def teacher_assignment_grade(aid, sid):
     t = _teacher_for(_user())
     if not t:
         return _err("not a teacher", 403)
-    ca = CourseAssignment.query.get(aid)
+    ca = _owned(CourseAssignment, aid)
     if not ca:
-        return _err("not found", 404)
+        return _not_found()
     my_courses = {c.id for c in _teacher_courses(t, _active_year())}
     if ca.course_id not in my_courses:
         return _err("forbidden", 403)
@@ -1043,9 +1086,9 @@ def teacher_assignment_grade(aid, sid):
         return _err("score must be numeric")
     if score < 0 or (ca.max_score and score > float(ca.max_score)):
         return _err(f"score must be between 0 and {ca.max_score}")
-    sub = Submission.query.filter_by(assignment_id=aid, student_id=sid).first()
+    sub = Submission.query.filter_by(assignment_id=ca.id, student_id=sid).first()
     if not sub:
-        return _err("submission not found", 404)
+        return _not_found()
     sub.score = score
     sub.feedback = data.get("feedback") or sub.feedback
     sub.graded_by_id = _user().id
@@ -1124,9 +1167,9 @@ def teacher_quiz_stats(qid):
     t = _teacher_for(_user())
     if not t:
         return _err("not a teacher", 403)
-    q = Quiz.query.get(qid)
+    q = _owned(Quiz, qid)
     if not q:
-        return _err("not found", 404)
+        return _not_found()
     my_courses = {c.id for c in _teacher_courses(t, _active_year())}
     if q.course_id not in my_courses:
         return _err("forbidden", 403)
@@ -1233,7 +1276,7 @@ def teacher_announcement_delete(aid):
         return _err("not a teacher", 403)
     a = Announcement.query.filter_by(id=aid, school_id=_sid()).first()
     if not a:
-        return _err("not found", 404)
+        return _not_found()
     # Only the author can delete.
     if a.author_id != _user().id:
         return _err("forbidden", 403)
@@ -1335,13 +1378,15 @@ def teacher_message_thread(conv_id):
     if not t:
         return _err("not a teacher", 403)
     uid = _user().id
+    # SAAS-017 — another school's thread is not_found (404), checked
+    # before membership; a thread of this school I'm not in stays 403.
+    conv = _owned(Conversation, conv_id)
+    if not conv:
+        return _not_found()
     me = ConversationParticipant.query.filter_by(
-        conversation_id=conv_id, user_id=uid).first()
+        conversation_id=conv.id, user_id=uid).first()
     if not me:
         return _err("forbidden", 403)
-    conv = Conversation.query.get(conv_id)
-    if not conv or conv.school_id != _sid():
-        return _err("not found", 404)
 
     if request.method == "POST":
         data = request.get_json(silent=True) or {}
@@ -1497,6 +1542,8 @@ def qbank_questions():
     query_str  = (request.args.get("q") or "").strip()
     page       = max(1, request.args.get("page", 1, type=int))
     per_page   = min(200, request.args.get("per_page", 50, type=int))
+    if subject_id and not _owned(Subject, subject_id):
+        return _not_found()
 
     q = _bank_scope(source=source, subject_id=subject_id)
     if state:      q = q.filter(BankQuestion.review_state == state)
@@ -1519,7 +1566,7 @@ def qbank_questions():
 def qbank_set_state(qid):
     """Move a question through the review workflow."""
     q = BankQuestion.query.filter_by(id=qid, school_id=_sid()).first()
-    if not q: return _err("not found", 404)
+    if not q: return _not_found()
     data = request.get_json(silent=True) or {}
     new_state = data.get("review_state")
     if new_state not in ("approved", "pending", "no_answer",
@@ -1579,6 +1626,11 @@ def teacher_templates():
         data = request.get_json(silent=True) or {}
         title = (data.get("title") or "").strip()
         if not title: return _err("title is required")
+        # SAAS-017 — subject / grade must be this school's.
+        if data.get("subject_id") and not _owned(Subject, data.get("subject_id")):
+            return _not_found()
+        if data.get("grade_id") and not _owned(Grade, data.get("grade_id")):
+            return _not_found()
         # ImportFromCode — clone another template's item list.
         import_code = (data.get("import_from_code") or "").strip()
         source_tmpl = None
@@ -1646,7 +1698,7 @@ def teacher_template_detail(tid):
     t = _teacher_for(_user())
     if not t: return _err("not a teacher", 403)
     tmpl = AssessmentTemplate.query.filter_by(id=tid, school_id=_sid()).first()
-    if not tmpl: return _err("not found", 404)
+    if not tmpl: return _not_found()
     if request.method == "DELETE":
         db.session.delete(tmpl)
         db.session.commit()
@@ -1661,7 +1713,7 @@ def teacher_template_add_questions(tid):
     t = _teacher_for(_user())
     if not t: return _err("not a teacher", 403)
     tmpl = AssessmentTemplate.query.filter_by(id=tid, school_id=_sid()).first()
-    if not tmpl: return _err("not found", 404)
+    if not tmpl: return _not_found()
     data = request.get_json(silent=True) or {}
     ids = data.get("bank_question_ids") or []
     if not ids: return _err("bank_question_ids required")
@@ -1829,7 +1881,7 @@ def _check_child(student_id):
 def parent_child_attendance(student_id):
     s = _check_child(student_id)
     if not s:
-        return _err("child not found", 404)
+        return _not_found()
     eids = [e.id for e in s.enrollments if e.status == "active"]
     records = (
         Attendance.query.filter(Attendance.enrollment_id.in_(eids))
@@ -1854,7 +1906,7 @@ def parent_child_attendance(student_id):
 def parent_child_results(student_id):
     s = _check_child(student_id)
     if not s:
-        return _err("child not found", 404)
+        return _not_found()
     # Only APPROVED results (T-10.3 acceptance)
     out = []
     for enr in s.enrollments:
@@ -1878,7 +1930,7 @@ def parent_child_results(student_id):
 def parent_child_invoices(student_id):
     s = _check_child(student_id)
     if not s:
-        return _err("child not found", 404)
+        return _not_found()
     eids = [e.id for e in s.enrollments]
     invoices = Invoice.query.filter(Invoice.enrollment_id.in_(eids)).order_by(Invoice.issue_date.desc()).all()
     return jsonify({"invoices": [
@@ -1965,9 +2017,9 @@ def parent_pickup_active():
 def parent_pickup_release(cid):
     from ...models import PickupCall
     from ...services import pickup as pickup_svc
-    call = PickupCall.query.filter_by(id=cid, parent_user_id=_user().id).first()
+    call = PickupCall.query.filter_by(id=cid, school_id=_sid(), parent_user_id=_user().id).first()
     if not call:
-        return _err("not found", 404)
+        return _not_found()
     pickup_svc.release_call(call, _user())
     return jsonify({"ok": True})
 
@@ -2001,9 +2053,9 @@ def pickup_incoming():
 def pickup_ack_api(cid):
     from ...models import PickupCall
     from ...services import pickup as pickup_svc
-    call = PickupCall.query.get(cid)
+    call = _owned(PickupCall, cid)
     if not call:
-        return _err("not found", 404)
+        return _not_found()
     uid = _user().id
     if call.teacher_user_id == uid:
         pickup_svc.mark_seen_by_teacher(call)
@@ -2020,7 +2072,7 @@ def parent_child_schedule(student_id):
     """Weekly schedule for a child's current section."""
     s = _check_child(student_id)
     if not s:
-        return _err("child not found", 404)
+        return _not_found()
     year = _active_year()
     if not year:
         return jsonify({"slots": []})
@@ -2053,7 +2105,7 @@ def parent_child_schedule(student_id):
 def parent_child_materials(student_id):
     s = _check_child(student_id)
     if not s:
-        return _err("child not found", 404)
+        return _not_found()
     year = _active_year()
     if not year:
         return jsonify({"materials": []})
@@ -2313,9 +2365,9 @@ def student_course_detail(course_id):
     student = _student_for(_user())
     if not student:
         return _err("student profile not linked", 404)
-    course = Course.query.get(course_id)
+    course = _owned(Course, course_id)
     if not course:
-        return _err("course not found", 404)
+        return _not_found()
     subject_name = None
     if course.subject_id:
         subj = Subject.query.get(course.subject_id)
@@ -2530,7 +2582,7 @@ def student_announcement_detail(aid):
         return _err("student profile not linked", 404)
     a = Announcement.query.filter_by(id=aid, school_id=_sid()).first()
     if not a:
-        return _err("not found", 404)
+        return _not_found()
     author_name = None
     if a.author_id:
         u = User.query.get(a.author_id)
@@ -2552,9 +2604,9 @@ def student_lesson_view(lid):
     student = _student_for(_user())
     if not student:
         return _err("student profile not linked", 404)
-    lesson = Lesson.query.get(lid)
+    lesson = _owned(Lesson, lid)
     if not lesson or not lesson.is_published:
-        return _err("not found", 404)
+        return _not_found()
     # Access check: student must be enrolled in a section that publishes
     # the parent course.
     enr = _active_enrollment(student)
@@ -2586,9 +2638,9 @@ def student_assignment_detail(aid):
     student = _student_for(_user())
     if not student:
         return _err("student profile not linked", 404)
-    a = CourseAssignment.query.get(aid)
+    a = _owned(CourseAssignment, aid)
     if not a or not a.is_published:
-        return _err("not found", 404)
+        return _not_found()
     # Questions + choices, if the assignment has any (smart assignments).
     qs = (
         AssignmentQuestion.query.filter_by(assignment_id=a.id)
@@ -2636,9 +2688,9 @@ def student_assignment_submit(aid):
     student = _student_for(_user())
     if not student:
         return _err("student profile not linked", 404)
-    a = CourseAssignment.query.get(aid)
+    a = _owned(CourseAssignment, aid)
     if not a or not a.is_published:
-        return _err("not found", 404)
+        return _not_found()
 
     data = request.get_json(silent=True) or {}
     sub = Submission.query.filter_by(assignment_id=a.id, student_id=student.id).first()
@@ -2656,10 +2708,15 @@ def student_assignment_submit(aid):
 
     # MCQ answers — { question_id: choice_id | text }
     answers = data.get("answers") or {}
+    from ...models import AssignmentQuestion
+    own_qids = {qid for (qid,) in db.session.query(AssignmentQuestion.id).filter_by(assignment_id=a.id)}
     for qid_raw, val in answers.items():
         try:
             qid = int(qid_raw)
         except (TypeError, ValueError):
+            continue
+        # SAAS-017 — only this assignment's questions are answered.
+        if qid not in own_qids:
             continue
         ans = AssignmentAnswer.query.filter_by(
             submission_id=sub.id, question_id=qid,
@@ -2669,7 +2726,8 @@ def student_assignment_submit(aid):
             db.session.add(ans)
         # Choice id (int) → choice_id; anything else → text_answer.
         if isinstance(val, int) or (isinstance(val, str) and val.isdigit()):
-            ans.choice_id = int(val)
+            ok = AssignmentChoice.query.filter_by(id=int(val), question_id=qid).first()
+            ans.choice_id = ok.id if ok else None
             ans.text_answer = ""
         else:
             ans.choice_id = None
@@ -2742,9 +2800,9 @@ def student_quiz_attempt(qid):
     student = _student_for(_user())
     if not student:
         return _err("student profile not linked", 404)
-    q = Quiz.query.get(qid)
+    q = _owned(Quiz, qid)
     if not q or not q.is_published:
-        return _err("not found", 404)
+        return _not_found()
     questions = (
         Question.query.filter_by(quiz_id=q.id)
         .order_by(Question.order_index).all()
@@ -2778,9 +2836,9 @@ def student_quiz_submit(qid):
     student = _student_for(_user())
     if not student:
         return _err("student profile not linked", 404)
-    q = Quiz.query.get(qid)
+    q = _owned(Quiz, qid)
     if not q or not q.is_published:
-        return _err("not found", 404)
+        return _not_found()
 
     data = request.get_json(silent=True) or {}
     answers = data.get("answers") or {}   # { question_id: choice_id | text }
@@ -2796,8 +2854,10 @@ def student_quiz_submit(qid):
         val = answers.get(str(question.id)) or answers.get(question.id)
         ans = Answer(attempt_id=attempt.id, question_id=question.id)
         if question.kind in ("mcq", "tf") and (isinstance(val, int) or (isinstance(val, str) and val.isdigit())):
-            ans.choice_id = int(val)
-            chosen = Choice.query.get(ans.choice_id)
+            # SAAS-017 — only a choice of this question counts (a correct
+            # choice of another question / school scored points before).
+            chosen = Choice.query.filter_by(id=int(val), question_id=question.id).first()
+            ans.choice_id = chosen.id if chosen else None
             ans.is_correct = bool(chosen and chosen.is_correct)
             if ans.is_correct:
                 ans.awarded_points = question.points or Decimal(0)
@@ -2839,7 +2899,9 @@ def student_report_card(term_id):
         return jsonify({"subjects": [], "summary": None})
     # Every grade entry for this student whose component belongs to the
     # requested term.
-    comps = AssessmentComponent.query.filter_by(term_id=term_id).all()
+    if not _owned(Term, term_id):
+        return _not_found()
+    comps = AssessmentComponent.query.filter_by(school_id=_sid(), term_id=term_id).all()
     comp_ids = [c.id for c in comps]
     if not comp_ids:
         return jsonify({"subjects": [], "summary": None})

@@ -11,6 +11,7 @@ from ...models import (
     AcademicYear, Assignment, Day, Grade, Period, Room, ScheduleSlot,
     Section, Subject, Teacher,
 )
+from ...services.scoping import owned_id, owned_or_404  # isolation sweep: school-scoped get
 
 
 def _sid() -> int:
@@ -313,8 +314,12 @@ def section_schedule(section_id):
 def slot_save(section_id):
     section = _get(Section, section_id)
     year = section.year
-    day_id = int(request.form["day_id"])
-    period_id = int(request.form["period_id"])
+    # SAAS-018 — every reference in the form (day, period, subject,
+    # teacher, room) must belong to this school, checked before the
+    # conflict lookups below (those would otherwise name another school's
+    # section in the flash message).
+    day_id = owned_or_404(Day, request.form.get("day_id")).id
+    period_id = owned_or_404(Period, request.form.get("period_id")).id
 
     # Ticket #5 — prefer assignment_id (subject + teacher come from the
     # active assignment). Fall back to explicit subject_id/teacher_id for
@@ -356,11 +361,11 @@ def slot_save(section_id):
             )
             return redirect(url_for("schedule.section_schedule", section_id=section.id))
     else:
-        subject_id = int(request.form["subject_id"])
-        teacher_id = int(request.form["teacher_id"])
+        subject_id = owned_or_404(Subject, request.form.get("subject_id")).id
+        teacher_id = owned_or_404(Teacher, request.form.get("teacher_id")).id
 
     # Ticket #7 — optional room assignment.
-    room_id = request.form.get("room_id", type=int) or None
+    room_id = owned_id(Room, request.form.get("room_id", type=int))
 
     # Conflict check: same teacher at same (day, period) in a different section
     conflict = (

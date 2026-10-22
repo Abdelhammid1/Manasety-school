@@ -229,6 +229,10 @@ def bulk_transfer(from_id):
     if request.method == "POST":
         target_id = request.form.get("target_section_id", type=int)
         picked = [int(x) for x in request.form.getlist("enrollment_ids") if x.isdigit()]
+        # SAAS-018 — a bulk write is validated as a whole before anything
+        # moves: one enrollment of another school and nothing is written.
+        from ...services.scoping import owned_many_or_404
+        owned_many_or_404(Enrollment, picked)
         target = Section.query.filter_by(
             id=target_id, school_id=_sid(),
             grade_id=src.grade_id, year_id=src.year_id,

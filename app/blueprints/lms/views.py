@@ -3409,11 +3409,17 @@ def quiz_submit(qid):
 
         # mcq / tf: single choice_id
         if q.kind in ("mcq", "tf"):
-            ans.choice_id = int(raw_choice) if raw_choice else None
+            try:
+                cid = int(raw_choice) if raw_choice else None
+            except ValueError:
+                cid = None
+            # SAAS-016 — checked BEFORE it is stored: a choice of another
+            # question (or another school) is simply not an answer.
+            choice = Choice.query.filter_by(id=cid, question_id=q.id).first() if cid else None
+            ans.choice_id = choice.id if choice else None
             ans.text_answer = ""
-            if ans.choice_id:
-                choice = Choice.query.get(ans.choice_id)
-                if choice and choice.question_id == q.id:
+            if cid:
+                if choice:
                     ans.is_correct = bool(choice.is_correct)
                     ans.awarded_points = q.points if ans.is_correct else Decimal("0")
                 else:
@@ -3433,6 +3439,7 @@ def quiz_submit(qid):
             selected = {int(v) for v in raw_multi if v.isdigit()}
             correct_ids = {c.id for c in q.choices if c.is_correct}
             all_ids = {c.id for c in q.choices}
+            selected &= all_ids          # SAAS-016 — only this question's choices
             ans.choice_id = None
             ans.text_answer = ",".join(str(s) for s in sorted(selected))
             if quiz.allow_partial_credit and correct_ids:

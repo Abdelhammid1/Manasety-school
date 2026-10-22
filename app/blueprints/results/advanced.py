@@ -20,6 +20,7 @@ from ...models import (
     TranscriptSnapshot, YearResult, Student, Enrollment,
     Subject,
 )
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 
 
 def _sid() -> int:
@@ -143,7 +144,7 @@ def rubric_new():
             created_by_id=getattr(current_user, "id", None),
             title=title,
             description=(request.form.get("description") or "").strip(),
-            subject_id=request.form.get("subject_id", type=int) or None,
+            subject_id=owned_id(Subject, request.form.get("subject_id", type=int)),
             is_template=True,
         )
         db.session.add(r); db.session.commit()
@@ -160,7 +161,7 @@ def rubric_edit(rubric_id):
     if request.method == "POST":
         r.title = (request.form.get("title") or r.title).strip()
         r.description = (request.form.get("description") or "").strip()
-        r.subject_id = request.form.get("subject_id", type=int) or None
+        r.subject_id = owned_id(Subject, request.form.get("subject_id", type=int))
         # Rewrite criteria
         for c in list(r.criteria):
             db.session.delete(c)

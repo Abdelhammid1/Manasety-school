@@ -1,0 +1,513 @@
+{
+ "mark_notification_read": {
+  "shape": {
+   "ok": "bool",
+   "read_at": "str"
+  },
+  "status": 200
+ },
+ "parent_child_attendance": {
+  "shape": {
+   "records": [
+    {
+     "date": "str",
+     "notes": "null",
+     "status": "str"
+    }
+   ],
+   "summary": {
+    "absent": "int",
+    "late": "int",
+    "present": "int",
+    "rate": "float",
+    "total": "int"
+   }
+  },
+  "status": 200
+ },
+ "parent_child_invoices": {
+  "shape": {
+   "invoices": [
+    {
+     "due_date": "str",
+     "id": "int",
+     "issue_date": "str",
+     "number": "str",
+     "paid_amount": "float",
+     "remaining": "float",
+     "status": "str",
+     "total_amount": "float"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "parent_child_materials": {
+  "shape": {
+   "materials": []
+  },
+  "status": 200
+ },
+ "parent_child_results": {
+  "shape": {
+   "results": []
+  },
+  "status": 200
+ },
+ "parent_child_schedule": {
+  "shape": {
+   "slots": [
+    {
+     "day_id": "int",
+     "day_name": "str",
+     "end_time": "str",
+     "period_id": "int",
+     "period_name": "str",
+     "start_time": "str",
+     "subject_id": "int",
+     "subject_name": "str",
+     "teacher_id": "int",
+     "teacher_name": "str"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "parent_pickup_release": {
+  "shape": {
+   "ok": "bool"
+  },
+  "status": 200
+ },
+ "pickup_ack_api": {
+  "shape": {
+   "ok": "bool"
+  },
+  "status": 200
+ },
+ "qbank_questions": {
+  "shape": {
+   "page": "int",
+   "per_page": "int",
+   "questions": [],
+   "total": "int"
+  },
+  "status": 200
+ },
+ "qbank_set_state": {
+  "shape": {
+   "ok": "bool",
+   "review_state": "str"
+  },
+  "status": 200
+ },
+ "student_announcement_detail": {
+  "shape": {
+   "author": "null",
+   "body": "str",
+   "created_at": "str",
+   "id": "int",
+   "pinned": "bool",
+   "title": "str"
+  },
+  "status": 200
+ },
+ "student_assignment_detail": {
+  "shape": {
+   "due_at": "null",
+   "id": "int",
+   "instructions": "str",
+   "max_score": "float",
+   "questions": [
+    {
+     "choices": [],
+     "id": "int",
+     "kind": "str",
+     "points": "float",
+     "prompt": "str"
+    }
+   ],
+   "submission": {
+    "body": "str",
+    "feedback": "str",
+    "file_url": "str",
+    "id": "int",
+    "score": "null",
+    "submitted_at": "str"
+   },
+   "title": "str"
+  },
+  "status": 200
+ },
+ "student_assignment_submit": {
+  "shape": {
+   "ok": "bool",
+   "submission_id": "int"
+  },
+  "status": 200
+ },
+ "student_course_detail": {
+  "shape": {
+   "course": {
+    "id": "int",
+    "subject": "str",
+    "teacher": "null",
+    "title": "str"
+   },
+   "orphan_lessons": [],
+   "units": [
+    {
+     "id": "int",
+     "lessons": [
+      {
+       "duration_minutes": "int",
+       "id": "int",
+       "kind": "str",
+       "media_url": "str",
+       "title": "str"
+      }
+     ],
+     "title": "str"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "student_lesson_view": {
+  "shape": {
+   "body": "str",
+   "course_id": "int",
+   "duration_minutes": "int",
+   "id": "int",
+   "kind": "str",
+   "media_url": "str",
+   "title": "str",
+   "unit_id": "int"
+  },
+  "status": 200
+ },
+ "student_quiz_attempt": {
+  "shape": {
+   "questions": [
+    {
+     "choices": [
+      {
+       "id": "int",
+       "label": "str"
+      }
+     ],
+     "id": "int",
+     "kind": "str",
+     "points": "float",
+     "prompt": "str"
+    }
+   ],
+   "quiz": {
+    "description": "str",
+    "duration_minutes": "int",
+    "id": "int",
+    "title": "str"
+   }
+  },
+  "status": 200
+ },
+ "student_quiz_submit": {
+  "shape": {
+   "attempt_id": "int",
+   "awarded": "float",
+   "ok": "bool",
+   "score": "float",
+   "total_points": "float"
+  },
+  "status": 200
+ },
+ "student_report_card": {
+  "shape": {
+   "subjects": [],
+   "summary": {
+    "overall_pct": "null",
+    "subject_count": "int"
+   }
+  },
+  "status": 200
+ },
+ "teacher_announcement_delete": {
+  "shape": {
+   "error": "str"
+  },
+  "status": 403
+ },
+ "teacher_assignment_detail": {
+  "shape": {
+   "assignment": {
+    "allow_late": "bool",
+    "course_title": "str",
+    "created_at": "str",
+    "due_at": "null",
+    "grade": "str",
+    "id": "int",
+    "instructions": "str",
+    "is_published": "bool",
+    "max_score": "float",
+    "subject": "null",
+    "submission_count": "int",
+    "title": "str",
+    "ungraded_count": "int"
+   }
+  },
+  "status": 200
+ },
+ "teacher_assignment_detail_delete": {
+  "shape": {
+   "ok": "bool"
+  },
+  "status": 200
+ },
+ "teacher_assignment_grade": {
+  "shape": {
+   "ok": "bool",
+   "score": "float"
+  },
+  "status": 200
+ },
+ "teacher_assignment_submissions": {
+  "shape": {
+   "submissions": [
+    {
+     "feedback": "str",
+     "has_body": "bool",
+     "has_file": "bool",
+     "is_graded": "bool",
+     "max_score": "float",
+     "permanent_code": "str",
+     "score": "null",
+     "student_id": "int",
+     "student_name": "str",
+     "submitted_at": "str"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_attendance_existing": {
+  "shape": {
+   "date": "str",
+   "records": [
+    {
+     "enrollment_id": "int",
+     "notes": "null",
+     "status": "str"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_components": {
+  "shape": {
+   "components": [
+    {
+     "id": "int",
+     "max_score": "float",
+     "name": "str"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_grades_existing": {
+  "shape": {
+   "entries": []
+  },
+  "status": 200
+ },
+ "teacher_message_thread": {
+  "shape": {
+   "conversation": {
+    "context_id": "null",
+    "context_type": "null",
+    "created_at": "str",
+    "id": "int",
+    "last_message_at": "null",
+    "last_preview": "str",
+    "other_name": "str",
+    "other_role": "null",
+    "status": "str",
+    "subject": "str",
+    "unread_count": "int"
+   },
+   "messages": [
+    {
+     "body": "str",
+     "created_at": "str",
+     "id": "int",
+     "is_mine": "bool",
+     "sender_name": "str",
+     "sender_user_id": "int"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_message_thread_post": {
+  "shape": {
+   "message": {
+    "body": "str",
+    "created_at": "str",
+    "id": "int",
+    "is_mine": "bool",
+    "sender_name": "str",
+    "sender_user_id": "int"
+   }
+  },
+  "status": 201
+ },
+ "teacher_quiz_stats": {
+  "shape": {
+   "attempts": "int",
+   "average": "int",
+   "highest": "int",
+   "lowest": "int",
+   "quiz": {
+    "closes_at": "null",
+    "course_title": "str",
+    "description": "str",
+    "duration_minutes": "int",
+    "grade": "str",
+    "id": "int",
+    "is_published": "bool",
+    "max_attempts": "int",
+    "opens_at": "null",
+    "subject": "null",
+    "title": "str"
+   },
+   "students": [
+    {
+     "score": "null",
+     "started_at": "str",
+     "student_id": "int",
+     "student_name": "str",
+     "submitted_at": "null"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_section_schedule": {
+  "shape": {
+   "slots": [
+    {
+     "day_id": "int",
+     "day_name": "str",
+     "end_time": "str",
+     "period_id": "int",
+     "period_name": "str",
+     "start_time": "str",
+     "subject_id": "int",
+     "subject_name": "str",
+     "teacher_id": "int",
+     "teacher_name": "str"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_students": {
+  "shape": {
+   "students": [
+    {
+     "enrollment_id": "int",
+     "full_name": "str",
+     "permanent_code": "str",
+     "student_id": "int"
+    }
+   ]
+  },
+  "status": 200
+ },
+ "teacher_template_add_questions": {
+  "shape": {
+   "added": "int",
+   "template": {
+    "code": "null",
+    "created_at": "str",
+    "description": "str",
+    "difficulty_mix": "null",
+    "grade_id": "null",
+    "grade_name": "null",
+    "id": "int",
+    "kind": "str",
+    "question_count": "int",
+    "state": "str",
+    "subject_id": "null",
+    "subject_name": "null",
+    "title": "str"
+   }
+  },
+  "status": 200
+ },
+ "teacher_template_detail": {
+  "shape": {
+   "template": {
+    "code": "null",
+    "created_at": "str",
+    "description": "str",
+    "difficulty_mix": "null",
+    "grade_id": "null",
+    "grade_name": "null",
+    "id": "int",
+    "items": [
+     {
+      "bank_question_id": "int",
+      "difficulty": "str",
+      "id": "int",
+      "order_index": "int",
+      "points": "float",
+      "prompt": "str",
+      "subject_id": "null"
+     }
+    ],
+    "kind": "str",
+    "question_count": "int",
+    "state": "str",
+    "subject_id": "null",
+    "subject_name": "null",
+    "title": "str"
+   }
+  },
+  "status": 200
+ },
+ "teacher_template_detail_delete": {
+  "shape": {
+   "ok": "bool"
+  },
+  "status": 200
+ },
+ "teacher_templates": {
+  "shape": {
+   "by_subject": [],
+   "templates": []
+  },
+  "status": 200
+ },
+ "teacher_templates_post": {
+  "shape": {
+   "template": {
+    "code": "null",
+    "created_at": "str",
+    "description": "str",
+    "difficulty_mix": "null",
+    "grade_id": "int",
+    "grade_name": "str",
+    "id": "int",
+    "items": [],
+    "kind": "str",
+    "question_count": "int",
+    "state": "str",
+    "subject_id": "int",
+    "subject_name": "str",
+    "title": "str"
+   }
+  },
+  "status": 201
+ }
+}

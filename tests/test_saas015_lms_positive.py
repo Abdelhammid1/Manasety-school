@@ -35,7 +35,11 @@ def test_own_page_opens(sapp, world, login_as, endpoint):
     login_as(c, A["users"][role], base_url=host(A))
     url = build_url(sapp, endpoint, entry.ids(A), host(A))
     r = c.get(url, base_url=host(A))
-    assert r.status_code == 200, f"{endpoint} as {role}: {url} -> {r.status_code}"
+    # course_pick_section jumps straight to the course when there is one.
+    ok = (200, 302) if endpoint == "courses.course_pick_section" else (200,)
+    assert r.status_code in ok, f"{endpoint} as {role}: {url} -> {r.status_code}"
+    if r.status_code == 302:
+        assert r.headers["Location"].startswith(("/", host(A)))
     assert not [m for m in B["markers"] if m in r.get_data(as_text=True)]
 
 

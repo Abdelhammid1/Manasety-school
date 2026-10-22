@@ -55,8 +55,10 @@ def _handle_prereq_write():
         db.session.delete(row); db.session.commit()
         flash("تم حذف المتطلب.", "success")
     else:
-        subject_id = request.form.get("subject_id", type=int)
-        requires_id = request.form.get("requires_subject_id", type=int)
+        # SAAS-018 — both subjects must be this school's.
+        from ...services.scoping import owned_id
+        subject_id = owned_id(Subject, request.form.get("subject_id", type=int))
+        requires_id = owned_id(Subject, request.form.get("requires_subject_id", type=int))
         if not subject_id or not requires_id:
             flash("المادة والمتطلب مطلوبان.", "danger")
         elif subject_id == requires_id:

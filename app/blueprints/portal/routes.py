@@ -9,6 +9,7 @@ from ...models import (
     Section, Subject, Teacher, Student, PickupCall,
 )
 from ...services import pickup as pickup_svc
+from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
 def _sid() -> int:
@@ -166,7 +167,7 @@ def pickup_call():
 @bp.route("/pickup/<int:cid>/release", methods=["POST"])
 @login_required
 def pickup_release(cid):
-    call = PickupCall.query.get_or_404(cid)
+    call = owned_or_404(PickupCall, cid)   # isolation sweep: same 404 for foreign / missing
     if call.parent_user_id != current_user.id:
         # Teachers and admins can also close a call.
         if not getattr(current_user, "is_superuser", False):
@@ -209,7 +210,7 @@ def pickup_active_json():
 @login_required
 def pickup_ack(cid):
     """Teacher or student marks the call as seen."""
-    call = PickupCall.query.get_or_404(cid)
+    call = owned_or_404(PickupCall, cid)   # isolation sweep: same 404 for foreign / missing
     uid = current_user.id
     if call.teacher_user_id == uid:
         pickup_svc.mark_seen_by_teacher(call)

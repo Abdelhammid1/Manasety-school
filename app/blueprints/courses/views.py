@@ -385,6 +385,17 @@ def _assert_course_visible(course):
         abort(404)
 
 
+def _course_unit_id(course, raw):
+    """SAAS-016 — the optional unit picked in a lesson form must be a unit
+    of this very course (so of this school): None when empty, else 404."""
+    if not raw:
+        return None
+    unit = owned_or_404(Unit, raw)
+    if unit.course_id != course.id:
+        abort(404)
+    return unit.id
+
+
 def _get_lesson_or_404(lesson_id):
     """Lesson of the current school whose course still exists. The old
     unscoped get_or_404 let any user open another school's lesson by id,
@@ -435,7 +446,7 @@ def lesson_new(course_id):
         last = max((l.order_index for l in course.lessons), default=0)
         lesson = Lesson(
             course_id=course.id,
-            unit_id=request.form.get("unit_id", type=int) or None,
+            unit_id=_course_unit_id(course, request.form.get("unit_id", type=int)),
             order_index=last + 1,
             title=request.form["title"].strip(),
             kind=kind,
@@ -460,7 +471,7 @@ def lesson_edit(lesson_id):
     course = lesson.course
     if request.method == "POST":
         lesson.title = request.form["title"].strip()
-        lesson.unit_id = request.form.get("unit_id", type=int) or None
+        lesson.unit_id = _course_unit_id(lesson.course, request.form.get("unit_id", type=int))
         lesson.kind = request.form.get("kind", "text")
         lesson.body = request.form.get("body", "")
 

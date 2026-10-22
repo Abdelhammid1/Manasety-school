@@ -10,8 +10,9 @@ from ..utils import require_permission
 from ...extensions import db
 from ...models import (
     Employee, StaffAttendance,
-    Teacher, SubstitutionLog,
+    ScheduleSlot, Teacher, SubstitutionLog,
 )
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 
 
 def _sid() -> int:
@@ -110,9 +111,9 @@ def substitution_new():
     except ValueError:
         flash("التاريخ غير صالح.", "danger")
         return redirect(url_for("platform.substitutions_list"))
-    slot_id = request.form.get("schedule_slot_id", type=int)
-    original = request.form.get("original_teacher_id", type=int)
-    sub = request.form.get("substitute_teacher_id", type=int)
+    slot_id = owned_id(ScheduleSlot, request.form.get("schedule_slot_id", type=int))
+    original = owned_id(Teacher, request.form.get("original_teacher_id", type=int))
+    sub = owned_id(Teacher, request.form.get("substitute_teacher_id", type=int))
     if not (slot_id and original and sub):
         flash("اختر الحصة والمعلم الأصلي والبديل.", "danger")
         return redirect(url_for("platform.substitutions_list"))

@@ -131,9 +131,18 @@ def attempt_autosave(attempt_id):
         ans = Answer(attempt_id=attempt.id, question_id=q.id)
         db.session.add(ans)
 
+    # SAAS-016 — a choice is kept only when it belongs to this question
+    # (one query; never another question's or another school's choice).
     if q.kind in ("mcq", "tf"):
         raw = body.get("choice_id")
-        ans.choice_id = int(raw) if raw not in (None, "", "None") else None
+        try:
+            cid = int(raw) if raw not in (None, "", "None") else None
+        except (TypeError, ValueError):
+            cid = None
+        if cid is not None and not db.session.query(Choice.id).filter_by(
+                id=cid, question_id=q.id).first():
+            abort(400)
+        ans.choice_id = cid
         ans.text_answer = ""
     elif q.kind == "multi":
         raw = body.get("choice_ids") or ""
@@ -141,6 +150,12 @@ def attempt_autosave(attempt_id):
             picked = [str(x) for x in raw if str(x).isdigit()]
         else:
             picked = [x for x in str(raw).split(",") if x.strip().isdigit()]
+        picked = [x.strip() for x in picked]
+        if picked:
+            mine = {str(i) for (i,) in db.session.query(Choice.id).filter(
+                Choice.question_id == q.id, Choice.id.in_([int(x) for x in picked]))}
+            if set(picked) - mine:
+                abort(400)
         ans.choice_id = None
         ans.text_answer = ",".join(sorted(picked))
     else:

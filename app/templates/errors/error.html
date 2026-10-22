@@ -98,6 +98,12 @@
                 <span class="material-symbols-outlined text-xl">refresh</span><span>إعادة المحاولة</span>
               </button>
               {% endif %}
+              {% if back_url %}
+              <a href="{{ back_url }}"
+                 class="px-6 py-3 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md shadow-md hover:shadow-lg hover:bg-navy transition-all flex items-center gap-2">
+                <span class="material-symbols-outlined text-xl">arrow_forward</span><span>{{ back_label }}</span>
+              </a>
+              {% endif %}
               <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('index') }}"
                  class="px-6 py-3 rounded-lg bg-primary-container text-on-primary font-title-md text-title-md shadow-md hover:shadow-lg hover:bg-navy transition-all flex items-center gap-2">
                 <span class="material-symbols-outlined text-xl">home</span><span>العودة إلى الرئيسية</span>

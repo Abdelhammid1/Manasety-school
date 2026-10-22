@@ -11,6 +11,7 @@ from ...models import (
     AcademicYear, AssessmentComponent, Assignment, Enrollment, Grade,
     GradeEntry, PassRule, Section, Student, Subject, Teacher, Term, YearResult,
 )
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 
 
 def _sid() -> int:
@@ -173,6 +174,9 @@ def components():
             )
 
     if request.method == "POST" and term_id and subject_id:
+        # SAAS-018 — the ids written below must all be this school's.
+        term_id = owned_id(Term, term_id)
+        subject_id = owned_id(Subject, subject_id)
         action = request.form.get("action")
         if action == "add":
             # Ticket #3 — optional link to an LMS Quiz / CourseAssignment
@@ -181,11 +185,18 @@ def components():
             if src_type not in ("manual", "lms_quiz", "lms_assignment"):
                 src_type = "manual"
             src_id = request.form.get("source_id", type=int) or None
+            # source_id has no FK: a foreign quiz / assignment here would
+            # auto-sync another school's grades into this component.
+            from ...models import Quiz, CourseAssignment
+            if src_type == "lms_quiz":
+                src_id = owned_id(Quiz, src_id)
+            elif src_type == "lms_assignment":
+                src_id = owned_id(CourseAssignment, src_id)
             # Ticket #16 (2026-09-27) — optional per-grade scoping.
             comp = AssessmentComponent(
                 school_id=_sid(),
                 term_id=term_id, subject_id=subject_id,
-                grade_id=request.form.get("grade_id", type=int) or None,
+                grade_id=owned_id(Grade, request.form.get("grade_id", type=int)),
                 name=request.form["name"].strip(),
                 max_score=Decimal(request.form["max_score"]),
                 source_type=src_type,

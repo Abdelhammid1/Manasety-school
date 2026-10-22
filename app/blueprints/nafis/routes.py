@@ -20,6 +20,7 @@ from ...models import (
     AcademicYear, LearningOutcome, NafisCycle,
     NAFIS_LEVELS, NAFIS_SUBJECTS, NAFIS_CYCLE_STATUS,
 )
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 
 
 SUBJECT_LABELS = {
@@ -149,7 +150,7 @@ def cycle_new():
 
         cyc = NafisCycle(
             school_id=_sid(),
-            academic_year_id=request.form.get("academic_year_id", type=int) or None,
+            academic_year_id=owned_id(AcademicYear, request.form.get("academic_year_id", type=int)),
             name_ar=name_ar,
             hijri_year=(request.form.get("hijri_year") or "").strip() or None,
             gregorian_year=request.form.get("gregorian_year", type=int) or None,
@@ -219,7 +220,7 @@ def cycle_edit(cycle_id):
         if not levels:
             levels = list(NAFIS_LEVELS)
         cyc.name_ar = name_ar
-        cyc.academic_year_id = request.form.get("academic_year_id", type=int) or None
+        cyc.academic_year_id = owned_id(AcademicYear, request.form.get("academic_year_id", type=int))
         cyc.hijri_year = (request.form.get("hijri_year") or "").strip() or None
         cyc.gregorian_year = request.form.get("gregorian_year", type=int) or None
         cyc.start_date = _parse_date(request.form.get("start_date"))

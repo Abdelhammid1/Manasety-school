@@ -1,8 +1,9 @@
 """SAAS-002 §4.3 / SAAS-012 — Route Isolation Matrix.
 
 Every route with an `<int:…>` parameter must be either in ROUTE_MATRIX
-(attacked on every run) or in ALLOWLIST with a written reason. Pending
-endpoints are tagged with the SAAS ticket that will cover them.
+(attacked on every run) or in ALLOWLIST with a written reason. The
+isolation sweep (SAAS-013B..018) closed the last pending endpoint: a
+new route that is in neither fails CI until someone classifies it.
 
 What a matrix entry is attacked with (all under
 TENANT_RESOLUTION_MODE=enforce, on school A's host):
@@ -16,9 +17,10 @@ TENANT_RESOLUTION_MODE=enforce, on school A's host):
 A URL that cannot be built from `rule.arguments` is a FAILURE. The
 only way to not run an entry is `Entry(skip="<written reason>")`.
 
-Endpoints that take an id from the form / query string are tracked
-separately (FORM_ID_MATRIX / FORM_ID_PENDING), discovered by scanning
-view source for `request.form/args/values/json …_id`.
+Endpoints that take an id from the form / query string / JSON body
+are tracked separately (FORM_ID_MATRIX, or FORM_ID_PLATFORM for platform
+tables), discovered by scanning view source — and the same-module
+helpers it calls — for `request.form/args/values/json …_id`.
 
 Known gaps found by this sweep are listed in KNOWN_GAPS with the
 ticket that fixes them; they run as strict xfails so a fix flips them
@@ -36,8 +38,21 @@ from typing import Iterable
 import pytest
 
 from isolation_harness import (
-    Entry, HarnessError, build_url, check_blocked, host, rule_for, ticket_for,
+    Entry, HarnessError, body_kwargs, build_url, check_blocked, host, rule_for,
 )
+
+
+@pytest.fixture
+def login_as(login_as, app):
+    """Session login + a Bearer token for the same user, so the matrix
+    reaches the JWT-only mobile API (SAAS-017) with the same attacker.
+    Web views ignore the Authorization header."""
+    def _login(client, user, base_url=None):
+        from app.services.auth_jwt import issue_token
+        login_as(client, user, base_url=base_url)
+        with app.app_context():
+            client.environ_base["HTTP_AUTHORIZATION"] = f"Bearer {issue_token(user)}"
+    return _login
 
 
 def _section_state(B):
@@ -98,6 +113,12 @@ def _cnt(model: str, col: str, key: str):
         from world import ledger_state
         cls = getattr(M, model)
         return (cls.query.filter(getattr(cls, col) == _id(B[key])).count(), ledger_state(B["pair"]))
+    return snap
+
+
+def _both(*snaps):
+    def snap(B):
+        return tuple(f(B) for f in snaps)
     return snap
 
 
@@ -392,6 +413,162 @@ ROUTE_MATRIX: dict[str, Entry] = {
     "lms.template_use": _ent("assess_template", "AssessmentTemplate", "tid", ('GET', 'POST'), roles=("admin", "teacher")),
     "lms.template_item_delete": _ent("template_item", "AssessmentTemplateItem", "iid", ("POST",), roles=("admin", "teacher"), extra=lambda B: {"tid": B["assess_template"]}),
     "lms.template_item_toggle_hidden": _ent("template_item", "AssessmentTemplateItem", "iid", ("POST",), roles=("admin", "teacher"), extra=lambda B: {"tid": B["assess_template"]}),
+
+    # SAAS-018 — academic / admin / platform / teachers / results /
+    # schedule / nafis / messaging (53).
+    "academic.bulk_transfer": _ent("section", "Section", "from_id", ('GET', 'POST'),
+                                   form=lambda A, B: {"to_section_id": B["section"].id,
+                                                      "enrollment_ids": B["enrollment"].id},
+                                   snapshot=_both(_row("Section", "section"), _row("Enrollment", "enrollment"))),
+    "academic.calendar_day_delete": _ent("calendar_day", "SchoolCalendarDay", "day_id"),
+    "academic.grade_delete": _ent("grade", "Grade", "grade_id"),
+    "academic.grade_detail": _ent("grade", "Grade", "grade_id", ('GET',)),
+    "academic.grade_report": _ent("grade", "Grade", "grade_id", ('GET',)),
+    "academic.section_delete": _ent("section", "Section", "section_id"),
+    "academic.subject_report": _ent("subject", "Subject", "subject_id", ('GET',)),
+    "academic.term_delete": _ent("term", "Term", "term_id"),
+    "academic.term_edit": _ent("term", "Term", "term_id", ('GET', 'POST'),
+                               form=lambda A, B: {"name": "HACK", "order_index": 1, "weight": 50,
+                                                  "start_date": "2026-09-01", "end_date": "2027-01-31"}),
+    "academic.term_new": _ent("year", "AcademicYear", "year_id", ('GET', 'POST'),
+                              form=lambda A, B: {"name": "HACK", "order_index": 2, "weight": 50,
+                                                 "start_date": "2027-02-01", "end_date": "2027-06-01"},
+                              snapshot=_cnt("Term", "year_id", "year")),
+    "academic.terms_list": _ent("year", "AcademicYear", "year_id", ('GET',)),
+    "academic.year_close": _ent("year", "AcademicYear", "year_id", ('GET', 'POST'),
+                                form=lambda A, B: {"confirm": "1"},
+                                snapshot=_both(_row("AcademicYear", "year"), _row("Enrollment", "enrollment"))),
+    "academic.year_edit": _ent("year", "AcademicYear", "year_id", ('GET', 'POST'),
+                               form=lambda A, B: {"name": "HACK", "start_date": "2026-09-01",
+                                                  "end_date": "2027-06-15"}),
+    "admin.role_delete": _ent("role", "Role", "role_id"),
+    "admin.role_edit": _ent("role", "Role", "role_id", ('GET', 'POST'),
+                            form=lambda A, B: {"name": "HACK", "perm_students_view": "1"}),
+    "admin.trash_restore": _ent("trash_vendor", "Vendor", "oid",
+                                extra=lambda B: {"kind": "vendors"}),
+    "admin.user_edit": _ent("teacher_user", "User", "user_id", ('GET', 'POST'),
+                            form=lambda A, B: {"full_name": "HACK", "role_id": A["roles"]["admin"].id}),
+    "admin.user_toggle": _ent("teacher_user", "User", "user_id"),
+    "messaging.conversation_view": _ent("conversation", "Conversation", "conv_id", ('GET', 'POST'),
+                                        form=lambda A, B: {"body": "HACK"},
+                                        snapshot=_cnt("Message", "conversation_id", "conversation")),
+    "messaging.message_delete": _ent("message", "Message", "msg_id"),
+    "nafis.cycle_delete": _ent("nafis_cycle", "NafisCycle", "cycle_id"),
+    "nafis.cycle_detail": _ent("nafis_cycle", "NafisCycle", "cycle_id", ('GET',)),
+    "nafis.cycle_edit": _ent("nafis_cycle", "NafisCycle", "cycle_id", ('GET', 'POST'),
+                             form=lambda A, B: {"name_ar": "HACK"}),
+    "platform.room_delete": _ent("room", "Room", "room_id"),
+    "platform.room_detail": _ent("room", "Room", "room_id", ('GET',)),
+    "platform.room_edit": _ent("room", "Room", "room_id", form=lambda A, B: {"name": "HACK"}),
+    "platform.room_slot_save": _ent("room", "Room", "room_id", form=lambda A, B: {"slot_id": B["slot"]},
+                                    snapshot=_both(_row("Room", "room"), _row("ScheduleSlot", "slot"))),
+    "platform.room_slot_unbook": _ent("room", "Room", "room_id", extra=lambda B: {"slot_id": B["slot"]},
+                                      snapshot=_row("ScheduleSlot", "slot")),
+    "platform.room_toggle": _ent("room", "Room", "room_id"),
+    "platform.user_scopes": _ent("teacher_user", "User", "user_id", ('GET', 'POST'),
+                                 form=lambda A, B: {"scope_type": "stage", "scope_value": "HACK"},
+                                 snapshot=_cnt("UserScope", "user_id", "teacher_user")),
+    "results.grade_sheet": _ent("section", "Section", "section_id", ('GET', 'POST'),
+                                extra=lambda B: {"term_id": B["term"].id, "subject_id": B["subject"].id},
+                                snapshot=_cnt("GradeEntry", "enrollment_id", "enrollment")),
+    "results.recompute_ranks": _ent("section", "Section", "section_id",
+                                    snapshot=_both(_row("Enrollment", "enrollment"),
+                                                   _cnt("YearResult", "enrollment_id", "enrollment"))),
+    "results.rubric_delete": _ent("rubric", "Rubric", "rubric_id"),
+    "results.rubric_edit": _ent("rubric", "Rubric", "rubric_id", ('GET', 'POST'), form=lambda A, B: {"title": "HACK"}),
+    "results.scale_delete": _ent("scale", "GradingScale", "scale_id"),
+    "results.scale_edit": _ent("scale", "GradingScale", "scale_id", ('GET', 'POST'), form=lambda A, B: {"name": "HACK"}),
+    "results.transcript_snapshot": _ent("student", "Student", "student_id",
+                                        snapshot=_cnt("TranscriptSnapshot", "student_id", "student")),
+    "results.transcript_view": _ent("student", "Student", "student_id", ('GET',)),
+    "schedule.day_delete": _ent("day", "Day", "day_id"),
+    "schedule.period_delete": _ent("period", "Period", "period_id"),
+    "schedule.slot_delete": _ent("section", "Section", "section_id", extra=lambda B: {"slot_id": B["slot"]},
+                                 snapshot=_row("ScheduleSlot", "slot")),
+    "schedule.slot_save": _ent("section", "Section", "section_id",
+                               form=lambda A, B: {"day_id": B["day"], "period_id": B["period"],
+                                                  "subject_id": B["subject"].id, "teacher_id": B["teacher"]},
+                               snapshot=_cnt("ScheduleSlot", "section_id", "section")),
+    "schedule.teacher_schedule": _ent("teacher", "Teacher", "teacher_id", ('GET',)),
+    "teachers.assignment_remove": _ent("teacher_assignment", "Assignment", "assignment_id"),
+    "teachers.assignment_update": _ent("teacher_assignment", "Assignment", "assignment_id",
+                                       form=lambda A, B: {"teacher_id": B["teacher"]}),
+    "teachers.section_assignments": _ent("section", "Section", "section_id", ('GET', 'POST'),
+                                         form=lambda A, B: {"subject_id": B["subject"].id,
+                                                            "teacher_id": B["teacher"]},
+                                         snapshot=_cnt("Assignment", "section_id", "section")),
+    "teachers.subject_delete": _ent("subject", "Subject", "subject_id"),
+    "teachers.teacher_account_reset_password": _ent("teacher", "Teacher", "teacher_id",
+                                                    snapshot=_user_row("teacher_user")),
+    "teachers.teacher_account_toggle": _ent("teacher", "Teacher", "teacher_id",
+                                            snapshot=_user_row("teacher_user")),
+    "teachers.teacher_detail": _ent("teacher", "Teacher", "teacher_id", ('GET',)),
+    "teachers.teacher_edit": _ent("teacher", "Teacher", "teacher_id", ('GET', 'POST'),
+                                  form=lambda A, B: {"full_name": "HACK", "specialization": "HACK"}),
+    "teachers.teacher_specialization": _ent("teacher", "Teacher", "teacher_id",
+                                            form=lambda A, B: {"specialization": "HACK"}),
+    "teachers.teacher_toggle": _ent("teacher", "Teacher", "teacher_id"),
+
+    # SAAS-016 — courses (11).
+    "courses.course_pick_section": _ent("grade", "Grade", "grade_id", ('GET',),
+                                        extra=lambda B: {"subject_id": B["subject"].id}),
+    "courses.delete": _ent("course", "Course", "course_id"),
+    "courses.detail": _ent("course", "Course", "course_id", ('GET',), roles=("admin", "teacher")),
+    "courses.grade_terms": _ent("grade", "Grade", "grade_id", ('GET',)),
+    "courses.lesson_delete": _ent("lesson", "Lesson", "lesson_id"),
+    "courses.lesson_edit": _ent("lesson", "Lesson", "lesson_id", ('GET', 'POST'),
+                                form=lambda A, B: {"title": "HACK"}),
+    "courses.lesson_new": _ent("course", "Course", "course_id", ('GET', 'POST'),
+                               form=lambda A, B: {"title": "HACK"},
+                               snapshot=_cnt("Lesson", "course_id", "course")),
+    "courses.lesson_view": _ent("lesson", "Lesson", "lesson_id", ('GET',), roles=("admin", "teacher", "student")),
+    "courses.unit_delete": _ent("unit", "Unit", "unit_id"),
+    "courses.unit_edit": _ent("unit", "Unit", "unit_id", form=lambda A, B: {"title": "HACK"}),
+    "courses.unit_new": _ent("course", "Course", "course_id", form=lambda A, B: {"title": "HACK"},
+                             snapshot=_cnt("Unit", "course_id", "course")),
+
+    # SAAS-017 — mobile API (26). Each attack uses the account the
+    # endpoint serves; rejection is 404 {"error": "not_found"}.
+    "api.mark_notification_read": _ent("notification", "NotificationLog", "notif_id", roles=("parent",)),
+    "api.parent_child_attendance": _ent("student", "Student", "student_id", ('GET',), roles=("parent",)),
+    "api.parent_child_invoices": _ent("student", "Student", "student_id", ('GET',), roles=("parent",)),
+    "api.parent_child_materials": _ent("student", "Student", "student_id", ('GET',), roles=("parent",)),
+    "api.parent_child_results": _ent("student", "Student", "student_id", ('GET',), roles=("parent",)),
+    "api.parent_child_schedule": _ent("student", "Student", "student_id", ('GET',), roles=("parent",)),
+    "api.parent_pickup_release": _ent("pickup", "PickupCall", "cid", roles=("parent",)),
+    "api.pickup_ack_api": _ent("pickup", "PickupCall", "cid", roles=("teacher",)),
+    "api.qbank_set_state": _ent("bank_question", "BankQuestion", "qid",
+                                form=lambda A, B: {"review_state": "rejected"}),
+    "api.student_announcement_detail": _ent("announcement", "Announcement", "aid", ('GET',), roles=("student",)),
+    "api.student_assignment_detail": _ent("assignment", "CourseAssignment", "aid", ('GET',), roles=("student",)),
+    "api.student_assignment_submit": _ent("assignment", "CourseAssignment", "aid", roles=("student",),
+                                          form=lambda A, B: {"body": "HACK"},
+                                          snapshot=_cnt("Submission", "assignment_id", "assignment")),
+    "api.student_course_detail": _ent("course", "Course", "course_id", ('GET',), roles=("student",)),
+    "api.student_lesson_view": _ent("lesson", "Lesson", "lid", ('GET',), roles=("student",)),
+    "api.student_quiz_attempt": _ent("quiz", "Quiz", "qid", ('GET',), roles=("student",)),
+    "api.student_quiz_submit": _ent("quiz", "Quiz", "qid", roles=("student",), form=lambda A, B: {"answers": {}},
+                                    snapshot=_cnt("QuizAttempt", "quiz_id", "quiz")),
+    "api.student_report_card": _ent("term", "Term", "term_id", ('GET',), roles=("student",)),
+    "api.teacher_announcement_delete": _ent("announcement", "Announcement", "aid", ('DELETE',), roles=("teacher",)),
+    "api.teacher_assignment_detail": _ent("assignment", "CourseAssignment", "aid", ('GET', 'DELETE'),
+                                          roles=("teacher",)),
+    "api.teacher_assignment_grade": _ent("assignment", "CourseAssignment", "aid", roles=("teacher",),
+                                         extra=lambda B: {"sid": B["student"].id},
+                                         form=lambda A, B: {"score": 1},
+                                         snapshot=_row("Submission", "submission")),
+    "api.teacher_assignment_submissions": _ent("assignment", "CourseAssignment", "aid", ('GET',), roles=("teacher",)),
+    "api.teacher_message_thread": _ent("conversation", "Conversation", "conv_id", ('GET', 'POST'), roles=("teacher",),
+                                       form=lambda A, B: {"body": "HACK"},
+                                       snapshot=_cnt("Message", "conversation_id", "conversation")),
+    "api.teacher_quiz_stats": _ent("quiz", "Quiz", "qid", ('GET',), roles=("teacher",)),
+    "api.teacher_section_schedule": _ent("section", "Section", "section_id", ('GET',), roles=("teacher",)),
+    "api.teacher_template_add_questions": _ent("assess_template", "AssessmentTemplate", "tid", roles=("teacher",),
+                                               form=lambda A, B: {"bank_question_ids": [B["bank_question"]]},
+                                               snapshot=_cnt("AssessmentTemplateItem", "template_id",
+                                                             "assess_template")),
+    "api.teacher_template_detail": _ent("assess_template", "AssessmentTemplate", "tid", ('GET', 'DELETE'),
+                                        roles=("teacher",)),
 }
 
 
@@ -401,51 +578,6 @@ KNOWN_GAPS: dict[tuple[str, str], str] = {}
 
 
 # ─── Allowlist ───────────────────────────────────────────────────────
-
-# Snapshot (not a wildcard) of <int:…> endpoints still waiting for a
-# matrix entry. A new endpoint is NOT covered by this list and fails
-# the coverage test until someone classifies it.
-_PENDING: tuple[str, ...] = (
-    "academic.bulk_transfer", "academic.calendar_day_delete",
-    "academic.grade_delete", "academic.grade_detail", "academic.grade_report",
-    "academic.section_delete", "academic.subject_report",
-    "academic.term_delete", "academic.term_edit", "academic.term_new",
-    "academic.terms_list", "academic.year_close", "academic.year_edit",
-    "admin.role_delete", "admin.role_edit", "admin.trash_restore",
-    "admin.user_edit", "admin.user_toggle", "api.mark_notification_read",
-    "api.parent_child_attendance", "api.parent_child_invoices",
-    "api.parent_child_materials", "api.parent_child_results",
-    "api.parent_child_schedule", "api.parent_pickup_release",
-    "api.pickup_ack_api", "api.qbank_set_state",
-    "api.student_announcement_detail", "api.student_assignment_detail",
-    "api.student_assignment_submit", "api.student_course_detail",
-    "api.student_lesson_view", "api.student_quiz_attempt",
-    "api.student_quiz_submit", "api.student_report_card",
-    "api.teacher_announcement_delete", "api.teacher_assignment_detail",
-    "api.teacher_assignment_grade", "api.teacher_assignment_submissions",
-    "api.teacher_message_thread", "api.teacher_quiz_stats",
-    "api.teacher_section_schedule", "api.teacher_template_add_questions",
-    "api.teacher_template_detail", "courses.course_pick_section",
-    "courses.delete", "courses.detail", "courses.grade_terms",
-    "courses.lesson_delete", "courses.lesson_edit", "courses.lesson_new",
-    "courses.lesson_view", "courses.unit_delete", "courses.unit_edit",
-    "courses.unit_new", "messaging.conversation_view",
-    "messaging.message_delete", "nafis.cycle_delete", "nafis.cycle_detail",
-    "nafis.cycle_edit", "platform.room_delete", "platform.room_detail",
-    "platform.room_edit", "platform.room_slot_save",
-    "platform.room_slot_unbook", "platform.room_toggle",
-    "platform.user_scopes", "results.grade_sheet", "results.recompute_ranks",
-    "results.rubric_delete", "results.rubric_edit", "results.scale_delete",
-    "results.scale_edit", "results.transcript_snapshot",
-    "results.transcript_view", "schedule.day_delete", "schedule.period_delete",
-    "schedule.slot_delete", "schedule.slot_save", "schedule.teacher_schedule",
-    "teachers.assignment_remove", "teachers.assignment_update",
-    "teachers.section_assignments", "teachers.subject_delete",
-    "teachers.teacher_account_reset_password",
-    "teachers.teacher_account_toggle", "teachers.teacher_detail",
-    "teachers.teacher_edit", "teachers.teacher_specialization",
-    "teachers.teacher_toggle",
-)
 
 _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "static":         "static-file serving, no tenant",
@@ -575,10 +707,7 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
         "and when resolution is off — covered by tests/test_saas025_platform.py",
 }
 
-ALLOWLIST: dict[str, str] = {
-    **_PRE_AUTH_OR_SHARED,
-    **{ep: f"{ticket_for(ep)} — pending matrix entry" for ep in _PENDING},
-}
+ALLOWLIST: dict[str, str] = dict(_PRE_AUTH_OR_SHARED)
 
 
 # ─── Form / query-string ids ─────────────────────────────────────────
@@ -666,12 +795,6 @@ def _tag_link_count(B):
     from app.extensions import db
     from app.models.student import student_tag_links as t
     return len(db.session.execute(t.select().where(t.c.tag_id == B["student_tag"])).fetchall())
-
-
-def _both(*snaps):
-    def snap(B):
-        return tuple(f(B) for f in snaps)
-    return snap
 
 
 def _titled(model: str, prefix: str):
@@ -918,6 +1041,92 @@ FORM_ID_MATRIX: dict[str, Entry] = {
     "dashboard.home": _get_q(lambda A, B: {"child_id": B["student"].id}),
     "platform.audit_log_viewer": _get_q(lambda A, B: {"user_id": B["users"]["admin"].id}),
     "platform.audit_log_export": _get_q(lambda A, B: {"user_id": B["users"]["admin"].id}),
+    # SAAS-018 — form ids (15).
+    "academic.bulk_transfer": _in_a("from_id", "section",
+                                    form=lambda A, B: {"target_section_id": B["section"].id,
+                                                       "enrollment_ids": B["enrollment"].id},
+                                    snapshot=_row("Enrollment", "enrollment")),
+    "academic.subject_prerequisites": _post(
+        lambda A, B: {"action": "add", "subject_id": A["subject"].id,
+                      "requires_subject_id": B["subject"].id},
+        _cnt("SubjectPrerequisite", "requires_subject_id", "subject")),
+    "admin.audit_log": _get_q(lambda A, B: {"user_id": B["users"]["admin"].id}),
+    "messaging.conversation_new": _post(lambda A, B: {"recipient_id": B["users"]["teacher"].id, "body": "x"},
+                                        _cnt("ConversationParticipant", "user_id", "teacher_user")),
+    "nafis.cycle_edit": _in_a("cycle_id", "nafis_cycle", form=lambda A, B: {"name_ar": "x",
+                                                                           "academic_year_id": B["year"].id},
+                              snapshot=_xlink("NafisCycle", ("academic_year_id", "year"))),
+    "nafis.cycle_new": _post(lambda A, B: {"name_ar": "x", "academic_year_id": B["year"].id},
+                             _xlink("NafisCycle", ("academic_year_id", "year"))),
+    "platform.room_slot_save": _in_a("room_id", "room",
+                                     form=lambda A, B: {"day_id": B["day"], "period_id": B["period"],
+                                                        "assignment_id": B["teacher_assignment"]},
+                                     snapshot=_both(_xlink("ScheduleSlot", ("day_id", "day"), ("period_id", "period")),
+                                                    _row("Assignment", "teacher_assignment"))),
+    "platform.substitution_new": _post(
+        lambda A, B: {"date": "2026-10-07", "schedule_slot_id": B["slot"],
+                      "original_teacher_id": B["teacher"], "substitute_teacher_id": A["teacher"]},
+        _xlink("SubstitutionLog", ("schedule_slot_id", "slot"), ("original_teacher_id", "teacher"))),
+    "results.class_average_report": _get_q(lambda A, B: {"section_id": B["section"].id,
+                                                         "subject_id": B["subject"].id,
+                                                         "term_id": B["term"].id, "year_id": B["year"].id}),
+    "results.components": _post(
+        lambda A, B: {"term_id": A["term"].id, "subject_id": A["subject"].id, "action": "add",
+                      "name": "x", "max_score": "10", "grade_id": B["grade"].id,
+                      "source_type": "lms_quiz", "source_id": B["quiz"], "auto_sync": "1"},
+        _both(_xlink("AssessmentComponent", ("grade_id", "grade"), ("source_id", "quiz")))),
+    "results.missing_grades_report": _get_q(lambda A, B: {"section_id": B["section"].id,
+                                                          "subject_id": B["subject"].id,
+                                                          "term_id": B["term"].id, "year_id": B["year"].id}),
+    "results.rubric_edit": _in_a("rubric_id", "rubric", methods=("POST",),
+                                 form=lambda A, B: {"title": "x", "subject_id": B["subject"].id},
+                                 snapshot=_xlink("Rubric", ("subject_id", "subject"))),
+    "results.rubric_new": _post(lambda A, B: {"title": "x", "subject_id": B["subject"].id},
+                                _xlink("Rubric", ("subject_id", "subject"))),
+    "schedule.slot_save": _in_a("section_id", "section",
+                                form=lambda A, B: {"day_id": B["day"], "period_id": B["period"],
+                                                   "subject_id": B["subject"].id, "teacher_id": B["teacher"],
+                                                   "room_id": B["room"]},
+                                snapshot=_xlink("ScheduleSlot", ("day_id", "day"), ("teacher_id", "teacher"),
+                                                ("room_id", "room"))),
+    "teachers.section_assignments": _in_a("section_id", "section",
+                                          form=lambda A, B: {"subject_id": B["subject"].id,
+                                                             "teacher_id": B["teacher"]},
+                                          snapshot=_xlink("Assignment", ("teacher_id", "teacher"),
+                                                          ("subject_id", "subject"))),
+    # SAAS-016 — courses form ids (3).
+    "courses.lesson_edit": _in_a("lesson_id", "lesson", form=lambda A, B: {"title": "x", "unit_id": B["unit"]},
+                                 snapshot=_xlink("Lesson", ("unit_id", "unit"))),
+    "courses.lesson_new": _in_a("course_id", "course", form=lambda A, B: {"title": "x", "unit_id": B["unit"]},
+                                snapshot=_xlink("Lesson", ("unit_id", "unit"))),
+    "courses.new": _post(lambda A, B: {"title": "x", "academic_year_id": B["year"].id, "grade_id": B["grade"].id,
+                                       "subject_id": B["subject"].id, "term_id": B["term"].id},
+                         _xlink("Course", ("academic_year_id", "year"), ("grade_id", "grade"),
+                                ("subject_id", "subject"))),
+    # SAAS-017 — mobile API form ids (7), as the account they serve.
+    "api.qbank_questions": Entry(lambda B: {}, form=lambda A, B: {"subject_id": B["subject"].id}),
+    "api.teacher_attendance_existing": Entry(lambda B: {}, roles=("teacher",),
+                                             form=lambda A, B: {"section_id": B["section"].id,
+                                                                "date": "2026-09-06"}),
+    "api.teacher_components": Entry(lambda B: {}, roles=("teacher",),
+                                    form=lambda A, B: {"subject_id": B["subject"].id, "term_id": B["term"].id}),
+    "api.teacher_grades_existing": Entry(lambda B: {}, roles=("teacher",),
+                                         form=lambda A, B: {"section_id": A["section"].id,
+                                                            "subject_id": A["subject"].id,
+                                                            "term_id": A["term"].id,
+                                                            "component_id": B["component"]}),
+    "api.teacher_students": Entry(lambda B: {}, roles=("teacher",),
+                                  form=lambda A, B: {"section_id": B["section"].id}),
+    "api.teacher_templates": Entry(lambda B: {}, methods=("GET", "POST"), roles=("teacher",),
+                                   form=lambda A, B: {"title": "x", "subject_id": B["subject"].id,
+                                                      "grade_id": B["grade"].id},
+                                   snapshot=_xlink("AssessmentTemplate", ("subject_id", "subject"),
+                                                   ("grade_id", "grade"))),
+    "api.teacher_upload": Entry(lambda B: {}, methods=("POST",), roles=("teacher",),
+                                form=lambda A, B: {"section_id": B["section"].id, "subject_id": B["subject"].id,
+                                                   "title": "x",
+                                                   "file": (io.BytesIO(b"%PDF-1.4 x"), "x.pdf")},
+                                snapshot=_cnt("Material", "section_id", "section")),
     "students.students_list": Entry(
         lambda B: {},
         form=lambda A, B: {"section_id": B["section"].id},
@@ -937,20 +1146,6 @@ FORM_ID_PLATFORM: dict[str, str] = {
     "superadmin.subscription_trial": "plan_id → plans (platform table, SAAS-026)",
     "superadmin.invoice_new": "plan_id → plans (platform table, SAAS-033)",
 }
-
-FORM_ID_PENDING: tuple[str, ...] = (
-    "academic.bulk_transfer", "academic.subject_prerequisites",
-    "admin.audit_log", "api.qbank_questions",
-    "api.teacher_attendance_existing", "api.teacher_components",
-    "api.teacher_grades_existing", "api.teacher_students",
-    "api.teacher_templates", "api.teacher_upload", "courses.lesson_edit",
-    "courses.lesson_new", "courses.new", "messaging.conversation_new",
-    "nafis.cycle_edit", "nafis.cycle_new", "platform.room_slot_save",
-    "platform.substitution_new", "results.class_average_report",
-    "results.components", "results.missing_grades_report",
-    "results.rubric_edit", "results.rubric_new", "schedule.slot_save",
-    "teachers.section_assignments",
-)
 
 
 # ─── Fixtures ────────────────────────────────────────────────────────
@@ -1008,12 +1203,6 @@ def test_every_int_route_is_classified(app):
 def test_matrix_and_allowlist_do_not_overlap():
     both = sorted(set(ROUTE_MATRIX) & set(ALLOWLIST))
     assert not both, f"in both ROUTE_MATRIX and ALLOWLIST: {both}"
-
-
-def test_every_pending_endpoint_names_its_ticket():
-    bad = [ep for ep in _PENDING
-           if not re.match(r"^SAAS-01[3-8] ", ALLOWLIST[ep])]
-    assert not bad, f"pending endpoints without a SAAS-013..018 ticket: {bad}"
 
 
 def test_every_allowlist_reason_is_written():
@@ -1108,12 +1297,11 @@ def test_cross_tenant_session_is_killed(enforce_app, two_schools, login_as):
 
 def test_every_form_id_endpoint_is_classified(app):
     found = discover_form_id_endpoints(app)
-    pending = set(FORM_ID_PENDING) | set(FORM_ID_PLATFORM)
     unclassified = sorted(ep for ep in found
-                          if ep not in FORM_ID_MATRIX and ep not in pending)
+                          if ep not in FORM_ID_MATRIX and ep not in FORM_ID_PLATFORM)
     assert not unclassified, (
         "Endpoint(s) reading an *_id from form/query/json are unclassified — "
-        "add to FORM_ID_MATRIX or FORM_ID_PENDING:\n  - "
+        "add to FORM_ID_MATRIX (or FORM_ID_PLATFORM with a reason):\n  - "
         + "\n  - ".join(f"{ep} {found[ep]}" for ep in unclassified)
     )
 
@@ -1131,14 +1319,14 @@ def test_form_ids_from_other_school_rejected(enforce_app, world,
     url = build_url(app, endpoint, params, host(A))
     from isolation_harness import _snap
     with app.test_client() as c:
-        login_as(c, A["users"]["admin"], base_url=host(A))
+        login_as(c, A["users"][e.roles[0]], base_url=host(A))
         for m in e.methods:
             before = _snap(app, e, B)
             payload = e.form(A, B) if e.form else {}
             if m == "GET":
                 r = c.get(url, query_string=payload, base_url=host(A))
             else:
-                r = c.open(url, method=m, data=payload, base_url=host(A))
+                r = c.open(url, method=m, base_url=host(A), **body_kwargs(url, payload))
             body = r.get_data(as_text=True)
             assert r.status_code < 500, f"{endpoint}: {r.status_code}"
             leaked = [mk for mk in B["markers"] if mk in body]
@@ -1183,10 +1371,7 @@ def build_coverage_report(app) -> str:
         "saas012_canary.leaky", "saas012_canary.scoped"})
     total = len(rules)
     covered = [ep for ep in rules if ep in ROUTE_MATRIX]
-    pending = [ep for ep in rules if ep in _PENDING]
-    by_ticket: dict[str, int] = {}
-    for ep in pending:
-        by_ticket[ticket_for(ep)] = by_ticket.get(ticket_for(ep), 0) + 1
+    allowed = [ep for ep in rules if ep in ALLOWLIST]
     form_found = discover_form_id_endpoints(app)
     form_cov = [ep for ep in form_found if ep in FORM_ID_MATRIX]
     lines = [
@@ -1194,19 +1379,11 @@ def build_coverage_report(app) -> str:
         "",
         f"- `<int:…>` endpoints: **{total}**",
         f"- in ROUTE_MATRIX: **{len(covered)}** ({len(covered) / total:.1%})",
-        f"- pending: **{len(pending)}**",
-        f"- form/query-id endpoints: **{len(form_found)}**, "
-        f"covered **{len(form_cov)}**, pending **{len(form_found) - len(form_cov)}**",
+        f"- in ALLOWLIST (written reason): **{len(allowed)}**",
+        f"- form/query-id endpoints: **{len(form_found)}**, covered **{len(form_cov)}**, "
+        f"platform tables **{len(form_found) - len(form_cov)}**",
         f"- known gaps (strict xfail): **{len(KNOWN_GAPS)}**",
-        "",
-        "| ticket | pending <int:> endpoints | pending form-id endpoints |",
-        "|---|---|---|",
     ]
-    form_by_ticket: dict[str, int] = {}
-    for ep in FORM_ID_PENDING:
-        form_by_ticket[ticket_for(ep)] = form_by_ticket.get(ticket_for(ep), 0) + 1
-    for t in sorted(set(by_ticket) | set(form_by_ticket)):
-        lines.append(f"| {t} | {by_ticket.get(t, 0)} | {form_by_ticket.get(t, 0)} |")
     lines += ["", "## Covered", ""] + [f"- `{ep}`" for ep in covered]
     if KNOWN_GAPS:
         lines += ["", "## Known gaps", ""] + [
@@ -1227,7 +1404,7 @@ def test_coverage_report(app):
 def _single_id_gets():
     out = []
     for ep, e in sorted(ROUTE_MATRIX.items()):
-        if "GET" in e.methods and e.skip == "":
+        if e.skip == "":
             out.append(pytest.param(ep, id=ep))
     return out
 
@@ -1244,8 +1421,9 @@ def test_foreign_and_missing_ids_get_the_same_answer(enforce_app, world, login_a
     fake = {k: (987654321 if isinstance(v, int) else v) for k, v in real.items()}
     with app.test_client() as c:
         login_as(c, A["users"][e.roles[0]], base_url=host(A))
-        r1 = c.get(build_url(app, endpoint, real, host(A)), base_url=host(A))
-        r2 = c.get(build_url(app, endpoint, fake, host(A)), base_url=host(A))
+        m = "GET" if "GET" in e.methods else e.methods[0]
+        r1 = c.open(build_url(app, endpoint, real, host(A)), method=m, base_url=host(A))
+        r2 = c.open(build_url(app, endpoint, fake, host(A)), method=m, base_url=host(A))
     assert r1.status_code == r2.status_code, f"{endpoint}: foreign {r1.status_code} vs missing {r2.status_code}"
     def norm(r):
         # the id is echoed in links / canonical URL: mask every number

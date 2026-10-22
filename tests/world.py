@@ -219,7 +219,8 @@ def seed_lms(bundle: dict) -> dict:
     for o in (q, aq, attempt, sub, ext):
         add(o)
     db.session.flush()
-    add(Choice(question_id=q.id, label=f"Choice-{slug}", is_correct=True))
+    choice = Choice(question_id=q.id, label=f"Choice-{slug}", is_correct=True)
+    add(choice)
     db.session.commit()
     return {
         "course": course.id, "unit": unit.id, "lesson": lesson.id, "quiz": quiz.id, "question": q.id,
@@ -227,12 +228,75 @@ def seed_lms(bundle: dict) -> dict:
         "bank_question": bank.id, "skill": skill.id, "objective": obj.id, "collection": coll.id,
         "feedback_template": fb.id, "assign_template": atpl.id, "assess_template": stpl.id,
         "template_item": item.id, "passage": passage.id, "announcement": ann.id, "extension": ext.id,
-        "rubric": rubric.id,
+        "rubric": rubric.id, "choice": choice.id,
         "markers": (f"Course-{slug}", f"BankQ-{slug}", f"Skill-{slug}", f"Objective-{slug}",
                     f"Collection-{slug}", f"Feedback-{slug}", f"AssignTpl-{slug}", f"AssessTpl-{slug}",
                     f"Passage-{slug}", f"Announce-{slug}", f"Unit-{slug}", f"Lesson-{slug}",
                     f"Quiz-{slug}", f"Assign-{slug}", f"QuizQ-{slug}", f"AssignQ-{slug}",
                     f"Rubric-{slug}"),
+    }
+
+
+def seed_core(bundle: dict) -> dict:
+    """Academic / teachers / results / schedule / platform / admin / nafis /
+    messaging records for one school (SAAS-018). App context."""
+    from datetime import datetime, time, timezone
+    from app.extensions import db
+    from app.models import (
+        AssessmentComponent, Assignment, Conversation, ConversationParticipant, Day, GradingScale,
+        Message, NotificationLog,
+        NafisCycle, Period, Room, ScheduleSlot, SchoolCalendarDay, Teacher, TranscriptSnapshot,
+        UserScope, Vendor,
+    )
+    slug, sid = bundle["school"].slug, bundle["school"].id
+    year, section, subject = bundle["year"].id, bundle["section"].id, bundle["subject"].id
+    users = bundle["users"]
+    add = db.session.add
+    teacher = Teacher(school_id=sid, full_name=f"TeacherRec-{slug}", specialization=f"Spec-{slug}",
+                      user_id=users["teacher"].id)
+    day = Day(school_id=sid, name=f"Day-{slug}", order_index=1, academic_year_id=year)
+    period = Period(school_id=sid, name=f"Period-{slug}", order_index=1,
+                    start_time=time(8, 0), end_time=time(8, 45), academic_year_id=year)
+    room = Room(school_id=sid, name=f"Room-{slug}")
+    cal = SchoolCalendarDay(school_id=sid, academic_year_id=year, date=date(2026, 10, 6),
+                            day_type="holiday")
+    scale = GradingScale(school_id=sid, name=f"Scale-{slug}")
+    cycle = NafisCycle(school_id=sid, name_ar=f"Nafis-{slug}", academic_year_id=year)
+    conv = Conversation(school_id=sid, created_by_user_id=users["admin"].id)
+    # Soft-deleted row for admin.trash_restore.
+    trash = Vendor(school_id=sid, name=f"TrashVendor-{slug}", deleted_at=datetime.now(timezone.utc))
+    for o in (teacher, day, period, room, cal, scale, cycle, conv, trash):
+        add(o)
+    db.session.flush()
+    tasg = Assignment(school_id=sid, year_id=year, section_id=section, subject_id=subject,
+                      teacher_id=teacher.id, term_id=bundle["term"].id)
+    slot = ScheduleSlot(school_id=sid, year_id=year, section_id=section, day_id=day.id,
+                        period_id=period.id, subject_id=subject, teacher_id=teacher.id, room_id=room.id)
+    for u in ("admin", "teacher"):
+        add(ConversationParticipant(conversation_id=conv.id, user_id=users[u].id))
+    msg = Message(school_id=sid, conversation_id=conv.id, sender_user_id=users["admin"].id,
+                  body=f"Msg-{slug}")
+    scope = UserScope(school_id=sid, user_id=users["teacher"].id, scope_type="stage",
+                      scope_value=f"Scope-{slug}")
+    snap = TranscriptSnapshot(school_id=sid, student_id=bundle["student"].id,
+                              content={"note": f"Transcript-{slug}"}, serial_number=f"TS-{slug}-1")
+    comp = AssessmentComponent(school_id=sid, term_id=bundle["term"].id, subject_id=subject,
+                               name=f"Comp-{slug}", max_score=10)
+    notif = NotificationLog(school_id=sid, student_id=bundle["student"].id, kind="announcement",
+                            status="sent", payload="{}")
+    for o in (tasg, slot, msg, snap, scope, comp, notif):
+        add(o)
+    db.session.commit()
+    return {
+        "teacher": teacher.id, "day": day.id, "period": period.id, "room": room.id,
+        "calendar_day": cal.id, "scale": scale.id, "nafis_cycle": cycle.id,
+        "conversation": conv.id, "message": msg.id, "trash_vendor": trash.id,
+        "teacher_assignment": tasg.id, "slot": slot.id, "transcript": snap.id, "scope": scope.id,
+        "component": comp.id, "notification": notif.id,
+        "role": bundle["roles"]["teacher"].id, "admin_user": users["admin"].id,
+        "markers": (f"TeacherRec-{slug}", f"Spec-{slug}", f"Day-{slug}", f"Period-{slug}",
+                    f"Room-{slug}", f"Scale-{slug}", f"Nafis-{slug}", f"Msg-{slug}",
+                    f"TrashVendor-{slug}", f"Transcript-{slug}", f"Comp-{slug}"),
     }
 
 

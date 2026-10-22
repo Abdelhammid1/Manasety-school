@@ -87,7 +87,7 @@ def check_blocked(app, client, endpoint: str, entry: Entry, method: str,
     """Fire one cross-tenant request and assert it was refused."""
     before = _snap(app, entry, B)
     data = entry.form(A, B) if (entry.form and method != "GET") else None
-    resp = client.open(url, method=method, data=data, base_url=host(A))
+    resp = client.open(url, method=method, base_url=host(A), **body_kwargs(url, data))
     body = resp.get_data(as_text=True)
     leaked = [m for m in B["markers"] if m in body]
     after = _snap(app, entry, B)
@@ -105,24 +105,9 @@ def check_blocked(app, client, endpoint: str, entry: Entry, method: str,
     )
 
 
-def ticket_for(endpoint: str) -> str:
-    """Which SAAS isolation ticket owns an endpoint still pending."""
-    bp = endpoint.split(".", 1)[0]
-    if bp in ("finance", "hr"):
-        return "SAAS-013"
-    if bp in ("students", "attendance", "portal"):
-        return "SAAS-014"
-    if bp == "lms":
-        return "SAAS-016" if endpoint in LMS_STUDENT_ENDPOINTS else "SAAS-015"
-    if bp == "courses":
-        return "SAAS-016"
-    if bp == "api":
-        return "SAAS-017"
-    return "SAAS-018"
-
-
-LMS_STUDENT_ENDPOINTS = frozenset({
-    "lms.assignment_submit", "lms.attempt_autosave", "lms.attempt_flag",
-    "lms.attempt_tab_switch", "lms.quiz_result", "lms.quiz_submit",
-    "lms.quiz_take",
-})
+def body_kwargs(url: str, data) -> dict:
+    """The mobile API reads JSON bodies; every other route reads forms."""
+    if data is None:
+        return {}
+    has_file = any(isinstance(v, tuple) for v in data.values())
+    return {"json": data} if "/api/" in url and not has_file else {"data": data}

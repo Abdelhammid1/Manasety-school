@@ -8,6 +8,7 @@ from ...extensions import db
 from ...models import (
     AcademicYear, Assignment, Day, Period, Room, ScheduleSlot, Section,
 )
+from ...services.scoping import owned_id  # isolation sweep: school-scoped get
 
 
 @bp.route("/rooms", endpoint="rooms_list")
@@ -169,8 +170,8 @@ def room_slot_save(room_id):
         flash("لا توجد سنة دراسية نشطة.", "danger")
         return redirect(url_for("platform.room_detail", room_id=room.id))
 
-    day_id = request.form.get("day_id", type=int)
-    period_id = request.form.get("period_id", type=int)
+    day_id = owned_id(Day, request.form.get("day_id", type=int))
+    period_id = owned_id(Period, request.form.get("period_id", type=int))
     assignment_id = request.form.get("assignment_id", type=int)
     a = Assignment.query.filter_by(id=assignment_id, school_id=sid).first() \
         if assignment_id else None

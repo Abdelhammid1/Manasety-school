@@ -72,3 +72,22 @@ def test_parent_picked_in_the_form_must_be_of_this_school(sapp, world, login_as)
     r = c.post(f"/students/{A['student'].id}/edit", base_url=host(A),
                data={"full_name": A["student"].full_name, "parent_user_id": A["parent_user"]})
     assert r.status_code in (200, 302)
+
+
+def test_own_pickup_call_still_releases(sapp, world, login_as):
+    """portal.pickup_release now loads the call school-scoped (same 404 for
+    another school's call and a missing one); A's own still works."""
+    from app.extensions import db
+    from app.models import PickupCall
+    A = world["A"]
+    with sapp.app_context():
+        call = db.session.get(PickupCall, A["pickup"])
+        call.parent_user_id, call.released_at = A["users"]["parent"].id, None
+        db.session.commit()
+        db.session.remove()
+    c = sapp.test_client()
+    login_as(c, A["users"]["parent"], base_url=host(A))
+    assert c.post(f"/portal/pickup/{A['pickup']}/release", base_url=host(A)).status_code == 302
+    with sapp.app_context():
+        assert db.session.get(PickupCall, A["pickup"]).released_at is not None
+        db.session.remove()

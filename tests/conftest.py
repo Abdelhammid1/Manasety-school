@@ -90,6 +90,8 @@ def pytest_configure(config):
 
 # ─── Flask app fixture ───────────────────────────────────────────────
 
+_PASSWORD_HASH: dict = {}
+
 @pytest.fixture(scope="session")
 def app():
     """Session-scoped Flask app in testing mode. Preserves whatever
@@ -275,7 +277,12 @@ def two_schools(app) -> Iterator[dict]:
                 email=f"{username}@{school_id}.test",
                 is_active=True,
             )
-            u.set_password("test-password-12345")
+            # One bcrypt hash per session, reused (8 users per fixture
+            # made bcrypt most of the isolation matrix's run time).
+            if "hash" not in _PASSWORD_HASH:
+                u.set_password("test-password-12345")
+                _PASSWORD_HASH["hash"] = u.password_hash
+            u.password_hash = _PASSWORD_HASH["hash"]
             db.session.add(u); db.session.flush()
             created_ids["users"].append(u.id)
             return u
@@ -396,12 +403,17 @@ def world(app, two_schools) -> dict:
     """two_schools + finance/HR records in both schools (SAAS-013).
     Ids and markers are merged into each school's bundle."""
     from app.extensions import db
-    from world import seed_finance_hr, seed_lms, seed_students
+    from world import seed_core, seed_finance_hr, seed_lms, seed_students
     A, B = two_schools["A"], two_schools["B"]
     with app.app_context():
         fa, fb = seed_finance_hr(A), seed_finance_hr(B)
         sa, sb = seed_students(A), seed_students(B)          # SAAS-014
         la, lb = seed_lms(A), seed_lms(B)                    # SAAS-015 / 016
+        ca, cb = seed_core(A), seed_core(B)                  # SAAS-018
+        la = {**la, **{k: v for k, v in ca.items() if k != "markers"},
+              "markers": tuple(la["markers"]) + tuple(ca["markers"])}
+        lb = {**lb, **{k: v for k, v in cb.items() if k != "markers"},
+              "markers": tuple(lb["markers"]) + tuple(cb["markers"])}
         sa = {**sa, **{k: v for k, v in la.items() if k != "markers"},
               "markers": tuple(sa["markers"]) + tuple(la["markers"])}
         sb = {**sb, **{k: v for k, v in lb.items() if k != "markers"},
