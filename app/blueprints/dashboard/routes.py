@@ -941,14 +941,20 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "badge",
         } for t in tch]
 
-    inv = can("finance", "view") and (
-        Invoice.query.filter(Invoice.school_id == sid)
-        .filter(db.or_(
+    inv = None
+    if can("finance", "view"):
+        iq = Invoice.query.filter(Invoice.school_id == sid).filter(db.or_(
             Invoice.number.ilike(like),
             Invoice.notes.ilike(like),
         ))
-        .limit(limit_each).all()
-    )
+        if not can("finance", "edit"):
+            # same rule as the invoice page (_assert_invoice_viewer): a
+            # non-editor (a parent) sees only their own children's invoices
+            from ...models import Enrollment
+            iq = (iq.join(Enrollment, Enrollment.id == Invoice.enrollment_id)
+                    .join(Student, Student.id == Enrollment.student_id)
+                    .filter(Student.parent_user_id == current_user.id))
+        inv = iq.limit(limit_each).all()
     if inv:
         out["الفواتير"] = [{
             "title": f"فاتورة #{i.number}",

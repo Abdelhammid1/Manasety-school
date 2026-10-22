@@ -130,3 +130,44 @@ def test_search_lists_only_what_the_user_may_open(mapp, two_schools, login_as):
         r = c.get("/search.json", query_string={"q": name[:4]}, base_url=host(A))
         assert r.status_code == 200
         assert ("الطلاب" in (r.get_json() or {}).get("groups", {})) is sees, role_key
+
+
+def test_invoice_search_follows_the_invoice_page_rule(mapp, two_schools, login_as):
+    """A parent (finance view, no edit) finds only their own children's
+    invoices — the same rule as /finance/invoices/<id>."""
+    from datetime import date
+    from app.extensions import db
+    from app.models import Enrollment, Invoice, Student
+    A = two_schools["A"]
+    with mapp.app_context():
+        other = Student(school_id=A["school"].id, permanent_code="PC-srch-02", full_name="Other-srch")
+        db.session.add(other); db.session.flush()
+        enr = Enrollment(school_id=A["school"].id, student_id=other.id, year_id=A["year"].id,
+                         grade_id=A["grade"].id, section_id=A["section"].id, status="active",
+                         enrolled_at=date(2026, 9, 1))
+        db.session.add(enr); db.session.flush()
+        own = Invoice(school_id=A["school"].id, enrollment_id=A["enrollment"].id,
+                      number="SRCH-OWN", due_date=date(2026, 10, 1))
+        theirs = Invoice(school_id=A["school"].id, enrollment_id=enr.id,
+                         number="SRCH-OTHER", due_date=date(2026, 10, 1))
+        db.session.add_all([own, theirs]); db.session.commit()
+        ids = (own.id, theirs.id, enr.id, other.id)
+        db.session.remove()
+    try:
+        def titles(role_key):
+            c = mapp.test_client()
+            login_as(c, A["users"][role_key], base_url=host(A))
+            r = c.get("/search.json", query_string={"q": "SRCH-"}, base_url=host(A))
+            assert r.status_code == 200
+            return {h["title"] for h in (r.get_json() or {}).get("groups", {}).get("الفواتير", [])}
+        assert titles("parent") == {"فاتورة #SRCH-OWN"}
+        assert titles("admin") == {"فاتورة #SRCH-OWN", "فاتورة #SRCH-OTHER"}
+    finally:
+        with mapp.app_context():
+            for model, pk in zip((Invoice, Invoice, Enrollment, Student), ids):
+                row = db.session.get(model, pk)
+                if row is not None:
+                    db.session.delete(row)
+                    db.session.flush()
+            db.session.commit()
+            db.session.remove()
