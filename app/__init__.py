@@ -15,6 +15,25 @@ def install_proxy_fix(app):
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=0, x_prefix=0)
 
 
+# SEC-05 — the minimum every response carries (pages, errors, static,
+# JSON, files). setdefault: a stronger value set by a view or a
+# blueprint (the console: DENY + CSP + no-store) runs first and stays.
+# SAMEORIGIN, not DENY: lesson pages embed the school's own PDFs.
+BASELINE_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "SAMEORIGIN",
+    "Referrer-Policy": "same-origin",
+}
+
+
+def install_security_headers(app):
+    @app.after_request
+    def _baseline_security_headers(resp):
+        for name, value in BASELINE_SECURITY_HEADERS.items():
+            resp.headers.setdefault(name, value)
+        return resp
+
+
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_class)
@@ -35,6 +54,7 @@ def create_app(config_class=Config):
         )
 
     install_proxy_fix(app)
+    install_security_headers(app)
     # SAAS-025 — the platform host gets its own session cookie.
     from .services.platform_auth import HostAwareSessionInterface
     app.session_interface = HostAwareSessionInterface()
