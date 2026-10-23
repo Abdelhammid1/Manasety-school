@@ -40,7 +40,7 @@ def _own_attempt_or_403(attempt_id):
     return attempt
 
 
-@bp.route("/quizzes/attempts/<int:attempt_id>/tab-switch",
+@bp.route("/quizzes/attempts/<hid:attempt_id>/tab-switch",
           methods=["POST"], endpoint="attempt_tab_switch")
 @csrf.exempt  # navigator.sendBeacon can't add X-CSRFToken header
 @login_required
@@ -60,7 +60,7 @@ def attempt_tab_switch(attempt_id):
     return jsonify({"count": attempt.tab_switch_count})
 
 
-@bp.route("/quizzes/attempts/<int:attempt_id>/flag",
+@bp.route("/quizzes/attempts/<hid:attempt_id>/flag",
           methods=["POST"], endpoint="attempt_flag")
 @login_required
 def attempt_flag(attempt_id):
@@ -102,7 +102,7 @@ def attempt_flag(attempt_id):
     return jsonify({"flagged": flagged})
 
 
-@bp.route("/quizzes/attempts/<int:attempt_id>/autosave",
+@bp.route("/quizzes/attempts/<hid:attempt_id>/autosave",
           methods=["POST"], endpoint="attempt_autosave")
 @login_required
 def attempt_autosave(attempt_id):
@@ -171,7 +171,7 @@ def attempt_autosave(attempt_id):
 
 
 # ── Ticket #19 — Live monitor ───────────────────────────────────────
-@bp.route("/quizzes/<int:qid>/live", endpoint="quiz_live_monitor")
+@bp.route("/quizzes/<hid:qid>/live", endpoint="quiz_live_monitor")
 @login_required
 def quiz_live_monitor(qid):
     role = getattr(getattr(current_user, "role", None), "name", None)
@@ -184,7 +184,7 @@ def quiz_live_monitor(qid):
     return render_template("lms/quiz_live_monitor.html", quiz=quiz)
 
 
-@bp.route("/quizzes/<int:qid>/live.json", endpoint="quiz_live_monitor_json")
+@bp.route("/quizzes/<hid:qid>/live.json", endpoint="quiz_live_monitor_json")
 @login_required
 def quiz_live_monitor_json(qid):
     role = getattr(getattr(current_user, "role", None), "name", None)

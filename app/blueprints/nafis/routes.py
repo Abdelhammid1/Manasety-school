@@ -185,7 +185,7 @@ def _get_cycle(cycle_id):
     return cyc
 
 
-@bp.route("/cycles/<int:cycle_id>", endpoint="cycle_detail")
+@bp.route("/cycles/<hid:cycle_id>", endpoint="cycle_detail")
 @login_required
 @require_permission("results", "view")
 def cycle_detail(cycle_id):
@@ -205,7 +205,7 @@ def cycle_detail(cycle_id):
     )
 
 
-@bp.route("/cycles/<int:cycle_id>/edit", methods=["GET", "POST"],
+@bp.route("/cycles/<hid:cycle_id>/edit", methods=["GET", "POST"],
           endpoint="cycle_edit")
 @login_required
 @require_permission("results", "edit")
@@ -246,7 +246,7 @@ def cycle_edit(cycle_id):
     )
 
 
-@bp.route("/cycles/<int:cycle_id>/delete", methods=["POST"],
+@bp.route("/cycles/<hid:cycle_id>/delete", methods=["POST"],
           endpoint="cycle_delete")
 @login_required
 @require_permission("results", "delete")

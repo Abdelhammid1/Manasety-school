@@ -13,6 +13,7 @@ from flask_login import current_user, login_required
 from . import bp
 from ..utils import require_permission
 from ...extensions import db
+from ...services.hashid import encode as encode_hid
 from ...models import (
     Guardian, Student, StudentGuardian, StudentNote, StudentTag,
 )
@@ -33,7 +34,7 @@ def _get_student(student_id):
 
 
 # ─── S6 — Photo upload ─────────────────────────────────────────────
-@bp.route("/<int:student_id>/photo", methods=["POST"],
+@bp.route("/<hid:student_id>/photo", methods=["POST"],
           endpoint="student_photo_upload")
 @login_required
 @require_permission("students", "edit")
@@ -55,7 +56,7 @@ def student_photo_upload(student_id):
 
 
 # ─── S8 — Sibling detection ────────────────────────────────────────
-@bp.route("/<int:student_id>/siblings.json", endpoint="student_siblings_json")
+@bp.route("/<hid:student_id>/siblings.json", endpoint="student_siblings_json")
 @login_required
 @require_permission("students", "view")
 def student_siblings_json(student_id):
@@ -77,7 +78,8 @@ def student_siblings_json(student_id):
     )
     return jsonify({
         "siblings": [
-            {"id": s.id,
+            {"id": encode_hid(s.id),
+             "href": url_for("students.student_detail", student_id=s.id),
              "full_name": s.full_name,
              "permanent_code": s.permanent_code}
             for s in rows
@@ -106,7 +108,7 @@ def count_siblings(student):
 
 
 # ─── S10 — StudentNote timeline ────────────────────────────────────
-@bp.route("/<int:student_id>/notes/add", methods=["POST"],
+@bp.route("/<hid:student_id>/notes/add", methods=["POST"],
           endpoint="student_note_add")
 @login_required
 @require_permission("students", "edit")
@@ -125,7 +127,7 @@ def student_note_add(student_id):
     return redirect(url_for("students.student_detail", student_id=student.id))
 
 
-@bp.route("/notes/<int:note_id>/delete", methods=["POST"],
+@bp.route("/notes/<hid:note_id>/delete", methods=["POST"],
           endpoint="student_note_delete")
 @login_required
 @require_permission("students", "edit")
@@ -156,7 +158,7 @@ def student_tag_new():
     return jsonify({"id": t.id, "name": t.name, "color": t.color})
 
 
-@bp.route("/<int:student_id>/tags/attach", methods=["POST"],
+@bp.route("/<hid:student_id>/tags/attach", methods=["POST"],
           endpoint="student_tag_attach")
 @login_required
 @require_permission("students", "edit")
@@ -172,7 +174,7 @@ def student_tag_attach(student_id):
     return redirect(url_for("students.student_detail", student_id=student.id))
 
 
-@bp.route("/<int:student_id>/tags/detach", methods=["POST"],
+@bp.route("/<hid:student_id>/tags/detach", methods=["POST"],
           endpoint="student_tag_detach")
 @login_required
 @require_permission("students", "edit")

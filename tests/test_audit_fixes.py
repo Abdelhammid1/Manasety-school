@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 
 
 @pytest.fixture
@@ -46,12 +46,12 @@ def test_other_schools_lesson_is_404(app, lessons, login_as, suffix, method):
     A = lessons["A"]
     b_lesson = lessons["ids"]["B"]["lesson"]
     assert _status(app, login_as, A["users"]["admin"],
-                   f"/courses/lessons/{b_lesson}{suffix}", host(A), method) == 404
+                   f"/courses/lessons/{hid(b_lesson)}{suffix}", host(A), method) == 404
 
 
 def test_own_lesson_opens_for_editor_and_enrolled_student(app, lessons, login_as):
     A = lessons["A"]
-    path = f"/courses/lessons/{lessons['ids']['A']['lesson']}"
+    path = f"/courses/lessons/{hid(lessons['ids']['A']['lesson'])}"
     assert _status(app, login_as, A["users"]["admin"], path, host(A)) == 200
     assert _status(app, login_as, A["users"]["student"], path, host(A)) == 200
 
@@ -64,7 +64,7 @@ def test_student_not_in_the_course_section_gets_404(app, lessons, login_as):
         CourseSection.query.filter_by(course_id=lessons["ids"]["A"]["course"]).delete()
         db.session.commit()
         db.session.remove()
-    path = f"/courses/lessons/{lessons['ids']['A']['lesson']}"
+    path = f"/courses/lessons/{hid(lessons['ids']['A']['lesson'])}"
     assert _status(app, login_as, A["users"]["student"], path, host(A)) == 404
 
 
@@ -79,7 +79,7 @@ def test_lesson_of_soft_deleted_course_is_404_not_500(app, lessons, login_as):
         db.session.commit()
         db.session.remove()
     for suffix in ("", "/edit"):
-        path = f"/courses/lessons/{lessons['ids']['A']['lesson']}{suffix}"
+        path = f"/courses/lessons/{hid(lessons['ids']['A']['lesson'])}{suffix}"
         assert _status(app, login_as, A["users"]["admin"], path, host(A)) == 404
 
 
@@ -93,7 +93,7 @@ def test_teacher_schedule_page_renders(app, two_schools, login_as, monkeypatch):
         db.session.add(t); db.session.commit()
         tid = t.id
         db.session.remove()
-    assert _status(app, login_as, A["users"]["admin"], f"/schedule/teacher/{tid}", host(A)) == 200
+    assert _status(app, login_as, A["users"]["admin"], f"/schedule/teacher/{hid(tid)}", host(A)) == 200
 
 
 # ─── reviewer follow-ups ─────────────────────────────────────────────

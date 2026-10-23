@@ -140,7 +140,7 @@ def leave_request_new():
     return redirect(url_for("hr.leave_requests_list"))
 
 
-@bp.route("/leave/<int:req_id>/approve",
+@bp.route("/leave/<hid:req_id>/approve",
           methods=["POST"], endpoint="leave_request_approve")
 @login_required
 @require_permission("payroll", "edit")
@@ -195,7 +195,7 @@ def leave_request_approve(req_id):
     return redirect(url_for("hr.leave_requests_list"))
 
 
-@bp.route("/leave/<int:req_id>/reject",
+@bp.route("/leave/<hid:req_id>/reject",
           methods=["POST"], endpoint="leave_request_reject")
 @login_required
 @require_permission("payroll", "edit")

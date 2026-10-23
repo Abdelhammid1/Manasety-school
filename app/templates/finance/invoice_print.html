@@ -53,7 +53,7 @@
   <div class="print-toolbar">
     <button class="btn-print" onclick="window.print()">🖨️ طباعة</button>
     <a class="btn-download" href="?download=1">📥 تنزيل PDF</a>
-    <a class="btn-back" href="/finance/invoices/{{ inv.id }}">رجوع</a>
+    <a class="btn-back" href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}">رجوع</a>
   </div>
   {% endif %}
 

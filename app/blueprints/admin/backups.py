@@ -47,14 +47,14 @@ def backup_new():
     return redirect(url_for("admin.backups_home"))
 
 
-@bp.route("/backups/<int:bid>/status.json", endpoint="backup_status")
+@bp.route("/backups/<hid:bid>/status.json", endpoint="backup_status")
 @login_required
 @admin_only
 def backup_status(bid):
     return jsonify(_row(owned_or_404(SchoolBackup, bid)))
 
 
-@bp.route("/backups/<int:bid>/delete", methods=["POST"], endpoint="backup_delete")
+@bp.route("/backups/<hid:bid>/delete", methods=["POST"], endpoint="backup_delete")
 @login_required
 @admin_only
 def backup_delete(bid):
@@ -67,7 +67,7 @@ def backup_delete(bid):
     return redirect(url_for("admin.backups_home"))
 
 
-@bp.route("/backups/<int:bid>/download", methods=["POST"], endpoint="backup_download_prepare")
+@bp.route("/backups/<hid:bid>/download", methods=["POST"], endpoint="backup_download_prepare")
 @login_required
 @admin_only
 def backup_download_prepare(bid):
@@ -135,7 +135,7 @@ def restore_new():
     return redirect(url_for("admin.restore_detail", rid=r.id))
 
 
-@bp.route("/backups/restore/<int:rid>", endpoint="restore_detail")
+@bp.route("/backups/restore/<hid:rid>", endpoint="restore_detail")
 @login_required
 @admin_only
 def restore_detail(rid):
@@ -147,7 +147,7 @@ def restore_detail(rid):
                            deps=deps, labels={m.key: m.label for m in restore.MODULES})
 
 
-@bp.route("/backups/restore/<int:rid>/status.json", endpoint="restore_status")
+@bp.route("/backups/restore/<hid:rid>/status.json", endpoint="restore_status")
 @login_required
 @admin_only
 def restore_status(rid):
@@ -156,7 +156,7 @@ def restore_status(rid):
     return jsonify({"id": r.id, "status": r.status, "error": r.error})
 
 
-@bp.route("/backups/restore/<int:rid>/confirm", methods=["POST"], endpoint="restore_confirm")
+@bp.route("/backups/restore/<hid:rid>/confirm", methods=["POST"], endpoint="restore_confirm")
 @login_required
 @admin_only
 def restore_confirm(rid):
@@ -172,7 +172,7 @@ def restore_confirm(rid):
     return redirect(url_for("admin.restore_detail", rid=r.id))
 
 
-@bp.route("/backups/restore/<int:rid>/undo", methods=["POST"], endpoint="restore_undo")
+@bp.route("/backups/restore/<hid:rid>/undo", methods=["POST"], endpoint="restore_undo")
 @login_required
 @admin_only
 def restore_undo(rid):

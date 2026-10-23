@@ -7,7 +7,7 @@ import io
 import pytest
 from werkzeug.datastructures import FileStorage
 
-from isolation_harness import host
+from isolation_harness import host, hid
 
 PDF = b"%PDF-1.4\n%fake but well-formed enough\n"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
@@ -212,7 +212,7 @@ def test_document_upload_and_view_end_to_end(files_app, two_schools, login_as):
     A = two_schools["A"]
     with files_app.test_client() as c:
         login_as(c, A["users"]["admin"], base_url=host(A))
-        r = c.post(f"/students/{A['student'].id}/documents/upload", base_url=host(A),
+        r = c.post(f"/students/{hid(A['student'].id)}/documents/upload", base_url=host(A),
                    data={"file": (io.BytesIO(PDF), "id.pdf"), "title": "ID"},
                    content_type="multipart/form-data")
         assert r.status_code == 302
@@ -221,7 +221,7 @@ def test_document_upload_and_view_end_to_end(files_app, two_schools, login_as):
             path, size = doc.file_path, doc.file_size
         assert path.startswith("/files/") and size == len(PDF)
         assert c.get(path, base_url=host(A)).status_code == 200
-        page = c.get(f"/students/{A['student'].id}/documents", base_url=host(A))
+        page = c.get(f"/students/{hid(A['student'].id)}/documents", base_url=host(A))
         assert path in page.get_data(as_text=True)
 
 

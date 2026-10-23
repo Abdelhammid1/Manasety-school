@@ -58,7 +58,7 @@ def day_new():
     return redirect(url_for("schedule.settings"))
 
 
-@bp.route("/days/<int:day_id>/delete", methods=["POST"])
+@bp.route("/days/<hid:day_id>/delete", methods=["POST"])
 @login_required
 @require_permission("schedule", "delete")
 def day_delete(day_id):
@@ -125,7 +125,7 @@ def _find_period_overlap(*, school_id, start, end, exclude_period_id=None):
     return q.first()
 
 
-@bp.route("/periods/<int:period_id>/delete", methods=["POST"])
+@bp.route("/periods/<hid:period_id>/delete", methods=["POST"])
 @login_required
 @require_permission("schedule", "delete")
 def period_delete(period_id):
@@ -238,7 +238,7 @@ def index():
     abort(403)
 
 
-@bp.route("/section/<int:section_id>", methods=["GET", "POST"])
+@bp.route("/section/<hid:section_id>", methods=["GET", "POST"])
 @login_required
 def section_schedule(section_id):
     section = _get(Section, section_id)
@@ -308,7 +308,7 @@ def section_schedule(section_id):
     )
 
 
-@bp.route("/section/<int:section_id>/slot", methods=["POST"])
+@bp.route("/section/<hid:section_id>/slot", methods=["POST"])
 @login_required
 @require_permission("schedule", "edit")
 def slot_save(section_id):
@@ -420,7 +420,7 @@ def slot_save(section_id):
     return redirect(url_for("schedule.section_schedule", section_id=section.id))
 
 
-@bp.route("/section/<int:section_id>/slot/<int:slot_id>/delete", methods=["POST"])
+@bp.route("/section/<hid:section_id>/slot/<hid:slot_id>/delete", methods=["POST"])
 @login_required
 @require_permission("schedule", "delete")
 def slot_delete(section_id, slot_id):
@@ -560,7 +560,7 @@ def auto_generate():
 
 # ---------- T-5.4 Teacher schedule view ----------
 
-@bp.route("/teacher/<int:teacher_id>")
+@bp.route("/teacher/<hid:teacher_id>")
 @login_required
 @require_permission("schedule", "view")
 def teacher_schedule(teacher_id):

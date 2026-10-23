@@ -75,7 +75,7 @@ def rules_list():
     )
 
 
-@bp.route("/rules/triggers/<int:trigger_id>/resolve",
+@bp.route("/rules/triggers/<hid:trigger_id>/resolve",
           methods=["POST"], endpoint="rule_trigger_resolve")
 @login_required
 @require_permission("attendance", "edit")

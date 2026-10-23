@@ -483,13 +483,13 @@
           <input type="text" id="newTagName" placeholder="اسم الوسم"
                  class="h-9 flex-1 px-3 rounded-lg bg-surface-container-low font-body-sm">
           <button type="button"
-                  onclick="attachTag({{ student.id }})"
+                  onclick="attachTag('{{ url_for('students.student_tag_attach', student_id=student.id) }}')"
                   class="h-9 px-3 rounded-lg bg-primary text-on-primary font-label-md font-bold">
             إضافة وسم
           </button>
         </div>
         <script>
-        async function attachTag(sid){
+        async function attachTag(attachUrl){
           const name = document.getElementById('newTagName').value.trim();
           if (!name) return;
           const csrf = '{{ csrf_token() }}';
@@ -499,7 +499,7 @@
           const t = await r.json();
           if (!t.id) { alert(t.error || 'خطأ'); return; }
           const fd2 = new FormData(); fd2.set('tag_id', t.id); fd2.set('csrf_token', csrf);
-          await fetch(`/students/${sid}/tags/attach`,
+          await fetch(attachUrl,
                       {method:'POST', body:fd2, credentials:'same-origin'});
           location.reload();
         }
@@ -524,7 +524,7 @@
               return;
             }
             box.innerHTML = d.siblings.map(s => `
-              <a href="/students/${s.id}" class="block px-2 py-1 rounded hover:bg-surface-container-low">
+              <a href="${s.href}" class="block px-2 py-1 rounded hover:bg-surface-container-low">
                 <b>${s.full_name}</b>
                 <code class="text-outline text-xs" dir="ltr">${s.permanent_code}</code>
               </a>`).join('');

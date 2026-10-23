@@ -88,7 +88,7 @@ def teacher_new():
     return render_template("teachers/form.html", teacher=None, form={})
 
 
-@bp.route("/<int:teacher_id>")
+@bp.route("/<hid:teacher_id>")
 @login_required
 @require_permission("teachers", "view")
 def teacher_detail(teacher_id):
@@ -117,7 +117,7 @@ def teacher_detail(teacher_id):
     )
 
 
-@bp.route("/<int:teacher_id>/edit", methods=["GET", "POST"])
+@bp.route("/<hid:teacher_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("teachers", "edit")
 def teacher_edit(teacher_id):
@@ -139,7 +139,7 @@ def teacher_edit(teacher_id):
     return render_template("teachers/form.html", teacher=teacher, form={})
 
 
-@bp.route("/<int:teacher_id>/specialization", methods=["POST"])
+@bp.route("/<hid:teacher_id>/specialization", methods=["POST"])
 @login_required
 @require_permission("teachers", "edit")
 def teacher_specialization(teacher_id):
@@ -158,7 +158,7 @@ def teacher_specialization(teacher_id):
     return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
 
 
-@bp.route("/<int:teacher_id>/toggle", methods=["POST"])
+@bp.route("/<hid:teacher_id>/toggle", methods=["POST"])
 @login_required
 @require_permission("teachers", "edit")
 def teacher_toggle(teacher_id):
@@ -171,7 +171,7 @@ def teacher_toggle(teacher_id):
 
 # ---------- Ticket #1 (2026-09-25) — inline account panel ----------
 
-@bp.route("/<int:teacher_id>/account/reset-password", methods=["POST"],
+@bp.route("/<hid:teacher_id>/account/reset-password", methods=["POST"],
           endpoint="teacher_account_reset_password")
 @login_required
 @require_permission("teachers", "edit")
@@ -195,7 +195,7 @@ def teacher_account_reset_password(teacher_id):
     return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
 
 
-@bp.route("/<int:teacher_id>/account/toggle", methods=["POST"],
+@bp.route("/<hid:teacher_id>/account/toggle", methods=["POST"],
           endpoint="teacher_account_toggle")
 @login_required
 @require_permission("teachers", "edit")
@@ -251,7 +251,7 @@ def subjects_list():
     )
 
 
-@bp.route("/subjects/<int:subject_id>/delete", methods=["POST"])
+@bp.route("/subjects/<hid:subject_id>/delete", methods=["POST"])
 @login_required
 @require_permission("teachers", "delete")
 def subject_delete(subject_id):
@@ -300,7 +300,7 @@ def subject_delete(subject_id):
     return redirect(url_for("teachers.subjects_list"))
 
 
-@bp.route("/subjects/<int:subject_id>/toggle", methods=["POST"])
+@bp.route("/subjects/<hid:subject_id>/toggle", methods=["POST"])
 @login_required
 @require_permission("teachers", "edit")
 def subject_toggle(subject_id):
@@ -361,7 +361,7 @@ def subject_new():
     )
 
 
-@bp.route("/subjects/<int:subject_id>/edit", methods=["GET", "POST"])
+@bp.route("/subjects/<hid:subject_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("teachers", "edit")
 def subject_edit(subject_id):
@@ -403,7 +403,7 @@ def assignments_list():
     )
 
 
-@bp.route("/assignments/section/<int:section_id>", methods=["GET", "POST"])
+@bp.route("/assignments/section/<hid:section_id>", methods=["GET", "POST"])
 @login_required
 @require_permission("teachers", "edit")
 def section_assignments(section_id):
@@ -547,7 +547,7 @@ def section_assignments(section_id):
     )
 
 
-@bp.route("/assignments/<int:assignment_id>/remove", methods=["POST"])
+@bp.route("/assignments/<hid:assignment_id>/remove", methods=["POST"])
 @login_required
 @require_permission("teachers", "delete")
 def assignment_remove(assignment_id):
@@ -559,7 +559,7 @@ def assignment_remove(assignment_id):
     return redirect(url_for("teachers.section_assignments", section_id=section_id))
 
 
-@bp.route("/assignments/<int:assignment_id>/update", methods=["POST"])
+@bp.route("/assignments/<hid:assignment_id>/update", methods=["POST"])
 @login_required
 @require_permission("teachers", "edit")
 def assignment_update(assignment_id):

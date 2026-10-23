@@ -258,7 +258,7 @@ def role_new():
     )
 
 
-@bp.route("/roles/<int:role_id>/edit", methods=["GET", "POST"])
+@bp.route("/roles/<hid:role_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("roles", "edit")
 def role_edit(role_id):
@@ -284,7 +284,7 @@ def role_edit(role_id):
     )
 
 
-@bp.route("/roles/<int:role_id>/delete", methods=["POST"])
+@bp.route("/roles/<hid:role_id>/delete", methods=["POST"])
 @login_required
 @require_permission("roles", "delete")
 def role_delete(role_id):
@@ -382,7 +382,7 @@ def user_new():
     return render_template("admin/user_form.html", user=None, roles=roles)
 
 
-@bp.route("/users/<int:user_id>/edit", methods=["GET", "POST"])
+@bp.route("/users/<hid:user_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("users", "edit")
 def user_edit(user_id):
@@ -416,7 +416,7 @@ def user_edit(user_id):
     return render_template("admin/user_form.html", user=user, roles=roles)
 
 
-@bp.route("/users/<int:user_id>/toggle", methods=["POST"])
+@bp.route("/users/<hid:user_id>/toggle", methods=["POST"])
 @login_required
 @require_permission("users", "edit")
 def user_toggle(user_id):
@@ -505,7 +505,7 @@ def trash_home():
     return render_template("admin/trash.html", groups=groups)
 
 
-@bp.route("/trash/<kind>/<int:oid>/restore", methods=["POST"], endpoint="trash_restore")
+@bp.route("/trash/<kind>/<hid:oid>/restore", methods=["POST"], endpoint="trash_restore")
 @login_required
 @require_permission("users", "edit")
 def trash_restore(kind, oid):

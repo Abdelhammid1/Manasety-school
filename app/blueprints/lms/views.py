@@ -312,7 +312,7 @@ def _rubrics_for_subject(subject_id):
     )
 
 
-@bp.route("/courses/<int:cid>/assignments/new", methods=["GET", "POST"], endpoint="assignment_new")
+@bp.route("/courses/<hid:cid>/assignments/new", methods=["GET", "POST"], endpoint="assignment_new")
 @login_required
 @require_permission("lms", "edit")
 def assignment_new(cid):
@@ -347,7 +347,7 @@ def assignment_new(cid):
     return render_template("lms/assignment_form.html", assignment=None, course=course, rubrics=rubrics)
 
 
-@bp.route("/assignments/<int:aid>/analytics", endpoint="assignment_analytics")
+@bp.route("/assignments/<hid:aid>/analytics", endpoint="assignment_analytics")
 @login_required
 def assignment_analytics(aid):
     """Phase-2 ticket #23 — teacher-side view of one assignment's
@@ -402,7 +402,7 @@ def assignment_analytics(aid):
     )
 
 
-@bp.route("/assignments/<int:aid>/edit", methods=["GET", "POST"], endpoint="assignment_edit")
+@bp.route("/assignments/<hid:aid>/edit", methods=["GET", "POST"], endpoint="assignment_edit")
 @login_required
 @require_permission("lms", "edit")
 def assignment_edit(aid):
@@ -439,14 +439,14 @@ def assignment_edit(aid):
 # a quiz does. When an assignment has zero questions it stays as the
 # legacy free-form (upload/text) homework.
 
-@bp.route("/assignments/<int:aid>/questions", endpoint="assignment_questions")
+@bp.route("/assignments/<hid:aid>/questions", endpoint="assignment_questions")
 @login_required
 def assignment_questions(aid):
     a = owned_or_404(CourseAssignment, aid)
     return render_template("lms/assignment_questions.html", assignment=a)
 
 
-@bp.route("/assignments/<int:aid>/questions/add", methods=["POST"],
+@bp.route("/assignments/<hid:aid>/questions/add", methods=["POST"],
           endpoint="assignment_question_add")
 @login_required
 def assignment_question_add(aid):
@@ -472,7 +472,7 @@ def assignment_question_add(aid):
     return redirect(url_for("lms.assignment_questions", aid=a.id))
 
 
-@bp.route("/assignment-questions/<int:qid>/update", methods=["POST"],
+@bp.route("/assignment-questions/<hid:qid>/update", methods=["POST"],
           endpoint="assignment_question_update")
 @login_required
 def assignment_question_update(qid):
@@ -495,7 +495,7 @@ def assignment_question_update(qid):
     return redirect(url_for("lms.assignment_questions", aid=q.assignment_id))
 
 
-@bp.route("/assignment-questions/<int:qid>/delete", methods=["POST"],
+@bp.route("/assignment-questions/<hid:qid>/delete", methods=["POST"],
           endpoint="assignment_question_delete")
 @login_required
 def assignment_question_delete(qid):
@@ -544,7 +544,7 @@ def _picker_defaults_redirect(parent_course, endpoint, **route_kwargs):
     return redirect(url_for(endpoint, **route_kwargs, **args))
 
 
-@bp.route("/assignments/<int:aid>/pick", methods=["GET", "POST"],
+@bp.route("/assignments/<hid:aid>/pick", methods=["GET", "POST"],
           endpoint="assignment_pick_from_bank")
 @login_required
 def assignment_pick_from_bank(aid):
@@ -655,7 +655,7 @@ def template_home():
     )
 
 
-@bp.route("/templates/<int:tid>/delete", methods=["POST"], endpoint="template_delete")
+@bp.route("/templates/<hid:tid>/delete", methods=["POST"], endpoint="template_delete")
 @login_required
 def template_delete(tid):
     """Hard-delete a template. Cascades to template_questions + choices.
@@ -670,7 +670,7 @@ def template_delete(tid):
     return redirect(url_for("lms.template_home"))
 
 
-@bp.route("/assignments/<int:aid>/save-as-template", methods=["POST"],
+@bp.route("/assignments/<hid:aid>/save-as-template", methods=["POST"],
           endpoint="assignment_save_as_template")
 @login_required
 def assignment_save_as_template(aid):
@@ -713,7 +713,7 @@ def assignment_save_as_template(aid):
     return redirect(url_for("lms.template_home"))
 
 
-@bp.route("/courses/<int:cid>/assignments/from-template", methods=["GET", "POST"],
+@bp.route("/courses/<hid:cid>/assignments/from-template", methods=["GET", "POST"],
           endpoint="assignment_from_template")
 @login_required
 def assignment_from_template(cid):
@@ -769,7 +769,7 @@ def assignment_from_template(cid):
     )
 
 
-@bp.route("/assignments/<int:aid>/delete", methods=["POST"], endpoint="assignment_delete")
+@bp.route("/assignments/<hid:aid>/delete", methods=["POST"], endpoint="assignment_delete")
 @login_required
 @require_permission("lms", "edit")
 def assignment_delete(aid):
@@ -782,7 +782,7 @@ def assignment_delete(aid):
 
 # ─── Quiz CRUD (teacher-side) ─────────────────────────────────────────────
 
-@bp.route("/courses/<int:cid>/quizzes/new", methods=["GET", "POST"], endpoint="quiz_new")
+@bp.route("/courses/<hid:cid>/quizzes/new", methods=["GET", "POST"], endpoint="quiz_new")
 @login_required
 @require_permission("lms", "edit")
 def quiz_new(cid):
@@ -826,7 +826,7 @@ def quiz_new(cid):
     return render_template("lms/quiz_form.html", quiz=None, course=course)
 
 
-@bp.route("/quizzes/<int:qid>/edit", methods=["GET", "POST"], endpoint="quiz_edit")
+@bp.route("/quizzes/<hid:qid>/edit", methods=["GET", "POST"], endpoint="quiz_edit")
 @login_required
 @require_permission("lms", "edit")
 def quiz_edit(qid):
@@ -859,7 +859,7 @@ def quiz_edit(qid):
     return render_template("lms/quiz_form.html", quiz=q, course=course)
 
 
-@bp.route("/quizzes/<int:qid>/delete", methods=["POST"], endpoint="quiz_delete")
+@bp.route("/quizzes/<hid:qid>/delete", methods=["POST"], endpoint="quiz_delete")
 @login_required
 @require_permission("lms", "edit")
 def quiz_delete(qid):
@@ -872,14 +872,14 @@ def quiz_delete(qid):
 
 # --- Question composer ---------------------------------------------------
 
-@bp.route("/quizzes/<int:qid>/questions", methods=["GET"], endpoint="quiz_questions")
+@bp.route("/quizzes/<hid:qid>/questions", methods=["GET"], endpoint="quiz_questions")
 @login_required
 def quiz_questions(qid):
     quiz = owned_or_404(Quiz, qid)
     return render_template("lms/quiz_questions.html", quiz=quiz)
 
 
-@bp.route("/quizzes/<int:qid>/questions/add", methods=["POST"], endpoint="quiz_question_add")
+@bp.route("/quizzes/<hid:qid>/questions/add", methods=["POST"], endpoint="quiz_question_add")
 @login_required
 def quiz_question_add(qid):
     quiz = owned_or_404(Quiz, qid)
@@ -906,7 +906,7 @@ def quiz_question_add(qid):
     return redirect(url_for("lms.quiz_questions", qid=quiz.id))
 
 
-@bp.route("/questions/<int:qid>/update", methods=["POST"], endpoint="quiz_question_update")
+@bp.route("/questions/<hid:qid>/update", methods=["POST"], endpoint="quiz_question_update")
 @login_required
 def quiz_question_update(qid):
     q = owned_or_404(Question, qid)
@@ -935,7 +935,7 @@ def quiz_question_update(qid):
     return redirect(url_for("lms.quiz_questions", qid=q.quiz_id))
 
 
-@bp.route("/questions/<int:qid>/delete", methods=["POST"], endpoint="quiz_question_delete")
+@bp.route("/questions/<hid:qid>/delete", methods=["POST"], endpoint="quiz_question_delete")
 @login_required
 @require_permission("lms", "edit")
 def quiz_question_delete(qid):
@@ -946,7 +946,7 @@ def quiz_question_delete(qid):
     return redirect(url_for("lms.quiz_questions", qid=quiz_id))
 
 
-@bp.route("/questions/<int:qid>/version", methods=["POST"],
+@bp.route("/questions/<hid:qid>/version", methods=["POST"],
           endpoint="quiz_question_new_version")
 @login_required
 def quiz_question_new_version(qid):
@@ -974,7 +974,7 @@ def quiz_question_new_version(qid):
     return redirect(url_for("lms.quiz_questions", qid=q.quiz_id))
 
 
-@bp.route("/assignment-questions/<int:qid>/version", methods=["POST"],
+@bp.route("/assignment-questions/<hid:qid>/version", methods=["POST"],
           endpoint="assignment_question_new_version")
 @login_required
 def assignment_question_new_version(qid):
@@ -1481,7 +1481,7 @@ def template_new():
     return render_template("lms/template_new.html", subjects=subjects)
 
 
-@bp.route("/assessment-templates/<int:tid>/edit", methods=["GET", "POST"], endpoint="template_edit")
+@bp.route("/assessment-templates/<hid:tid>/edit", methods=["GET", "POST"], endpoint="template_edit")
 @login_required
 def template_edit(tid):
     t = AssessmentTemplate.query.filter_by(
@@ -1502,7 +1502,7 @@ def template_edit(tid):
 
 
 # ─── Template Detail + Question Picker (Stitch lms_6) ──────────────────
-@bp.route("/assessment-templates/<int:tid>", endpoint="template_detail")
+@bp.route("/assessment-templates/<hid:tid>", endpoint="template_detail")
 @login_required
 def template_detail(tid):
     """Stitch lms_6 — a template's items list plus an inline picker
@@ -1571,7 +1571,7 @@ def template_detail(tid):
     )
 
 
-@bp.route("/assessment-templates/<int:tid>/items/attach",
+@bp.route("/assessment-templates/<hid:tid>/items/attach",
           methods=["POST"], endpoint="template_items_attach")
 @login_required
 def template_items_attach(tid):
@@ -1616,7 +1616,7 @@ def template_items_attach(tid):
     return redirect(url_for("lms.template_detail", tid=t.id))
 
 
-@bp.route("/assessment-templates/<int:tid>/items/<int:iid>/delete",
+@bp.route("/assessment-templates/<hid:tid>/items/<hid:iid>/delete",
           methods=["POST"], endpoint="template_item_delete")
 @login_required
 def template_item_delete(tid, iid):
@@ -1631,7 +1631,7 @@ def template_item_delete(tid, iid):
     return redirect(url_for("lms.template_detail", tid=t.id))
 
 
-@bp.route("/assessment-templates/<int:tid>/items/save",
+@bp.route("/assessment-templates/<hid:tid>/items/save",
           methods=["POST"], endpoint="template_items_save")
 @login_required
 def template_items_save(tid):
@@ -1655,7 +1655,7 @@ def template_items_save(tid):
     return redirect(url_for("lms.template_detail", tid=t.id))
 
 
-@bp.route("/assessment-templates/<int:tid>/use", methods=["GET", "POST"],
+@bp.route("/assessment-templates/<hid:tid>/use", methods=["GET", "POST"],
           endpoint="template_use")
 @login_required
 def template_use(tid):
@@ -2063,7 +2063,7 @@ def bank_smart_new():
     )
 
 
-@bp.route("/bank/<int:bid>/edit", methods=["GET", "POST"], endpoint="bank_edit")
+@bp.route("/bank/<hid:bid>/edit", methods=["GET", "POST"], endpoint="bank_edit")
 @login_required
 def bank_edit(bid):
     item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
@@ -2197,7 +2197,7 @@ def _bank_save(item):
     return redirect(url_for("lms.bank_home"))
 
 
-@bp.route("/bank/<int:bid>/delete", methods=["POST"], endpoint="bank_delete")
+@bp.route("/bank/<hid:bid>/delete", methods=["POST"], endpoint="bank_delete")
 @login_required
 def bank_delete(bid):
     item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
@@ -2222,7 +2222,7 @@ BANK_STATE_LABEL = {
 }
 
 
-@bp.route("/bank/<int:bid>/archive", methods=["POST"], endpoint="bank_archive")
+@bp.route("/bank/<hid:bid>/archive", methods=["POST"], endpoint="bank_archive")
 @login_required
 def bank_archive(bid):
     """Qdrat-parity #5 — soft-hide a bank question (النشطة ↔ الأرشيف)."""
@@ -2234,7 +2234,7 @@ def bank_archive(bid):
     return redirect(request.referrer or url_for("lms.qbank_dashboard"))
 
 
-@bp.route("/assessment-templates/<int:tid>/items/<int:iid>/toggle-hidden",
+@bp.route("/assessment-templates/<hid:tid>/items/<hid:iid>/toggle-hidden",
           methods=["POST"], endpoint="template_item_toggle_hidden")
 @login_required
 def template_item_toggle_hidden(tid, iid):
@@ -2250,7 +2250,7 @@ def template_item_toggle_hidden(tid, iid):
     return redirect(url_for("lms.template_detail", tid=t.id))
 
 
-@bp.route("/assessment-templates/<int:tid>/ai/generate",
+@bp.route("/assessment-templates/<hid:tid>/ai/generate",
           methods=["POST"], endpoint="template_ai_generate")
 @login_required
 def template_ai_generate(tid):
@@ -2390,7 +2390,7 @@ def bank_ai_review():
     return redirect(url_for("lms.qbank_dashboard"))
 
 
-@bp.route("/quizzes/<int:qid>/publish-results",
+@bp.route("/quizzes/<hid:qid>/publish-results",
           methods=["POST"], endpoint="quiz_publish_results")
 @login_required
 def quiz_publish_results(qid):
@@ -2411,7 +2411,7 @@ def quiz_publish_results(qid):
     return redirect(url_for("lms.quiz_analysis", qid=quiz.id))
 
 
-@bp.route("/quizzes/<int:qid>/analysis", endpoint="quiz_analysis")
+@bp.route("/quizzes/<hid:qid>/analysis", endpoint="quiz_analysis")
 @login_required
 def quiz_analysis(qid):
     """Teacher-facing post-exam analysis. Aggregates per-question correct
@@ -2618,7 +2618,7 @@ def _persist_question_stats(q_stats, attempt_count):
 # Passages were split into ./passages.py (ticket P1-18).
 
 
-@bp.route("/bank/<int:bid>/rewrite", endpoint="bank_rewrite_panel")
+@bp.route("/bank/<hid:bid>/rewrite", endpoint="bank_rewrite_panel")
 @login_required
 def bank_rewrite_panel(bid):
     """Renders the Stitch lms_8 AI rewriter drawer as a full page."""
@@ -2627,7 +2627,7 @@ def bank_rewrite_panel(bid):
     return render_template("lms/bank_rewrite.html", question=q)
 
 
-@bp.route("/bank/<int:bid>/ai-rewrite",
+@bp.route("/bank/<hid:bid>/ai-rewrite",
           methods=["POST"], endpoint="bank_ai_rewrite")
 @login_required
 def bank_ai_rewrite(bid):
@@ -2655,7 +2655,7 @@ def bank_ai_rewrite(bid):
         return jsonify({"error": str(e)}), 502
 
 
-@bp.route("/bank/<int:bid>/ai-rewrite/save",
+@bp.route("/bank/<hid:bid>/ai-rewrite/save",
           methods=["POST"], endpoint="bank_ai_rewrite_save")
 @login_required
 def bank_ai_rewrite_save(bid):
@@ -2713,7 +2713,7 @@ def bank_ai_rewrite_save(bid):
     return redirect(url_for("lms.bank_edit", bid=new_q.id))
 
 
-@bp.route("/submissions/<int:sid>/grade", endpoint="submission_grade_panel")
+@bp.route("/submissions/<hid:sid>/grade", endpoint="submission_grade_panel")
 @login_required
 def submission_grade_panel(sid):
     """Renders the Stitch lms_10 AI grading sidebar as a full page."""
@@ -2725,7 +2725,7 @@ def submission_grade_panel(sid):
     return render_template("lms/submission_grade.html", submission=sub)
 
 
-@bp.route("/submissions/<int:sid>/grade/save",
+@bp.route("/submissions/<hid:sid>/grade/save",
           methods=["POST"], endpoint="submission_grade_save")
 @login_required
 def submission_grade_save(sid):
@@ -2793,7 +2793,7 @@ def submission_grade_save(sid):
     return redirect(url_for("lms.assignments_home"))
 
 
-@bp.route("/submissions/<int:sid>/ai-grade",
+@bp.route("/submissions/<hid:sid>/ai-grade",
           methods=["POST"], endpoint="submission_ai_grade")
 @login_required
 def submission_ai_grade(sid):
@@ -2863,7 +2863,7 @@ def blueprint_ai_suggest():
         return jsonify({"error": str(e)}), 502
 
 
-@bp.route("/assessment-templates/<int:tid>/print", endpoint="template_print")
+@bp.route("/assessment-templates/<hid:tid>/print", endpoint="template_print")
 @login_required
 def template_print(tid):
     """Qdrat-parity #4 — print-friendly render of every attached question.
@@ -2881,7 +2881,7 @@ def template_print(tid):
                            template=t, items=items, mode=mode)
 
 
-@bp.route("/bank/<int:bid>/state", methods=["POST"], endpoint="bank_set_state")
+@bp.route("/bank/<hid:bid>/state", methods=["POST"], endpoint="bank_set_state")
 @login_required
 def bank_set_state(bid):
     """Move a bank question through the Qdrat-parity review workflow.
@@ -2905,7 +2905,7 @@ def bank_set_state(bid):
 
 # --- Picker: pull questions from the bank into a specific quiz -----------
 
-@bp.route("/quizzes/<int:qid>/pick", methods=["GET", "POST"], endpoint="quiz_pick_from_bank")
+@bp.route("/quizzes/<hid:qid>/pick", methods=["GET", "POST"], endpoint="quiz_pick_from_bank")
 @login_required
 def quiz_pick_from_bank(qid):
     """GET: filterable list of bank rows with checkboxes.
@@ -3005,7 +3005,7 @@ def quiz_pick_from_bank(qid):
 
 # ─── Assignment submission (existing student flow, unchanged) ─────────────
 
-@bp.route("/assignments/<int:aid>", methods=["GET"], endpoint="assignment_detail")
+@bp.route("/assignments/<hid:aid>", methods=["GET"], endpoint="assignment_detail")
 @login_required
 def assignment_detail(aid):
     """Assignment detail + submission form (student view).
@@ -3041,7 +3041,7 @@ def assignment_detail(aid):
     )
 
 
-@bp.route("/assignments/<int:aid>/submit", methods=["POST"], endpoint="assignment_submit")
+@bp.route("/assignments/<hid:aid>/submit", methods=["POST"], endpoint="assignment_submit")
 @login_required
 def assignment_submit(aid):
     """Accept a student's submission (body text + optional file upload).
@@ -3227,7 +3227,7 @@ def assignment_submit(aid):
 
 # ─── Quiz taking + auto-grader ────────────────────────────────────────────
 
-@bp.route("/quizzes/<int:qid>/take", methods=["GET"], endpoint="quiz_take")
+@bp.route("/quizzes/<hid:qid>/take", methods=["GET"], endpoint="quiz_take")
 @login_required
 def quiz_take(qid):
     """Start-or-continue a quiz attempt. Creates a QuizAttempt if the student
@@ -3360,7 +3360,7 @@ def _shuffled_view(quiz, attempt):
     return qs, ordered_choices
 
 
-@bp.route("/quizzes/<int:qid>/submit", methods=["POST"], endpoint="quiz_submit")
+@bp.route("/quizzes/<hid:qid>/submit", methods=["POST"], endpoint="quiz_submit")
 @login_required
 def quiz_submit(qid):
     """Save the student's answers, auto-grade objective questions (mcq/tf/short),
@@ -3549,7 +3549,7 @@ def quiz_submit(qid):
     return redirect(url_for("lms.quiz_result", attempt_id=attempt.id))
 
 
-@bp.route("/quizzes/result/<int:attempt_id>", methods=["GET"], endpoint="quiz_result")
+@bp.route("/quizzes/result/<hid:attempt_id>", methods=["GET"], endpoint="quiz_result")
 @login_required
 def quiz_result(attempt_id):
     """Post-submission review: per-question status + total + teacher feedback."""

@@ -55,7 +55,7 @@ def discount_type_new():
     return redirect(url_for("finance.discount_types"))
 
 
-@bp.route("/discounts/<int:dt_id>/toggle", methods=["POST"], endpoint="discount_type_toggle")
+@bp.route("/discounts/<hid:dt_id>/toggle", methods=["POST"], endpoint="discount_type_toggle")
 @login_required
 @require_permission("finance", "edit")
 def discount_type_toggle(dt_id):
@@ -102,7 +102,7 @@ def student_discount_new():
     return redirect(url_for("finance.student_discounts"))
 
 
-@bp.route("/student-discounts/<int:sd_id>/approve", methods=["POST"], endpoint="student_discount_approve")
+@bp.route("/student-discounts/<hid:sd_id>/approve", methods=["POST"], endpoint="student_discount_approve")
 @login_required
 @require_permission("finance", "edit")
 def student_discount_approve(sd_id):
@@ -115,7 +115,7 @@ def student_discount_approve(sd_id):
     return redirect(url_for("finance.student_discounts"))
 
 
-@bp.route("/student-discounts/<int:sd_id>/reject", methods=["POST"], endpoint="student_discount_reject")
+@bp.route("/student-discounts/<hid:sd_id>/reject", methods=["POST"], endpoint="student_discount_reject")
 @login_required
 @require_permission("finance", "edit")
 def student_discount_reject(sd_id):

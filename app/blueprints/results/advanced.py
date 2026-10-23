@@ -67,7 +67,7 @@ def scale_new():
     return render_template("results/scale_form.html", scale=None)
 
 
-@bp.route("/scales/<int:scale_id>/edit", methods=["GET", "POST"], endpoint="scale_edit")
+@bp.route("/scales/<hid:scale_id>/edit", methods=["GET", "POST"], endpoint="scale_edit")
 @login_required
 @require_permission("results", "edit")
 def scale_edit(scale_id):
@@ -106,7 +106,7 @@ def scale_edit(scale_id):
     return render_template("results/scale_form.html", scale=scale)
 
 
-@bp.route("/scales/<int:scale_id>/delete", methods=["POST"], endpoint="scale_delete")
+@bp.route("/scales/<hid:scale_id>/delete", methods=["POST"], endpoint="scale_delete")
 @login_required
 @require_permission("results", "delete")
 def scale_delete(scale_id):
@@ -152,7 +152,7 @@ def rubric_new():
     return render_template("results/rubric_form.html", rubric=None, subjects=subjects)
 
 
-@bp.route("/rubrics/<int:rubric_id>/edit", methods=["GET", "POST"], endpoint="rubric_edit")
+@bp.route("/rubrics/<hid:rubric_id>/edit", methods=["GET", "POST"], endpoint="rubric_edit")
 @login_required
 @require_permission("results", "edit")
 def rubric_edit(rubric_id):
@@ -186,7 +186,7 @@ def rubric_edit(rubric_id):
     return render_template("results/rubric_form.html", rubric=r, subjects=subjects)
 
 
-@bp.route("/rubrics/<int:rubric_id>/delete", methods=["POST"], endpoint="rubric_delete")
+@bp.route("/rubrics/<hid:rubric_id>/delete", methods=["POST"], endpoint="rubric_delete")
 @login_required
 @require_permission("results", "delete")
 def rubric_delete(rubric_id):
@@ -209,7 +209,7 @@ def _student_year_results(student_id):
     )
 
 
-@bp.route("/transcript/<int:student_id>", endpoint="transcript_view")
+@bp.route("/transcript/<hid:student_id>", endpoint="transcript_view")
 @login_required
 @require_permission("results", "view")
 def transcript_view(student_id):
@@ -225,7 +225,7 @@ def transcript_view(student_id):
     )
 
 
-@bp.route("/transcript/<int:student_id>/snapshot", methods=["POST"],
+@bp.route("/transcript/<hid:student_id>/snapshot", methods=["POST"],
           endpoint="transcript_snapshot")
 @login_required
 @require_permission("results", "edit")

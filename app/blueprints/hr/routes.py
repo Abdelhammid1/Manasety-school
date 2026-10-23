@@ -81,7 +81,7 @@ def employee_new():
     return render_template("hr/employee_form.html", employee=None, users=users)
 
 
-@bp.route("/employees/<int:employee_id>")
+@bp.route("/employees/<hid:employee_id>")
 @login_required
 @require_permission("payroll", "view")
 def employee_detail(employee_id):
@@ -101,7 +101,7 @@ def employee_detail(employee_id):
                            advances=advances)
 
 
-@bp.route("/employees/<int:employee_id>/advances/new", methods=["POST"])
+@bp.route("/employees/<hid:employee_id>/advances/new", methods=["POST"])
 @login_required
 @require_permission("finance_transactions", "add")
 def employee_advance_new(employee_id):
@@ -140,7 +140,7 @@ def employee_advance_new(employee_id):
     return redirect(url_for("hr.employee_detail", employee_id=e.id))
 
 
-@bp.route("/employees/<int:employee_id>/edit", methods=["GET", "POST"])
+@bp.route("/employees/<hid:employee_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("payroll", "edit")
 def employee_edit(employee_id):
@@ -157,7 +157,7 @@ def employee_edit(employee_id):
     return render_template("hr/employee_form.html", employee=e, users=users)
 
 
-@bp.route("/employees/<int:employee_id>/toggle", methods=["POST"])
+@bp.route("/employees/<hid:employee_id>/toggle", methods=["POST"])
 @login_required
 @require_permission("payroll", "edit")
 def employee_toggle(employee_id):
@@ -171,7 +171,7 @@ def employee_toggle(employee_id):
     return redirect(url_for("hr.employees_list"))
 
 
-@bp.route("/employees/<int:employee_id>/delete", methods=["POST"])
+@bp.route("/employees/<hid:employee_id>/delete", methods=["POST"])
 @login_required
 @require_permission("payroll", "delete")
 def employee_delete(employee_id):
@@ -295,7 +295,7 @@ def payroll_new():
     )
 
 
-@bp.route("/payroll/<int:payroll_id>", methods=["GET"])
+@bp.route("/payroll/<hid:payroll_id>", methods=["GET"])
 @login_required
 @require_permission("payroll", "view")
 def payroll_detail(payroll_id):
@@ -314,7 +314,7 @@ def payroll_detail(payroll_id):
                            today=date.today())
 
 
-@bp.route("/payroll/<int:payroll_id>/settle", methods=["POST"])
+@bp.route("/payroll/<hid:payroll_id>/settle", methods=["POST"])
 @login_required
 @require_permission("finance_transactions", "add")
 def payroll_settle(payroll_id):
@@ -347,7 +347,7 @@ def payroll_settle(payroll_id):
     return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
 
 
-@bp.route("/payroll/<int:payroll_id>/delete", methods=["POST"])
+@bp.route("/payroll/<hid:payroll_id>/delete", methods=["POST"])
 @login_required
 @require_permission("payroll", "delete")
 def payroll_delete(payroll_id):

@@ -8,7 +8,7 @@ from decimal import Decimal
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 
 
 @pytest.fixture
@@ -54,8 +54,8 @@ def test_soft_deleted_record_of_other_school_is_404(fin_app, world, login_as):
         db.session.remove()
     with fin_app.test_client() as c:
         login_as(c, A["users"]["admin"], base_url=host(A))
-        for path in (f"/finance/vendors/{B['vendor']}",
-                     f"/finance/vendors/{B['vendor']}/edit"):
+        for path in (f"/finance/vendors/{hid(B['vendor'])}",
+                     f"/finance/vendors/{hid(B['vendor'])}/edit"):
             assert c.get(path, base_url=host(A)).status_code == 404, path
 
 
@@ -82,23 +82,23 @@ def test_single_school_finance_flow(fin_app, world, login_as):
     with fin_app.test_client() as c:
         login_as(c, A["users"]["admin"], base_url=host(A))
 
-        r = c.post(f"/finance/invoices/{A['invoice']}/pay", base_url=host(A),
+        r = c.post(f"/finance/invoices/{hid(A['invoice'])}/pay", base_url=host(A),
                    data={"amount": "40", "payment_method_id": A["payment_method"]})
         assert r.status_code == 302, r.status_code
         inv = _get_row(fin_app, "Invoice", A["invoice"])
         assert inv is not None
         assert Decimal(str(inv["paid_amount"])) == Decimal("40")
 
-        r = c.get(f"/finance/invoices/{A['invoice']}/print", base_url=host(A))
+        r = c.get(f"/finance/invoices/{hid(A['invoice'])}/print", base_url=host(A))
         assert r.status_code == 200
         assert f"INV-{A['school'].slug}" in r.get_data(as_text=True)
 
-        r = c.get(f"/finance/invoices/{A['invoice']}", base_url=host(A))
+        r = c.get(f"/finance/invoices/{hid(A['invoice'])}", base_url=host(A))
         assert r.status_code == 200
 
-        r = c.get(f"/hr/payroll/{A['payroll']}", base_url=host(A))
+        r = c.get(f"/hr/payroll/{hid(A['payroll'])}", base_url=host(A))
         assert r.status_code == 200
-        r = c.get(f"/hr/employees/{A['employee']}", base_url=host(A))
+        r = c.get(f"/hr/employees/{hid(A['employee'])}", base_url=host(A))
         assert r.status_code == 200
 
     a_after = _ledger(fin_app, (A["school"].id,))
@@ -114,7 +114,7 @@ def test_payment_journal_is_balanced(fin_app, world, login_as):
     A = world["A"]
     with fin_app.test_client() as c:
         login_as(c, A["users"]["admin"], base_url=host(A))
-        c.post(f"/finance/invoices/{A['invoice']}/pay", base_url=host(A),
+        c.post(f"/finance/invoices/{hid(A['invoice'])}/pay", base_url=host(A),
                data={"amount": "25", "payment_method_id": A["payment_method"]})
     from app.extensions import db
     from app.models import JournalEntry, JournalLine, Payment

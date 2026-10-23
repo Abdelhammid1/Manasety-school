@@ -31,7 +31,7 @@ def effective_rubric_id(question, parent) -> int | None:
     return getattr(parent, "rubric_id", None)
 
 
-@bp.route("/submissions/<int:submission_id>/rubric-grade", methods=["GET", "POST"],
+@bp.route("/submissions/<hid:submission_id>/rubric-grade", methods=["GET", "POST"],
           endpoint="submission_rubric_grade")
 @login_required
 def submission_rubric_grade(submission_id):

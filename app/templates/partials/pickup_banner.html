@@ -45,7 +45,7 @@
         const btn = node.querySelector('[data-ack]');
         btn.addEventListener('click', async () => {
           try {
-            await fetch(`/portal/pickup/${c.id}/ack`, {
+            await fetch(c.ack_url, {
               method:'POST', headers:{'X-CSRFToken':csrf}, credentials:'same-origin',
             });
           } catch(e){}

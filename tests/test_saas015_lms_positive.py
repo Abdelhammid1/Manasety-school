@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from isolation_harness import build_url, host
+from isolation_harness import build_url, host, hid
 from test_saas002_route_isolation import ROUTE_MATRIX
 
 OWN_PAGES = sorted(
@@ -55,7 +55,7 @@ def test_own_references_in_forms_still_save(sapp, world, login_as):
         "subject_id": A["subject"].id, "grade_id": A["grade"].id, "term_id": A["term"].id,
         "unit_id": A["unit"], "lesson_id": A["lesson"], "passage_id": A["passage"]})
     assert r.status_code in (200, 302)
-    r = c.post(f"/lms/assignments/{A['assignment']}/edit", base_url=host(A),
+    r = c.post(f"/lms/assignments/{hid(A['assignment'])}/edit", base_url=host(A),
                data={"title": "تكليف A", "rubric_id": A["rubric"]})
     assert r.status_code in (200, 302)
     r = c.post("/lms/skills/new", base_url=host(A), data={"title": "فرعية", "parent_id": A["skill"]})

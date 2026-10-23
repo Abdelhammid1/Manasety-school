@@ -27,7 +27,7 @@ def _get_student(student_id):
     return stu
 
 
-@bp.route("/<int:student_id>/previous-schools/add", methods=["POST"],
+@bp.route("/<hid:student_id>/previous-schools/add", methods=["POST"],
           endpoint="previous_school_add")
 @login_required
 @require_permission("students", "edit")
@@ -61,7 +61,7 @@ def previous_school_add(student_id):
     return redirect(url_for("students.student_detail", student_id=student.id))
 
 
-@bp.route("/previous-schools/<int:row_id>/delete", methods=["POST"],
+@bp.route("/previous-schools/<hid:row_id>/delete", methods=["POST"],
           endpoint="previous_school_delete")
 @login_required
 @require_permission("students", "edit")

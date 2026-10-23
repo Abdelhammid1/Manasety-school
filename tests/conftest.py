@@ -48,6 +48,13 @@ if not os.environ.get("DATABASE_URL") and not os.environ.get("TEST_DATABASE_URL"
     _test_db_path.unlink(missing_ok=True)
     os.environ["DATABASE_URL"] = f"sqlite:///{_test_db_path.as_posix()}"
 
+# One link-code salt for every app the session creates (the dev fallback
+# derives it from SECRET_KEY, which some tests vary): a code built in one
+# test app must decode in the next. Random per session, never written down.
+if not os.environ.get("HASHIDS_SALT"):
+    import secrets as _secrets
+    os.environ["HASHIDS_SALT"] = _secrets.token_urlsafe(48)
+
 
 # ─── Guard: refuse to run against anything named like production ─────
 

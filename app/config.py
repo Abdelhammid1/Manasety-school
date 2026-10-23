@@ -133,6 +133,26 @@ def _resolve_support_session_key(session_key: str, environ=os.environ, app_env=N
     return key or f"dev-support-key|{session_key}"
 
 
+def _resolve_hashids_salt(session_key: str, environ=os.environ, app_env=None) -> str:
+    """Salt of the codes that stand for record ids in web links
+    (/students/xK9aBc2Q). Set ONCE on the server: a new salt turns every
+    saved / bookmarked link into a 404. Same policy as the keys above
+    (required, >= 32 chars, != SECRET_KEY in production). The codes hide
+    the numbering only — school_id filtering stays the protection."""
+    app_env = APP_ENV if app_env is None else app_env
+    key = (environ.get("HASHIDS_SALT") or "").strip()
+    is_prod = app_env not in ("development", "testing")
+    if is_prod and (not key or len(key) < _MIN_SECRET_LEN or key == session_key):
+        raise RuntimeError(
+            "HASHIDS_SALT is missing, shorter than "
+            f"{_MIN_SECRET_LEN} characters, or identical to SECRET_KEY in "
+            f"APP_ENV={app_env!r}. Mint one ONCE with `python -c \"import secrets; "
+            "print(secrets.token_urlsafe(48))\"` — changing it later breaks every "
+            "saved link. (Value not shown.)"
+        )
+    return key or f"dev-hashids|{session_key}"
+
+
 def _resolve_platform_allowed_ips(environ=os.environ):
     raw = (environ.get("PLATFORM_ALLOWED_IPS") or "").strip()
     if not raw:
@@ -269,6 +289,7 @@ class Config:
     # SAAS-025 — platform console session + secrets.
     PLATFORM_ENC_KEY = _resolve_platform_enc_key(SECRET_KEY)
     SUPPORT_SESSION_KEY = _resolve_support_session_key(SECRET_KEY)
+    HASHIDS_SALT = _resolve_hashids_salt(SECRET_KEY)
     PLATFORM_SESSION_MINUTES = _env_int("PLATFORM_SESSION_MINUTES", 30)
     PLATFORM_SESSION_MAX_HOURS = 8
     PLATFORM_SESSION_COOKIE_NAME = "manasety_platform"

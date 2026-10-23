@@ -114,13 +114,14 @@ def test_grace_refuses_every_write_route_except_allowlist(eapp, two_schools, log
     login_as(c, A["users"]["admin"], base_url=host(A))
     hdr = _bearer(eapp, A["users"]["admin"])
     from werkzeug.routing import IntegerConverter
+    from app.services.hashid import HashidConverter
     adapter = eapp.url_map.bind("localhost")
     escaped, checked = [], 0
     for rule in eapp.url_map.iter_rules():
         ep = rule.endpoint
         if ep in READ_ONLY_ALLOWED_ENDPOINTS or ep.startswith("superadmin.") or ep == "static":
             continue
-        values = {a: 1 if isinstance(rule._converters[a], IntegerConverter) else "x"
+        values = {a: 1 if isinstance(rule._converters[a], (IntegerConverter, HashidConverter)) else "x"
                   for a in rule.arguments}
         url = adapter.build(ep, values, force_external=False)
         for method in sorted((rule.methods or set()) & WRITE_METHODS):

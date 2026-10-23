@@ -105,7 +105,7 @@ def list_courses():
     return render_template("courses/list.html", grades=grades, counts=counts)
 
 
-@bp.route("/grade/<int:grade_id>", endpoint="grade_terms")
+@bp.route("/grade/<hid:grade_id>", endpoint="grade_terms")
 @login_required
 def grade_terms(grade_id):
     """Level 1 — pick a term inside a grade. Open terms are highlighted."""
@@ -128,7 +128,7 @@ def grade_terms(grade_id):
     )
 
 
-@bp.route("/grade/<int:grade_id>/term/<int:term_id>", endpoint="grade_term_subjects")
+@bp.route("/grade/<hid:grade_id>/term/<hid:term_id>", endpoint="grade_term_subjects")
 @login_required
 def grade_term_subjects(grade_id, term_id):
     """Level 2 — subjects available in (grade × term), joined through
@@ -171,7 +171,7 @@ def grade_term_subjects(grade_id, term_id):
     )
 
 
-@bp.route("/pick/grade/<int:grade_id>/subject/<int:subject_id>",
+@bp.route("/pick/grade/<hid:grade_id>/subject/<hid:subject_id>",
           endpoint="course_pick_section")
 @login_required
 def course_pick_section(grade_id, subject_id):
@@ -197,7 +197,7 @@ def course_pick_section(grade_id, subject_id):
     )
 
 
-@bp.route("/<int:course_id>", endpoint="detail")
+@bp.route("/<hid:course_id>", endpoint="detail")
 @login_required
 def detail(course_id):
     course = owned_or_404(Course, course_id)
@@ -340,7 +340,7 @@ def new():
     return render_template("courses/new.html", **ctx)
 
 
-@bp.route("/<int:course_id>/delete", methods=["POST"], endpoint="delete")
+@bp.route("/<hid:course_id>/delete", methods=["POST"], endpoint="delete")
 @login_required
 @require_permission("lms", "edit")
 def course_delete(course_id):
@@ -426,7 +426,7 @@ def _save_lesson_pdf(course, file_storage):
         return None
 
 
-@bp.route("/<int:course_id>/lessons/new", methods=["GET", "POST"], endpoint="lesson_new")
+@bp.route("/<hid:course_id>/lessons/new", methods=["GET", "POST"], endpoint="lesson_new")
 @login_required
 @require_permission("lms", "edit")
 def lesson_new(course_id):
@@ -462,7 +462,7 @@ def lesson_new(course_id):
     return render_template("courses/lesson_new.html", course=course, lesson=None)
 
 
-@bp.route("/lessons/<int:lesson_id>/edit", methods=["GET", "POST"], endpoint="lesson_edit")
+@bp.route("/lessons/<hid:lesson_id>/edit", methods=["GET", "POST"], endpoint="lesson_edit")
 @login_required
 @require_permission("lms", "edit")
 def lesson_edit(lesson_id):
@@ -493,7 +493,7 @@ def lesson_edit(lesson_id):
 
 # ─── Unit CRUD (ticket #16 part 1) ────────────────────────────────────
 
-@bp.route("/<int:course_id>/units/new", methods=["POST"], endpoint="unit_new")
+@bp.route("/<hid:course_id>/units/new", methods=["POST"], endpoint="unit_new")
 @login_required
 @require_permission("lms", "edit")
 def unit_new(course_id):
@@ -516,7 +516,7 @@ def unit_new(course_id):
     return redirect(url_for("courses.detail", course_id=course.id))
 
 
-@bp.route("/units/<int:unit_id>/edit", methods=["POST"], endpoint="unit_edit")
+@bp.route("/units/<hid:unit_id>/edit", methods=["POST"], endpoint="unit_edit")
 @login_required
 @require_permission("lms", "edit")
 def unit_edit(unit_id):
@@ -534,7 +534,7 @@ def unit_edit(unit_id):
     return redirect(url_for("courses.detail", course_id=unit.course_id))
 
 
-@bp.route("/units/<int:unit_id>/delete", methods=["POST"], endpoint="unit_delete")
+@bp.route("/units/<hid:unit_id>/delete", methods=["POST"], endpoint="unit_delete")
 @login_required
 @require_permission("lms", "edit")
 def unit_delete(unit_id):
@@ -548,7 +548,7 @@ def unit_delete(unit_id):
     return redirect(url_for("courses.detail", course_id=course_id))
 
 
-@bp.route("/lessons/<int:lesson_id>/delete", methods=["POST"], endpoint="lesson_delete")
+@bp.route("/lessons/<hid:lesson_id>/delete", methods=["POST"], endpoint="lesson_delete")
 @login_required
 @require_permission("lms", "edit")
 def lesson_delete(lesson_id):
@@ -560,7 +560,7 @@ def lesson_delete(lesson_id):
     return redirect(url_for("courses.detail", course_id=course_id))
 
 
-@bp.route("/lessons/<int:lesson_id>", endpoint="lesson_view")
+@bp.route("/lessons/<hid:lesson_id>", endpoint="lesson_view")
 @login_required
 def lesson_view(lesson_id):
     lesson = _get_lesson_or_404(lesson_id)

@@ -303,7 +303,7 @@ def grades_index():
     )
 
 
-@bp.route("/grades/<int:section_id>/<int:term_id>/<int:subject_id>", methods=["GET", "POST"])
+@bp.route("/grades/<hid:section_id>/<hid:term_id>/<hid:subject_id>", methods=["GET", "POST"])
 @login_required
 @require_permission("results", "view")
 def grade_sheet(section_id, term_id, subject_id):
@@ -459,7 +459,7 @@ def grade_sheet(section_id, term_id, subject_id):
 
 # ---------- T-7.5 / T-7.6 Year results + approval ----------
 
-@bp.route("/section/<int:section_id>", methods=["GET", "POST"])
+@bp.route("/section/<hid:section_id>", methods=["GET", "POST"])
 @login_required
 @require_permission("results", "view")
 def section_results(section_id):
@@ -550,7 +550,7 @@ def section_results(section_id):
     )
 
 
-@bp.route("/section/<int:section_id>/term/<int:term_id>")
+@bp.route("/section/<hid:section_id>/term/<hid:term_id>")
 @login_required
 @require_permission("results", "view")
 def term_results(section_id, term_id):
@@ -704,7 +704,7 @@ def _apply_dense_rank(rows, *, field):
         setattr(yr, field, current_rank)
 
 
-@bp.route("/section/<int:section_id>/recompute-ranks",
+@bp.route("/section/<hid:section_id>/recompute-ranks",
           methods=["POST"], endpoint="recompute_ranks")
 @login_required
 @require_permission("results", "edit")

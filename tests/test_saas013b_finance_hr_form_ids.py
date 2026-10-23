@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 
 
 @pytest.fixture
@@ -41,7 +41,7 @@ def test_fee_type_new_and_edit_work_on_own_records(fapp, world, login_as):
                data={"name": "رسوم A جديدة", "default_amount": "5", "revenue_account_id": A["revenue_account"]})
     assert r.status_code == 302
     assert _count(fapp, "FeeType", school_id=A["school"].id) == before + 1
-    r = c.post(f"/finance/fee-types/{A['fee_type']}/edit", base_url=host(A),
+    r = c.post(f"/finance/fee-types/{hid(A['fee_type'])}/edit", base_url=host(A),
                data={"name": "رسوم A معدلة", "default_amount": "7", "revenue_account_id": A["revenue_account"]})
     assert r.status_code == 302
     from app.extensions import db
@@ -75,12 +75,12 @@ def test_foreign_and_missing_ids_look_the_same(fapp, world, login_as):
     the same status and the same page."""
     A, B = world["A"], world["B"]
     c = _client(fapp, login_as, A)
-    foreign = c.get(f"/finance/fee-types/{B['fee_type']}/edit", base_url=host(A))
-    missing = c.get("/finance/fee-types/987654321/edit", base_url=host(A))
+    foreign = c.get(f"/finance/fee-types/{hid(B['fee_type'])}/edit", base_url=host(A))
+    missing = c.get(f"/finance/fee-types/{hid(987654321)}/edit", base_url=host(A))
     assert foreign.status_code == missing.status_code == 404
     # the page echoes the requested path (canonical link) — the id itself is
     # the only difference allowed
-    same = lambda r, i: r.get_data(as_text=True).replace(f"/fee-types/{i}/", "/fee-types/ID/")  # noqa: E731
+    same = lambda r, i: r.get_data(as_text=True).replace(f"/fee-types/{hid(i)}/", "/fee-types/ID/")  # noqa: E731
     assert same(foreign, B["fee_type"]) == same(missing, 987654321)
 
 

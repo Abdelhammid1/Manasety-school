@@ -197,7 +197,7 @@ def index():
     return render_template("attendance/index.html", year=year, sections=sections)
 
 
-@bp.route("/section/<int:section_id>/mark", methods=["GET", "POST"])
+@bp.route("/section/<hid:section_id>/mark", methods=["GET", "POST"])
 @login_required
 @require_permission("attendance", "edit")
 def mark(section_id):
@@ -372,7 +372,7 @@ def mark(section_id):
 
 # ---------- T-6.3 Reports ----------
 
-@bp.route("/reports/section/<int:section_id>")
+@bp.route("/reports/section/<hid:section_id>")
 @login_required
 @require_permission("attendance", "view")
 def section_report(section_id):
@@ -483,7 +483,7 @@ def _day_status_counts(*, eids, start, end):
     return counts
 
 
-@bp.route("/reports/student/<int:student_id>")
+@bp.route("/reports/student/<hid:student_id>")
 @login_required
 @require_permission("attendance", "view")
 def student_report(student_id):
@@ -534,7 +534,7 @@ def student_report(student_id):
     )
 
 
-@bp.route("/reports/student/<int:student_id>/day/<date_str>",
+@bp.route("/reports/student/<hid:student_id>/day/<date_str>",
           endpoint="student_day_detail")
 @login_required
 @require_permission("attendance", "view")

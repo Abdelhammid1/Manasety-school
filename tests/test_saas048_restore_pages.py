@@ -7,7 +7,7 @@ import io
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 from test_saas026_subscriptions import CONSOLE, _console_client, console  # noqa: F401
 
 ACCOUNT_PASSWORD = "test-password-12345"     # the two_schools fixture's account password
@@ -99,10 +99,10 @@ def test_only_the_owner_reaches_restore(rapp, world, login_as, role):
     c = _client(rapp, login_as, A, role)
     rid = A["restore"]
     for method, url in [("GET", "/admin/backups/restore"), ("POST", "/admin/backups/restore/new"),
-                        ("GET", f"/admin/backups/restore/{rid}"),
-                        ("GET", f"/admin/backups/restore/{rid}/status.json"),
-                        ("POST", f"/admin/backups/restore/{rid}/confirm"),
-                        ("POST", f"/admin/backups/restore/{rid}/undo")]:
+                        ("GET", f"/admin/backups/restore/{hid(rid)}"),
+                        ("GET", f"/admin/backups/restore/{hid(rid)}/status.json"),
+                        ("POST", f"/admin/backups/restore/{hid(rid)}/confirm"),
+                        ("POST", f"/admin/backups/restore/{hid(rid)}/undo")]:
         assert c.open(url, method=method, base_url=host(A)).status_code == 403, (role, url)
 
 
@@ -117,9 +117,9 @@ def test_full_flow_preview_confirm_run_undo(rapp, world, login_as):
     assert _restore_row(rapp, rid)[0] == "pending_preview"
     _queue(rapp)
     assert _restore_row(rapp, rid)[0] == "previewed"
-    page = c.get(f"/admin/backups/restore/{rid}", base_url=host(A)).get_data(as_text=True)
+    page = c.get(f"/admin/backups/restore/{hid(rid)}", base_url=host(A)).get_data(as_text=True)
     assert "الأساسيات الأكاديمية" in page and "تأكيد الاسترجاع" in page
-    url = f"/admin/backups/restore/{rid}/confirm"
+    url = f"/admin/backups/restore/{hid(rid)}/confirm"
     form = {"modules": ["academic"], "mode": "replace", "school_name": A["school"].name,
             "account_password": ACCOUNT_PASSWORD}
     r = c.post(url, base_url=host(A), data={**form, "school_name": "wrong name"}, follow_redirects=True)
@@ -134,7 +134,7 @@ def test_full_flow_preview_confirm_run_undo(rapp, world, login_as):
     assert status == "succeeded", error
     assert _subject_name(rapp, A) == original and point
     # undo → back to the renamed state
-    r = c.post(f"/admin/backups/restore/{rid}/undo", base_url=host(A),
+    r = c.post(f"/admin/backups/restore/{hid(rid)}/undo", base_url=host(A),
                data={"account_password": ACCOUNT_PASSWORD})
     assert r.status_code == 302
     uid = _latest(rapp, A)

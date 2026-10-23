@@ -412,7 +412,7 @@ def student_new():
     return render_template("students/form.html", student=None, form={}, dup=None, **render_kwargs)
 
 
-@bp.route("/<int:student_id>")
+@bp.route("/<hid:student_id>")
 @login_required
 @require_permission("students", "view")
 def student_detail(student_id):
@@ -450,7 +450,7 @@ def student_detail(student_id):
 
 # ─── Ticket 1 — Guardians on the student page ─────────────────────────
 
-@bp.route("/<int:student_id>/guardians/add", methods=["POST"])
+@bp.route("/<hid:student_id>/guardians/add", methods=["POST"])
 @login_required
 @require_permission("students", "edit")
 def guardian_add(student_id):
@@ -541,7 +541,7 @@ def _link_return_url(link):
     return url_for("students.student_detail", student_id=link.student_id)
 
 
-@bp.route("/guardian-links/<int:link_id>/update", methods=["POST"])
+@bp.route("/guardian-links/<hid:link_id>/update", methods=["POST"])
 @login_required
 @require_permission("students", "edit")
 def guardian_link_update(link_id):
@@ -561,7 +561,7 @@ def guardian_link_update(link_id):
     return redirect(_link_return_url(link))
 
 
-@bp.route("/guardian-links/<int:link_id>/delete", methods=["POST"])
+@bp.route("/guardian-links/<hid:link_id>/delete", methods=["POST"])
 @login_required
 @require_permission("students", "edit")
 def guardian_link_delete(link_id):
@@ -575,7 +575,7 @@ def guardian_link_delete(link_id):
 
 # ---------- Ticket #1 (2026-09-25) — inline account panel ----------
 
-@bp.route("/<int:student_id>/account/reset-password", methods=["POST"],
+@bp.route("/<hid:student_id>/account/reset-password", methods=["POST"],
           endpoint="student_account_reset_password")
 @login_required
 @require_permission("students", "edit")
@@ -596,7 +596,7 @@ def student_account_reset_password(student_id):
     return redirect(url_for("students.student_detail", student_id=student.id))
 
 
-@bp.route("/<int:student_id>/account/toggle", methods=["POST"],
+@bp.route("/<hid:student_id>/account/toggle", methods=["POST"],
           endpoint="student_account_toggle")
 @login_required
 @require_permission("students", "edit")
@@ -621,7 +621,7 @@ def _get_guardian(gid):
     return g
 
 
-@bp.route("/guardians/<int:guardian_id>/account/reset-password",
+@bp.route("/guardians/<hid:guardian_id>/account/reset-password",
           methods=["POST"], endpoint="guardian_account_reset_password")
 @login_required
 @require_permission("students", "edit")
@@ -642,7 +642,7 @@ def guardian_account_reset_password(guardian_id):
     return redirect(url_for("students.guardians_list"))
 
 
-@bp.route("/guardians/<int:guardian_id>/account/create",
+@bp.route("/guardians/<hid:guardian_id>/account/create",
           methods=["POST"], endpoint="guardian_account_create")
 @login_required
 @require_permission("students", "edit")
@@ -677,7 +677,7 @@ def guardian_account_create(guardian_id):
     return redirect(url_for("students.guardian_detail", guardian_id=g.id))
 
 
-@bp.route("/guardians/<int:guardian_id>/account/toggle",
+@bp.route("/guardians/<hid:guardian_id>/account/toggle",
           methods=["POST"], endpoint="guardian_account_toggle")
 @login_required
 @require_permission("students", "edit")
@@ -795,7 +795,7 @@ def guardian_new():
 
 # ---------- Ticket #4 (2026-09-26) — guardian detail / edit / delete ----------
 
-@bp.route("/guardians/<int:guardian_id>", endpoint="guardian_detail")
+@bp.route("/guardians/<hid:guardian_id>", endpoint="guardian_detail")
 @login_required
 @require_permission("students", "view")
 def guardian_detail(guardian_id):
@@ -808,7 +808,7 @@ def guardian_detail(guardian_id):
                            guardian=g, students=students_pool)
 
 
-@bp.route("/guardians/<int:guardian_id>/edit",
+@bp.route("/guardians/<hid:guardian_id>/edit",
           methods=["GET", "POST"], endpoint="guardian_edit")
 @login_required
 @require_permission("students", "edit")
@@ -843,7 +843,7 @@ def guardian_edit(guardian_id):
                            guardian=g, form={}, students=students_pool)
 
 
-@bp.route("/guardians/<int:guardian_id>/delete",
+@bp.route("/guardians/<hid:guardian_id>/delete",
           methods=["POST"], endpoint="guardian_delete")
 @login_required
 @require_permission("students", "delete")
@@ -865,7 +865,7 @@ def guardian_delete(guardian_id):
     return redirect(url_for("students.guardians_list"))
 
 
-@bp.route("/guardians/<int:guardian_id>/link",
+@bp.route("/guardians/<hid:guardian_id>/link",
           methods=["POST"], endpoint="guardian_link_new")
 @login_required
 @require_permission("students", "edit")
@@ -908,7 +908,7 @@ def guardian_link_new(guardian_id):
     return redirect(url_for("students.guardian_detail", guardian_id=g.id))
 
 
-@bp.route("/<int:student_id>/edit", methods=["GET", "POST"])
+@bp.route("/<hid:student_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("students", "edit")
 def student_edit(student_id):
@@ -946,7 +946,7 @@ def _parent_users():
 
 # ---------- T-3.2: Enroll in active year ----------
 
-@bp.route("/<int:student_id>/enroll", methods=["GET", "POST"])
+@bp.route("/<hid:student_id>/enroll", methods=["GET", "POST"])
 @login_required
 @require_permission("students", "add")
 def enroll(student_id):
@@ -1031,7 +1031,7 @@ def enroll(student_id):
 
 # ---------- T-3.3: Horizontal transfer ----------
 
-@bp.route("/enrollment/<int:enrollment_id>/transfer", methods=["GET", "POST"])
+@bp.route("/enrollment/<hid:enrollment_id>/transfer", methods=["GET", "POST"])
 @login_required
 @require_permission("students", "edit")
 def transfer(enrollment_id):
@@ -1086,7 +1086,7 @@ def transfer(enrollment_id):
 
 # ---------- T-3.5: Status change (withdraw/transfer-out) ----------
 
-@bp.route("/enrollment/<int:enrollment_id>/status", methods=["GET", "POST"])
+@bp.route("/enrollment/<hid:enrollment_id>/status", methods=["GET", "POST"])
 @login_required
 @require_permission("students", "edit")
 def status_change(enrollment_id):

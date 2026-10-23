@@ -44,7 +44,7 @@ def _get_student(student_id):
 
 # ─── Ticket #10 — Health ────────────────────────────────────────────
 
-@bp.route("/<int:student_id>/health", methods=["GET", "POST"], endpoint="health_profile")
+@bp.route("/<hid:student_id>/health", methods=["GET", "POST"], endpoint="health_profile")
 @login_required
 @require_permission("students", "view")
 def health_profile(student_id):
@@ -71,7 +71,7 @@ def health_profile(student_id):
     )
 
 
-@bp.route("/<int:student_id>/health/incident", methods=["POST"],
+@bp.route("/<hid:student_id>/health/incident", methods=["POST"],
           endpoint="health_incident_add")
 @login_required
 @require_permission("students", "edit")
@@ -104,7 +104,7 @@ def health_incident_add(student_id):
 
 # ─── Ticket #11 — Documents ─────────────────────────────────────────
 
-@bp.route("/<int:student_id>/documents", endpoint="documents")
+@bp.route("/<hid:student_id>/documents", endpoint="documents")
 @login_required
 @require_permission("students", "view")
 def documents(student_id):
@@ -116,7 +116,7 @@ def documents(student_id):
     return render_template("students/documents.html", student=student, documents=items)
 
 
-@bp.route("/<int:student_id>/documents/upload", methods=["POST"], endpoint="document_upload")
+@bp.route("/<hid:student_id>/documents/upload", methods=["POST"], endpoint="document_upload")
 @login_required
 @require_permission("students", "edit")
 def document_upload(student_id):
@@ -151,7 +151,7 @@ def document_upload(student_id):
     return redirect(url_for("students.documents", student_id=student.id))
 
 
-@bp.route("/documents/<int:doc_id>/delete", methods=["POST"], endpoint="document_delete")
+@bp.route("/documents/<hid:doc_id>/delete", methods=["POST"], endpoint="document_delete")
 @login_required
 @require_permission("students", "edit")
 def document_delete(doc_id):
@@ -174,7 +174,7 @@ def document_delete(doc_id):
 
 # ─── Ticket #12 — Behavior ──────────────────────────────────────────
 
-@bp.route("/<int:student_id>/behavior", endpoint="behavior_home")
+@bp.route("/<hid:student_id>/behavior", endpoint="behavior_home")
 @login_required
 @require_permission("students", "view")
 def behavior_home(student_id):
@@ -194,7 +194,7 @@ def behavior_home(student_id):
     )
 
 
-@bp.route("/<int:student_id>/behavior/add", methods=["POST"], endpoint="behavior_add")
+@bp.route("/<hid:student_id>/behavior/add", methods=["POST"], endpoint="behavior_add")
 @login_required
 @require_permission("students", "edit")
 def behavior_add(student_id):

@@ -157,7 +157,7 @@ def _section_quiz_mastery_rows(student_ids):
                bool(ok), awarded or 0, max_pts or 0)
 
 
-@bp.route("/reports/student/<int:student_id>", endpoint="report_student")
+@bp.route("/reports/student/<hid:student_id>", endpoint="report_student")
 @login_required
 def report_student(student_id):
     """Per-student mastery per subject × unit — one query per side."""
@@ -171,7 +171,7 @@ def report_student(student_id):
     return render_template("lms/report_student.html", student=student, subjects=result)
 
 
-@bp.route("/reports/section/<int:section_id>", endpoint="report_section")
+@bp.route("/reports/section/<hid:section_id>", endpoint="report_section")
 @login_required
 def report_section(section_id):
     """Per-section mastery — two queries total regardless of size."""

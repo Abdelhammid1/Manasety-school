@@ -90,7 +90,7 @@ def section_capacity_dashboard():
 
 
 # ─── A4 — Grade-level rollup ───────────────────────────────────────
-@bp.route("/dashboards/grade/<int:grade_id>", endpoint="grade_report")
+@bp.route("/dashboards/grade/<hid:grade_id>", endpoint="grade_report")
 @login_required
 @require_permission("students", "view")
 def grade_report(grade_id):
@@ -138,7 +138,7 @@ def grade_report(grade_id):
     )
 
 
-@bp.route("/dashboards/subject/<int:subject_id>", endpoint="subject_report")
+@bp.route("/dashboards/subject/<hid:subject_id>", endpoint="subject_report")
 @login_required
 @require_permission("students", "view")
 def subject_report(subject_id):
@@ -200,7 +200,7 @@ def _grade_avg(enrollment_ids):
 
 
 # ─── A8 — Bulk transfer ────────────────────────────────────────────
-@bp.route("/sections/<int:from_id>/bulk-transfer",
+@bp.route("/sections/<hid:from_id>/bulk-transfer",
           methods=["GET", "POST"], endpoint="bulk_transfer")
 @login_required
 @require_permission("students", "edit")

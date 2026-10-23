@@ -18,6 +18,10 @@ def install_proxy_fix(app):
 def create_app(config_class=Config):
     app = Flask(__name__, instance_relative_config=False)
     app.config.from_object(config_class)
+    # `<hid:…>` route parameters / `|hid`: link codes instead of raw ids.
+    # Registered before any blueprint (rules are parsed at registration).
+    from .services import hashid as _hashid
+    _hashid.init_app(app)
 
     # SAAS-001 — surface a visible warning in development/testing when
     # the SECRET_KEY falls back to the dev sentinel. Production boot

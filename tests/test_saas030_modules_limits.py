@@ -9,7 +9,7 @@ import threading
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 from test_saas026_subscriptions import CONSOLE, _console_client, console  # noqa: F401
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
@@ -403,7 +403,7 @@ def test_non_staff_role_names_cannot_hide_staff(mapp, two_schools, login_as):
     with mapp.app_context():
         before = db.session.get(Role, parent_id).permissions
         db.session.remove()
-    r = c.post(f"/admin/roles/{parent_id}/edit", base_url=host(A),
+    r = c.post(f"/admin/roles/{hid(parent_id)}/edit", base_url=host(A),
                data={"name": "parent", "name_ar": "ولي أمر", "perm_users_add": "on",
                      "perm_portal_view": "on"})
     assert "يقتصر على صلاحيات البوابة".encode() in r.data
@@ -411,6 +411,6 @@ def test_non_staff_role_names_cannot_hide_staff(mapp, two_schools, login_as):
         assert db.session.get(Role, parent_id).permissions == before
         db.session.remove()
     teacher_id = A["roles"]["teacher"].id
-    r = c.post(f"/admin/roles/{teacher_id}/edit", base_url=host(A),
+    r = c.post(f"/admin/roles/{hid(teacher_id)}/edit", base_url=host(A),
                data={"name": "parent", "name_ar": "x"})
     assert "محجوز".encode() in r.data

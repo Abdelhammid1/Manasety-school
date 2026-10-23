@@ -28,7 +28,7 @@ def _reload_config(**env):
     for mod in ("app.config", "app"):
         sys.modules.pop(mod, None)
     old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY", "CRON_TOKEN", "PLATFORM_ENC_KEY",
-                                       "SUPPORT_SESSION_KEY")}
+                                       "SUPPORT_SESSION_KEY", "HASHIDS_SALT")}
     try:
         for k, v in env.items():
             if v is None:
@@ -49,6 +49,9 @@ def _reload_config(**env):
         # SAAS-031 — and a distinct SUPPORT_SESSION_KEY.
         if "SUPPORT_SESSION_KEY" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
             os.environ["SUPPORT_SESSION_KEY"] = "u" * 48
+        # and a distinct HASHIDS_SALT (link codes).
+        if "HASHIDS_SALT" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
+            os.environ["HASHIDS_SALT"] = "h" * 48
         with patch("dotenv.load_dotenv", lambda *a, **k: False):
             return importlib.import_module("app.config")
     finally:
@@ -67,7 +70,7 @@ def _make_app_with(**env):
     for mod in ("app.config", "app"):
         sys.modules.pop(mod, None)
     old = {k: os.environ.get(k) for k in ("APP_ENV", "SECRET_KEY", "JWT_SIGNING_KEY", "CRON_TOKEN", "PLATFORM_ENC_KEY",
-                                       "SUPPORT_SESSION_KEY")}
+                                       "SUPPORT_SESSION_KEY", "HASHIDS_SALT")}
     try:
         for k, v in env.items():
             if v is None:
@@ -86,6 +89,9 @@ def _make_app_with(**env):
         # SAAS-031 — and a distinct SUPPORT_SESSION_KEY.
         if "SUPPORT_SESSION_KEY" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
             os.environ["SUPPORT_SESSION_KEY"] = "u" * 48
+        # and a distinct HASHIDS_SALT (link codes).
+        if "HASHIDS_SALT" not in env and os.environ.get("APP_ENV") not in ("development", "testing"):
+            os.environ["HASHIDS_SALT"] = "h" * 48
         with patch("dotenv.load_dotenv", lambda *a, **k: False):
             app_mod = importlib.import_module("app")
             return app_mod.create_app()

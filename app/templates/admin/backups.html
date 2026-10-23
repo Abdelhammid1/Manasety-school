@@ -68,7 +68,7 @@
       </thead>
       <tbody class="divide-y divide-surface-container-high/40">
         {% for b in backups %}
-        <tr data-backup="{{ b.id }}" data-status="{{ b.status }}">
+        <tr data-backup data-status-url="{{ url_for('admin.backup_status', bid=b.id) }}" data-status="{{ b.status }}">
           <td class="py-3 px-4 font-mono text-on-surface">{{ b.created_at.strftime('%Y-%m-%d %H:%M') if b.created_at else '' }}{% if b.kind == 'restore_point' %} <span class="font-label-xs text-outline">(نقطة أمان قبل استرجاع)</span>{% endif %}</td>
           <td class="py-3 px-4 font-mono text-outline">
             {% if b.size_bytes %}{{ '%.1f'|format(b.size_bytes / 1048576) }} MB{% else %}—{% endif %}
@@ -149,7 +149,7 @@
       let done = false;
       for (const r of rows) {
         try {
-          const res = await fetch(`{{ url_for('admin.backups_home') }}/${r.dataset.backup}/status.json`,
+          const res = await fetch(r.dataset.statusUrl,
                                   {credentials: 'same-origin'});
           if (!res.ok) continue;
           const s = await res.json();

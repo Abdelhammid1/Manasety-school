@@ -24,6 +24,13 @@ def host(bundle: dict) -> str:
     return f"http://{bundle['school'].slug}.manasety.ai"
 
 
+def hid(record_id) -> str:
+    """The link code of a record id, for paths written by hand in tests
+    (school web routes take `<hid:…>`; url_for does this by itself)."""
+    from app.services.hashid import encode
+    return encode(record_id)
+
+
 @dataclass(frozen=True)
 class Entry:
     """One endpoint in the isolation matrix.

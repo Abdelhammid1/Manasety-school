@@ -141,7 +141,7 @@ def calendar_day_add():
     return redirect(url_for("academic.calendar_month", month=d.strftime("%Y-%m")))
 
 
-@bp.route("/calendar/day/<int:day_id>/delete", methods=["POST"],
+@bp.route("/calendar/day/<hid:day_id>/delete", methods=["POST"],
           endpoint="calendar_day_delete")
 @login_required
 @require_permission("academic_years", "delete")

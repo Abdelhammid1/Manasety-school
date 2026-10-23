@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import pytest
 
-from isolation_harness import build_url, host
+from isolation_harness import build_url, host, hid
 from test_saas002_route_isolation import ROUTE_MATRIX
 
 PREFIXES = ("academic.", "admin.", "platform.", "teachers.", "results.", "schedule.",
@@ -45,11 +45,11 @@ def test_trash_restore_kind_is_a_fixed_whitelist(sapp, world, login_as):
     A, B = world["A"], world["B"]
     c = _admin(sapp, login_as, A)
     for kind in ("users", "schools", "Vendor", "../vendors", "audit_logs"):
-        r = c.post(f"/admin/trash/{kind}/{A['trash_vendor']}/restore", base_url=host(A))
+        r = c.post(f"/admin/trash/{kind}/{hid(A['trash_vendor'])}/restore", base_url=host(A))
         assert r.status_code == 404, kind
-    assert c.post(f"/admin/trash/vendors/{B['trash_vendor']}/restore",
+    assert c.post(f"/admin/trash/vendors/{hid(B['trash_vendor'])}/restore",
                   base_url=host(A)).status_code == 404
-    assert c.post(f"/admin/trash/vendors/{A['trash_vendor']}/restore",
+    assert c.post(f"/admin/trash/vendors/{hid(A['trash_vendor'])}/restore",
                   base_url=host(A)).status_code in (200, 302)
     with sapp.app_context():
         def deleted(vid):
@@ -89,11 +89,11 @@ def test_audit_log_shows_neither_other_schools_nor_platform_rows(sapp, world, lo
 def test_year_close_foreign_and_missing_are_a_real_404_with_a_way_back(sapp, world, login_as):
     A, B = world["A"], world["B"]
     c = _admin(sapp, login_as, A)
-    foreign = c.get(f"/academic/years/{B['year'].id}/close", base_url=host(A))
+    foreign = c.get(f"/academic/years/{hid(B['year'].id)}/close", base_url=host(A))
     missing = c.get("/academic/years/999999/close", base_url=host(A))
     assert foreign.status_code == missing.status_code == 404
     assert "/academic/years" in foreign.get_data(as_text=True)
-    assert c.get(f"/academic/years/{A['year'].id}/close", base_url=host(A)).status_code == 200
+    assert c.get(f"/academic/years/{hid(A['year'].id)}/close", base_url=host(A)).status_code == 200
 
 
 def test_bulk_operations_from_a_leave_b_untouched(sapp, world, login_as):
@@ -116,11 +116,11 @@ def test_bulk_operations_from_a_leave_b_untouched(sapp, world, login_as):
 
     before = b_state()
     c = _admin(sapp, login_as, A)
-    c.post(f"/results/section/{A['section'].id}/recompute-ranks", base_url=host(A))
-    c.post(f"/results/section/{B['section'].id}/recompute-ranks", base_url=host(A))
-    c.post(f"/academic/sections/{A['section'].id}/bulk-transfer", base_url=host(A),
+    c.post(f"/results/section/{hid(A['section'].id)}/recompute-ranks", base_url=host(A))
+    c.post(f"/results/section/{hid(B['section'].id)}/recompute-ranks", base_url=host(A))
+    c.post(f"/academic/sections/{hid(A['section'].id)}/bulk-transfer", base_url=host(A),
            data={"target_section_id": B["section"].id, "enrollment_ids": [B["enrollment"].id]})
-    c.post(f"/academic/years/{B['year'].id}/close", base_url=host(A), data={"confirm": "1"})
+    c.post(f"/academic/years/{hid(B['year'].id)}/close", base_url=host(A), data={"confirm": "1"})
     assert b_state() == before
 
 
@@ -136,14 +136,14 @@ def test_bulk_transfer_with_one_foreign_id_writes_nothing(sapp, world, login_as)
         target = sec.id
         db.session.remove()
     c = _admin(sapp, login_as, A)
-    r = c.post(f"/academic/sections/{A['section'].id}/bulk-transfer", base_url=host(A),
+    r = c.post(f"/academic/sections/{hid(A['section'].id)}/bulk-transfer", base_url=host(A),
                data={"target_section_id": target,
                      "enrollment_ids": [A["enrollment"].id, B["enrollment"].id]})
     assert r.status_code == 404
     with sapp.app_context():
         assert db.session.get(Enrollment, A["enrollment"].id).section_id == A["section"].id
         db.session.remove()
-    r = c.post(f"/academic/sections/{A['section'].id}/bulk-transfer", base_url=host(A),
+    r = c.post(f"/academic/sections/{hid(A['section'].id)}/bulk-transfer", base_url=host(A),
                data={"target_section_id": target, "enrollment_ids": [A["enrollment"].id]})
     assert r.status_code == 302
     with sapp.app_context():
@@ -165,7 +165,7 @@ def test_slot_save_checks_every_reference(sapp, world, login_as):
     foreign = {"day_id": B["day"], "period_id": B["period"], "subject_id": B["subject"].id,
                "teacher_id": B["teacher"], "room_id": B["room"]}
     c = _admin(sapp, login_as, A)
-    url = f"/schedule/section/{A['section'].id}/slot"
+    url = f"/schedule/section/{hid(A['section'].id)}/slot"
     for key in own:
         r = c.post(url, base_url=host(A), data={**own, key: foreign[key]})
         assert r.status_code == 404, key

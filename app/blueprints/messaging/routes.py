@@ -241,7 +241,7 @@ def conversation_new():
     return render_template("messaging/new.html", recipients=allowed)
 
 
-@bp.route("/c/<int:conv_id>", methods=["GET", "POST"], endpoint="conversation_view")
+@bp.route("/c/<hid:conv_id>", methods=["GET", "POST"], endpoint="conversation_view")
 @login_required
 def conversation_view(conv_id):
     conv = Conversation.query.filter_by(id=conv_id, school_id=_sid()).first_or_404()
@@ -321,7 +321,7 @@ def messages_search():
     )
 
 
-@bp.route("/m/<int:msg_id>/delete", methods=["POST"], endpoint="message_delete")
+@bp.route("/m/<hid:msg_id>/delete", methods=["POST"], endpoint="message_delete")
 @login_required
 def message_delete(msg_id):
     """Soft-delete a message the current user sent. Deleted rows stay in

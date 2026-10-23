@@ -32,7 +32,7 @@ def passage_new():
     return _passage_form(None)
 
 
-@bp.route("/passages/<int:pid>", methods=["GET", "POST"], endpoint="passage_edit")
+@bp.route("/passages/<hid:pid>", methods=["GET", "POST"], endpoint="passage_edit")
 @login_required
 @require_permission("lms", "edit")
 def passage_edit(pid):
@@ -74,7 +74,7 @@ def _passage_form(p):
                            grades=grades, linked=linked)
 
 
-@bp.route("/passages/<int:pid>/delete", methods=["POST"], endpoint="passage_delete")
+@bp.route("/passages/<hid:pid>/delete", methods=["POST"], endpoint="passage_delete")
 @login_required
 def passage_delete(pid):
     p = Passage.query.filter_by(

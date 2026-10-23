@@ -9,6 +9,7 @@ from ...models import (
     Section, Subject, Teacher, Student, PickupCall,
 )
 from ...services import pickup as pickup_svc
+from ...services.hashid import encode as encode_hid
 from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
 
 
@@ -164,7 +165,7 @@ def pickup_call():
     return redirect(url_for("portal.pickup_home"))
 
 
-@bp.route("/pickup/<int:cid>/release", methods=["POST"])
+@bp.route("/pickup/<hid:cid>/release", methods=["POST"])
 @login_required
 def pickup_release(cid):
     call = owned_or_404(PickupCall, cid)   # isolation sweep: same 404 for foreign / missing
@@ -195,7 +196,8 @@ def pickup_active_json():
     )
     return jsonify({
         "calls": [{
-            "id": c.id,
+            "id": encode_hid(c.id),
+            "ack_url": url_for("portal.pickup_ack", cid=c.id),
             "student": c.student.full_name if c.student else "",
             "parent": (c.parent.username if c.parent else "ولي الأمر"),
             "gate": c.gate or "",
@@ -206,7 +208,7 @@ def pickup_active_json():
     })
 
 
-@bp.route("/pickup/<int:cid>/ack", methods=["POST"])
+@bp.route("/pickup/<hid:cid>/ack", methods=["POST"])
 @login_required
 def pickup_ack(cid):
     """Teacher or student marks the call as seen."""

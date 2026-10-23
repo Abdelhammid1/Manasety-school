@@ -36,7 +36,7 @@ def skill_new():
     return jsonify({"id": s.id, "title": s.title, "parent_id": s.parent_id})
 
 
-@bp.route("/skills/<int:sid>/delete", methods=["POST"], endpoint="skill_delete")
+@bp.route("/skills/<hid:sid>/delete", methods=["POST"], endpoint="skill_delete")
 @login_required
 def skill_delete(sid):
     s = Skill.query.filter_by(id=sid, school_id=current_user.school_id).first_or_404()
@@ -62,7 +62,7 @@ def objective_new():
                     "lesson_id": o.lesson_id})
 
 
-@bp.route("/objectives/<int:oid>/delete", methods=["POST"], endpoint="objective_delete")
+@bp.route("/objectives/<hid:oid>/delete", methods=["POST"], endpoint="objective_delete")
 @login_required
 def objective_delete(oid):
     o = LearningObjective.query.filter_by(
@@ -87,7 +87,7 @@ def collection_new():
     return jsonify({"id": c.id, "title": c.title})
 
 
-@bp.route("/collections/<int:cid>/add", methods=["POST"], endpoint="collection_add")
+@bp.route("/collections/<hid:cid>/add", methods=["POST"], endpoint="collection_add")
 @login_required
 def collection_add(cid):
     from ...models import BankQuestion
@@ -133,7 +133,7 @@ def feedback_template_new():
     return jsonify({"id": t.id, "title": t.title, "body": t.body})
 
 
-@bp.route("/feedback-templates/<int:tid>/delete", methods=["POST"],
+@bp.route("/feedback-templates/<hid:tid>/delete", methods=["POST"],
           endpoint="feedback_template_delete")
 @login_required
 def feedback_template_delete(tid):
@@ -144,7 +144,7 @@ def feedback_template_delete(tid):
 
 
 # ── Assignment Extensions (#24) ────────────────────────────────────
-@bp.route("/assignments/<int:aid>/extensions", methods=["POST"],
+@bp.route("/assignments/<hid:aid>/extensions", methods=["POST"],
           endpoint="assignment_extension_add")
 @login_required
 def assignment_extension_add(aid):
@@ -254,7 +254,7 @@ def taxonomy_skill_new():
     return redirect(url_for("lms.taxonomy_home"))
 
 
-@bp.route("/taxonomy/skills/<int:sid>/edit", methods=["POST"],
+@bp.route("/taxonomy/skills/<hid:sid>/edit", methods=["POST"],
           endpoint="taxonomy_skill_edit")
 @login_required
 @require_permission("lms", "edit")
@@ -276,7 +276,7 @@ def taxonomy_skill_edit(sid):
     return redirect(url_for("lms.taxonomy_home"))
 
 
-@bp.route("/taxonomy/skills/<int:sid>/delete", methods=["POST"],
+@bp.route("/taxonomy/skills/<hid:sid>/delete", methods=["POST"],
           endpoint="taxonomy_skill_delete")
 @login_required
 @require_permission("lms", "delete")
@@ -318,7 +318,7 @@ def taxonomy_objective_new():
     return redirect(url_for("lms.taxonomy_home"))
 
 
-@bp.route("/taxonomy/objectives/<int:oid>/edit", methods=["POST"],
+@bp.route("/taxonomy/objectives/<hid:oid>/edit", methods=["POST"],
           endpoint="taxonomy_objective_edit")
 @login_required
 @require_permission("lms", "edit")
@@ -346,7 +346,7 @@ def taxonomy_objective_edit(oid):
     return redirect(url_for("lms.taxonomy_home"))
 
 
-@bp.route("/taxonomy/objectives/<int:oid>/delete", methods=["POST"],
+@bp.route("/taxonomy/objectives/<hid:oid>/delete", methods=["POST"],
           endpoint="taxonomy_objective_delete")
 @login_required
 @require_permission("lms", "delete")

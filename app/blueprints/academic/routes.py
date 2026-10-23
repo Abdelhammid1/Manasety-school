@@ -107,7 +107,7 @@ def _rollover_sections(source_year, target_year):
     return added
 
 
-@bp.route("/years/<int:year_id>/edit", methods=["GET", "POST"], endpoint="year_edit")
+@bp.route("/years/<hid:year_id>/edit", methods=["GET", "POST"], endpoint="year_edit")
 @login_required
 @require_permission("academic_years", "edit")
 def year_edit(year_id):
@@ -135,7 +135,7 @@ def year_edit(year_id):
     return render_template("academic/year_form.html", year=year)
 
 
-@bp.route("/years/<int:year_id>/close", methods=["GET", "POST"])
+@bp.route("/years/<hid:year_id>/close", methods=["GET", "POST"])
 @login_required
 @require_permission("academic_years", "edit")
 def year_close(year_id):
@@ -198,7 +198,7 @@ def year_close(year_id):
 
 # ---------- Terms (T-2.2) ----------
 
-@bp.route("/years/<int:year_id>/terms")
+@bp.route("/years/<hid:year_id>/terms")
 @login_required
 @require_permission("terms", "view")
 def terms_list(year_id):
@@ -278,7 +278,7 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
     }, None
 
 
-@bp.route("/years/<int:year_id>/terms/new", methods=["GET", "POST"])
+@bp.route("/years/<hid:year_id>/terms/new", methods=["GET", "POST"])
 @login_required
 @require_permission("terms", "add")
 def term_new(year_id):
@@ -309,7 +309,7 @@ def term_new(year_id):
     return render_template("academic/term_form.html", year=year, term=None)
 
 
-@bp.route("/terms/<int:term_id>/edit", methods=["GET", "POST"])
+@bp.route("/terms/<hid:term_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("terms", "edit")
 def term_edit(term_id):
@@ -332,7 +332,7 @@ def term_edit(term_id):
     return render_template("academic/term_form.html", year=year, term=term)
 
 
-@bp.route("/terms/<int:term_id>/delete", methods=["POST"])
+@bp.route("/terms/<hid:term_id>/delete", methods=["POST"])
 @login_required
 @require_permission("terms", "delete")
 def term_delete(term_id):
@@ -422,7 +422,7 @@ def grade_new():
     return render_template("academic/grade_form.html", grade=None)
 
 
-@bp.route("/grades/<int:grade_id>/edit", methods=["GET", "POST"])
+@bp.route("/grades/<hid:grade_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("grades", "edit")
 def grade_edit(grade_id):
@@ -437,7 +437,7 @@ def grade_edit(grade_id):
     return render_template("academic/grade_form.html", grade=grade)
 
 
-@bp.route("/grades/<int:grade_id>", methods=["GET"], endpoint="grade_detail")
+@bp.route("/grades/<hid:grade_id>", methods=["GET"], endpoint="grade_detail")
 @login_required
 @require_permission("grades", "view")
 def grade_detail(grade_id):
@@ -456,7 +456,7 @@ def grade_detail(grade_id):
     )
 
 
-@bp.route("/grades/<int:grade_id>/delete", methods=["POST"], endpoint="grade_delete")
+@bp.route("/grades/<hid:grade_id>/delete", methods=["POST"], endpoint="grade_delete")
 @login_required
 @require_permission("grades", "delete")
 def grade_delete(grade_id):
@@ -499,7 +499,7 @@ def sections_list():
     return render_template("academic/sections_list.html", sections=sections, active_year=year)
 
 
-@bp.route("/sections/<int:section_id>", methods=["GET"], endpoint="section_detail")
+@bp.route("/sections/<hid:section_id>", methods=["GET"], endpoint="section_detail")
 @login_required
 @require_permission("sections", "view")
 def section_detail(section_id):
@@ -552,7 +552,7 @@ def section_new():
     return render_template("academic/section_form.html", section=None, grades=grades, year=year)
 
 
-@bp.route("/sections/<int:section_id>/edit", methods=["GET", "POST"])
+@bp.route("/sections/<hid:section_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("sections", "edit")
 def section_edit(section_id):
@@ -584,7 +584,7 @@ def section_edit(section_id):
     )
 
 
-@bp.route("/sections/<int:section_id>/delete", methods=["POST"])
+@bp.route("/sections/<hid:section_id>/delete", methods=["POST"])
 @login_required
 @require_permission("sections", "delete")
 def section_delete(section_id):

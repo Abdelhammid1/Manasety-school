@@ -10,7 +10,7 @@ from urllib.parse import parse_qs, urlparse
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 from test_saas026_subscriptions import CONSOLE, _console_client, console  # noqa: F401
 
 
@@ -181,7 +181,7 @@ def test_write_mode_forbidden_endpoints(sapp, two_schools, monkeypatch):
                         totp=pyotp.TOTP(secret).now())
     r = c.post("/admin/users/new", base_url=host(A), data={"username": "x"})
     assert r.status_code == 403
-    r = c.post(f"/students/{A['student'].id}/account/reset-password", base_url=host(A))
+    r = c.post(f"/students/{hid(A['student'].id)}/account/reset-password", base_url=host(A))
     assert r.status_code == 403
     # a normal write gets through the support gate (the view decides)
     r = c.post("/admin/roles/new", base_url=host(A), data={"name": "sup-made", "name_ar": "x"})
@@ -470,7 +470,7 @@ def test_write_mode_refuses_any_credential_field(sapp, two_schools):
     A = two_schools["A"]
     c, _owner, _uid = _write_client(sapp, A)
     for path, field in (("/teachers/new", "account_password"), ("/hr/employees/new", "account_password"),
-                        (f"/students/{A['student'].id}/edit", "login_password"),
+                        (f"/students/{hid(A['student'].id)}/edit", "login_password"),
                         ("/admin/roles/new", "email")):
         r = c.post(path, base_url=host(A), data={field: "planted-secret-1", "name": "x"})
         assert r.status_code == 403, path

@@ -1,6 +1,6 @@
 """SAAS-002 §4.3 / SAAS-012 — Route Isolation Matrix.
 
-Every route with an `<int:…>` parameter must be either in ROUTE_MATRIX
+Every route with an `<int:…>` or `<hid:…>` parameter must be either in ROUTE_MATRIX
 (attacked on every run) or in ALLOWLIST with a written reason. The
 isolation sweep (SAAS-013B..018) closed the last pending endpoint: a
 new route that is in neither fails CI until someone classifies it.
@@ -1194,8 +1194,11 @@ def enforce_app(app, monkeypatch):
 
 
 def _int_rules(app) -> Iterable:
+    """Every route that takes a record id: `<int:…>` (api / platform) and
+    `<hid:…>` (school web links carry a code, the view still gets the
+    int). Dropping either would silently take routes out of the sweep."""
     for rule in app.url_map.iter_rules():
-        if "<int:" in rule.rule and (rule.methods or set()) - {"HEAD", "OPTIONS"}:
+        if ("<int:" in rule.rule or "<hid:" in rule.rule)                 and (rule.methods or set()) - {"HEAD", "OPTIONS"}:
             yield rule
 
 
@@ -1228,7 +1231,7 @@ def test_every_int_route_is_classified(app):
         if r.endpoint not in ROUTE_MATRIX and r.endpoint not in ALLOWLIST
     ]
     assert not unclassified, (
-        "Unclassified <int:…> endpoint(s) — add each to ROUTE_MATRIX "
+        "Unclassified <int:…>/<hid:…> endpoint(s) — add each to ROUTE_MATRIX "
         "(with an id fetcher for school B) or ALLOWLIST (with a reason):\n  - "
         + "\n  - ".join(f"{ep}  {path}" for ep, path in unclassified)
     )
@@ -1411,7 +1414,7 @@ def build_coverage_report(app) -> str:
     lines = [
         "# SAAS-012 isolation coverage",
         "",
-        f"- `<int:…>` endpoints: **{total}**",
+        f"- `<int:…>` / `<hid:…>` endpoints: **{total}**",
         f"- in ROUTE_MATRIX: **{len(covered)}** ({len(covered) / total:.1%})",
         f"- in ALLOWLIST (written reason): **{len(allowed)}**",
         f"- form/query-id endpoints: **{len(form_found)}**, covered **{len(form_cov)}**, "
@@ -1459,7 +1462,13 @@ def test_foreign_and_missing_ids_get_the_same_answer(enforce_app, world, login_a
         r1 = c.open(build_url(app, endpoint, real, host(A)), method=m, base_url=host(A))
         r2 = c.open(build_url(app, endpoint, fake, host(A)), method=m, base_url=host(A))
     assert r1.status_code == r2.status_code, f"{endpoint}: foreign {r1.status_code} vs missing {r2.status_code}"
+    from app.services.hashid import encode
+    codes = {encode(v) for d in (real, fake) for v in d.values() if isinstance(v, int)}
     def norm(r):
-        # the id is echoed in links / canonical URL: mask every number
-        return re.sub(r"\d+", "N", r.get_data(as_text=True))
+        # the id is echoed in links / canonical URL — as a number or as
+        # its link code (<hid:…> routes): mask both
+        body = r.get_data(as_text=True)
+        for code in codes:
+            body = body.replace(code, "N")
+        return re.sub(r"\d+", "N", body)
     assert norm(r1) == norm(r2), f"{endpoint}: foreign and missing pages differ"

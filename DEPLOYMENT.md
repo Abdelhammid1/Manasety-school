@@ -144,6 +144,17 @@ WHATSAPP_PROVIDER=stub
 - `log` مراقبة فقط: الدخول على host المنصة بيكمل ويتسجل تحذير `tenancy[log] would reject platform login`. الرفض بيحصل في `enforce` بس.
 - في `enforce` أي host مش معروف (منه `127.0.0.1` و`localhost`) بيرجّع 404. مفيش health check ولا مستدعي داخلي بيعتمد عليهم (الـ cron الحالي على السيرفر بيضرب تطبيق تاني، و`/cron/tick` مالوش مستدعي).
 
+#### أكواد الروابط — Hashids
+
+| المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |
+|---|---|---|---|
+| `HASHIDS_SALT` | سر ≥ 32 حرف ومختلف عن `SECRET_KEY` | الإنتاج: الإقلاع بيفشل برسالة واضحة. التطوير: قيمة مشتقة | نفس "مش معرّف" |
+
+- روابط الويب الخاصة بالمدرسة بقت بكود بدل الـ id (`/students/xK9aBc2Q` بدل `/students/46`). الـ API والـ superadmin والمنصة لسه بالأرقام.
+- **يتحط مرة واحدة بس** في env السيرفر (systemd) قبل الـ restart: `python3 -c "import secrets; print(secrets.token_urlsafe(48))"`. لو اتغيّر بعد كده، كل الروابط المحفوظة (bookmarks، إيميلات قديمة) تدّي 404.
+- مفيش migration ولا backup مطلوب: `pip install -r requirements.txt` (فيه `hashids`) + ضبط المتغير + restart.
+- الروابط القديمة بالرقم الخام بتدّي 404 (من غير redirect). الكود بيخفي الترقيم بس، الحماية لسه فلتر `school_id`.
+
 #### لوحة المنصة — Super Admin (SAAS-025)
 
 | المتغير | الصيغة | لو مش معرّف | لو معرّف وفاضي |

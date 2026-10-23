@@ -38,7 +38,7 @@ def _get_student(student_id):
 
 
 # ─── S1 — 360 ──────────────────────────────────────────────────────
-@bp.route("/<int:student_id>/360", endpoint="student_360")
+@bp.route("/<hid:student_id>/360", endpoint="student_360")
 @login_required
 @require_permission("students", "view")
 def student_360(student_id):
@@ -48,7 +48,7 @@ def student_360(student_id):
                            student=student, data=data)
 
 
-@bp.route("/<int:student_id>/360.json", endpoint="student_360_json")
+@bp.route("/<hid:student_id>/360.json", endpoint="student_360_json")
 @login_required
 @require_permission("students", "view")
 def student_360_json(student_id):
@@ -57,7 +57,7 @@ def student_360_json(student_id):
 
 
 # ─── S4 — Graduation ───────────────────────────────────────────────
-@bp.route("/enrollments/<int:enrollment_id>/graduate",
+@bp.route("/enrollments/<hid:enrollment_id>/graduate",
           methods=["POST"], endpoint="graduate_enrollment")
 @login_required
 @require_permission("students", "edit")
@@ -90,7 +90,7 @@ def graduate_enrollment(enrollment_id):
 
 
 # ─── S5 — Exit interview ───────────────────────────────────────────
-@bp.route("/enrollments/<int:enrollment_id>/exit-checklist",
+@bp.route("/enrollments/<hid:enrollment_id>/exit-checklist",
           methods=["POST"], endpoint="save_exit_checklist")
 @login_required
 @require_permission("students", "edit")
@@ -123,7 +123,7 @@ def save_exit_checklist(enrollment_id):
 
 
 # ─── S7 — Printable ID card ────────────────────────────────────────
-@bp.route("/<int:student_id>/id-card", endpoint="student_id_card")
+@bp.route("/<hid:student_id>/id-card", endpoint="student_id_card")
 @login_required
 @require_permission("students", "view")
 def student_id_card(student_id):

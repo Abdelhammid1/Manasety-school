@@ -105,7 +105,7 @@ def accounts():
     )
 
 
-@bp.route("/accounts/<int:aid>/statement")
+@bp.route("/accounts/<hid:aid>/statement")
 @login_required
 @require_permission("finance", "view")
 def account_statement(aid):
@@ -341,7 +341,7 @@ def fee_type_new():
     return render_template("finance/fee_type_form.html", revenues=revenues, fee_type=None)
 
 
-@bp.route("/fee-types/<int:ft_id>/edit", methods=["GET", "POST"])
+@bp.route("/fee-types/<hid:ft_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("finance", "edit")
 def fee_type_edit(ft_id):
@@ -367,7 +367,7 @@ def fee_type_edit(ft_id):
     return render_template("finance/fee_type_form.html", revenues=revenues, fee_type=f)
 
 
-@bp.route("/fee-types/<int:ft_id>/toggle", methods=["POST"])
+@bp.route("/fee-types/<hid:ft_id>/toggle", methods=["POST"])
 @login_required
 @require_permission("finance", "edit")
 def fee_type_toggle(ft_id):
@@ -381,7 +381,7 @@ def fee_type_toggle(ft_id):
     return redirect(url_for("finance.fee_types"))
 
 
-@bp.route("/fee-types/<int:ft_id>/delete", methods=["POST"])
+@bp.route("/fee-types/<hid:ft_id>/delete", methods=["POST"])
 @login_required
 @require_permission("finance", "delete")
 def fee_type_delete(ft_id):
@@ -561,7 +561,7 @@ def _assert_invoice_viewer(inv):
         abort(403)
 
 
-@bp.route("/invoices/<int:invoice_id>")
+@bp.route("/invoices/<hid:invoice_id>")
 @login_required
 @require_permission("finance", "view")
 def invoice_detail(invoice_id):
@@ -584,7 +584,7 @@ def invoice_detail(invoice_id):
                            today=date.today)
 
 
-@bp.route("/invoices/<int:invoice_id>/print")
+@bp.route("/invoices/<hid:invoice_id>/print")
 @login_required
 @require_permission("finance", "view")
 def invoice_print(invoice_id):
@@ -718,7 +718,7 @@ def bulk_payment():
     )
 
 
-@bp.route("/invoices/<int:invoice_id>/void", methods=["POST"])
+@bp.route("/invoices/<hid:invoice_id>/void", methods=["POST"])
 @login_required
 @require_permission("finance_transactions", "add")
 def invoice_void(invoice_id):
@@ -739,7 +739,7 @@ def invoice_void(invoice_id):
     return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
 
-@bp.route("/invoices/<int:invoice_id>/unvoid", methods=["POST"],
+@bp.route("/invoices/<hid:invoice_id>/unvoid", methods=["POST"],
           endpoint="invoice_unvoid")
 @login_required
 @require_permission("finance_transactions", "add")
@@ -760,7 +760,7 @@ def invoice_unvoid(invoice_id):
     return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
 
 
-@bp.route("/invoices/<int:invoice_id>/pay", methods=["POST"])
+@bp.route("/invoices/<hid:invoice_id>/pay", methods=["POST"])
 @login_required
 @require_permission("finance_transactions", "add")
 def invoice_pay(invoice_id):
@@ -1070,7 +1070,7 @@ def cost_center_new():
     return redirect(url_for("finance.cost_centers_list"))
 
 
-@bp.route("/cost-centers/<int:cc_id>/toggle", methods=["POST"],
+@bp.route("/cost-centers/<hid:cc_id>/toggle", methods=["POST"],
           endpoint="cost_center_toggle")
 @login_required
 @require_permission("finance", "edit")
@@ -1082,7 +1082,7 @@ def cost_center_toggle(cc_id):
     return redirect(url_for("finance.cost_centers_list"))
 
 
-@bp.route("/cost-centers/<int:cc_id>/delete", methods=["POST"],
+@bp.route("/cost-centers/<hid:cc_id>/delete", methods=["POST"],
           endpoint="cost_center_delete")
 @login_required
 @require_permission("finance", "delete")
@@ -1298,7 +1298,7 @@ def bank_rec_import():
     return redirect(url_for("finance.bank_rec", account_id=account_id))
 
 
-@bp.route("/bank-rec/<int:line_id>/match", methods=["POST"], endpoint="bank_rec_match")
+@bp.route("/bank-rec/<hid:line_id>/match", methods=["POST"], endpoint="bank_rec_match")
 @login_required
 @require_permission("finance_transactions", "add")
 def bank_rec_match(line_id):
@@ -1330,7 +1330,7 @@ def bank_rec_match(line_id):
     return redirect(url_for("finance.bank_rec", account_id=line.bank_account_id))
 
 
-@bp.route("/bank-rec/<int:line_id>/unmatch", methods=["POST"], endpoint="bank_rec_unmatch")
+@bp.route("/bank-rec/<hid:line_id>/unmatch", methods=["POST"], endpoint="bank_rec_unmatch")
 @login_required
 @require_permission("finance_transactions", "add")
 def bank_rec_unmatch(line_id):
@@ -1391,7 +1391,7 @@ def recurring_new():
     return redirect(url_for("finance.recurring_list"))
 
 
-@bp.route("/recurring/<int:rid>/toggle", methods=["POST"], endpoint="recurring_toggle")
+@bp.route("/recurring/<hid:rid>/toggle", methods=["POST"], endpoint="recurring_toggle")
 @login_required
 @require_permission("finance", "edit")
 def recurring_toggle(rid):
@@ -1403,7 +1403,7 @@ def recurring_toggle(rid):
     return redirect(url_for("finance.recurring_list"))
 
 
-@bp.route("/recurring/<int:rid>/delete", methods=["POST"], endpoint="recurring_delete")
+@bp.route("/recurring/<hid:rid>/delete", methods=["POST"], endpoint="recurring_delete")
 @login_required
 @require_permission("finance", "delete")
 def recurring_delete(rid):
@@ -1469,7 +1469,7 @@ def payment_method_new():
     return redirect(url_for("finance.payment_methods_list"))
 
 
-@bp.route("/payment-methods/<int:pm_id>/toggle",
+@bp.route("/payment-methods/<hid:pm_id>/toggle",
           methods=["POST"], endpoint="payment_method_toggle")
 @login_required
 @require_permission("finance", "edit")
@@ -1482,7 +1482,7 @@ def payment_method_toggle(pm_id):
     return redirect(url_for("finance.payment_methods_list"))
 
 
-@bp.route("/payment-methods/<int:pm_id>/delete",
+@bp.route("/payment-methods/<hid:pm_id>/delete",
           methods=["POST"], endpoint="payment_method_delete")
 @login_required
 @require_permission("finance", "delete")
@@ -1531,7 +1531,7 @@ def vendor_new():
     return render_template("finance/vendor_form.html", vendor=None)
 
 
-@bp.route("/vendors/<int:vendor_id>", endpoint="vendor_detail")
+@bp.route("/vendors/<hid:vendor_id>", endpoint="vendor_detail")
 @login_required
 @require_permission("expenses", "view")
 def vendor_detail(vendor_id):
@@ -1566,7 +1566,7 @@ def vendor_detail(vendor_id):
     )
 
 
-@bp.route("/vendors/<int:vendor_id>/edit", methods=["GET", "POST"])
+@bp.route("/vendors/<hid:vendor_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("expenses", "edit")
 def vendor_edit(vendor_id):
@@ -1582,7 +1582,7 @@ def vendor_edit(vendor_id):
     return render_template("finance/vendor_form.html", vendor=v)
 
 
-@bp.route("/vendors/<int:vendor_id>/toggle", methods=["POST"])
+@bp.route("/vendors/<hid:vendor_id>/toggle", methods=["POST"])
 @login_required
 @require_permission("expenses", "edit")
 def vendor_toggle(vendor_id):
@@ -1596,7 +1596,7 @@ def vendor_toggle(vendor_id):
     return redirect(url_for("finance.vendors_list"))
 
 
-@bp.route("/vendors/<int:vendor_id>/delete", methods=["POST"])
+@bp.route("/vendors/<hid:vendor_id>/delete", methods=["POST"])
 @login_required
 @require_permission("expenses", "delete")
 def vendor_delete(vendor_id):
@@ -1772,7 +1772,7 @@ def expense_new():
     )
 
 
-@bp.route("/expenses/<int:exp_id>/edit", methods=["GET", "POST"])
+@bp.route("/expenses/<hid:exp_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("expenses", "edit")
 def expense_edit(exp_id):
@@ -1859,7 +1859,7 @@ def expense_edit(exp_id):
     )
 
 
-@bp.route("/expenses/<int:exp_id>/delete", methods=["POST"])
+@bp.route("/expenses/<hid:exp_id>/delete", methods=["POST"])
 @login_required
 @require_permission("expenses", "delete")
 def expense_delete(exp_id):
@@ -2110,7 +2110,7 @@ def budget_new():
     return redirect(url_for("finance.budgets_home"))
 
 
-@bp.route("/budgets/<int:bid>/delete", methods=["POST"], endpoint="budget_delete")
+@bp.route("/budgets/<hid:bid>/delete", methods=["POST"], endpoint="budget_delete")
 @login_required
 @require_permission("finance", "delete")
 def budget_delete(bid):
@@ -2133,7 +2133,7 @@ def report_budget_vs_actual():
 
 
 # ── Approval workflow on Expenses ─────────────────────────────────
-@bp.route("/expenses/<int:eid>/approve", methods=["POST"],
+@bp.route("/expenses/<hid:eid>/approve", methods=["POST"],
           endpoint="expense_approve")
 @login_required
 @require_permission("finance_transactions", "add")
@@ -2161,7 +2161,7 @@ def expense_approve(eid):
     return redirect(url_for("finance.expenses"))
 
 
-@bp.route("/expenses/<int:eid>/reject", methods=["POST"],
+@bp.route("/expenses/<hid:eid>/reject", methods=["POST"],
           endpoint="expense_reject")
 @login_required
 @require_permission("finance_transactions", "add")

@@ -71,7 +71,7 @@ def refunds_list():
     )
 
 
-@bp.route("/invoices/<int:invoice_id>/refund-request",
+@bp.route("/invoices/<hid:invoice_id>/refund-request",
           methods=["POST"], endpoint="refund_request_new")
 @login_required
 @require_permission("finance_transactions", "add")
@@ -112,7 +112,7 @@ def refund_request_new(invoice_id):
     return redirect(url_for("finance.refunds_list"))
 
 
-@bp.route("/refunds/<int:req_id>/approve",
+@bp.route("/refunds/<hid:req_id>/approve",
           methods=["POST"], endpoint="refund_request_approve")
 @login_required
 def refund_request_approve(req_id):
@@ -159,7 +159,7 @@ def refund_request_approve(req_id):
     return redirect(url_for("finance.refunds_list"))
 
 
-@bp.route("/refunds/<int:req_id>/reject",
+@bp.route("/refunds/<hid:req_id>/reject",
           methods=["POST"], endpoint="refund_request_reject")
 @login_required
 def refund_request_reject(req_id):

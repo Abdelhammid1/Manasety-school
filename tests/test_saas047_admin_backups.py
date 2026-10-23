@@ -8,7 +8,7 @@ import re
 
 import pytest
 
-from isolation_harness import host
+from isolation_harness import host, hid
 from test_saas026_subscriptions import CONSOLE, _console_client, console  # noqa: F401
 
 PASS = "a long enough passphrase"
@@ -82,9 +82,9 @@ def test_only_the_school_owner_reaches_the_page(bapp, world, login_as, role):
     c = _client(bapp, login_as, A, role)
     bid = A["backup"]
     for method, url in [("GET", "/admin/backups"), ("POST", "/admin/backups/new"),
-                        ("GET", f"/admin/backups/{bid}/status.json"),
-                        ("POST", f"/admin/backups/{bid}/delete"),
-                        ("POST", f"/admin/backups/{bid}/download")]:
+                        ("GET", f"/admin/backups/{hid(bid)}/status.json"),
+                        ("POST", f"/admin/backups/{hid(bid)}/delete"),
+                        ("POST", f"/admin/backups/{hid(bid)}/download")]:
         r = c.open(url, method=method, base_url=host(A))
         assert r.status_code == 403, (role, url, r.status_code)
     assert len(_rows(bapp, A)) == 1
@@ -115,7 +115,7 @@ def test_request_runs_from_the_queue_and_notifies_in_app(bapp, world, login_as):
     assert _run(bapp) == 1
     (bid, status, name), = _rows(bapp, A)
     assert status == "succeeded" and name.endswith(".tar.gz")
-    st = c.get(f"/admin/backups/{bid}/status.json", base_url=host(A)).get_json()
+    st = c.get(f"/admin/backups/{hid(bid)}/status.json", base_url=host(A)).get_json()
     assert st["status"] == "succeeded" and st["progress"] == 100
     with bapp.app_context():
         path = engine.backups_dir(A["school"].id) / name
@@ -185,7 +185,7 @@ def test_download_needs_the_account_password_and_is_encrypted(bapp, world, login
     from app.services import school_backup as engine
     A = world["A"]
     c, bid = _ready(bapp, login_as, A)
-    url = f"/admin/backups/{bid}/download"
+    url = f"/admin/backups/{hid(bid)}/download"
     r = c.post(url, base_url=host(A), follow_redirects=True,
                data={"account_password": "wrong", "passphrase": PASS, "passphrase_confirm": PASS})
     assert "غير صحيحة" in r.get_data(as_text=True)
@@ -221,7 +221,7 @@ def test_download_link_is_bound_to_the_user_and_expires(bapp, world, login_as, m
     from app.models import User
     A, B = world["A"], world["B"]
     c, bid = _ready(bapp, login_as, A)
-    r = c.post(f"/admin/backups/{bid}/download", base_url=host(A),
+    r = c.post(f"/admin/backups/{hid(bid)}/download", base_url=host(A),
                data={"account_password": ACCOUNT_PASSWORD, "passphrase": PASS, "passphrase_confirm": PASS})
     link = re.search(r'href="(/admin/backups/download/[^"]+)"', r.get_data(as_text=True)).group(1)
     # another admin of the same school
@@ -252,7 +252,7 @@ def test_delete_removes_the_file(bapp, world, login_as):
     A = world["A"]
     c, bid = _ready(bapp, login_as, A)
     (_, _, name), = _rows(bapp, A)
-    assert c.post(f"/admin/backups/{bid}/delete", base_url=host(A)).status_code == 302
+    assert c.post(f"/admin/backups/{hid(bid)}/delete", base_url=host(A)).status_code == 302
     assert _rows(bapp, A) == []
     with bapp.app_context():
         assert not (engine.backups_dir(A["school"].id) / name).exists()
@@ -288,7 +288,7 @@ def test_wrong_account_passwords_lock_like_the_login(bapp, world, login_as):
     from app.models import User
     A = world["A"]
     c, bid = _ready(bapp, login_as, A)
-    url = f"/admin/backups/{bid}/download"
+    url = f"/admin/backups/{hid(bid)}/download"
     for _ in range(bapp.config["LOCKOUT_MAX_ATTEMPTS"]):
         c.post(url, base_url=host(A), data={"account_password": "wrong", "passphrase": PASS,
                                              "passphrase_confirm": PASS})
@@ -308,7 +308,7 @@ def test_prepared_downloads_are_capped(bapp, world, login_as, monkeypatch):
     from app.services import school_backups as svc
     A = world["A"]
     c, bid = _ready(bapp, login_as, A)
-    url = f"/admin/backups/{bid}/download"
+    url = f"/admin/backups/{hid(bid)}/download"
     ok = {"account_password": ACCOUNT_PASSWORD, "passphrase": PASS, "passphrase_confirm": PASS}
     for _ in range(svc.PREPARE_PER_HOUR):
         assert c.post(url, base_url=host(A), data=ok).status_code == 200

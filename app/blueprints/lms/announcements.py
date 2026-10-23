@@ -149,7 +149,7 @@ def announcement_new():
     return redirect(url_for("lms.announcements_home"))
 
 
-@bp.route("/announcements/<int:aid>/pin", methods=["POST"], endpoint="announcement_pin")
+@bp.route("/announcements/<hid:aid>/pin", methods=["POST"], endpoint="announcement_pin")
 @login_required
 def announcement_pin(aid):
     a = _load_own_announcement(aid)
@@ -159,7 +159,7 @@ def announcement_pin(aid):
     return redirect(url_for("lms.announcements_home"))
 
 
-@bp.route("/announcements/<int:aid>/delete", methods=["POST"], endpoint="announcement_delete")
+@bp.route("/announcements/<hid:aid>/delete", methods=["POST"], endpoint="announcement_delete")
 @login_required
 def announcement_delete(aid):
     a = _load_own_announcement(aid)
