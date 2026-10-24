@@ -183,16 +183,23 @@ def audit_log():
     if user_id: q = q.filter(AuditLog.user_id == user_id)
     if entity_type: q = q.filter(AuditLog.entity_type == entity_type)
     if action: q = q.filter(AuditLog.action == action)
-    entries = q.order_by(AuditLog.created_at.desc()).limit(300).all()
+    from sqlalchemy.orm import joinedload
+    entries = (q.options(joinedload(AuditLog.user).joinedload(User.role))
+               .order_by(AuditLog.created_at.desc()).limit(300).all())
 
-    types = [t[0] for t in db.session.query(AuditLog.entity_type)
-             .filter(AuditLog.school_id == sid).distinct().all()]
+    from ...services import audit_display as ad
+    types = sorted(t[0] for t in db.session.query(AuditLog.entity_type)
+                   .filter(AuditLog.school_id == sid).distinct().all())
+    actions = sorted(a[0] for a in db.session.query(AuditLog.action)
+                     .filter(AuditLog.school_id == sid).distinct().all())
     users = User.query.filter_by(school_id=sid).order_by(User.full_name).all()
-    from ...services.audit import redact
-    redacted = {e.id: (redact(e.old_value), redact(e.new_value)) for e in entries}
+    # only readable rows reach the template — no raw value, no secret
     return render_template(
         "admin/audit_log.html",
-        entries=entries, redacted=redacted, entity_types=sorted(types), users=users,
+        rows=ad.display_rows(entries, sid),
+        entity_types=[(t, ad.entity_label(t)) for t in types],
+        actions=[(a, ad.action_label(a)) for a in actions],
+        users=users,
         selected={"user_id": user_id, "entity_type": entity_type, "action": action},
     )
 

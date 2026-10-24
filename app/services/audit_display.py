@@ -1,0 +1,403 @@
+"""The activity log (audit_logs) as an administrator reads it: one Arabic
+sentence per row and, for an update, only the fields that really changed.
+
+Display only — what is stored stays as it is, old rows included. The
+mappings below are the one place to label an action, an entity, a field
+or a stored value; anything missing shows by its raw name (the page never
+breaks) and is logged once as a warning so the mapping can be completed.
+A new audited model (services/audit.py `_WATCHED`) gets its entry in
+ENTITY_LABELS and its fields in FIELD_LABELS.
+
+Secrets never reach the template: the route passes only `display_rows()`
+output, and a changed secret field becomes the line "تم تغيير كلمة المرور".
+"""
+
+from __future__ import annotations
+
+import logging
+from datetime import date, datetime, timezone
+from typing import Any, Iterable, Optional
+
+from .audit import is_secret_field
+from .subscription_enforcement import USER_LOGIN_FIELDS
+
+_log = logging.getLogger(__name__)
+_warned: set[str] = set()
+
+ACTION_LABELS = {
+    "create": "إضافة", "update": "تعديل", "delete": "حذف",
+    "login": "تسجيل دخول", "login_failed": "محاولة دخول فاشلة", "login_locked": "قفل الحساب",
+    "backup_create": "طلب نسخة احتياطية", "backup_pending": "نسخة احتياطية قيد الانتظار",
+    "backup_running": "نسخة احتياطية قيد التنفيذ", "backup_succeeded": "نسخة احتياطية جاهزة",
+    "backup_failed": "فشل النسخة الاحتياطية", "backup_delete": "حذف نسخة احتياطية",
+    "backup_dl": "تنزيل نسخة احتياطية", "backup_dl_ready": "تجهيز تنزيل نسخة احتياطية",
+    "backup_dl_denied": "رفض تنزيل نسخة احتياطية", "backup_pruned": "حذف نسخ احتياطية قديمة",
+    "backup_browse": "تصفّح نسخة احتياطية", "extract_denied": "رفض استخراج من نسخة احتياطية",
+    "restore_request": "طلب استرجاع", "restore_uploaded": "رفع نسخة للاسترجاع",
+    "restore_confirm": "تأكيد الاسترجاع", "restore_ok": "تم الاسترجاع",
+    "restore_failed": "فشل الاسترجاع", "restore_denied": "رفض الاسترجاع",
+    "restore_cli": "استرجاع من الخادم",
+}
+# The badge: login / create / update / delete / anything else.
+ACTION_KIND = {"create": "create", "update": "update", "delete": "delete",
+               "login": "login", "login_failed": "danger", "login_locked": "danger",
+               "backup_failed": "danger", "restore_failed": "danger", "backup_dl_denied": "danger",
+               "restore_denied": "danger", "extract_denied": "danger"}
+
+ENTITY_LABELS = {
+    "GradeEntry": "درجة", "YearResult": "نتيجة سنوية", "Attendance": "سجل حضور",
+    "Enrollment": "قيد دراسي", "Student": "طالب", "Guardian": "ولي أمر",
+    "Invoice": "فاتورة", "Payment": "دفعة", "User": "مستخدم", "Role": "دور وظيفي",
+    "Assignment": "إسناد تدريس", "PassRule": "قاعدة النجاح", "PaymentMethod": "طريقة دفع",
+    "JournalEntry": "قيد محاسبي", "ScheduleSlot": "حصة في الجدول",
+    "School": "المدرسة", "SchoolBackup": "نسخة احتياطية", "SchoolRestore": "استرجاع نسخة",
+}
+
+FIELD_LABELS = {
+    # people
+    "full_name": "الاسم الكامل", "username": "اسم المستخدم", "email": "البريد الإلكتروني",
+    "phone": "رقم الهاتف", "phone_alt": "رقم هاتف إضافي", "is_active": "حالة الحساب",
+    "role_id": "الدور الوظيفي", "password_hash": "كلمة المرور", "national_id": "الرقم القومي",
+    "dob": "تاريخ الميلاد", "gender": "الجنس", "address": "العنوان", "notes": "ملاحظات",
+    "occupation": "المهنة", "is_guardian": "ولي أمر رسمي", "photo_url": "الصورة",
+    "permanent_code": "كود الطالب", "parent_name": "اسم ولي الأمر", "parent_phone": "هاتف ولي الأمر",
+    "parent_email": "بريد ولي الأمر", "parent_user_id": "حساب ولي الأمر", "user_id": "الحساب",
+    "mother_name": "اسم الأم", "mother_phone": "هاتف الأم", "ar_account_id": "حساب الذمم",
+    "is_platform_support": "حساب دعم المنصة",
+    # roles
+    "name": "الاسم", "name_ar": "الاسم بالعربي", "is_system": "دور نظامي", "permissions": "الصلاحيات",
+    # academic
+    "student_id": "الطالب", "year_id": "السنة الدراسية", "grade_id": "الصف", "section_id": "الفصل",
+    "subject_id": "المادة", "term_id": "الفترة", "teacher_id": "المعلم", "period_id": "الحصة",
+    "day_id": "اليوم", "room_id": "القاعة", "enrollment_id": "الطالب", "component_id": "مكوّن التقييم",
+    "schedule_slot_id": "الحصة في الجدول", "weekly_periods": "عدد الحصص الأسبوعية",
+    "status": "الحالة", "final_result": "النتيجة النهائية", "enrolled_at": "تاريخ القيد",
+    "status_changed_at": "تاريخ تغيير الحالة", "status_reason": "سبب تغيير الحالة",
+    "graduation_date": "تاريخ التخرج", "exit_checklist": "إجراءات الخروج",
+    "date": "التاريخ", "excuse_reason": "سبب العذر", "excuse_document": "مستند العذر",
+    "score": "الدرجة", "recorded_by_user_id": "رصدها",
+    "average": "المعدل", "failed_subjects": "مواد الرسوب", "subject_scores": "درجات المواد",
+    "rule_snapshot": "قاعدة النجاح المطبّقة", "approved_by_user_id": "اعتمدها", "approved_at": "تاريخ الاعتماد",
+    "gpa": "المعدل التراكمي", "grade_letter": "التقدير", "rank_in_section": "الترتيب في الفصل",
+    "rank_in_grade": "الترتيب في الصف",
+    "subject_pass_threshold": "درجة نجاح المادة", "overall_pass_threshold": "درجة نجاح المعدل",
+    "method": "الطريقة", "allowed_failed_subjects": "عدد المواد المسموح برسوبها", "is_frozen": "مجمّدة",
+    # finance
+    "number": "رقم الفاتورة", "issue_date": "تاريخ الإصدار", "due_date": "تاريخ الاستحقاق",
+    "total_amount": "الإجمالي", "paid_amount": "المدفوع", "tax_rate": "نسبة الضريبة",
+    "tax_amount": "قيمة الضريبة", "invoice_id": "الفاتورة", "payment_date": "تاريخ الدفع",
+    "amount": "المبلغ", "cash_account_id": "حساب الخزينة", "reference": "المرجع",
+    "is_refund": "استرداد", "journal_entry_id": "القيد المحاسبي", "kind": "النوع",
+    "account_id": "الحساب المحاسبي", "entry_date": "تاريخ القيد", "description": "الوصف",
+    "related_kind": "مرتبط بـ", "related_id": "رقم المرجع", "created_by_user_id": "أنشأه",
+    # backups / restores (their meta rows)
+    "file": "الملف", "modules": "الأجزاء", "mode": "الوضع", "reason": "السبب", "via": "من خلال",
+    "size": "الحجم", "error": "الخطأ", "result": "النتيجة",
+}
+
+# Never part of "what changed": bookkeeping, not something the reader acts on.
+HIDDEN_FIELDS = frozenset({
+    "id", "school_id", "created_at", "recorded_at", "deleted_at", "deleted_by_id",
+} | USER_LOGIN_FIELDS)
+# Booleans that read as a state, not yes/no.
+STATE_FIELDS = frozenset({"is_active"})
+
+VALUE_LABELS = {
+    "status": {"present": "حاضر", "absent": "غائب", "late": "متأخر", "excused": "غياب بعذر",
+               "left_early": "انصراف مبكر", "draft": "مسودة", "sent": "مرسلة", "partial": "مدفوعة جزئيًا",
+               "paid": "مدفوعة", "overdue": "متأخرة", "refunded": "مستردة", "active": "نشط",
+               "withdrawn": "منسحب", "transferred": "محوّل", "promoted_out": "منقول لسنة تالية",
+               "graduated": "متخرج", "pending": "قيد الانتظار", "pass": "ناجح", "fail": "راسب",
+               "incomplete": "غير مكتمل", "running": "قيد التنفيذ", "succeeded": "تم بنجاح",
+               "failed": "فشل"},
+    "final_result": {"pending": "قيد الانتظار", "pass": "ناجح", "fail": "راسب"},
+    "gender": {"male": "ذكر", "female": "أنثى"},
+    "method": {"cash": "نقدي", "bank": "تحويل بنكي", "card": "بطاقة", "cheque": "شيك",
+               "overall_only": "المعدل الكلي فقط", "per_subject": "كل مادة على حدة", "mixed": "مختلطة"},
+    "kind": {"immediate_cash": "نقدي فوري", "immediate_bank": "بنكي فوري", "deferred": "آجل"},
+    "via": {"web": "الموقع", "api": "التطبيق"},
+    "reason": {"password": "كلمة مرور غير صحيحة", "inactive": "الحساب معطّل", "locked": "الحساب مقفول"},
+}
+
+# field → (model name, attribute shown). `enrollment_id` shows its student.
+FK_TARGETS = {
+    "role_id": ("Role", "name_ar"), "user_id": ("User", "full_name"),
+    "parent_user_id": ("User", "full_name"), "recorded_by_user_id": ("User", "full_name"),
+    "approved_by_user_id": ("User", "full_name"), "created_by_user_id": ("User", "full_name"),
+    "student_id": ("Student", "full_name"), "enrollment_id": ("Enrollment", "student"),
+    "year_id": ("AcademicYear", "name"), "grade_id": ("Grade", "name"),
+    "section_id": ("Section", "name"), "subject_id": ("Subject", "name"), "term_id": ("Term", "name"),
+    "teacher_id": ("Teacher", "full_name"), "period_id": ("Period", "name"), "day_id": ("Day", "name"),
+    "room_id": ("Room", "name"), "invoice_id": ("Invoice", "number"),
+    "account_id": ("Account", "name"), "ar_account_id": ("Account", "name"),
+    "cash_account_id": ("Account", "name"), "journal_entry_id": ("JournalEntry", "reference"),
+    "component_id": ("AssessmentComponent", "name"),
+}
+DELETED = "غير متاح (محذوف)"
+EMPTY = "—"
+# The row's subject, from its snapshot, first match wins.
+_NAME_KEYS = ("full_name", "name_ar", "name", "title", "number", "reference", "username")
+# Rows about a student through their enrollment.
+_ENROLLMENT_ENTITIES = frozenset({"GradeEntry", "YearResult", "Attendance", "Enrollment", "Invoice"})
+
+_MONTHS = ("يناير", "فبراير", "مارس", "أبريل", "مايو", "يونيو", "يوليو", "أغسطس",
+           "سبتمبر", "أكتوبر", "نوفمبر", "ديسمبر")
+
+
+def _warn(kind: str, name: str) -> None:
+    key = f"{kind}:{name}"
+    if key not in _warned:
+        _warned.add(key)
+        _log.warning("audit display: no Arabic label for %s %r — add it to services/audit_display.py",
+                     kind, name)
+
+
+def action_label(action: str) -> str:
+    if action not in ACTION_LABELS:
+        _warn("action", action)
+    return ACTION_LABELS.get(action, action)
+
+
+def entity_label(entity: str) -> str:
+    if entity not in ENTITY_LABELS:
+        _warn("entity", entity)
+    return ENTITY_LABELS.get(entity, entity)
+
+
+def field_label(field: str) -> str:
+    if field not in FIELD_LABELS:
+        _warn("field", field)
+    return FIELD_LABELS.get(field, field)
+
+
+# ─── dates ──────────────────────────────────────────────────────────
+
+def _tz():
+    from zoneinfo import ZoneInfo
+    try:
+        from .subscriptions import get_settings
+        name = get_settings().get("platform_timezone") or "Africa/Cairo"
+    except Exception:  # noqa: BLE001 — a display must not fail on a setting
+        name = "Africa/Cairo"
+    try:
+        return ZoneInfo(name)
+    except Exception:  # noqa: BLE001
+        return ZoneInfo("Africa/Cairo")
+
+
+def format_datetime(dt: datetime, tz=None) -> str:
+    """24 أكتوبر 2026 – 10:14 ص (stored times are UTC, naive or aware)."""
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    local = dt.astimezone(tz or _tz())
+    hour = local.hour % 12 or 12
+    return f"{local.day} {_MONTHS[local.month - 1]} {local.year} – {hour}:{local.minute:02d} " \
+           f"{'ص' if local.hour < 12 else 'م'}"
+
+
+def format_date(d: date) -> str:
+    return f"{d.day} {_MONTHS[d.month - 1]} {d.year}"
+
+
+def _parse_time(v: str):
+    try:
+        if len(v) == 10 and v[4] == "-" and v[7] == "-":
+            return date.fromisoformat(v)
+        if len(v) >= 16 and v[4] == "-" and v[10] in "T ":
+            return datetime.fromisoformat(v.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return None
+
+
+# ─── foreign keys: one query per model per page ─────────────────────
+
+class Names:
+    """Names for every id the page shows, scoped to the school."""
+
+    def __init__(self, school_id: int):
+        self.sid = school_id
+        self.want: dict[str, set] = {}
+        self.got: dict[tuple, str] = {}
+
+    def need(self, field: str, value) -> None:
+        if field in FK_TARGETS and isinstance(value, int) and not isinstance(value, bool):
+            self.want.setdefault(FK_TARGETS[field][0], set()).add(value)
+
+    def load(self) -> None:
+        from .. import models as M
+        from ..extensions import db
+        for model_name, ids in self.want.items():
+            model = getattr(M, model_name, None)
+            if model is None or not ids:
+                continue
+            q = model.query.filter(model.id.in_(ids))
+            if "school_id" in model.__table__.c:
+                q = q.filter(model.school_id == self.sid)
+            if model_name == "Enrollment":
+                rows = (db.session.query(M.Enrollment.id, M.Student.full_name)
+                        .join(M.Student, M.Student.id == M.Enrollment.student_id)
+                        .filter(M.Enrollment.id.in_(ids), M.Enrollment.school_id == self.sid).all())
+                for i, name in rows:
+                    self.got[(model_name, i)] = name
+                continue
+            attr = next(t[1] for t in FK_TARGETS.values() if t[0] == model_name)
+            for row in q.all():
+                v = getattr(row, attr, None) or getattr(row, "name", None) or getattr(row, "full_name", None)
+                if v:
+                    self.got[(model_name, row.id)] = str(v)
+
+    def name(self, field: str, value) -> str:
+        model_name = FK_TARGETS[field][0]
+        return self.got.get((model_name, value), DELETED)
+
+
+# ─── values ─────────────────────────────────────────────────────────
+
+def format_value(field: str, value: Any, names: Optional[Names] = None, tz=None) -> str:
+    if value is None or value == "":
+        return EMPTY
+    if isinstance(value, bool):
+        if field in STATE_FIELDS:
+            return "مفعّل" if value else "معطّل"
+        return "نعم" if value else "لا"
+    if field in FK_TARGETS and isinstance(value, int):
+        return names.name(field, value) if names else DELETED
+    if isinstance(value, (dict, list)):
+        return "تم تحديثها" if field == "permissions" else f"{len(value)} عنصر"
+    if isinstance(value, str):
+        labels = VALUE_LABELS.get(field)
+        if labels and value in labels:
+            return labels[value]
+        t = _parse_time(value)
+        if isinstance(t, datetime):
+            return format_datetime(t, tz)
+        if isinstance(t, date):
+            return format_date(t)
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+# ─── rows ───────────────────────────────────────────────────────────
+
+def _changes(e, names: Names, tz) -> tuple[list[dict], bool]:
+    """(changed fields, whether the update was login bookkeeping only)."""
+    old = e.old_value if isinstance(e.old_value, dict) else {}
+    new = e.new_value if isinstance(e.new_value, dict) else {}
+    out, secret_changed = [], False
+    for field in old:
+        if is_secret_field(field):
+            secret_changed = True
+            continue
+        if field in HIDDEN_FIELDS:
+            continue
+        out.append({"field": field_label(field),
+                    "old": format_value(field, old.get(field), names, tz),
+                    "new": format_value(field, new.get(field), names, tz)})
+    if secret_changed:
+        out.insert(0, {"field": "كلمة المرور", "old": None, "new": None, "note": "تم تغيير كلمة المرور"})
+    only_login = bool(old) and set(old) <= USER_LOGIN_FIELDS
+    return out, only_login
+
+
+def _summary(snapshot: dict, names: Names, tz, limit: int = 8) -> list[dict]:
+    out = []
+    for field, value in snapshot.items():
+        if field in HIDDEN_FIELDS or is_secret_field(field) or value in (None, "", [], {}):
+            continue
+        out.append({"field": field_label(field), "old": None, "new": format_value(field, value, names, tz)})
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _subject(e, names: Names) -> str:
+    snap = e.new_value if isinstance(e.new_value, dict) else None
+    if e.action == "delete" or not snap:
+        snap = e.old_value if isinstance(e.old_value, dict) else {}
+    for key in _NAME_KEYS:
+        if snap.get(key):
+            return str(snap[key])
+    if e.entity_type in _ENROLLMENT_ENTITIES and isinstance(snap.get("enrollment_id"), int):
+        n = names.name("enrollment_id", snap["enrollment_id"])
+        return n if n != DELETED else ""
+    if isinstance(snap.get("student_id"), int):
+        n = names.name("student_id", snap["student_id"])
+        return n if n != DELETED else ""
+    return ""
+
+
+def _sentence(e, actor: str, entity: str, subject: str) -> str:
+    target = f"{entity}{': ' + subject if subject else ''}"
+    if e.action == "login":
+        return f"{actor} سجّل دخول"
+    if e.action == "login_failed":
+        return f"محاولة دخول فاشلة على حساب {actor}"
+    if e.action == "login_locked":
+        return f"اتقفل حساب {actor} بعد محاولات دخول فاشلة"
+    if e.action == "create":
+        return f"{actor} أضاف {target}"
+    if e.action == "update":
+        return f"{actor} عدّل بيانات {target}"
+    if e.action == "delete":
+        return f"{actor} حذف {target}"
+    return f"{actor}: {action_label(e.action)}"
+
+
+def _actor(e) -> tuple[str, str]:
+    u = getattr(e, "user", None)
+    if u is not None:
+        role = getattr(u, "role", None)
+        return u.full_name or u.username, (getattr(role, "name_ar", None) or "") if role else ""
+    if e.support_session_id:
+        return "فريق دعم منصتي", ""
+    if e.action in ("login", "login_failed", "login_locked") and isinstance(e.new_value, dict):
+        return "مستخدم", ""
+    return "النظام", ""
+
+
+def display_rows(entries: Iterable, school_id: int) -> list[dict]:
+    """Readable rows for the page; login-only updates are left out (the
+    `login` event covers them). Nothing raw is returned."""
+    entries = list(entries)
+    names = Names(school_id)
+    for e in entries:
+        for snap in (e.old_value, e.new_value):
+            if isinstance(snap, dict):
+                for k, v in snap.items():
+                    names.need(k, v)
+    names.load()
+    tz = _tz()
+    rows = []
+    for e in entries:
+        actor, role = _actor(e)
+        entity = entity_label(e.entity_type)
+        details, only_login = [], False
+        if e.action == "update":
+            details, only_login = _changes(e, names, tz)
+            if only_login:
+                continue
+        elif e.action == "create" and isinstance(e.new_value, dict):
+            details = _summary(e.new_value, names, tz)
+        elif e.action == "delete" and isinstance(e.old_value, dict):
+            details = _summary(e.old_value, names, tz, limit=6)
+        elif e.action in ("login", "login_failed", "login_locked") or isinstance(e.new_value, dict):
+            details = _summary(e.new_value or {}, names, tz)
+        if e.action in ("login", "login_failed", "login_locked") and e.user is not None:
+            subject = ""
+        else:
+            subject = _subject(e, names)
+        rows.append({
+            "id": e.id,
+            "kind": ACTION_KIND.get(e.action, "other"),
+            "action": action_label(e.action),
+            "sentence": _sentence(e, actor, entity, subject),
+            "actor_role": role,
+            "when": format_datetime(e.created_at, tz) if e.created_at else "",
+            "ip": e.ip_address or "",
+            "details": details,
+            "is_update": e.action == "update",
+        })
+    return rows

@@ -1,5 +1,6 @@
-{# Ticket 6 — audit log viewer. Filters + entry rows. Each row expands
-   to show the old→new JSON diff. #}
+{# Activity log — one Arabic sentence per row; an update lists only the
+   fields that changed. Rows come readable from services/audit_display.py:
+   no raw value (and no secret) reaches this template. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}سجل النشاط{% endblock %}
 {% block topbar_crumb %}
@@ -7,21 +8,27 @@
   <span class="text-primary font-bold">سجل النشاط</span>
 {% endblock %}
 
-{% set action_labels = {'create':'إنشاء','update':'تعديل','delete':'حذف'} %}
-{% set action_colors = {'create':'bg-[#ECFDF5] text-[#065F46]','update':'bg-tertiary-fixed text-on-tertiary-fixed-variant','delete':'bg-error-container/40 text-error'} %}
+{% set badge = {
+  'login':  ('login', 'bg-primary-fixed text-primary'),
+  'create': ('add_circle', 'bg-[#ECFDF5] text-[#065F46]'),
+  'update': ('edit', 'bg-tertiary-fixed text-on-tertiary-fixed-variant'),
+  'delete': ('delete', 'bg-error-container/40 text-error'),
+  'danger': ('report', 'bg-error-container/40 text-error'),
+  'other':  ('history', 'bg-surface-container text-on-surface-variant'),
+} %}
 
 {% block page_content %}
 <div class="flex flex-col w-full gap-space-md">
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <h1 class="font-headline-lg text-primary font-bold">سجل نشاط النظام</h1>
-    <p class="font-body-md text-on-surface-variant mt-1">كل تعديل حساس (طلاب، أولياء أمور، درجات، حضور، فواتير، مستخدمون) بيتسجّل هنا.</p>
+    <p class="font-body-md text-on-surface-variant mt-1">مين عمل إيه وإمتى: الدخول، والإضافة والتعديل والحذف في الطلاب وأولياء الأمور والدرجات والحضور والفواتير والمستخدمين.</p>
   </section>
 
   <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
     <form method="get" class="grid grid-cols-1 md:grid-cols-4 gap-space-sm items-end">
       <div class="flex flex-col gap-1">
-        <label class="font-label-md text-on-surface font-bold">المستخدم</label>
-        <select name="user_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
+        <label for="f-user" class="font-label-md text-on-surface font-bold">المستخدم</label>
+        <select id="f-user" name="user_id" class="h-10 px-3 rounded-lg bg-surface-container-low">
           <option value="">— الكل —</option>
           {% for u in users %}
           <option value="{{ u.id }}" {% if selected.user_id == u.id %}selected{% endif %}>{{ u.full_name }}</option>
@@ -29,25 +36,25 @@
         </select>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="font-label-md text-on-surface font-bold">نوع الكيان</label>
-        <select name="entity_type" class="h-10 px-3 rounded-lg bg-surface-container-low">
+        <label for="f-entity" class="font-label-md text-on-surface font-bold">النوع</label>
+        <select id="f-entity" name="entity_type" class="h-10 px-3 rounded-lg bg-surface-container-low">
           <option value="">— الكل —</option>
-          {% for t in entity_types %}
-          <option value="{{ t }}" {% if selected.entity_type == t %}selected{% endif %}>{{ t }}</option>
+          {% for t, lbl in entity_types %}
+          <option value="{{ t }}" {% if selected.entity_type == t %}selected{% endif %}>{{ lbl }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="flex flex-col gap-1">
-        <label class="font-label-md text-on-surface font-bold">الإجراء</label>
-        <select name="action" class="h-10 px-3 rounded-lg bg-surface-container-low">
+        <label for="f-action" class="font-label-md text-on-surface font-bold">الإجراء</label>
+        <select id="f-action" name="action" class="h-10 px-3 rounded-lg bg-surface-container-low">
           <option value="">— الكل —</option>
-          {% for k, lbl in action_labels.items() %}
+          {% for k, lbl in actions %}
           <option value="{{ k }}" {% if selected.action == k %}selected{% endif %}>{{ lbl }}</option>
           {% endfor %}
         </select>
       </div>
       <div class="flex items-end justify-end gap-2">
-        <a href="{{ url_for('admin.audit_log') }}" class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
+        <a href="{{ url_for('admin.audit_log') }}" class="h-10 px-4 inline-flex items-center rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
         <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
                 style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
           تصفية
@@ -57,37 +64,50 @@
   </section>
 
   <section class="flex flex-col gap-space-sm">
-    {% for e in entries %}
-    <details class="bg-surface-container-lowest rounded-xl shadow-sm">
-      <summary class="p-space-md cursor-pointer list-none flex items-center justify-between gap-space-sm flex-wrap">
-        <div class="flex items-center gap-space-sm min-w-0 flex-wrap">
-          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full font-label-md font-bold {{ action_colors.get(e.action, '') }}">
-            {{ action_labels.get(e.action, e.action) }}
-          </span>
-          <span class="font-title-md text-primary font-bold">{{ e.entity_type }}</span>
-          {% if e.entity_id %}<code class="font-label-md text-outline">#{{ e.entity_id }}</code>{% endif %}
-          <span class="font-label-md text-outline">— {{ e.user.full_name if e.user else ('دعم منصتي #' ~ e.support_session_id if e.support_session_id else 'النظام') }}</span>
-        </div>
-        <span class="font-label-xs text-outline tabular-nums" dir="ltr">
-          {{ e.created_at.strftime('%Y-%m-%d %H:%M') if e.created_at else '' }}
+    {% for r in rows %}
+    {% set icon, cls = badge.get(r.kind, badge.other) %}
+    <details class="bg-surface-container-lowest rounded-xl shadow-sm group">
+      <summary class="p-space-md cursor-pointer list-none flex items-start gap-space-sm {{ '' if r.details else 'pointer-events-none' }}">
+        <span class="inline-flex items-center justify-center w-9 h-9 rounded-full shrink-0 {{ cls }}" title="{{ r.action }}">
+          <span class="material-symbols-outlined text-lg">{{ icon }}</span>
         </span>
-      </summary>
-      <div class="p-space-md pt-0 border-t border-outline-variant grid grid-cols-1 md:grid-cols-2 gap-space-md">
-        <div>
-          <div class="font-label-md text-outline font-bold mb-1">قبل التعديل</div>
-          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ redacted[e.id][0]|tojson(indent=2) if e.old_value else '—' }}</pre>
+        <div class="min-w-0 flex-1">
+          <p class="font-title-sm text-on-surface font-bold break-words">{{ r.sentence }}</p>
+          <div class="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-label-sm text-outline">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full {{ cls }}">{{ r.action }}</span>
+            {% if r.actor_role %}<span>{{ r.actor_role }}</span>{% endif %}
+            <span>{{ r.when }}</span>
+            {% if r.ip %}<span dir="ltr" class="text-outline/80">{{ r.ip }}</span>{% endif %}
+          </div>
         </div>
-        <div>
-          <div class="font-label-md text-outline font-bold mb-1">بعد التعديل</div>
-          <pre class="text-xs bg-surface-container-low p-2 rounded-lg overflow-auto max-h-64" dir="ltr">{{ redacted[e.id][1]|tojson(indent=2) if e.new_value else '—' }}</pre>
-        </div>
-        {% if e.ip_address or e.user_agent %}
-        <div class="md:col-span-2 flex items-center gap-space-sm flex-wrap text-outline font-label-xs">
-          {% if e.ip_address %}<span dir="ltr"><span class="material-symbols-outlined text-xs align-middle">public</span> {{ e.ip_address }}</span>{% endif %}
-          {% if e.user_agent %}<span dir="ltr"><span class="material-symbols-outlined text-xs align-middle">devices</span> {{ e.user_agent|truncate(80) }}</span>{% endif %}
-        </div>
+        {% if r.details %}
+        <span class="material-symbols-outlined text-outline shrink-0 transition-transform group-open:rotate-180">expand_more</span>
         {% endif %}
+      </summary>
+      {% if r.details %}
+      <div class="px-space-md pb-space-md">
+        <div class="rounded-lg border border-outline-variant/60 overflow-hidden">
+          {% if r.is_update %}
+          <div class="hidden sm:grid grid-cols-3 gap-2 px-3 py-2 bg-surface-container-low font-label-md text-on-surface-variant font-bold">
+            <span>الحقل</span><span>القيمة القديمة</span><span>القيمة الجديدة</span>
+          </div>
+          {% endif %}
+          {% for d in r.details %}
+          <div class="grid grid-cols-1 {{ 'sm:grid-cols-3' if r.is_update else 'sm:grid-cols-[minmax(8rem,1fr)_2fr]' }} gap-x-2 gap-y-0.5 px-3 py-2 border-t border-outline-variant/40 first:border-t-0 font-body-md">
+            <span class="font-bold text-on-surface">{{ d.field }}</span>
+            {% if d.note %}
+            <span class="sm:col-span-2 text-on-surface-variant">{{ d.note }}</span>
+            {% elif r.is_update %}
+            <span class="text-on-surface-variant break-words"><span class="sm:hidden text-outline">من: </span>{{ d.old }}</span>
+            <span class="text-on-surface break-words"><span class="sm:hidden text-outline">إلى: </span>{{ d.new }}</span>
+            {% else %}
+            <span class="text-on-surface break-words">{{ d.new }}</span>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
       </div>
+      {% endif %}
     </details>
     {% else %}
     <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center">
