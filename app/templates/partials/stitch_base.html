@@ -40,7 +40,23 @@
     @font-face{font-family:"Nunito";src:url("{{ url_for('static', filename='fonts/Nunito.ttf') }}") format("truetype-variations"),url("{{ url_for('static', filename='fonts/Nunito.ttf') }}") format("truetype");font-weight:400 800;font-display:swap}
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=block" rel="stylesheet">
+  {# The icons are a font: until it has loaded, the browser would print each
+     icon's name ("expand_more", "dashboard") as text. Each icon keeps its
+     1em box (no layout jump) and draws nothing until the font is ready. #}
+  <style>
+    .material-symbols-outlined{width:1em;height:1em;overflow:hidden;flex-shrink:0}
+    html:not(.icons-ready) .material-symbols-outlined{color:transparent!important}
+  </style>
+  <script>
+    (function () {
+      var root = document.documentElement;
+      function ready() { root.classList.add('icons-ready'); }
+      if (!document.fonts || !document.fonts.load) { ready(); return; }
+      document.fonts.load('24px "Material Symbols Outlined"').then(function (f) { if (f.length) ready(); });
+    })();
+  </script>
 
   {# Tailwind (Play CDN) — the Stitch designs are Tailwind-based. #}
   <script src="https://cdn.tailwindcss.com"></script>
