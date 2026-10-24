@@ -134,7 +134,7 @@
         <h2 class="font-headline-sm font-bold text-on-surface">الأسئلة المرتبطة بالقطعة</h2>
         <span class="px-2 py-0.5 rounded-full bg-primary-fixed text-primary font-label-xs font-bold">{{ linked|length if linked else 0 }} أسئلة مرتبطة</span>
       </div>
-      <a href="{% if passage %}{{ url_for('lms.bank_smart_new') }}?passage_id={{ passage.id }}{% else %}#{% endif %}"
+      <a href="{% if passage %}{{ url_for('lms.bank_new', passage_id=passage.id) }}{% else %}#{% endif %}"
          class="inline-flex items-center gap-2 h-10 px-4 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg font-bold shadow-sm hover:shadow transition-all {% if not passage %}opacity-50 pointer-events-none{% endif %}">
         <span class="material-symbols-outlined">add_circle</span><span>إضافة سؤال جديد للقطعة</span>
       </a>

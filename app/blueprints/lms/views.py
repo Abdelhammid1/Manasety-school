@@ -2026,58 +2026,47 @@ def bank_home():
     )
 
 
+def _bank_form(item=None):
+    """The one bank-question form (lms/bank_smart.html) — add and edit."""
+    (subjects, grades, years, terms, courses, units, lessons,
+     axes, indicators, skills, objectives) = _bank_form_extras(item)
+    return render_template(
+        "lms/bank_smart.html", item=item,
+        subjects=subjects, grades=grades, years=years, terms=terms,
+        courses=courses, units=units, lessons=lessons,
+        axes=axes, indicators=indicators,
+        skills=skills, objectives=objectives,
+    )
+
+
 @bp.route("/bank/new", methods=["GET", "POST"], endpoint="bank_new")
 @login_required
 @require_permission("lms", "edit")
 def bank_new():
     if request.method == "POST":
         return _bank_save(None)
-    (subjects, grades, years, terms, courses, units, lessons,
-     axes, indicators, skills, objectives) = _bank_form_extras()
-    return render_template(
-        "lms/bank_form.html", item=None,
-        subjects=subjects, grades=grades, years=years, terms=terms,
-        courses=courses, units=units, lessons=lessons,
-        axes=axes, indicators=indicators,
-        skills=skills, objectives=objectives,
-    )
+    return _bank_form()
 
 
 @bp.route("/bank/smart/new", methods=["GET", "POST"], endpoint="bank_smart_new")
 @login_required
 @require_permission("lms", "edit")
 def bank_smart_new():
-    """Stitch lms_2 authoring form — 5-section smart-question editor.
-    Reuses `_bank_save` so the write path stays identical to the
-    classic form."""
+    """The old "smart form" address — the same single form as bank_new
+    (query parameters such as ?passage_id= carry over)."""
     if request.method == "POST":
         return _bank_save(None)
-    (subjects, grades, years, terms, _courses, units, lessons,
-     axes, indicators, skills, objectives) = _bank_form_extras()
-    return render_template(
-        "lms/bank_smart.html",
-        subjects=subjects, grades=grades, years=years, terms=terms,
-        units=units, lessons=lessons,
-        axes=axes, indicators=indicators,
-        skills=skills, objectives=objectives,
-    )
+    return _bank_form()
 
 
 @bp.route("/bank/<hid:bid>/edit", methods=["GET", "POST"], endpoint="bank_edit")
 @login_required
+@require_permission("lms", "edit")
 def bank_edit(bid):
     item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
     if request.method == "POST":
         return _bank_save(item)
-    (subjects, grades, years, terms, courses, units, lessons,
-     axes, indicators, skills, objectives) = _bank_form_extras(item)
-    return render_template(
-        "lms/bank_form.html", item=item,
-        subjects=subjects, grades=grades, years=years, terms=terms,
-        courses=courses, units=units, lessons=lessons,
-        axes=axes, indicators=indicators,
-        skills=skills, objectives=objectives,
-    )
+    return _bank_form(item)
 
 
 def _bank_save(item):
