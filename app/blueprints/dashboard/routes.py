@@ -881,6 +881,36 @@ from ...models import Student, Teacher, Invoice, Course
 from ...models.hr import Employee
 
 
+# ────────────────────────────────────────────────────────────────────
+# Notifications — the top bar's bell (services/inbox.py decides what is
+# the user's own). The page marks them read; the panel only peeks.
+# ────────────────────────────────────────────────────────────────────
+
+@bp.route("/notifications")
+@login_required
+def notifications():
+    from ...services import inbox
+    items = inbox.recent(current_user, limit=50)
+    messages = inbox.unread_messages(current_user)
+    inbox.mark_all_read(current_user)
+    return render_template("dashboard/notifications.html", items=items, unread_messages=messages)
+
+
+@bp.route("/notifications.json")
+@login_required
+def notifications_json():
+    from ...services import inbox
+    items = inbox.recent(current_user, limit=8)
+    return jsonify({
+        "items": [{"title": i["title"], "body": i["body"], "student": i["student"],
+                   "unread": i["unread"],
+                   "at": i["created_at"].strftime("%Y-%m-%d %H:%M") if i["created_at"] else ""}
+                  for i in items],
+        "unread_messages": inbox.unread_messages(current_user),
+        "count": inbox.unread_count(current_user),
+    })
+
+
 @bp.route("/search")
 @login_required
 def global_search():

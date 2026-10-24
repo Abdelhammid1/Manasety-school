@@ -403,6 +403,44 @@
       if (e.key === 'Escape' && document.body.classList.contains('sidebar-mobile-open')) window.toggleSidebarMobile(false);
     });
 
+    // The bell: opens its panel; the items load on first open (textContent
+    // only — a notification's text is data, never markup).
+    (function () {
+      const box = document.querySelector('[data-notif]');
+      if (!box) return;
+      const btn = box.querySelector('[data-notif-toggle]');
+      const panel = box.querySelector('#notif-panel');
+      const body = panel.querySelector('[data-notif-body]');
+      let loaded = false;
+      const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text) e.textContent = text; return e; };
+      async function load() {
+        loaded = true;
+        try {
+          const r = await fetch(panel.dataset.src, {credentials: 'same-origin'});
+          const d = await r.json();
+          body.textContent = '';
+          if (d.unread_messages) body.appendChild(el('div', 'p-2 rounded-xl bg-primary-fixed/40 text-primary font-bold mb-1',
+            'لديك ' + d.unread_messages + (d.unread_messages === 1 ? ' رسالة غير مقروءة' : ' رسائل غير مقروءة')));
+          if (!d.items.length && !d.unread_messages) body.appendChild(el('div', 'p-2 text-center', 'لا توجد إشعارات.'));
+          for (const n of d.items) {
+            const row = el('div', 'p-2 rounded-xl ' + (n.unread ? 'bg-surface-container-low' : ''));
+            row.appendChild(el('div', 'font-bold text-on-surface', n.title));
+            if (n.body) row.appendChild(el('div', 'text-on-surface-variant break-words', n.body));
+            row.appendChild(el('div', 'font-label-sm text-outline', [n.student, n.at].filter(Boolean).join(' · ')));
+            body.appendChild(row);
+          }
+        } catch (e) { body.textContent = 'تعذّر تحميل الإشعارات.'; loaded = false; }
+      }
+      function setOpen(open) {
+        panel.hidden = !open;
+        btn.setAttribute('aria-expanded', open);
+        if (open && !loaded) load();
+      }
+      btn.addEventListener('click', (e) => { e.stopPropagation(); setOpen(panel.hidden); });
+      document.addEventListener('click', (e) => { if (!panel.hidden && !box.contains(e.target)) setOpen(false); });
+      document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) { setOpen(false); btn.focus(); } });
+    })();
+
     // Wide tables scroll inside their own box on phones (instead of widening
     // the page or crushing columns). Tables already in a scroller are left as is.
     (function () {

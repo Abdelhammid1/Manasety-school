@@ -1,0 +1,49 @@
+{# Notifications — what the bell counts for this user (services/inbox.py). #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}الإشعارات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الإشعارات</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-3xl mx-auto space-y-4 pb-16">
+  <h1 class="font-headline-sm text-headline-sm text-primary font-bold flex items-center gap-2">
+    <span class="material-symbols-outlined">notifications</span>الإشعارات
+  </h1>
+
+  {% if unread_messages and endpoint_on('messaging.inbox') %}
+  <a href="{{ url_for('messaging.inbox') }}"
+     class="flex items-center justify-between gap-3 bg-primary-fixed/40 rounded-2xl p-space-md hover:bg-primary-fixed/60 transition-colors">
+    <span class="flex items-center gap-2 font-title-sm text-primary font-bold">
+      <span class="material-symbols-outlined">mail</span>
+      لديك {{ unread_messages }} {{ 'رسالة غير مقروءة' if unread_messages == 1 else 'رسائل غير مقروءة' }}
+    </span>
+    <span class="material-symbols-outlined text-primary">arrow_back</span>
+  </a>
+  {% endif %}
+
+  {% if items %}
+  <ul class="bg-surface-container-lowest rounded-2xl shadow-sm divide-y divide-outline-variant/60">
+    {% for n in items %}
+    <li class="p-space-md flex items-start gap-3">
+      <span class="mt-1 w-2.5 h-2.5 rounded-full shrink-0 {{ 'bg-error' if n.unread else 'bg-outline-variant' }}"
+            aria-label="{{ 'غير مقروء' if n.unread else 'مقروء' }}"></span>
+      <div class="min-w-0 flex-1">
+        <div class="font-title-sm text-on-surface font-bold">{{ n.title }}</div>
+        {% if n.body %}<p class="text-body-md text-on-surface-variant break-words">{{ n.body }}</p>{% endif %}
+        <div class="mt-1 font-label-sm text-outline flex flex-wrap gap-x-3">
+          {% if n.student %}<span>{{ n.student }}</span>{% endif %}
+          <span dir="ltr" class="tabular-nums">{{ n.created_at.strftime('%Y-%m-%d %H:%M') if n.created_at else '' }}</span>
+        </div>
+      </div>
+    </li>
+    {% endfor %}
+  </ul>
+  {% elif not unread_messages %}
+  <div class="bg-surface-container-lowest rounded-2xl p-space-xl text-center shadow-sm">
+    <span class="material-symbols-outlined text-5xl text-outline">notifications_off</span>
+    <p class="mt-2 text-on-surface-variant">لا توجد إشعارات.</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -240,7 +240,7 @@ def create_app(config_class=Config):
         # Per-request extras for the Stitch topbar (active year + notifications).
         try:
             from flask_login import current_user
-            from .models import AcademicYear, NotificationLog
+            from .models import AcademicYear
             if current_user.is_authenticated:
                 sid = getattr(current_user, "school_id", None)
                 if sid:
@@ -249,9 +249,9 @@ def create_app(config_class=Config):
                     ).first()
                     if year:
                         ctx["active_year"] = year.name
-                    ctx["topbar_notifications_count"] = NotificationLog.query.filter_by(
-                        school_id=sid, read_at=None
-                    ).count()
+                    # the user's own (services/inbox.py), not the school's outbound log
+                    from .services.inbox import unread_count
+                    ctx["topbar_notifications_count"] = unread_count(current_user)
         except Exception:
             # never let context enrichment blank a page
             pass
