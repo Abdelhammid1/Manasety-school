@@ -130,7 +130,8 @@ def settings():
         flash("تم حفظ قاعدة النجاح.", "success")
         return redirect(url_for("results.settings"))
 
-    return render_template("results/settings.html", year=year, rule=rule)
+    from ...services.school_templates.grading_library import PASS_RULES
+    return render_template("results/settings.html", year=year, rule=rule, pass_templates=PASS_RULES)
 
 
 # ---------- T-7.2 Assessment components ----------
@@ -253,6 +254,54 @@ def components():
 
 
 # ---------- T-7.3 / T-7.4 Grade entry per (section, term, subject) ----------
+
+@bp.route("/components/templates", methods=["GET", "POST"], endpoint="component_templates")
+@login_required
+@require_permission("results", "view")
+def component_templates():
+    """Apply a ready-made component set to several terms × subjects at
+    once (school_templates/grading_library). Preview first; applying
+    re-plans from the posted choices and writes in one transaction.
+    A (term, subject, grade scope) that already has components is
+    skipped whole and reported."""
+    from ...services import grading_templates as gt
+    from ...services.school_templates.grading_library import COMPONENT_SETS
+    year = _active_year()
+    if not year:
+        flash("لا توجد سنة دراسية نشطة.", "warning")
+        return redirect(url_for("dashboard.home"))
+    terms = Term.query.filter_by(school_id=_sid(), year_id=year.id).order_by(Term.order_index).all()
+    subjects = Subject.query.filter_by(school_id=_sid()).order_by(Subject.name).all()
+    grades = Grade.query.filter_by(school_id=_sid()).order_by(Grade.order_index, Grade.name).all()
+    chosen = {"key": request.form.get("key") or "", "terms": [], "subjects": [], "grade_id": None}
+    plan = None
+    if request.method == "POST":
+        if not current_user.can("results", "edit"):
+            abort(403)
+        # every id from the form must be this school's (terms: the active year's)
+        term_ids = {owned_id(Term, int(x)) for x in request.form.getlist("term_ids") if x.isdigit()}
+        picked_terms = [t for t in terms if t.id in term_ids]
+        subject_ids = {owned_id(Subject, int(x)) for x in request.form.getlist("subject_ids") if x.isdigit()}
+        picked_subjects = subjects if request.form.get("all_subjects") else [s for s in subjects if s.id in subject_ids]
+        grade_id = owned_id(Grade, request.form.get("grade_id", type=int))
+        chosen.update(terms=[t.id for t in picked_terms], subjects=[s.id for s in picked_subjects],
+                      grade_id=grade_id, all_subjects=bool(request.form.get("all_subjects")))
+        try:
+            plan = gt.plan_components(chosen["key"], picked_terms, picked_subjects, grade_id)
+        except gt.TemplateError as e:
+            flash(str(e), "danger")
+            plan = None
+        if plan is not None and request.form.get("action") == "apply":
+            n = gt.apply_components(plan)
+            msg = f"تم إنشاء {n} مكوّن لـ {len(plan.create)} مادة/فصل."
+            if plan.skip:
+                msg += f" واتخطّى {len(plan.skip)} (فيها مكوّنات بالفعل): " + "، ".join(
+                    f"{s.name} — {t.name}" for t, s, _ in plan.skip[:8])
+            flash(msg, "success" if n else "warning")
+            return redirect(url_for("results.components"))
+    return render_template("results/component_templates.html", templates=COMPONENT_SETS,
+                           terms=terms, subjects=subjects, grades=grades, chosen=chosen, plan=plan)
+
 
 @bp.route("/grades")
 @login_required

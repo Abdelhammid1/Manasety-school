@@ -1,0 +1,55 @@
+{# Ready-made rubrics: preview, then add as the school's own copy. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نماذج الروبريكس{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.rubrics_list') }}" class="hover:text-primary">الروبريكس</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">نماذج جاهزة</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">نماذج الروبريكس</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      اختار روبريك جاهز وشوف معاييره وأوزانها، وبعد الإضافة بيفتح للتعديل كأي روبريك في مدرستك.
+    </p>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+    {% for t in templates %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-sm">
+      <h2 class="font-title-md text-primary font-bold">{{ t.title }}</h2>
+      <p class="font-body-sm text-on-surface-variant">{{ t.description }}</p>
+      <div class="rounded-xl border border-outline-variant/60 overflow-hidden">
+        <div class="grid grid-cols-[1fr_auto] gap-2 px-3 py-1.5 bg-surface-container-low font-label-sm text-on-surface-variant font-bold">
+          <span>المعيار</span><span>الوزن</span>
+        </div>
+        {% for c in t.criteria %}
+        <div class="grid grid-cols-[1fr_auto] gap-2 px-3 py-2 border-t border-outline-variant/40">
+          <div class="min-w-0">
+            <div class="font-body-sm font-bold text-on-surface">{{ c.title }}</div>
+            <div class="font-label-sm text-on-surface-variant">{{ c.description }}</div>
+          </div>
+          <span class="font-body-sm tabular-nums text-on-surface">{{ '%g'|format(c.weight) }}٪</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if current_user.can('results', 'edit') %}
+      <form method="post" action="{{ url_for('results.rubric_template_apply', key=t.key) }}" class="mt-auto flex flex-col gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        {% if t.title in taken %}
+        <p class="font-label-sm text-error">يوجد روبريك بنفس العنوان في المدرسة.</p>
+        {% endif %}
+        <button type="submit" {% if t.title in taken %}disabled{% endif %}
+                class="h-11 rounded-xl text-on-primary font-label-lg font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          إضافة للمدرسة وفتحه للتعديل
+        </button>
+      </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

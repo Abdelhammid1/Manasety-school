@@ -10,11 +10,17 @@
 
 {% block page_content %}
 <div class="flex flex-col w-full gap-space-md">
-  <div>
-    <h1 class="font-headline-lg text-headline-lg text-primary">مكوّنات التقييم الأكاديمي</h1>
-    <p class="font-body-md text-body-md text-on-surface-variant mt-1">
-      عرّف مكوّنات درجة كل مادة داخل كل فترة دراسية (مثال: مشاركة، اختبار قصير، اختبار نصفي، اختبار نهائي).
-    </p>
+  <div class="flex items-start justify-between flex-wrap gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-headline-lg text-primary">مكوّنات التقييم الأكاديمي</h1>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">
+        عرّف مكوّنات درجة كل مادة داخل كل فترة دراسية (مثال: مشاركة، اختبار قصير، اختبار نصفي، اختبار نهائي).
+      </p>
+    </div>
+    <a href="{{ url_for('results.component_templates') }}"
+       class="h-11 px-5 rounded-xl bg-surface-container-lowest text-primary font-title-md font-bold flex items-center gap-2 shadow-sm hover:bg-surface-container-low">
+      <span class="material-symbols-outlined text-xl">auto_awesome</span>تطبيق نموذج على أكتر من مادة
+    </a>
   </div>
 
   <form method="get" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm grid grid-cols-1 md:grid-cols-[1fr_1fr_auto] gap-space-md items-end">

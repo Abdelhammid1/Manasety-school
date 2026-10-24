@@ -12,11 +12,17 @@
         عرّف سلالم درجات مختلفة (رقمي / حرفي / وصفي) لكل مرحلة أو للمدرسة كلها.
       </p>
     </div>
+    <div class="flex flex-wrap items-center gap-2">
+    <a href="{{ url_for('results.scale_templates') }}"
+       class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-title-md font-bold flex items-center gap-2 hover:bg-surface-container">
+      <span class="material-symbols-outlined text-xl">auto_awesome</span>نماذج جاهزة
+    </a>
     <a href="{{ url_for('results.scale_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
       <span class="material-symbols-outlined text-xl">add</span>سلم جديد
     </a>
+    </div>
   </section>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
@@ -45,7 +51,7 @@
         {% for lv in s.levels %}
         <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-label-md font-bold"
               style="background: {{ (lv.color or '#94A3B8') }}20; color: {{ (lv.color or '#374151') }};">
-          {{ lv.label }} · {{ lv.min_score }}-{{ lv.max_score }}
+          <bdi>{{ lv.label }}</bdi> · <bdi>{{ lv.min_score }}-{{ lv.max_score }}</bdi>
         </span>
         {% endfor %}
       </div>

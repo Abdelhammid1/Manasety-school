@@ -9,11 +9,17 @@
       <h1 class="font-headline-lg text-primary font-bold">الروبريكس (Rubrics)</h1>
       <p class="font-body-md text-on-surface-variant mt-1">قوالب تقييم وصفي بمعايير موزونة — تستخدم في الواجبات ومكوّنات التقييم.</p>
     </div>
+    <div class="flex flex-wrap items-center gap-2">
+    <a href="{{ url_for('results.rubric_templates') }}"
+       class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-title-md font-bold flex items-center gap-2 hover:bg-surface-container">
+      <span class="material-symbols-outlined text-xl">auto_awesome</span>نماذج جاهزة
+    </a>
     <a href="{{ url_for('results.rubric_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold shadow-md flex items-center gap-2"
        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
       <span class="material-symbols-outlined text-xl">add</span>روبريك جديد
     </a>
+    </div>
   </section>
   <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
     {% for r in rubrics %}

@@ -1,0 +1,122 @@
+{# Apply a ready-made component set to several terms × subjects at once:
+   choose, preview (what will be created / skipped), then apply. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}تطبيق نموذج مكوّنات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.components') }}" class="hover:text-primary">مكوّنات التقييم</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">تطبيق نموذج</span>
+{% endblock %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">تطبيق نموذج مكوّنات تقييم</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      طبّق نفس توزيع الدرجات على أكتر من مادة وفصل في خطوة واحدة. أي مادة/فصل فيه مكوّنات بالفعل بيتخطّى كله
+      عشان مجموعه يفضل 100، ومفيش مكوّن موجود بيتغير.
+    </p>
+  </section>
+
+  <form method="post" class="flex flex-col gap-space-md">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-sm">
+      <h2 class="font-title-md text-primary font-bold">1. النموذج</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
+        {% for t in templates %}
+        <label class="p-space-md rounded-xl bg-surface-container-low cursor-pointer flex flex-col gap-2 has-[:checked]:ring-2 has-[:checked]:ring-primary has-[:checked]:bg-primary/5">
+          <span class="flex items-center gap-2">
+            <input type="radio" name="key" value="{{ t.key }}" required class="accent-primary" {% if chosen.key == t.key or (not chosen.key and loop.first) %}checked{% endif %}>
+            <span class="font-title-sm font-bold text-on-surface">{{ t.name }}</span>
+          </span>
+          <span class="font-body-sm text-on-surface-variant">{{ t.description }}</span>
+          <span class="flex flex-wrap gap-1">
+            {% for name, mx in t.components %}
+            <span class="px-2 py-0.5 rounded-full bg-surface-container-lowest font-label-sm text-on-surface">{{ name }} <b class="tabular-nums">{{ '%g'|format(mx) }}</b></span>
+            {% endfor %}
+          </span>
+        </label>
+        {% endfor %}
+      </div>
+    </section>
+
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm grid grid-cols-1 md:grid-cols-3 gap-space-md">
+      <fieldset class="flex flex-col gap-2">
+        <legend class="font-title-md text-primary font-bold mb-1">2. الفصول (السنة النشطة)</legend>
+        {% for t in terms %}
+        <label class="inline-flex items-center gap-2 font-body-md"><input type="checkbox" name="term_ids" value="{{ t.id }}" class="accent-primary w-4 h-4" {% if t.id in chosen.terms %}checked{% endif %}> {{ t.name }}</label>
+        {% else %}
+        <p class="text-on-surface-variant">لا توجد فصول في السنة النشطة.</p>
+        {% endfor %}
+      </fieldset>
+      <fieldset class="flex flex-col gap-2">
+        <legend class="font-title-md text-primary font-bold mb-1">3. المواد</legend>
+        <label class="inline-flex items-center gap-2 font-body-md font-bold"><input type="checkbox" name="all_subjects" value="1" class="accent-primary w-4 h-4" {% if chosen.all_subjects %}checked{% endif %} data-all> كل المواد</label>
+        <div class="flex flex-col gap-2 max-h-64 overflow-y-auto overscroll-contain" data-subjects>
+          {% for s in subjects %}
+          <label class="inline-flex items-center gap-2 font-body-md"><input type="checkbox" name="subject_ids" value="{{ s.id }}" class="accent-primary w-4 h-4" {% if s.id in chosen.subjects %}checked{% endif %}> {{ s.name }}</label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      <div class="flex flex-col gap-2">
+        <label for="grade_id" class="font-title-md text-primary font-bold">4. الصف (اختياري)</label>
+        <select name="grade_id" id="grade_id" class="h-11 px-3 rounded-xl bg-surface-container-low">
+          <option value="">كل الصفوف (مشترك)</option>
+          {% for g in grades %}
+          <option value="{{ g.id }}" {% if chosen.grade_id == g.id %}selected{% endif %}>{{ g.name }}</option>
+          {% endfor %}
+        </select>
+        <p class="font-label-sm text-on-surface-variant">بدون اختيار: المكوّنات مشتركة لكل الصفوف اللي بتدرس المادة. اختار صف لو التوزيع خاص بيه.</p>
+      </div>
+    </section>
+
+    {% if plan %}
+    <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-sm" aria-live="polite">
+      <h2 class="font-title-md text-primary font-bold">المعاينة</h2>
+      <p class="font-body-md text-on-surface">
+        هيتنشأ <b class="tabular-nums">{{ plan.count }}</b> مكوّن لـ <b class="tabular-nums">{{ plan.create|length }}</b> مادة/فصل
+        {% if plan.skip %}، وهيتخطّى <b class="tabular-nums">{{ plan.skip|length }}</b>{% endif %}.
+      </p>
+      {% if plan.create %}
+      <div class="flex flex-wrap gap-1">
+        {% for term, subject in plan.create %}
+        <span class="px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-sm">{{ subject.name }} — {{ term.name }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% if plan.skip %}
+      <div class="flex flex-col gap-1">
+        <span class="font-label-md text-on-surface-variant font-bold">هيتخطّى:</span>
+        {% for term, subject, reason in plan.skip %}
+        <span class="font-body-sm text-on-surface-variant">{{ subject.name }} — {{ term.name }}: {{ reason }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <div class="flex flex-wrap items-center justify-end gap-2">
+      <a href="{{ url_for('results.components') }}" class="h-11 px-5 inline-flex items-center rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">رجوع</a>
+      {% if current_user.can('results', 'edit') %}
+      <button type="submit" name="action" value="preview" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">معاينة</button>
+      {% if plan and plan.create %}
+      <button type="submit" name="action" value="apply" class="h-11 px-6 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
+              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+        تطبيق ({{ plan.count }} مكوّن)
+      </button>
+      {% endif %}
+      {% endif %}
+    </div>
+  </form>
+</div>
+<script>
+  // «كل المواد» greys out the per-subject boxes (the server takes them all)
+  (function () {
+    const all = document.querySelector('[data-all]'), box = document.querySelector('[data-subjects]');
+    if (!all || !box) return;
+    const sync = () => { box.style.opacity = all.checked ? .5 : 1; box.querySelectorAll('input').forEach(i => { i.disabled = all.checked; }); };
+    all.addEventListener('change', sync); sync();
+  })();
+</script>
+{% endblock %}

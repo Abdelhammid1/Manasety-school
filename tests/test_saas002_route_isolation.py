@@ -1102,6 +1102,11 @@ FORM_ID_MATRIX: dict[str, Entry] = {
                       "name": "x", "max_score": "10", "grade_id": B["grade"].id,
                       "source_type": "lms_quiz", "source_id": B["quiz"], "auto_sync": "1"},
         _both(_xlink("AssessmentComponent", ("grade_id", "grade"), ("source_id", "quiz")))),
+    # ready-made component set applied in bulk: B's grade must not scope A's new components
+    "results.component_templates": _post(
+        lambda A, B: {"key": "year-20-final-80", "term_ids": A["term"].id, "subject_ids": A["subject"].id,
+                      "grade_id": B["grade"].id, "action": "apply"},
+        _xlink("AssessmentComponent", ("grade_id", "grade"))),
     "results.missing_grades_report": _get_q(lambda A, B: {"section_id": B["section"].id,
                                                           "subject_id": B["subject"].id,
                                                           "term_id": B["term"].id, "year_id": B["year"].id}),

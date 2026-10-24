@@ -1,0 +1,63 @@
+{# Ready-made grading scales: preview, then add as the school's own copy. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}نماذج سلالم الدرجات{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <a href="{{ url_for('results.scales_list') }}" class="hover:text-primary">سلالم الدرجات</a>
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">نماذج جاهزة</span>
+{% endblock %}
+{% set type_labels = {'numeric':'رقمي','letter':'حرفي','descriptive':'وصفي'} %}
+{% block page_content %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
+    <h1 class="font-headline-lg text-primary font-bold">نماذج سلالم الدرجات</h1>
+    <p class="font-body-md text-on-surface-variant mt-1">
+      اختار نموذج وشوف مستوياته، وبعد الإضافة بيبقى سلم خاص بمدرستك تقدر تعدّله براحتك. مفيش سلم موجود بيتغير.
+    </p>
+  </section>
+
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-space-md">
+    {% for t in templates %}
+    <article class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-sm">
+      <div class="flex items-center gap-space-sm flex-wrap">
+        <h2 class="font-title-md text-primary font-bold">{{ t.name }}</h2>
+        <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-label-xs font-bold">{{ type_labels.get(t.scale_type, t.scale_type) }}</span>
+      </div>
+      <p class="font-body-sm text-on-surface-variant">{{ t.description }}</p>
+      <div class="rounded-xl border border-outline-variant/60 overflow-hidden">
+        <div class="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-1.5 bg-surface-container-low font-label-sm text-on-surface-variant font-bold">
+          <span>التقدير</span><span>من – إلى</span><span>{{ 'النقاط' if t.levels[0].gpa_points is not none else 'النتيجة' }}</span>
+        </div>
+        {% for lv in t.levels|sort(attribute='min_score', reverse=True) %}
+        <div class="grid grid-cols-[1fr_auto_auto] gap-2 px-3 py-1.5 border-t border-outline-variant/40 font-body-sm">
+          <bdi class="font-bold text-on-surface">{{ lv.label }}</bdi>
+          <span class="tabular-nums text-on-surface-variant" dir="ltr">{{ '%g'|format(lv.min_score) }} – {{ '%g'|format(lv.max_score) }}</span>
+          <span class="{{ 'text-[#065F46]' if lv.is_passing else 'text-error' }}">
+            {{ lv.gpa_points if lv.gpa_points is not none else ('ناجح' if lv.is_passing else 'راسب') }}
+          </span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if current_user.can('results', 'edit') %}
+      <form method="post" action="{{ url_for('results.scale_template_apply', key=t.key) }}" class="mt-auto flex flex-col gap-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label class="inline-flex items-center gap-2 font-label-md text-on-surface">
+          <input type="checkbox" name="make_default" value="1" class="w-4 h-4 accent-primary" {% if not has_default %}checked{% endif %}>
+          اجعله السلم الافتراضي للمدرسة
+        </label>
+        {% if t.name in taken %}
+        <p class="font-label-sm text-error">يوجد سلم بنفس الاسم في المدرسة.</p>
+        {% endif %}
+        <button type="submit" {% if t.name in taken %}disabled{% endif %}
+                class="h-11 rounded-xl text-on-primary font-label-lg font-bold shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          إضافة لسلالم المدرسة
+        </button>
+      </form>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

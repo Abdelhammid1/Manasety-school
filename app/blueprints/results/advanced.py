@@ -118,6 +118,59 @@ def scale_delete(scale_id):
 
 # ─── Ticket #16 — Rubrics ───────────────────────────────────────────
 
+# ─── Ready-made templates (school_templates/grading_library) ─────────
+# The library and its preview need view; applying needs edit. A
+# template becomes the school's own copy (services/grading_templates).
+
+@bp.route("/scales/templates", endpoint="scale_templates")
+@login_required
+@require_permission("results", "view")
+def scale_templates():
+    from ...services.school_templates.grading_library import SCALES
+    has_default = GradingScale.query.filter_by(school_id=_sid(), is_default=True).first() is not None
+    taken = {n for (n,) in db.session.query(GradingScale.name).filter_by(school_id=_sid()).all()}
+    return render_template("results/scale_templates.html", templates=SCALES,
+                           has_default=has_default, taken=taken)
+
+
+@bp.route("/scales/templates/<key>", methods=["POST"], endpoint="scale_template_apply")
+@login_required
+@require_permission("results", "edit")
+def scale_template_apply(key):
+    from ...services.grading_templates import TemplateError, apply_scale
+    try:
+        scale = apply_scale(key, make_default=bool(request.form.get("make_default")))
+    except TemplateError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("results.scale_templates"))
+    flash(f"تم إضافة «{scale.name}» لسلالم المدرسة — تقدر تعدّله براحتك."
+          + (" وبقى هو السلم الافتراضي." if scale.is_default else ""), "success")
+    return redirect(url_for("results.scales_list"))
+
+
+@bp.route("/rubrics/templates", endpoint="rubric_templates")
+@login_required
+@require_permission("results", "view")
+def rubric_templates():
+    from ...services.school_templates.grading_library import RUBRICS
+    taken = {t for (t,) in db.session.query(Rubric.title).filter_by(school_id=_sid()).all()}
+    return render_template("results/rubric_templates.html", templates=RUBRICS, taken=taken)
+
+
+@bp.route("/rubrics/templates/<key>", methods=["POST"], endpoint="rubric_template_apply")
+@login_required
+@require_permission("results", "edit")
+def rubric_template_apply(key):
+    from ...services.grading_templates import TemplateError, apply_rubric
+    try:
+        r = apply_rubric(key, getattr(current_user, "id", None))
+    except TemplateError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("results.rubric_templates"))
+    flash(f"تم إضافة الروبريك «{r.title}» — عدّل معاييره براحتك.", "success")
+    return redirect(url_for("results.rubric_edit", rubric_id=r.id))
+
+
 @bp.route("/rubrics", endpoint="rubrics_list")
 @login_required
 @require_permission("results", "view")
