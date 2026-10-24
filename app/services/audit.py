@@ -151,6 +151,43 @@ def _snap_before(mapper, connection, target):
     return old or None
 
 
+def _login_bookkeeping_only(target, changed: dict) -> bool:
+    """A User update that touched only the login counters (last_login_at,
+    failed_attempts, locked_until) gets no full snapshot: every login
+    would copy the whole user (email, phone…) into the trail. Any other
+    field changed with them (password, role, email, activation) and the
+    row is recorded as before."""
+    from ..models import User
+    from .subscription_enforcement import USER_LOGIN_FIELDS
+    return isinstance(target, User) and set(changed) <= USER_LOGIN_FIELDS
+
+
+# Short security events for the login itself, in place of the snapshot.
+LOGIN_OK, LOGIN_FAILED, LOGIN_LOCKED = "login", "login_failed", "login_locked"
+
+
+def record_login_event(user, action: str, via: str, reason=None) -> None:
+    """One row per login outcome, attributed to the user explicitly
+    (current_user isn't set yet), with no copy of the user: just how
+    (`via`: web / api) and, for a failure, why. Same transaction as the
+    login's own commit — call it before db.session.commit()."""
+    ip = ua = None
+    if has_request_context():
+        ip = request.remote_addr
+        ua = (request.user_agent.string or "")[:255] if request.user_agent else None
+    detail = {"via": via}
+    if reason:
+        detail["reason"] = reason
+    db.session.connection().execute(AuditLog.__table__.insert().values(
+        school_id=user.school_id, user_id=user.id,
+        action=action, entity_type="User", entity_id=user.id,
+        old_value=None, new_value=detail,
+        ip_address=ip, user_agent=ua,
+        support_session_id=_support_session_id(),
+        created_at=datetime.now(timezone.utc),
+    ))
+
+
 def _register(model):
     @event.listens_for(model, "after_insert")
     def _ai(mapper, connection, target):
@@ -159,6 +196,8 @@ def _register(model):
     @event.listens_for(model, "after_update")
     def _au(mapper, connection, target):
         pre = _snap_before(mapper, connection, target)
+        if pre and _login_bookkeeping_only(target, pre):
+            return          # the login itself is a short event (record_login_event)
         # decimals / dates in `pre` still need normalising
         clean = {}
         for k, v in (pre or {}).items():

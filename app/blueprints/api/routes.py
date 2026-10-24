@@ -81,10 +81,16 @@ def login():
     if resolved is not None and resolved.kind == "tenant" and resolved.school is not None:
         q = q.filter(User.school_id == resolved.school.id)
     user = q.first()
+    from ...services import audit as _audit
     if not user or not user.is_active or not user.check_password(password):
+        if user:                                        # an unknown name has nobody to attribute
+            _audit.record_login_event(user, _audit.LOGIN_FAILED, "api",
+                                      "inactive" if not user.is_active else "password")
+            db.session.commit()
         return _err("اسم المستخدم أو كلمة المرور غير صحيحة.", 401)
 
     user.last_login_at = datetime.utcnow()
+    _audit.record_login_event(user, _audit.LOGIN_OK, "api")
     db.session.commit()
     return jsonify({
         "token": issue_token(user),

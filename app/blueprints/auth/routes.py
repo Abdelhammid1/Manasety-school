@@ -76,11 +76,17 @@ def login():
 
         user = _lookup_user_for_login(username)
 
+        from ...services import audit as _audit
         if not user or not user.is_active:
+            if user:                                    # an unknown name has nobody to attribute
+                _audit.record_login_event(user, _audit.LOGIN_FAILED, "web", "inactive")
+                db.session.commit()
             flash("بيانات الدخول غير صحيحة.", "danger")
             return _render_login(401)
 
         if user.is_locked():
+            _audit.record_login_event(user, _audit.LOGIN_FAILED, "web", "locked")
+            db.session.commit()
             remaining = int((user.locked_until - datetime.utcnow()).total_seconds() // 60) + 1
             flash(f"تم قفل الحساب مؤقتًا. حاول بعد {remaining} دقيقة.", "warning")
             return _render_login(423)
@@ -93,8 +99,10 @@ def login():
                     minutes=current_app.config["LOCKOUT_MINUTES"]
                 )
                 user.failed_attempts = 0
+                _audit.record_login_event(user, _audit.LOGIN_LOCKED, "web")
                 flash("تم قفل الحساب بعد عدة محاولات فاشلة.", "danger")
             else:
+                _audit.record_login_event(user, _audit.LOGIN_FAILED, "web", "password")
                 flash("بيانات الدخول غير صحيحة.", "danger")
             db.session.commit()
             return _render_login(401)
@@ -102,6 +110,7 @@ def login():
         user.failed_attempts = 0
         user.locked_until = None
         user.last_login_at = datetime.utcnow()
+        _audit.record_login_event(user, _audit.LOGIN_OK, "web")
         db.session.commit()
         login_user(user, remember=bool(request.form.get("remember")))
         from ...services.subscription_enforcement import stamp_session_epoch
