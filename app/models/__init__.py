@@ -3,7 +3,7 @@ from .user import User, Role, AccountSetupToken
 from .platform_admin import (
     PlatformUser, PlatformRecoveryCode, PlatformAuditLog, PLATFORM_ROLES,
     Plan, SchoolSubscription, SchoolSubscriptionEvent, PlatformSetting, PlatformJob,
-    SchoolModuleOverride, SchoolLimitOverride, SupportSession, SupportSessionEvent,
+    SchoolModuleOverride, SchoolFeatureOverride, SchoolLimitOverride, SupportSession, SupportSessionEvent,
     SchoolSlugHistory, PlatformSchoolNote, SchoolContact, SchoolTag, PlatformAnnouncement,
     BILLING_CYCLES, SUBSCRIPTION_EVENT_KINDS, PlatformUsageSnapshot, PlatformAlert, SchoolOffboarding,
     PlatformSession, PlatformSetupToken,
@@ -149,7 +149,7 @@ __all__ = [
     "GAP_SEVERITY", "GAP_SOURCE", "INTERVENTION_STATUS",
     "PlatformUser", "PlatformRecoveryCode", "PlatformAuditLog", "PLATFORM_ROLES",
     "Plan", "SchoolSubscription", "SchoolSubscriptionEvent", "PlatformSetting", "PlatformJob",
-    "SchoolModuleOverride", "SchoolLimitOverride", "SupportSession", "SupportSessionEvent",
+    "SchoolModuleOverride", "SchoolFeatureOverride", "SchoolLimitOverride", "SupportSession", "SupportSessionEvent",
     "SchoolSlugHistory", "PlatformSchoolNote", "SchoolContact", "SchoolTag", "PlatformAnnouncement",
     "PlatformInvoice", "PlatformInvoiceLine", "PlatformPayment", "PlatformUsageSnapshot", "PlatformAlert",
     "SchoolOffboarding", "PlatformSession", "PlatformSetupToken",

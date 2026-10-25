@@ -43,7 +43,7 @@ PLATFORM_TABLES: frozenset[str] = frozenset({
     "platform_jobs",
     # SAAS-030 — console-managed exceptions (keyed by school, never
     # written from a school host)
-    "school_module_overrides", "school_limit_overrides",
+    "school_module_overrides", "school_feature_overrides", "school_limit_overrides",
     # SAAS-031
     "support_sessions", "support_session_events",
     # SAAS-032 — console-only, never written from a school host

@@ -49,6 +49,14 @@ from ...models import (
 from ...services.scoping import owned_id, owned_or_404  # isolation sweep: school-scoped get
 
 
+def _ai_on() -> bool:
+    """DeepSeek is set up on the server AND this school has the AI
+    feature (services/modules.py "lms.ai", off by default for new schools)."""
+    from ...services import deepseek
+    from ...services.modules import feature_enabled
+    return deepseek.is_configured() and feature_enabled(current_user.school_id, "lms.ai")
+
+
 
 
 def _current_student():
@@ -2253,7 +2261,7 @@ def template_ai_generate(tid):
     t = AssessmentTemplate.query.filter_by(
         id=tid, school_id=sid).first_or_404()
 
-    if not deepseek.is_configured():
+    if not _ai_on():
         flash("لم يتم تهيئة مفتاح DeepSeek — اطلب من مدير النظام إضافة DEEPSEEK_API_KEY.",
               "warning")
         return redirect(url_for("lms.template_detail", tid=t.id))
@@ -2344,7 +2352,7 @@ def bank_ai_review():
     review_state so the admin only sees the actionable rest."""
     from ...services import deepseek
     sid = current_user.school_id
-    if not deepseek.is_configured():
+    if not _ai_on():
         flash("لم يتم تهيئة مفتاح DeepSeek.", "warning")
         return redirect(url_for("lms.qbank_dashboard"))
 
@@ -2552,7 +2560,7 @@ def quiz_analysis(qid):
 
     ai = None
     ai_error = None
-    if deepseek.is_configured() and q_stats:
+    if _ai_on() and q_stats:
         try:
             ai = deepseek.summarize_exam_results(quiz.title, q_stats)
         except deepseek.AIError as e:
@@ -2625,7 +2633,7 @@ def bank_ai_rewrite(bid):
     from ...services import deepseek
     sid = current_user.school_id
     q = BankQuestion.query.filter_by(id=bid, school_id=sid).first_or_404()
-    if not deepseek.is_configured():
+    if not _ai_on():
         return jsonify({"error": "لم يتم تهيئة مفتاح DeepSeek."}), 400
     body = request.get_json(silent=True) or request.form
     directive = (body.get("directive") or "").strip() or "أعد صياغة السؤال بشكل أوضح."
@@ -2795,7 +2803,7 @@ def submission_ai_grade(sid):
     sub = owned_or_404(Submission, sid)
     if sub.assignment.course.school_id != school_sid:
         abort(403)
-    if not deepseek.is_configured():
+    if not _ai_on():
         return jsonify({"error": "لم يتم تهيئة مفتاح DeepSeek."}), 400
     prompt = sub.assignment.title
     # Prefer the real Rubric object when the assignment is linked to one
@@ -2839,7 +2847,7 @@ def blueprint_ai_suggest():
     split for a given (subject, grade, total). Returns JSON so the
     Blueprint form can populate its sliders client-side."""
     from ...services import deepseek
-    if not deepseek.is_configured():
+    if not _ai_on():
         return jsonify({"error": "DEEPSEEK_API_KEY not configured"}), 400
     body = request.get_json(silent=True) or request.form
     subject = (body.get("subject") or "").strip() or "عام"

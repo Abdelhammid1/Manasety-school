@@ -130,6 +130,8 @@ def test_autosave_query_count_stays_within_one_extra_query(sapp, world, login_as
 
         before SAAS-015/016 (get_or_404, no choice check): mcq=12 text=15
         after  (owned_or_404 + choice belongs to question): mcq=13 text=15
+        + the features gate (2026-10-25): one read of the school's page
+          overrides per request (cached in g): mcq=14 text=16
     """
     from app.extensions import db
     from app.models import Question
@@ -150,7 +152,7 @@ def test_autosave_query_count_stays_within_one_extra_query(sapp, world, login_as
     text = _count_queries(sapp, lambda: c.post(url, base_url=host(A), data={
         "question_id": q2_id, "text": "y"}))
     print(f"\n[SAAS-016] autosave SQL statements: mcq={mcq} text={text}")
-    assert mcq <= 12 + 1 and text <= 15, (mcq, text)
+    assert mcq <= 12 + 1 + 1 and text <= 15 + 1, (mcq, text)
 
 
 def test_lesson_unit_must_be_a_unit_of_the_same_course(sapp, world, login_as):

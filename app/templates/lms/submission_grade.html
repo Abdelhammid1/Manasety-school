@@ -44,6 +44,7 @@
         </button>
       </div>
 
+      {% if feature_on('lms.ai') %}
       {# AI score card #}
       <div class="p-space-md rounded-2xl bg-surface-container-lowest border border-surface-container-high space-y-space-sm">
         <div class="flex items-center gap-2">
@@ -99,6 +100,7 @@
         <span class="material-symbols-outlined">auto_awesome</span>
         <span>تحليل بالذكاء الاصطناعي</span>
       </button>
+      {% endif %}
 
       {# Save form #}
       {% set rubric = asg.rubric %}

@@ -281,6 +281,29 @@ Runbook:
 - موديول مقفول: الويب 404، الـAPI 403 `{"error":"module_disabled","module":"<key>"}`، `can()` بترجع False، الـsidebar بيخفيه، والـcron بيتخطى مهامه. القفل ما بيمسحش داتا.
 - الحدود: عند 90% تحذير لمدير المدرسة في لوحة التحكم، وعند 100% منع الإضافة بس (طالب، استيراد بالجملة بالكامل، حساب موظف، رفع ملف). الـAPI: 403 `{"error":"limit_reached","limit":"students|users|storage"}`. الطلاب = اللي ملهمش قيد أو آخر قيد ليهم مش منسحب/محوّل/متخرج. الموظفين = المستخدمين النشطين اللي دورهم مش طالب ولا ولي أمر.
 
+#### الصفحات والميزات داخل الوحدات (تذكرة A — 2026-10-25)
+
+مفيش متغيرات جديدة. Migration `g8b0c2d4e6f8` بتعمل `school_feature_overrides` وبتدّي **كل مدرسة موجودة** استثناء «مفعّل» لـ`lms.ai` بسبب «الوضع قبل هذه التذكرة»، فمفيش مدرسة قائمة بتخسر حاجة. المدارس الجديدة بعدها: الـAI مقفول لحد ما owner يفتحه.
+
+- الكتالوج في `app/services/modules.py` (`FEATURES`): 69 ميزة، كل route ويب لمدرسة في ميزة واحدة بالظبط (`tests/test_features.py` بيفشل لو route جديد من غير ميزة). الـAPI فاضل على مستوى الوحدة.
+- الميزة شغالة = وحدتها شغالة **و** (استثناء المدرسة لو موجود، وإلا الافتراضي). قفل الوحدة بيخفي كل صفحاتها، وفتحها بيرجّع كل صفحة لحالتها. القفل ما بيمسحش داتا، واستثناءات الميزات بتفضل بعد تغيير الباقة.
+- ميزة مقفولة: الويب 404، الرابط بيختفي من الـsidebar (`endpoint_on`)، و`feature_on('<key>')` متاحة في القوالب. الـcron بيتخطى مهامها ويكتبها في `skipped_features` (`attendance.risk`، `attendance.reports`، `finance.recurring`، `finance.invoices`). من غير `lms.ai` مفيش أي طلب لـDeepSeek ولا زرار AI.
+- الأساسية (ما بتتقفلش): `core.auth`، `core.dashboard`، `core.users`، `core.roles`، `core.settings`، `core.support_log`، `core.ai_usage`، `academic.structure`، `students.records`، `students.guardians`.
+
+| الوحدة | الميزات |
+|---|---|
+| core | auth (أ) · dashboard (أ) · users (أ) · roles (أ) · settings (أ) · support_log (أ) · ai_usage (أ) · search · messaging · audit · trash · backups |
+| academic | structure (أ) · calendar · subjects · teachers · teaching |
+| students | records (أ) · guardians (أ) · documents · behavior · health · id_card · view360 · promotion · imports |
+| attendance | mark · reports · risk |
+| schedule | timetable · rooms · substitutions |
+| results | gradebook · scales · rubrics · transcripts · settings |
+| lms | courses · qbank · assignments · quizzes · exam_blueprint · templates · announcements · reports · ai (مقفولة افتراضيًا) |
+| nafis | outcomes · cycles · gaps |
+| finance | dashboard · invoices · fees · recurring · discounts · refunds · expenses · vendors · treasury · bank_rec · accounting · budgets · reports |
+| hr | employees · leaves · payroll · staff_attendance |
+| portal | home · materials · pickup |
+
 #### الدخول كمدرسة — جلسات الدعم (SAAS-031)
 
 **ممنوع التفعيل على الإنتاج قبل بوابة B** (فحوصات العزل 014..018 + enforce)، وقبل بند في شروط الاشتراك بيسمح للدعم بالاطلاع على بيانات المدرسة (قرار عبدالحميد). مراجعة أمنية منفصلة مطلوبة قبل الدمج.

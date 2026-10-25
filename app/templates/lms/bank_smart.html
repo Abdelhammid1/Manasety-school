@@ -36,11 +36,13 @@
     </div>
     <div class="flex flex-wrap items-center gap-space-sm">
       {% if editing %}
+      {% if endpoint_on('lms.bank_rewrite_panel') %}
       <a href="{{ url_for('lms.bank_rewrite_panel', bid=item.id) }}"
          class="inline-flex items-center gap-2 px-4 h-10 rounded-xl bg-gradient-to-l from-fuchsia-600 to-violet-600 text-white font-label-lg text-label-lg font-bold shadow-md hover:brightness-110 transition-all">
         <span class="material-symbols-outlined text-lg">auto_awesome</span>
         <span>إعادة الصياغة بالذكاء الاصطناعي</span>
       </a>
+      {% endif %}
       {% else %}
       <a href="{{ url_for('lms.bank_home') }}"
          class="h-10 px-space-md rounded-xl bg-surface-container-low text-primary hover:bg-secondary-fixed/40 font-label-lg text-label-lg font-bold flex items-center gap-2 transition-all">

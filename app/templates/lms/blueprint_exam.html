@@ -178,7 +178,8 @@
       </div>
     </section>
 
-    {# AI blueprint suggestion — Stitch lms_9 #}
+    {# AI blueprint suggestion — Stitch lms_9 (only with the school's AI feature) #}
+    {% if feature_on('lms.ai') %}
     <section id="ai-suggest" class="relative overflow-hidden rounded-2xl p-space-lg
              bg-gradient-to-l from-fuchsia-500/10 via-violet-500/10 to-fuchsia-500/5
              ring-1 ring-violet-500/30 space-y-space-md">
@@ -313,6 +314,7 @@
       };
     })();
     </script>
+    {% endif %}
 
     {# Section 4: Ordering #}
     <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-space-md">

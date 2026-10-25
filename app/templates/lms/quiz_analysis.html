@@ -66,7 +66,7 @@
           <div><b>تعذّر التحليل الآن:</b> <span dir="ltr">{{ ai_error }}</span></div>
         </div>
       </div>
-      {% elif not ai %}
+      {% elif not ai and feature_on('lms.ai') %}
       <div class="p-space-md rounded-xl bg-amber-50 text-amber-800 border border-amber-200 flex items-start gap-2">
         <span class="material-symbols-outlined">warning</span>
         <div><b>لم يتم تهيئة مفتاح DeepSeek.</b> ستظهر الأرقام الأساسية فقط دون توصيات ذكية.</div>

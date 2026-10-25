@@ -209,6 +209,24 @@ class SchoolModuleOverride(db.Model):
     __table_args__ = (db.UniqueConstraint("school_id", "module_key", name="uq_school_module_override"),)
 
 
+class SchoolFeatureOverride(db.Model):
+    """A per-school exception for one page / ability inside a module
+    (services/modules.py FEATURES), e.g. "finance.budgets" off. Same shape
+    as SchoolModuleOverride; console only. A row that would repeat the
+    feature's default is never stored. Plan changes leave these alone."""
+    __tablename__ = "school_feature_overrides"
+
+    id = db.Column(db.Integer, primary_key=True)
+    school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
+    feature_key = db.Column(db.String(64), nullable=False)
+    enabled = db.Column(db.Boolean, nullable=False)
+    reason = db.Column(db.Text, nullable=False)
+    updated_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
+    updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)
+
+    __table_args__ = (db.UniqueConstraint("school_id", "feature_key", name="uq_school_feature_override"),)
+
+
 class SchoolLimitOverride(db.Model):
     """SAAS-030 — per-school limits that win over the plan's. NULL = use the plan."""
     __tablename__ = "school_limit_overrides"

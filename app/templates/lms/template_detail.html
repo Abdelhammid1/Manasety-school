@@ -190,6 +190,7 @@
         </span>
       </div>
       <div class="flex items-center gap-space-sm">
+        {% if feature_on('lms.ai') %}
         <form method="post" action="{{ url_for('lms.template_ai_generate', tid=template.id) }}"
               class="inline-flex items-center gap-2 bg-gradient-to-l from-fuchsia-600 to-violet-600 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -199,6 +200,7 @@
             <span>توليد ٥ أسئلة مشابهة بالذكاء الاصطناعي</span>
           </button>
         </form>
+        {% endif %}
         <a href="#picker-panel"
            class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-l from-primary-container to-secondary text-on-primary font-label-lg text-label-lg font-semibold shadow-sm hover:shadow-md transition-all">
           <span class="material-symbols-outlined text-lg">add_circle</span>

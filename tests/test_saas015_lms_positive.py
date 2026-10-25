@@ -26,10 +26,27 @@ def test_there_are_own_pages_to_check():
     assert len(OWN_PAGES) >= 10
 
 
+def _feature_on_for(app, school_id, endpoint):
+    """A page whose feature is off by default for new schools (lms.ai) is
+    turned on for A, as the console would — this test is about ownership."""
+    from app.extensions import db
+    from app.models import SchoolFeatureOverride
+    from app.services.modules import FEATURES_BY_KEY, feature_for_endpoint
+    key = feature_for_endpoint(endpoint)
+    if key is None or FEATURES_BY_KEY[key].default_on:
+        return
+    with app.app_context():
+        if SchoolFeatureOverride.query.filter_by(school_id=school_id, feature_key=key).first() is None:
+            db.session.add(SchoolFeatureOverride(school_id=school_id, feature_key=key, enabled=True, reason="test"))
+            db.session.commit()
+        db.session.remove()
+
+
 @pytest.mark.parametrize("endpoint", OWN_PAGES)
 def test_own_page_opens(sapp, world, login_as, endpoint):
     A, B = world["A"], world["B"]
     entry = ROUTE_MATRIX[endpoint]
+    _feature_on_for(sapp, A["school"].id, endpoint)
     role = entry.roles[-1]
     c = sapp.test_client()
     login_as(c, A["users"][role], base_url=host(A))
