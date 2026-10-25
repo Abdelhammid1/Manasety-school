@@ -1,5 +1,6 @@
 {% extends "superadmin/base.html" %}
-{% block title %}{{ school.name }}
+{% block title %}{{ school.name }}{% endblock %}
+{% block content %}
 <h2>الاشتراك</h2>
 <div class="card">
   {% if current %}
@@ -110,8 +111,6 @@
     </tbody>
   </table>
 </div>
-{% endblock %}
-{% block content %}
 <p><a href="{{ url_for('superadmin.schools') }}">→ كل المدارس</a></p>
 <h1>{{ school.name }}</h1>
 <p class="sub"><span class="mono">{{ school.slug }}.{{ base_domain }}</span> · الكود <span class="mono">{{ school.code }}</span> ·
