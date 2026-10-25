@@ -204,3 +204,18 @@ def test_school_users_and_visitors_never_reach_it(capp, two_schools, login_as):
     r = capp.test_client().post(f"/superadmin/schools/{A['school'].id}/features", base_url=CONSOLE,
                                 data={"module_hr": "off", "reason": "x"})
     assert r.status_code in (302, 401, 403)
+
+
+def test_the_school_page_sections_are_in_the_body_not_the_title(capp, two_schools):
+    """A missing {% endblock %} after the title once put every section of
+    the school page inside <title> (fixed in 7669ae0): only the stat cards
+    showed. Each section must render in the body."""
+    sid = two_schools["A"]["school"].id
+    c, _ = _console_client(capp, "owner")
+    page = c.get(f"/superadmin/schools/{sid}", base_url=CONSOLE).get_data(as_text=True)
+    head = page[:page.index("</head>")]
+    title = head[head.index("<title>"):head.index("</title>")]
+    body = page[page.index("<body"):]
+    assert len(title) < 300
+    for anchor in ('id="modules"', 'id="lifecycle"', 'id="limits"', 'id="branding"', 'id="ai-usage"'):
+        assert anchor in body and anchor not in head, anchor
