@@ -10,7 +10,7 @@
   .card {
     width: 85.6mm; height: 54mm;
     box-sizing: border-box; padding: 4mm;
-    background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 55%, #2563EB 100%);
+    background: var(--brand-gradient-deep, linear-gradient(135deg, #0C2461 0%, #1E3A8A 55%, #2563EB 100%));
     color: white; position: relative; overflow: hidden;
   }
   .brand { font-size: 8pt; opacity: 0.85; }
@@ -19,12 +19,13 @@
   .qr { position: absolute; right: 4mm; bottom: 4mm; background: white; padding: 2mm; border-radius: 4px; }
   .qr svg { width: 15mm; height: 15mm; }
   .photo { position: absolute; left: 4mm; bottom: 4mm; width: 18mm; height: 22mm; border-radius: 4px; overflow: hidden; background: rgba(255,255,255,0.15); display: flex; align-items:center; justify-content:center; font-size:16pt; font-weight:800; }
-  .fallback-qr { font-family: monospace; font-size: 6pt; background: white; color: #0C2461; padding: 2mm; border-radius: 4px; }
+  .fallback-qr { font-family: monospace; font-size: 6pt; background: white; color: rgb(var(--c-navy, 12 36 97)); padding: 2mm; border-radius: 4px; }
   .print-btn { padding: 12px 20px; background: #1E3A8A; color: white; border: 0; border-radius: 8px; margin: 20px; cursor: pointer; }
   @media print {
     .print-btn { display: none; }
   }
 </style>
+  {% include "partials/brand_theme.html" %}
 </head>
 <body>
   <button class="print-btn" onclick="window.print()">طباعة</button>

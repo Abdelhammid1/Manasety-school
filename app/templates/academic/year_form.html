@@ -70,7 +70,7 @@
     <div class="flex items-center justify-end gap-space-sm">
       <a href="{{ url_for('academic.years_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined">save</span><span>{% if year %}حفظ التعديلات{% else %}حفظ السنة{% endif %}</span>
       </button>
     </div>
@@ -123,7 +123,7 @@
       </button>
       <button type="button" onclick="reallySubmit()"
               class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined">check_circle</span>
         <span>أنا متأكد — احفظ التغييرات</span>
       </button>

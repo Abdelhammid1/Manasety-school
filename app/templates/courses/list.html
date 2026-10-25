@@ -18,7 +18,7 @@
     </div>
     <a href="{{ url_for('courses.new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-xl">library_add</span><span>مقرّر جديد</span>
     </a>
   </div>
@@ -29,7 +29,7 @@
     <a href="{{ url_for('courses.grade_terms', grade_id=g.id) }}"
        class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all block relative overflow-hidden">
       <div class="absolute top-0 right-0 left-0 h-1.5"
-           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+           style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"></div>
       <div class="flex items-center gap-space-md">
         <div class="w-14 h-14 rounded-xl bg-primary-fixed text-primary flex items-center justify-center">
           <span class="material-symbols-outlined text-3xl">stairs</span>
@@ -63,7 +63,7 @@
     </p>
     <a href="{{ url_for('academic.grades_list') }}"
        class="mt-space-md inline-flex items-center gap-2 h-11 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-xl">stairs</span><span>إدارة الصفوف</span>
     </a>
   </div>

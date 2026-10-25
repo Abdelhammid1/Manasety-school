@@ -18,13 +18,13 @@
       <div class="absolute -bottom-8 -right-8 w-36 h-36 bg-primary-fixed/15 rounded-full blur-xl pointer-events-none"></div>
       <div class="relative z-10 flex flex-col items-center text-center">
         <div class="w-full max-w-[220px] flex items-center justify-center p-2 mb-3 drop-shadow-md">
-          <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي LMS" class="w-full h-auto object-contain max-h-16 bg-white/95 rounded-2xl p-2">
+          <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ brand.name if brand is defined and brand.own_logo else "منصتي" }}" class="w-full h-auto object-contain max-h-16 bg-white/95 rounded-2xl p-2">
         </div>
         <div class="inline-flex items-center gap-2 bg-surface-container-lowest/15 backdrop-blur-md px-3 py-1 rounded-full text-on-primary font-label-md text-label-md mb-2">
           <span class="w-2 h-2 rounded-full bg-secondary-container animate-pulse"></span>
           <span>بوابة التعلّم الذكية والحديثة</span>
         </div>
-        <h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-primary tracking-tight">أهلاً بك مجدداً في منصّتي</h1>
+        <h1 class="font-headline-lg-mobile text-headline-lg-mobile text-on-primary tracking-tight">أهلاً بك مجدداً في {{ brand.name if brand is defined and brand.own_logo else 'منصّتي' }}</h1>
         <p class="font-body-sm text-body-sm text-primary-fixed mt-1 max-w-xs leading-relaxed opacity-90">رحلتك التعليمية التفاعلية تبدأ بنقرة واحدة</p>
       </div>
     </div>

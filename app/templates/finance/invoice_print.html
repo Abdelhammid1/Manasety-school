@@ -12,32 +12,32 @@
       padding: 8px 20px; border-radius: 6px; text-decoration: none;
       display: inline-block; margin: 0 4px; font-weight: 700; cursor: pointer; border: none;
     }
-    .print-toolbar .btn-print { background: #001556; color: white; }
+    .print-toolbar .btn-print { background: rgb(var(--c-on-primary-fixed, 0 21 86)); color: white; }
     .print-toolbar .btn-download { background: #D4AF37; color: white; }
     .print-toolbar .btn-back { background: transparent; color: #6B7280; border: 1px solid #E5E7EB; }
     @media print { .print-toolbar { display: none; } }
 
     .invoice { max-width: 780px; margin: 0 auto; padding: 20px; }
     .brand { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #D4AF37; padding-bottom: 16px; margin-bottom: 24px; }
-    .brand-name { color: #001556; font-size: 20px; font-weight: 800; }
+    .brand-name { color: rgb(var(--c-on-primary-fixed, 0 21 86)); font-size: 20px; font-weight: 800; }
     .brand-sub { color: #6B7280; font-size: 12px; margin-top: 4px; }
-    .doc-title { text-align: left; color: #001556; font-size: 24px; font-weight: 800; }
+    .doc-title { text-align: left; color: rgb(var(--c-on-primary-fixed, 0 21 86)); font-size: 24px; font-weight: 800; }
     .doc-number { color: #D4AF37; font-family: monospace; margin-top: 4px; }
 
     .meta { display: flex; justify-content: space-between; margin-bottom: 24px; }
     .meta-box { padding: 10px 14px; background: #F7F8FA; border-radius: 6px; }
     .meta-box .label { color: #6B7280; font-size: 11px; text-transform: uppercase; }
-    .meta-box .value { color: #001556; font-weight: 700; margin-top: 2px; }
+    .meta-box .value { color: rgb(var(--c-on-primary-fixed, 0 21 86)); font-weight: 700; margin-top: 2px; }
 
     table.lines { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    table.lines th { background: #001556; color: white; padding: 8px 10px; text-align: right; font-size: 12px; }
+    table.lines th { background: rgb(var(--c-on-primary-fixed, 0 21 86)); color: white; padding: 8px 10px; text-align: right; font-size: 12px; }
     table.lines td { padding: 8px 10px; border-bottom: 1px solid #E5E7EB; font-size: 13px; }
     table.lines .amount { text-align: left; font-family: monospace; direction: ltr; }
 
-    .totals { margin-top: 20px; border: 2px solid #001556; border-radius: 8px; padding: 14px; }
+    .totals { margin-top: 20px; border: 2px solid rgb(var(--c-on-primary-fixed, 0 21 86)); border-radius: 8px; padding: 14px; }
     .totals-row { display: flex; justify-content: space-between; padding: 4px 0; }
     .totals-row.grand { border-top: 2px solid #D4AF37; padding-top: 10px; margin-top: 10px; font-size: 18px; }
-    .totals-row .value { font-family: monospace; font-weight: 700; color: #001556; }
+    .totals-row .value { font-family: monospace; font-weight: 700; color: rgb(var(--c-on-primary-fixed, 0 21 86)); }
     .totals-row.grand .value { color: #D4AF37; font-size: 22px; }
 
     .footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid #E5E7EB; text-align: center; font-size: 11px; color: #6B7280; }
@@ -47,6 +47,7 @@
     .status-badge.pending { background: rgba(107,114,128,0.12); color: #6B7280; }
     .status-badge.overdue { background: rgba(220,38,38,0.12); color: #DC2626; }
   </style>
+  {% include "partials/brand_theme.html" %}
 </head>
 <body>
   {% if not download %}
@@ -60,10 +61,7 @@
   <div class="invoice">
     <div class="brand">
       <div style="display:flex;align-items:center;gap:14px">
-        {% if school and school.show_logo_on_prints and school.logo_url %}
-        <img src="{{ school.logo_url }}" alt="شعار المدرسة"
-             style="max-width:80px;max-height:80px;object-fit:contain;border-radius:6px">
-        {% endif %}
+        {% with logo_height='80px' %}{% include "partials/print_logo.html" %}{% endwith %}
         <div>
           <div class="brand-name">
             {{ (school.legal_name_ar or school.name) if school else 'المدرسة' }}

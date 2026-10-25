@@ -89,7 +89,7 @@ SCHOOL_ROW_RESTORABLE = frozenset({
     "license_number", "tax_number", "logo_url", "attendance_mode", "default_tax_rate", "currency",
     "currency_symbol", "fiscal_year_start_month", "invoice_prefix", "invoice_start_number",
     "rounding_policy", "invoice_header_text", "invoice_footer_text", "invoice_policy_text",
-    "show_logo_on_prints", "reminder_days_before", "notify_channels",
+    "show_logo_on_prints", "reminder_days_before", "notify_channels", "primary_color",
 })
 
 MIN_PASSPHRASE = 12

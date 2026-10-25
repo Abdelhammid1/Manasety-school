@@ -23,7 +23,7 @@
       {% for y in years %}<option value="{{ y.id }}" {% if y.id == year_b %}selected{% endif %}>{{ y.name }}</option>{% endfor %}
     </select></div>
   <button type="submit" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold"
-          style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">تحديث</button>
+          style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">تحديث</button>
 </form>
 {% if data %}
 <section class="grid grid-cols-1 md:grid-cols-2 gap-space-md">

@@ -4,7 +4,7 @@
   <div class="w-9 h-9 rounded-lg bg-primary-container/20 text-primary flex items-center justify-center font-bold tabular-nums shrink-0">{{ l.order_index }}</div>
   <div class="w-9 h-9 rounded-lg
               {% if l.kind == 'video' %}bg-error text-white
-              {% elif l.kind == 'pdf' %}bg-[#0099CC] text-white
+              {% elif l.kind == 'pdf' %}bg-brand-end text-white
               {% elif l.kind == 'link' %}bg-secondary-container text-secondary
               {% elif l.kind == 'embed' %}bg-primary-container text-on-primary
               {% else %}bg-tertiary-fixed text-on-tertiary-fixed-variant{% endif %} flex items-center justify-center shrink-0">

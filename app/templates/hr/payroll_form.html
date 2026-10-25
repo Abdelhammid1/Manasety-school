@@ -54,7 +54,7 @@
       </div>
     </div>
     <div class="p-space-md rounded-xl text-on-primary flex items-center justify-between"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="font-title-md">الصافي المستحق</span>
       <span id="net" class="font-display-lg text-display-lg font-extrabold tabular-nums">0.00</span>
     </div>
@@ -69,7 +69,7 @@
     <div class="flex justify-end gap-space-sm">
       <a href="{{ url_for('hr.payroll_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined">check_circle</span><span>تسجيل الاستحقاق</span>
       </button>
     </div>

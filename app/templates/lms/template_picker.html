@@ -22,7 +22,7 @@
     <p class="mt-3 font-body-md text-on-surface-variant">لا قوالب واجبات في المكتبة بعد.</p>
     <a href="{{ url_for('lms.assignment_new', cid=course.id) }}"
        class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-lg">add</span>ابدأ من الصفر
     </a>
   </div>
@@ -55,7 +55,7 @@
         </div>
       </div>
       <button type="submit" class="mt-space-md w-full h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center justify-center gap-2 shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined text-lg">library_add</span>
         <span>استخدم هذا القالب</span>
       </button>

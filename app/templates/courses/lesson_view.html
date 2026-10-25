@@ -33,7 +33,7 @@
       <div class="p-space-lg text-center">
         <a href="{{ lesson.media_url }}" target="_blank" rel="noopener"
            class="inline-flex items-center gap-2 h-12 px-6 rounded-xl text-on-primary font-title-md font-bold shadow-md hover:shadow-lg transition-all"
-           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+           style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined">open_in_new</span>
           <span>فتح المصدر</span>
         </a>
@@ -106,7 +106,7 @@
       {% if idx >= 0 and idx < lessons|length - 1 %}
       <a href="{{ url_for('courses.lesson_view', lesson_id=lessons[idx+1].id) }}"
          class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span>الدرس التالي</span>
         <span class="material-symbols-outlined text-lg">arrow_back</span>
       </a>

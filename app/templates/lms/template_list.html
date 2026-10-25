@@ -12,7 +12,7 @@
 <div class="flex flex-col w-full gap-space-md">
   <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <div class="absolute top-0 right-0 left-0 h-1.5"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"></div>
     <div class="flex items-start justify-between gap-space-md flex-wrap">
       <div>
         <span class="font-label-md text-on-surface-variant">قوالب الواجبات القابلة لإعادة الاستخدام</span>
@@ -32,7 +32,7 @@
         </a>
         <a href="{{ url_for('lms.template_new') }}"
            class="inline-flex items-center gap-2 h-10 px-4 rounded-xl text-on-primary font-label-lg text-label-lg font-bold shadow-sm hover:shadow-md transition-all"
-           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+           style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-lg">add</span>
           <span>إنشاء قالب جديد</span>
         </a>
@@ -66,7 +66,7 @@
           <input name="q" value="{{ selected.q }}" placeholder="مثال: امتحان الفصل الأول"
                  class="h-10 px-3 rounded-lg bg-surface-container-low flex-1">
           <button type="submit" class="h-10 px-4 rounded-lg text-on-primary font-label-md font-bold shadow-md"
-                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                  style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
             <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
           </button>
         </div>

@@ -11,6 +11,7 @@ email-validator==2.2.0
 gunicorn==22.0.0
 PyJWT==2.9.0
 weasyprint==63.0
+Pillow==10.4.0
 openpyxl==3.1.5
 firebase-admin==6.5.0
 cryptography>=42

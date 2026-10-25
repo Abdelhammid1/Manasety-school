@@ -57,7 +57,7 @@
   <header class="sticky top-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl border-b border-outline-variant">
     <div class="max-w-6xl mx-auto px-space-md py-3 flex items-center justify-between gap-space-md">
       <div class="flex items-center gap-space-sm min-w-0">
-        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-8 w-8 object-contain bg-white rounded-md p-1 shrink-0">
+        <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ brand.name if brand is defined and brand.own_logo else "منصتي" }}" class="h-8 w-8 object-contain bg-white rounded-md p-1 shrink-0">
         <div class="flex flex-col min-w-0">
           <span class="font-title-md text-title-md text-primary font-bold truncate">{{ quiz.title }}</span>
           <span class="font-label-xs text-label-xs text-on-surface-variant truncate">

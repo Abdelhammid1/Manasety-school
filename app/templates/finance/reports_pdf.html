@@ -7,28 +7,30 @@
     @page { size: A4; margin: 18mm; }
     body { font-family: sans-serif; color: #111827; direction: rtl; }
     .brand { border-bottom: 3px solid #D4AF37; padding-bottom: 12px; margin-bottom: 20px; }
-    .brand h1 { color: #001556; margin: 0; font-size: 22px; }
+    .brand h1 { color: rgb(var(--c-on-primary-fixed, 0 21 86)); margin: 0; font-size: 22px; }
     .brand .sub { color: #6B7280; font-size: 12px; margin-top: 4px; }
     .period { background: #F7F8FA; padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; }
-    h2 { color: #001556; font-size: 16px; margin: 20px 0 8px; border-right: 4px solid #D4AF37; padding-right: 10px; }
+    h2 { color: rgb(var(--c-on-primary-fixed, 0 21 86)); font-size: 16px; margin: 20px 0 8px; border-right: 4px solid #D4AF37; padding-right: 10px; }
     table { width: 100%; border-collapse: collapse; margin-bottom: 4px; }
-    th { background: #001556; color: white; padding: 6px 8px; font-size: 12px; text-align: right; }
+    th { background: rgb(var(--c-on-primary-fixed, 0 21 86)); color: white; padding: 6px 8px; font-size: 12px; text-align: right; }
     td { padding: 6px 8px; border-bottom: 1px solid #E5E7EB; font-size: 12px; }
     tr.total td { background: #F7F8FA; font-weight: 700; }
     .amount { text-align: left; direction: ltr; font-family: monospace; }
     .net {
-      margin-top: 20px; padding: 14px; border: 2px solid #001556;
+      margin-top: 20px; padding: 14px; border: 2px solid rgb(var(--c-on-primary-fixed, 0 21 86));
       border-radius: 8px; text-align: center;
-      background: linear-gradient(135deg, #001556 0%, #1A2D6C 100%);
+      background: linear-gradient(135deg, rgb(var(--c-on-primary-fixed, 0 21 86)) 0%, #1A2D6C 100%);
       color: white;
     }
     .net .label { font-size: 12px; opacity: 0.8; }
     .net .value { font-size: 28px; font-weight: 800; margin-top: 4px; color: #D4AF37; }
     .footer { margin-top: 30px; text-align: center; font-size: 10px; color: #6B7280; }
   </style>
+  {% include "partials/brand_theme.html" %}
 </head>
 <body>
   <div class="brand">
+    {% include "partials/print_logo.html" %}
     <h1>التقرير المالي</h1>
     <div class="sub">{{ school.name if school else '' }} — منظومة منصتي</div>
   </div>

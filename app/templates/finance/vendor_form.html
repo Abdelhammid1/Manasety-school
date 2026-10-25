@@ -54,7 +54,7 @@
     <div class="flex items-center justify-between gap-space-sm">
       <a href="{{ url_for('finance.vendors_list') }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</a>
       <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+              style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined">save</span><span>{% if vendor %}حفظ التعديلات{% else %}حفظ المورد{% endif %}</span>
       </button>
     </div>

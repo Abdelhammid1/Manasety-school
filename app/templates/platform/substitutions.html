@@ -31,7 +31,7 @@
           <option value="">—</option>{% for t in teachers %}<option value="{{ t.id }}">{{ t.full_name }}</option>{% endfor %}
         </select></div>
       <button type="submit" class="h-11 px-4 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
-              style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">تسجيل</button>
+              style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">تسجيل</button>
       <div class="md:col-span-5 flex flex-col gap-1"><label class="font-label-md font-bold">السبب</label>
         <input name="reason" placeholder="مرض / مأمورية / …" class="h-11 px-3 rounded-lg bg-surface-container-low"></div>
     </form>

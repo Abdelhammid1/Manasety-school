@@ -31,7 +31,7 @@
     {% if can_edit_finance %}
     <a href="{{ url_for('finance.invoice_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-xl">receipt_long</span>
       <span>فاتورة جديدة</span>
     </a>

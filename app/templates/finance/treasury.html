@@ -81,7 +81,7 @@
 
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
-        <span class="material-symbols-outlined text-[#2563EB]">account_balance</span>البنوك
+        <span class="material-symbols-outlined text-brand-mid">account_balance</span>البنوك
       </h2>
       {% if bank_accounts %}
       <ul class="flex flex-col gap-1">
@@ -147,7 +147,7 @@
       <div class="mt-space-lg flex items-center justify-end gap-space-sm">
         <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</button>
         <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2"
-                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-sm">check_circle</span>تنفيذ التحويل
         </button>
       </div>

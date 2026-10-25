@@ -66,8 +66,24 @@ def school_settings():
             for e in fin_errors:
                 flash(e, "danger")
             return redirect(url_for("admin.school_settings"))
+        # School identity: a colour is CSS on every page — a strict #RRGGBB
+        # or nothing; anything else refuses the save.
+        from ...services import branding
+        raw_color = (request.form.get("primary_color") or "").strip()
+        if request.form.get("reset_color"):
+            new_color = None
+        elif "primary_color" not in request.form:
+            new_color = school.primary_color          # not posted → unchanged
+        elif not raw_color:
+            new_color = None
+        else:
+            new_color = branding.normalize_hex(raw_color)
+            if new_color is None:
+                flash("اللون لازم يكون بصيغة #RRGGBB (مثال: #1E3A8A).", "danger")
+                return redirect(url_for("admin.school_settings"))
         # Simple field-map covering every tab. Only whitelisted keys.
         s = school
+        stale_logo = None
         get = lambda k: (request.form.get(k) or "").strip() or None
 
         # Ticket #13 (2026-09-21) — hard cap every text field at its
@@ -81,17 +97,20 @@ def school_settings():
             s.name = clip(get("name"), 255) or s.name
             s.legal_name_ar = clip(get("legal_name_ar"), 255)
             s.legal_name_en = clip(get("legal_name_en"), 255)
-            # Ticket #2 — file upload takes precedence over a manually
-            # typed URL. When neither is provided, keep the old value.
+            # School identity — the logo is an upload only (no external
+            # URL any more); replacing or deleting removes the old file.
+            from ...services import file_storage as _fs
+            old_logo = s.logo_url if branding.has_own_logo(s) else None
             file_storage = request.files.get("logo_file")
-            if file_storage and file_storage.filename:
+            if request.form.get("remove_logo"):
+                s.logo_url = None
+                stale_logo = old_logo
+            elif file_storage and file_storage.filename:
                 saved_url = _save_school_logo(s, file_storage)
                 if saved_url:
                     s.logo_url = saved_url
-            else:
-                typed = get("logo_url")
-                if typed is not None:
-                    s.logo_url = typed
+                    stale_logo = old_logo
+            s.primary_color = new_color
             s.license_number = clip(get("license_number"), 64)
             s.tax_number = clip(get("tax_number"), 64)
             s.address = clip(get("address"), 255)
@@ -133,6 +152,8 @@ def school_settings():
             s.smtp_from_name = get("smtp_from_name") or None
             s.smtp_from_email = get("smtp_from_email") or None
             db.session.commit()
+            if stale_logo:                    # only once the new state is saved
+                _fs.delete(stale_logo)
         except Exception:
             db.session.rollback()
             current_app.logger.exception("school settings save failed")
@@ -158,9 +179,12 @@ def school_settings():
             school_id=current_user.school_id, kind="immediate_bank",
         ).order_by(PaymentMethod.name).all()
     )
+    from ...services import branding as _branding
     return render_template("admin/school_settings.html",
                            school=school, bank_methods=bank_methods, fin_locked=fin_locked,
-                           fin_locked_message=fin.LOCKED_MESSAGE)
+                           fin_locked_message=fin.LOCKED_MESSAGE,
+                           color_darkened=_branding.was_darkened(school.primary_color),
+                           color_final=_branding.readable(school.primary_color) if school.primary_color else None)
 
 
 @bp.route("/audit")

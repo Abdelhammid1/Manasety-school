@@ -10,7 +10,16 @@ from werkzeug.datastructures import FileStorage
 from isolation_harness import host, hid
 
 PDF = b"%PDF-1.4\n%fake but well-formed enough\n"
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+def _real_png() -> bytes:
+    """A real (tiny) PNG: logos are decoded on upload (School Branding)."""
+    import io as _io
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (4, 4), (30, 58, 138)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+PNG = _real_png()
 
 # Anonymous: 401, which the app's handler turns into a login redirect.
 DENIED = (302, 401)
@@ -197,8 +206,16 @@ def test_signed_url_works_without_login_and_expires(files_app, two_schools, monk
 
 def test_download_headers_neutralise_active_content(files_app, two_schools, login_as):
     A = two_schools["A"]
+    # an SVG logo from before uploads became raster-only: still served, neutralised
+    from app.services.file_storage import upload_root
     svg = b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'
-    url = _store(files_app, A["school"].id, "logo", A["school"].id, svg, "logo.svg")
+    sid = A["school"].id
+    key = f"{sid}/logo/{sid}/legacy_logo.svg"
+    with files_app.app_context():
+        dest = upload_root() / key
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        dest.write_bytes(svg)
+    url = "/files/" + key
     with files_app.test_client() as c:
         login_as(c, A["users"]["admin"], base_url=host(A))
         r = c.get(url, base_url=host(A))

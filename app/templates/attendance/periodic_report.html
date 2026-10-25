@@ -9,7 +9,7 @@
 <title>تقرير حضور — {{ student.full_name }}</title>
 <style>
   body { font-family: 'Cairo', 'Amiri', sans-serif; padding: 20px; color: #0F172A; }
-  h1 { color: #1E3A8A; }
+  h1 { color: rgb(var(--c-primary-container, 30 58 138)); }
   .kpi { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
   .kpi > div { background: #F1F5F9; padding: 10px 14px; border-radius: 8px; }
   table { width: 100%; border-collapse: collapse; }
@@ -18,8 +18,10 @@
   .absent  { color: #EF4444; }
   .late    { color: #F59E0B; }
 </style>
+  {% include "partials/brand_theme.html" %}
 </head>
 <body>
+  {% include "partials/print_logo.html" %}
   <h1>{{ student.full_name }}</h1>
   <p><b>الكود الدائم:</b> {{ student.permanent_code }}</p>
   <p><b>الفترة:</b> من {{ stats.start }} إلى {{ stats.end }}</p>

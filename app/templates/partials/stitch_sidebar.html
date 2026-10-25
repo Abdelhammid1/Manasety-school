@@ -56,9 +56,9 @@
     <div class="h-16 px-space-md flex items-center justify-between border-b border-white/5">
       <a href="{{ url_for('dashboard.home') if current_user.is_authenticated else url_for('index') }}"
          class="flex items-center gap-space-sm overflow-hidden">
-        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-8 w-auto object-contain bg-white rounded-md p-1">
+        <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ brand.name if brand is defined and brand.own_logo else "منصتي" }}" class="h-8 w-auto object-contain bg-white rounded-md p-1">
         <div class="brand-text flex flex-col">
-          <span class="font-label-lg text-label-lg text-on-primary font-bold leading-tight">{{ app_name }}</span>
+          <span class="font-label-lg text-label-lg text-on-primary font-bold leading-tight truncate">{{ brand.name if brand is defined and brand.own_logo else app_name }}</span>
           <span class="font-label-sm text-label-sm text-sidebar-icon">نظام إدارة التعلم K-12</span>
         </div>
       </a>

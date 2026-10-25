@@ -1,0 +1,4 @@
+{# The school's colour variables (services/branding.py) for pages that don't
+   extend stitch_base (prints, PDFs, the blocked page). Built from a
+   validated #RRGGBB only; nothing when the school has no colour. #}
+{% if brand is defined and brand.theme_css %}<style id="school-theme">{{ brand.theme_css|safe }}</style>{% endif %}

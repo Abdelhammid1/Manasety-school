@@ -12,7 +12,16 @@ import pytest
 from isolation_harness import host, hid
 from test_saas026_subscriptions import CONSOLE, _console_client, console  # noqa: F401
 
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+def _real_png() -> bytes:
+    """A real (tiny) PNG: logos are decoded on upload (School Branding)."""
+    import io as _io
+    from PIL import Image
+    buf = _io.BytesIO()
+    Image.new("RGB", (4, 4), (30, 58, 138)).save(buf, "PNG")
+    return buf.getvalue()
+
+
+PNG = _real_png()
 
 
 @pytest.fixture

@@ -18,7 +18,7 @@
   <!-- Hero + CTAs -->
   <section class="relative overflow-hidden bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <div class="absolute top-0 right-0 left-0 h-1.5"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"></div>
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"></div>
     <div class="flex items-start justify-between gap-space-md flex-wrap">
       <div>
         <span class="font-label-md text-label-md text-on-surface-variant">
@@ -35,7 +35,7 @@
       </div>
       <a href="{{ url_for('lms.bank_new') }}"
          class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined text-xl">add_circle</span>
         <span>{% if source == 'nafis' %}سؤال نافس جديد{% else %}سؤال جديد{% endif %}</span>
       </a>
@@ -53,7 +53,7 @@
          class="flex-1 h-14 rounded-xl px-space-md flex items-center gap-2 transition-all
                 {% if source == key %}text-on-primary shadow-md
                 {% else %}bg-surface-container-low text-on-surface hover:bg-surface-container{% endif %}"
-         {% if source == key %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+         {% if source == key %}style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"{% endif %}>
         <span class="material-symbols-outlined">{{ icon }}</span>
         <span class="font-title-md font-bold">{{ label }}</span>
         <span class="ml-auto font-label-md font-bold tabular-nums
@@ -138,7 +138,7 @@
         <a href="{{ url_for('lms.bank_home') }}"
            class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة تعيين</a>
         <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
-                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
         </button>
       </div>
@@ -205,7 +205,7 @@
         {% if total %}لا توجد نتائج مطابقة لفلاترك.{% else %}البنك فارغ — أضف أول سؤال.{% endif %}
       </p>
       <a href="{{ url_for('lms.bank_new') }}" class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined text-lg">add</span>إضافة سؤال
       </a>
     </div>

@@ -43,7 +43,7 @@
         <div class="mt-3 flex items-center gap-1">
           <a href="{{ url_for('attendance.mark', section_id=s.id) }}"
              class="flex-1 h-9 rounded-lg text-on-primary font-label-md font-bold flex items-center justify-center gap-1"
-             style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+             style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
             <span class="material-symbols-outlined text-sm">fact_check</span><span>رصد اليوم</span>
           </a>
           <a href="{{ url_for('attendance.section_report', section_id=s.id) }}"

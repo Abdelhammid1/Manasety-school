@@ -1,0 +1,9 @@
+{# The school's logo on a print / PDF — only its own stored logo, and only
+   when "show the logo on prints" is on (Settings → القوالب والمطبوعات).
+   /files/ is read from disk by the PDF renderer (file_storage.pdf_url_fetcher)
+   and needs the user's session in the browser, like every school file. #}
+{% set _s = brand.school if brand is defined else none %}
+{% if _s and _s.show_logo_on_prints and brand.own_logo %}
+<img src="{{ _s.logo_url }}" alt="{{ _s.name }}" class="{{ logo_class|default('print-logo') }}"
+     style="max-height:{{ logo_height|default('56px') }};max-width:160px;object-fit:contain">
+{% endif %}

@@ -36,7 +36,7 @@ SINGLE_OWNER_WAIT = timedelta(hours=24)
 WIPE_FIELDS = ("phone", "address", "email", "website", "legal_name_ar", "legal_name_en", "logo_url",
                "license_number", "tax_number", "invoice_header_text", "invoice_footer_text",
                "invoice_policy_text", "smtp_host", "smtp_username", "smtp_password_encrypted",
-               "smtp_from_name", "smtp_from_email", "blocked_message")
+               "smtp_from_name", "smtp_from_email", "blocked_message", "primary_color")
 
 
 class PurgeRefused(RuntimeError):

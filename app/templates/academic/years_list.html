@@ -14,7 +14,7 @@
       <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ years|length }} سنة مسجّلة</p>
     </div>
     <a href="{{ url_for('academic.year_new') }}" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-xl">event</span><span>سنة جديدة</span>
     </a>
   </div>
@@ -23,7 +23,7 @@
     {% for y in years %}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm relative overflow-hidden">
       <div class="absolute top-0 right-0 left-0 h-1.5"
-           style="background: {% if y.status == 'active' %}linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%){% else %}#94A3B8{% endif %};"></div>
+           style="background: {% if y.status == 'active' %}var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%)){% else %}#94A3B8{% endif %};"></div>
       <div class="flex items-start justify-between">
         <div>
           <span class="font-label-md text-label-md text-on-surface-variant">السنة</span>

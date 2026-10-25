@@ -37,6 +37,9 @@ class School(db.Model):
     legal_name_ar = db.Column(db.String(255))
     legal_name_en = db.Column(db.String(255))
     logo_url = db.Column(db.String(500))
+    # the school's primary colour (#RRGGBB) — NULL keeps the platform's
+    # own; services/branding.py derives the theme from it
+    primary_color = db.Column(db.String(7), nullable=True)
     license_number = db.Column(db.String(64))
     tax_number = db.Column(db.String(64))
     email = db.Column(db.String(128))

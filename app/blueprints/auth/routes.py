@@ -201,11 +201,12 @@ def forgot():
                 from ...models import School
                 from ...services import mailer as _mailer
                 school = db.session.get(School, user.school_id)
-                if _mailer.is_configured(school) and target:
+                if school is not None and _mailer.is_configured(school) and target:
                     _mailer.send(
                         school, target,
-                        subject="رمز التحقق — منصتي",
+                        subject=f"رمز التحقق — {school.name}",
                         body=(
+                            f"{school.name}\n\n"
                             f"مرحباً {user.username or user.full_name},\n\n"
                             f"رمز التحقق الخاص بك: {code}\n"
                             "الرمز صالح لخمس دقائق فقط.\n\n"

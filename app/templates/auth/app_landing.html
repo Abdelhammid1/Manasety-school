@@ -6,7 +6,7 @@
 <main class="w-full min-h-screen bg-surface flex flex-col items-center justify-center p-4">
   <div class="w-full max-w-md bg-surface-container-lowest rounded-3xl shadow-xl p-8 flex flex-col gap-6 text-center">
     <div class="flex flex-col items-center gap-2">
-      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-12 w-auto bg-white rounded-xl p-2">
+      <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ brand.name if brand is defined and brand.own_logo else "منصتي" }}" class="h-12 w-auto bg-white rounded-xl p-2">
       <h1 class="font-headline-md text-headline-md text-navy">{{ school.name }}</h1>
       <p class="font-body-md text-body-md text-on-surface-variant">افتح تطبيق منصتي واكتب كود المدرسة:</p>
       <p class="text-2xl font-bold text-navy" dir="ltr"><bdi>{{ school.slug }}</bdi></p>

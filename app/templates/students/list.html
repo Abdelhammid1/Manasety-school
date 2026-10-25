@@ -27,7 +27,7 @@
     </div>
     <a href="{{ url_for('students.student_new') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-xl">person_add</span>
       <span>قبول طالب جديد</span>
     </a>
@@ -45,7 +45,7 @@
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
       <div class="flex items-center justify-between">
         <span class="font-label-md text-label-md text-on-surface-variant">ذكور</span>
-        <span class="material-symbols-outlined text-[#0099CC]">man</span>
+        <span class="material-symbols-outlined text-brand-end">man</span>
       </div>
       <div class="font-headline-lg text-headline-lg text-primary font-bold mt-2">
         {{ students|selectattr('gender','equalto','male')|list|length }}

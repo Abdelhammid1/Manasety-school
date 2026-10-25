@@ -481,6 +481,10 @@ def apply(pkg: Package, school_id: int, chosen: Iterable[str], mode: str,
         # a logo is only ever this school's own stored file
         if values.get("logo_url") and not str(values["logo_url"]).startswith(f"/files/{int(school_id)}/"):
             values.pop("logo_url")
+        # a colour reaches pages as CSS: only a strict #RRGGBB, else none
+        if "primary_color" in values:
+            from .branding import normalize_hex
+            values["primary_color"] = normalize_hex(values["primary_color"])
         conn.execute(schools.update().where(schools.c.id == school_id).values(**values))
         rep.updated["schools"] = 1
 

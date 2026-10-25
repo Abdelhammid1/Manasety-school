@@ -12,7 +12,7 @@
   <nav class="sticky top-0 z-40 bg-surface-container-lowest/90 backdrop-blur-xl shadow-[0_1px_8px_rgba(12,36,97,0.06)]">
     <div class="max-w-7xl mx-auto px-space-md h-16 flex items-center justify-between">
       <a href="/" class="flex items-center gap-space-sm">
-        <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}" class="h-10 w-10 bg-white rounded-lg p-1">
+        <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}" class="h-10 w-10 bg-white rounded-lg p-1">
         <div class="flex flex-col">
           <span class="font-headline-sm text-headline-sm text-primary font-extrabold leading-tight">{{ app_name }}</span>
           <span class="font-label-xs text-label-xs text-secondary leading-none">نظام إدارة التعلم K-12</span>
@@ -29,7 +29,7 @@
           <span class="material-symbols-outlined text-sm">login</span><span>الدخول</span>
         </a>
         <a href="#cta" class="h-10 px-5 rounded-lg text-on-primary font-title-md font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-1"
-           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+           style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span>ابدأ الآن</span>
           <span class="material-symbols-outlined text-sm">arrow_back</span>
         </a>
@@ -57,7 +57,7 @@
         </p>
         <div class="flex flex-wrap items-center gap-space-sm">
           <a href="#cta" class="h-12 px-6 rounded-xl text-on-primary font-title-md text-title-md font-bold shadow-md hover:shadow-lg transition-all flex items-center gap-2"
-             style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+             style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
             <span class="material-symbols-outlined">rocket_launch</span>
             <span>ابدأ تجربتك المجانية</span>
           </a>
@@ -77,9 +77,9 @@
       <div class="relative">
         <div class="absolute -top-6 -right-6 w-full h-full rounded-3xl bg-gradient-to-l from-primary via-primary-container to-secondary opacity-20 blur-2xl"></div>
         <div class="relative bg-surface-container-lowest rounded-3xl shadow-2xl overflow-hidden">
-          <div class="p-space-md text-on-primary flex items-center justify-between" style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+          <div class="p-space-md text-on-primary flex items-center justify-between" style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
             <div class="flex items-center gap-2">
-              <img src="{{ url_for('static', filename='img/logo.svg') }}" class="h-9 w-9 bg-white/95 rounded-md p-1">
+              <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" class="h-9 w-9 bg-white/95 rounded-md p-1">
               <div class="flex flex-col">
                 <span class="font-label-lg font-bold">{{ app_name }}</span>
                 <span class="font-label-xs opacity-80">لوحة المعلم</span>
@@ -237,7 +237,7 @@
       ] %}
       <div class="rounded-2xl p-space-lg shadow-sm relative overflow-hidden
                   {% if highlight %}text-on-primary{% else %}bg-surface-container-lowest{% endif %}"
-           {% if highlight %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+           {% if highlight %}style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"{% endif %}>
         {% if highlight %}<span class="absolute top-4 left-4 inline-flex items-center gap-1 px-3 py-1 rounded-full bg-white text-primary font-label-xs font-bold">الأكثر شعبية</span>{% endif %}
         <h3 class="font-title-md text-title-md {% if highlight %}text-on-primary{% else %}text-primary{% endif %} font-bold">{{ name }}</h3>
         <div class="mt-3 flex items-baseline gap-1">
@@ -255,7 +255,7 @@
         </ul>
         <a href="#cta" class="mt-space-lg block h-11 rounded-xl text-center font-title-md font-bold flex items-center justify-center gap-2
            {% if highlight %}bg-white text-primary hover:bg-surface-container-lowest{% else %}text-on-primary shadow-md hover:shadow-lg{% endif %}"
-           {% if not highlight %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+           {% if not highlight %}style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"{% endif %}>
           <span>ابدأ الآن</span>
           <span class="material-symbols-outlined text-lg">arrow_back</span>
         </a>
@@ -291,7 +291,7 @@
   <!-- ========== CTA banner ========== -->
   <section id="cta" class="max-w-7xl mx-auto px-space-md py-8">
     <div class="rounded-3xl p-space-xl shadow-xl text-on-primary relative overflow-hidden text-center"
-         style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 85%, #0099CC 100%);">
+         style="background: var(--brand-gradient-deep, linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 85%, #0099CC 100%));">
       <div class="absolute -top-20 -left-20 w-80 h-80 rounded-full bg-white/10 blur-3xl"></div>
       <div class="absolute -bottom-16 -right-16 w-64 h-64 rounded-full bg-white/10 blur-2xl"></div>
       <div class="relative max-w-2xl mx-auto">
@@ -316,7 +316,7 @@
     <div class="max-w-7xl mx-auto px-space-md py-12 grid grid-cols-2 md:grid-cols-4 gap-space-lg">
       <div class="col-span-2 md:col-span-1 flex flex-col gap-3">
         <div class="flex items-center gap-space-sm">
-          <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}" class="h-10 w-10 bg-white rounded-lg p-1">
+          <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ app_name }}" class="h-10 w-10 bg-white rounded-lg p-1">
           <div class="flex flex-col">
             <span class="font-headline-sm font-extrabold text-on-primary">{{ app_name }}</span>
             <span class="font-label-xs text-sidebar-icon">{{ app_tagline }}</span>

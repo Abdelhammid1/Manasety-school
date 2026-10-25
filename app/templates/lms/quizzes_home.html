@@ -19,7 +19,7 @@
     {% if can_edit %}
     <a href="{{ url_for('courses.list_courses') }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"
        title="اختر المقرر ثم من صفحته أضف اختباراً جديداً">
       <span class="material-symbols-outlined text-lg">add</span>
       <span>اختبار جديد</span>
@@ -67,7 +67,7 @@
         {% endif %}
         <a href="{{ url_for('lms.quiz_take', qid=q.id) }}"
            class="h-10 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+           style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-lg">play_arrow</span>
           <span>{{ 'معاينة' if can_edit else 'بدء الاختبار' }}</span>
         </a>
@@ -83,7 +83,7 @@
     {% if can_edit %}
     <a href="{{ url_for('courses.list_courses') }}"
        class="mt-4 inline-flex h-11 px-5 rounded-xl text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined text-lg">add</span>
       <span>ابدأ باختيار مقرر لإنشاء اختبار</span>
     </a>

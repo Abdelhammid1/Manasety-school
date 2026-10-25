@@ -23,7 +23,7 @@
 
   <!-- Hero -->
   <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary"
-           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+           style="background: var(--brand-gradient-deep, linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%));">
     <div class="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-white/10 blur-2xl"></div>
     <div class="absolute -bottom-8 -right-12 w-40 h-40 rounded-full bg-tertiary-fixed-dim/20 blur-xl"></div>
     <div class="relative z-10 p-space-lg flex items-center gap-space-md flex-wrap">
@@ -132,7 +132,7 @@
     </div>
     <a href="{{ url_for('finance.invoice_new', enrollment_id=new_enrollment_id) }}"
        class="h-11 px-5 rounded-xl text-white font-title-md font-bold flex items-center gap-2 shadow-sm"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined">add_circle</span><span>إنشاء فاتورة الآن</span>
     </a>
     <a href="{{ url_for('students.student_detail', student_id=student.id) }}"
@@ -259,7 +259,7 @@
           </h2>
           <button type="button" onclick="openModal('#addGuardianModal')"
                   class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
-                  style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                  style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
             <span class="material-symbols-outlined text-lg">person_add</span><span>ربط ولي أمر</span>
           </button>
         </div>
@@ -321,7 +321,7 @@
                   </button>
                 </form>
                 <button type="submit" class="h-9 px-4 rounded-lg text-on-primary font-label-md font-bold shadow-md"
-                        style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                        style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
                   حفظ الصلاحيات
                 </button>
               </div>
@@ -623,7 +623,7 @@
       <div class="mt-space-lg flex items-center justify-end gap-space-sm">
         <button type="button" data-modal-close class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container">إلغاء</button>
         <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md"
-                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-sm">link</span>ربط ولي الأمر
         </button>
       </div>

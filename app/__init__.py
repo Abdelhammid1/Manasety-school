@@ -180,6 +180,9 @@ def create_app(config_class=Config):
     app.register_blueprint(schedule_bp, url_prefix="/schedule")
     app.register_blueprint(attendance_bp, url_prefix="/attendance")
     app.register_blueprint(results_bp, url_prefix="/results")
+    # the school's logo without login, for its own host only (School Branding)
+    from .blueprints.branding import bp as branding_bp
+    app.register_blueprint(branding_bp)
     app.register_blueprint(finance_bp, url_prefix="/finance")
     app.register_blueprint(hr_bp, url_prefix="/hr")
     app.register_blueprint(portal_bp, url_prefix="/portal")
@@ -240,6 +243,18 @@ def create_app(config_class=Config):
             "app_tagline": "منصة التعلم الذكية للمدارس",
             "school_name": app.config["DEFAULT_SCHOOL_NAME"],
         }
+        # School Branding — the current school's name / logo / colours
+        # (services/branding.py); the platform's own when there is none.
+        try:
+            from .services import branding as _branding
+            brand = _branding.context()
+            ctx["brand"] = brand
+            if brand["school"] is not None:
+                ctx["school_name"] = brand["name"]
+        except Exception:
+            app.logger.exception("branding context failed")
+            ctx["brand"] = {"school": None, "name": "", "own_logo": False, "theme_css": "",
+                            "branded": False, "site_name": "منصتي", "logo_src": "/static/img/logo.svg"}
         # Per-request extras for the Stitch topbar (active year + notifications).
         try:
             from flask_login import current_user

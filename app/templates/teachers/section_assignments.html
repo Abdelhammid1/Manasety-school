@@ -31,7 +31,7 @@
       <a href="{{ url_for('teachers.section_assignments', section_id=section.id, term_id=t.id) }}"
          class="h-9 px-4 rounded-lg font-label-md font-bold flex items-center gap-2 transition-all
                 {% if term and term.id == t.id %}text-on-primary shadow-md{% else %}bg-surface-container-low text-primary hover:bg-surface-container{% endif %}"
-         {% if term and term.id == t.id %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+         {% if term and term.id == t.id %}style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"{% endif %}>
         <span class="material-symbols-outlined text-sm">{% if t.is_open %}lock_open{% else %}lock{% endif %}</span>
         <span>{{ t.name }}</span>
         {% if t.is_open %}<span class="w-1.5 h-1.5 rounded-full bg-[#10B981]"></span>{% endif %}
@@ -180,7 +180,7 @@
         </label>
 
         <button type="submit" class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-xl">link</span>
           <span>تأكيد الإسناد</span>
         </button>

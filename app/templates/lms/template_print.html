@@ -15,7 +15,7 @@
     * { box-sizing: border-box; }
     body { font-family: 'Cairo', 'Amiri', serif; margin: 0; padding: 24px; color: #191c1e; background: #fff; font-size: 14px; line-height: 1.7; }
     .header { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 2px solid #00236F; margin-bottom: 20px; }
-    .header h1 { font-size: 20px; margin: 0; color: #00236F; font-weight: 800; }
+    .header h1 { font-size: 20px; margin: 0; color: rgb(var(--c-primary, 0 35 111)); font-weight: 800; }
     .header .meta { text-align: left; font-size: 12px; color: #444651; }
     .header .code { font-family: monospace; background: #f2f4f7; border-radius: 6px; padding: 2px 8px; font-weight: bold; letter-spacing: 1px; }
     .student-line { display: flex; gap: 24px; padding: 8px 0 20px; border-bottom: 1px dashed #c5c5d3; font-size: 13px; margin-bottom: 20px; }
@@ -24,7 +24,7 @@
     .student-line .field .dots { display: inline-block; border-bottom: 1px dotted #757682; height: 16px; min-width: 180px; vertical-align: bottom; }
     .q { padding: 14px 0; border-bottom: 1px dashed #e0e3e6; }
     .q .row { display: flex; align-items: flex-start; gap: 12px; }
-    .q .num { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; background: #dce1ff; color: #00236F; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+    .q .num { flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px; background: #dce1ff; color: rgb(var(--c-primary, 0 35 111)); display: flex; align-items: center; justify-content: center; font-weight: 800; }
     .q .prompt { flex: 1; font-weight: 600; }
     .q .code { font-family: monospace; font-size: 11px; color: #757682; }
     .q .choices { padding: 6px 44px 4px; }
@@ -44,9 +44,10 @@
     }
     .toolbar { position: fixed; top: 12px; left: 12px; display: flex; gap: 8px; z-index: 10; }
     .toolbar button, .toolbar a { padding: 8px 14px; border-radius: 8px; border: none; font-family: 'Cairo', serif; font-weight: 700; cursor: pointer; text-decoration: none; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
-    .toolbar .primary { background: linear-gradient(135deg, #1E3A8A, #0099CC); color: white; }
-    .toolbar .secondary { background: #fff; color: #00236F; border: 1px solid #c5c5d3; }
+    .toolbar .primary { background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A, #0099CC)); color: white; }
+    .toolbar .secondary { background: #fff; color: rgb(var(--c-primary, 0 35 111)); border: 1px solid #c5c5d3; }
   </style>
+  {% include "partials/brand_theme.html" %}
 </head>
 <body>
   <div class="toolbar no-print">
@@ -58,6 +59,7 @@
   </div>
 
   <div class="header">
+    {% include "partials/print_logo.html" %}
     <div>
       <h1>{{ template.title }}</h1>
       <div class="meta">

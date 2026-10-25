@@ -65,7 +65,7 @@ def _state_name(resolved):
 def blocked_response(resolved):
     from .tenancy import _request_settings
     reason = _state_name(resolved)
-    if request.endpoint == "static":
+    if request.endpoint in ("static", "branding.logo"):
         return None          # the blocked page needs its CSS / logo
     if request.path.startswith("/files/"):
         from flask import abort
@@ -190,7 +190,7 @@ def install(app) -> None:
         only; every other school keeps working)."""
         resolved = getattr(g, "tenant_resolved", None)
         school = getattr(resolved, "school", None)
-        if school is None or request.endpoint in ("static", "cron.tick"):
+        if school is None or request.endpoint in ("static", "cron.tick", "branding.logo"):
             return None
         from .school_restore import in_maintenance
         from .tenancy import _request_settings

@@ -19,7 +19,7 @@
 
       <header class="relative z-20 w-full max-w-5xl flex flex-col sm:flex-row items-center justify-between gap-4 py-2">
         <div class="flex items-center gap-3">
-          <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="منصتي" class="h-9 w-auto object-contain bg-white rounded-md p-1">
+          <img src="{{ brand.logo_src if brand is defined else url_for('static', filename='img/logo.svg') }}" alt="{{ brand.name if brand is defined and brand.own_logo else "منصتي" }}" class="h-9 w-auto object-contain bg-white rounded-md p-1">
           <span class="px-2.5 py-1 rounded-full bg-surface-container-high text-on-surface-variant font-label-sm text-label-sm tracking-wide">مركز الدعم والنظام</span>
         </div>
         <nav class="flex items-center p-1.5 rounded-xl bg-surface-container-low shadow-sm gap-1">

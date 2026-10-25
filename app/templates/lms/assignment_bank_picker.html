@@ -37,7 +37,7 @@
            button lives outside the <form> tag in the source. #}
         <button type="submit" id="addBtn" form="pickForm" disabled
                 class="h-11 px-6 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md opacity-40"
-                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined">library_add</span>
           <span>إضافة المحدَّد (<span id="count">0</span>)</span>
         </button>
@@ -84,7 +84,7 @@
       <div class="flex items-end justify-end gap-2">
         <a href="{{ url_for('lms.assignment_pick_from_bank', aid=assignment.id) }}" class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-md font-bold hover:bg-surface-container">إعادة</a>
         <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
-                style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
           <span class="material-symbols-outlined text-sm align-middle">search</span> تصفية
         </button>
       </div>
@@ -123,7 +123,7 @@
       <span class="material-symbols-outlined text-5xl text-outline">inventory_2</span>
       <p class="mt-3 font-body-md text-on-surface-variant">لا يوجد أسئلة مطابقة للفلاتر.</p>
       <a href="{{ url_for('lms.bank_new') }}" class="mt-3 inline-flex h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold items-center gap-2 shadow-md"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined text-lg">add</span>أضف سؤالاً للبنك
       </a>
     </div>

@@ -16,7 +16,7 @@
     <div class="absolute top-0 right-0 left-0 h-1.5 bg-gradient-to-r from-primary via-secondary to-tertiary-container"></div>
     <div class="flex items-center gap-space-md flex-wrap">
       <div class="relative w-28 h-28 rounded-full text-on-primary flex flex-col items-center justify-center shadow-lg shrink-0"
-           style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+           style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         {% if hide_score %}
         <span class="material-symbols-outlined text-4xl">lock</span>
         <span class="font-label-xs text-label-xs opacity-90">قيد النشر</span>
@@ -121,7 +121,7 @@
     {% if quiz.course %}
     <a href="{{ url_for('courses.detail', course_id=quiz.course.id) }}"
        class="h-11 px-5 rounded-xl text-on-primary font-title-md text-title-md flex items-center gap-2 shadow-md hover:shadow-lg transition-all"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span>الرجوع للمادة</span>
       <span class="material-symbols-outlined text-lg">arrow_back</span>
     </a>

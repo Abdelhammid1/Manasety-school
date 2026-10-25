@@ -16,23 +16,36 @@
   {# viewport-fit=cover: content can use the notch area (padded back with env(safe-area-inset-*));
      interactive-widget: the Android keyboard resizes the layout like iOS. Zoom stays allowed. #}
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>{% block title %}{{ app_name }}{% endblock %} — {{ app_name }}</title>
-  <meta name="description" content="{% block description %}منصتي — منصة التعلم الذكية للمدارس{% endblock %}">
-  <meta name="application-name" content="منصتي">
-  <meta name="theme-color" content="#1E3A8A">
+  {# School Branding (services/branding.py): a school with its own identity
+     (logo or colour) names itself here; otherwise the platform's, as before. #}
+  {% set site = brand.site_name if brand is defined else app_name %}
+  <title>{% block title %}{{ app_name }}{% endblock %} — {{ site }}</title>
+  <meta name="description" content="{% block description %}{{ site if brand is defined and brand.branded else 'منصتي — منصة التعلم الذكية للمدارس' }}{% endblock %}">
+  <meta name="application-name" content="{{ site }}">
+  <meta name="theme-color" content="{{ 'rgb(' ~ brand.theme_css.split('--c-primary-container:')[1].split(';')[0] ~ ')' if brand is defined and brand.theme_css else '#1E3A8A' }}">
   {# Open Graph / Twitter — URLs come from the request host (SAAS-038). #}
-  <meta property="og:site_name" content="منصتي">
+  <meta property="og:site_name" content="{{ site }}">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="{{ self.title() }} — منصتي">
-  <meta property="og:description" content="منصتي — منصة التعلم الذكية للمدارس">
+  <meta property="og:title" content="{{ self.title() }} — {{ site }}">
+  <meta property="og:description" content="{{ site if brand is defined and brand.branded else 'منصتي — منصة التعلم الذكية للمدارس' }}">
+  {% if brand is defined and brand.own_logo %}
+  <meta property="og:image" content="{{ url_for('branding.logo', v=brand.logo_src.rsplit('v=', 1)[-1], _external=True) }}">
+  {% else %}
   <meta property="og:image" content="{{ url_for('static', filename='img/og-default.png', _external=True) }}">
+  {% endif %}
   <meta property="og:url" content="{{ request.base_url }}">
   <meta name="twitter:card" content="summary_large_image">
   <link rel="canonical" href="{{ request.base_url }}">
 
+  {% if brand is defined and brand.own_logo %}
+  {# the school's logo only — the SVG icon is left out: browsers prefer it over the rest #}
+  <link rel="icon" href="{{ brand.logo_src }}">
+  <link rel="apple-touch-icon" href="{{ brand.logo_src }}">
+  {% else %}
   <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='img/logo.svg') }}">
   <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/apple-touch-icon.png') }}">
+  {% endif %}
 
   {# Fonts — self-hosted Manasety + Google Plus Jakarta Sans + Material Symbols #}
   <style>
@@ -61,6 +74,11 @@
     })();
   </script>
 
+  {# Brand colours: the platform's by default; a school with its own colour
+     overrides the --c-* triplets and the gradient (services/branding.py —
+     built from a validated #RRGGBB only). #}
+  {% if brand is defined and brand.theme_css %}<style id="school-theme">{{ brand.theme_css|safe }}</style>{% endif %}
+
   {# Tailwind (Play CDN) — the Stitch designs are Tailwind-based. #}
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -72,25 +90,25 @@
         extend: {
           colors: {
             // Manasety canonical (from DESIGN.md v2 + Stitch shell files)
-            'navy':                     '#0c2461',
-            'navy-surface':             '#0c2461',
+            'navy':                     'rgb(var(--c-navy, 12 36 97) / <alpha-value>)',
+            'navy-surface':             'rgb(var(--c-navy-surface, 12 36 97) / <alpha-value>)',
             'navy-active':              'rgba(255,255,255,0.06)',
-            'primary':                  '#00236f',
-            'primary-container':        '#1e3a8a',
-            'primary-fixed':            '#dce1ff',
-            'primary-fixed-dim':        '#b6c4ff',
+            'primary':                  'rgb(var(--c-primary, 0 35 111) / <alpha-value>)',
+            'primary-container':        'rgb(var(--c-primary-container, 30 58 138) / <alpha-value>)',
+            'primary-fixed':            'rgb(var(--c-primary-fixed, 220 225 255) / <alpha-value>)',
+            'primary-fixed-dim':        'rgb(var(--c-primary-fixed-dim, 182 196 255) / <alpha-value>)',
             'on-primary':               '#ffffff',
-            'on-primary-container':     '#90a8ff',
-            'on-primary-fixed':         '#00164e',
-            'on-primary-fixed-variant': '#264191',
-            'secondary':                '#0051d5',
-            'secondary-container':      '#eff6ff',
-            'secondary-fixed':          '#dbe1ff',
-            'secondary-fixed-dim':      '#b4c5ff',
+            'on-primary-container':     'rgb(var(--c-on-primary-container, 144 168 255) / <alpha-value>)',
+            'on-primary-fixed':         'rgb(var(--c-on-primary-fixed, 0 22 78) / <alpha-value>)',
+            'on-primary-fixed-variant': 'rgb(var(--c-on-primary-fixed-variant, 38 65 145) / <alpha-value>)',
+            'secondary':                'rgb(var(--c-secondary, 0 81 213) / <alpha-value>)',
+            'secondary-container':      'rgb(var(--c-secondary-container, 239 246 255) / <alpha-value>)',
+            'secondary-fixed':          'rgb(var(--c-secondary-fixed, 219 225 255) / <alpha-value>)',
+            'secondary-fixed-dim':      'rgb(var(--c-secondary-fixed-dim, 180 197 255) / <alpha-value>)',
             'on-secondary':             '#ffffff',
             'on-secondary-container':   '#fefcff',
-            'on-secondary-fixed':       '#00174b',
-            'on-secondary-fixed-variant':'#003ea8',
+            'on-secondary-fixed':       'rgb(var(--c-on-secondary-fixed, 0 23 75) / <alpha-value>)',
+            'on-secondary-fixed-variant':'rgb(var(--c-on-secondary-fixed-variant, 0 62 168) / <alpha-value>)',
             'tertiary':                 '#002e40',
             'tertiary-container':       '#e0f2fe',
             'tertiary-fixed':           '#c3e8ff',
@@ -99,15 +117,18 @@
             'on-tertiary-container':    '#42b7eb',
             'on-tertiary-fixed':        '#001e2c',
             'on-tertiary-fixed-variant':'#004c68',
-            'sidebar-icon':             '#dbe7ff',
-            'inverse-primary':          '#b6c4ff',
+            // the brand gradient's middle / end, for the few solid uses of them
+            'brand-mid':                'rgb(var(--c-gradient-mid, 37 99 235) / <alpha-value>)',
+            'brand-end':                'rgb(var(--c-gradient-end, 0 153 204) / <alpha-value>)',
+            'sidebar-icon':             'rgb(var(--c-sidebar-icon, 219 231 255) / <alpha-value>)',
+            'inverse-primary':          'rgb(var(--c-inverse-primary, 182 196 255) / <alpha-value>)',
             'inverse-surface':          '#2d3133',
             'inverse-on-surface':       '#eff1f4',
             'surface':                  '#f7f9fc',
             'surface-bright':           '#f7f9fc',
             'surface-dim':              '#d8dadd',
             'surface-variant':          '#e0e3e6',
-            'surface-tint':             '#4059aa',
+            'surface-tint':             'rgb(var(--c-surface-tint, 64 89 170) / <alpha-value>)',
             'surface-container-lowest': '#ffffff',
             'surface-container-low':    '#f2f4f7',
             'surface-container':        '#eceef1',

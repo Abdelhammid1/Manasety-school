@@ -23,7 +23,7 @@
     <div class="flex items-center gap-space-sm flex-wrap">
       <a href="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}"
          class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
-         style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
         <span class="material-symbols-outlined text-xl">library_add</span><span>اختر من بنك الأسئلة</span>
       </a>
       <a href="{{ url_for('lms.bank_home') }}"
@@ -54,7 +54,7 @@
     </div>
     <a href="{{ url_for('lms.quiz_pick_from_bank', qid=quiz.id) }}"
        class="h-10 px-4 rounded-lg text-on-primary font-label-lg font-bold flex items-center gap-2 shadow-md shrink-0"
-       style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+       style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span>ابدأ الآن</span>
       <span class="material-symbols-outlined text-lg">arrow_back</span>
     </a>
@@ -187,7 +187,7 @@
             </button>
             {% else %}
             <button type="submit" class="h-10 px-5 rounded-lg text-on-primary font-label-lg font-bold shadow-md"
-                    style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                    style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
               حفظ السؤال
             </button>
             {% endif %}

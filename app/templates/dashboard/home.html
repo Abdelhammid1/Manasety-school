@@ -14,7 +14,7 @@
 
   <!-- ══════ Greeting hero ══════ -->
   <section class="relative overflow-hidden rounded-2xl shadow-md text-on-primary p-space-lg"
-           style="background: linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%);">
+           style="background: var(--brand-gradient-deep, linear-gradient(135deg, #0C2461 0%, #1E3A8A 45%, #2563EB 100%));">
     <div class="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-white/10 blur-2xl"></div>
     <div class="absolute -bottom-8 -right-8 w-40 h-40 rounded-full bg-tertiary-fixed-dim/20 blur-xl"></div>
     <div class="relative z-10 flex items-center justify-between gap-space-md flex-wrap">
@@ -60,7 +60,7 @@
     <a href="{{ url_for(endpoint) }}"
        class="flex items-center gap-2 h-11 px-4 rounded-xl font-label-lg font-bold shrink-0 shadow-sm hover:shadow-md active:scale-95 transition-all
               {% if gradient %}text-on-primary{% else %}bg-surface-container-lowest text-primary hover:bg-surface-container-low{% endif %}"
-       {% if gradient %}style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);"{% endif %}>
+       {% if gradient %}style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));"{% endif %}>
       <span class="material-symbols-outlined text-lg">{{ icon }}</span>
       <span>{{ label }}</span>
     </a>
@@ -264,7 +264,7 @@
           <span class="w-28 font-label-md text-primary font-bold truncate">{{ g.grade_name }}</span>
           <div class="flex-1 h-6 rounded-lg bg-surface-container-low overflow-hidden">
             <div class="h-full rounded-lg flex items-center justify-end px-2"
-                 style="width: {{ (g.count * 100 / (stats.students_by_grade_max or 1))|round }}%; background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">
+                 style="width: {{ (g.count * 100 / (stats.students_by_grade_max or 1))|round }}%; background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
               <span class="font-label-xs text-on-primary font-bold tabular-nums">{{ g.count }}</span>
             </div>
           </div>
@@ -304,7 +304,7 @@
 
   <!-- ══════ Section: LMS ══════ -->
   <div class="flex items-center gap-2 mt-2">
-    <span class="w-2.5 h-2.5 rounded-full bg-[#0099CC]"></span>
+    <span class="w-2.5 h-2.5 rounded-full bg-brand-end"></span>
     <h2 class="font-headline-sm text-headline-sm text-primary font-bold">التعلم (LMS)</h2>
   </div>
 
@@ -346,7 +346,7 @@
     </div>
 
     <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm relative overflow-hidden">
-      <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-[#0099CC]"></div>
+      <div class="absolute right-0 top-0 bottom-0 w-1.5 bg-brand-end"></div>
       <div class="w-10 h-10 rounded-xl bg-tertiary-container/40 text-tertiary flex items-center justify-center">
         <span class="material-symbols-outlined text-xl">campaign</span>
       </div>
@@ -368,7 +368,7 @@
       <a href="{{ url_for('courses.detail', course_id=c.course_id) }}"
          class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
         <div class="w-10 h-10 rounded-full text-on-primary flex items-center justify-center font-bold tabular-nums"
-             style="background: linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%);">{{ loop.index }}</div>
+             style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">{{ loop.index }}</div>
         <div class="flex-1 min-w-0">
           <div class="font-label-lg text-primary font-bold truncate">{{ c.title }}</div>
           <div class="font-label-xs text-outline tabular-nums">{{ c.submissions }} تسليماً · {{ c.attempts }} محاولة اختبار</div>

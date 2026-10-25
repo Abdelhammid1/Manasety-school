@@ -34,10 +34,14 @@ _MB = 1024 * 1024
 class Kind:
     exts: frozenset
     max_bytes: int
+    #: images only: decoded with Pillow, at most this many pixels a side
+    max_px: Optional[int] = None
 
 
 KINDS: dict[str, Kind] = {
-    "logo":            Kind(frozenset({"png", "jpg", "jpeg", "svg", "webp"}), 5 * _MB),
+    # a school logo shows on its pages, prints and login: raster only (an
+    # SVG can carry script), decoded and size-checked; old SVGs still serve
+    "logo":            Kind(frozenset({"png", "jpg", "jpeg", "webp"}), 2 * _MB, max_px=2000),
     "materials":       Kind(frozenset({"pdf", "jpg", "jpeg", "png"}), 10 * _MB),
     "excuse":          Kind(frozenset({"pdf", "png", "jpg", "jpeg", "webp"}), 10 * _MB),
     "lessons":         Kind(frozenset({"pdf"}), 10 * _MB),
@@ -111,6 +115,21 @@ def _current_school() -> int:
     return int(current_school_id())
 
 
+def _check_image(stream, max_px: int) -> None:
+    """The file really decodes as an image, within max_px × max_px."""
+    from PIL import Image, UnidentifiedImageError
+    try:
+        with Image.open(stream) as im:
+            im.verify()
+            w, h = im.size
+    except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
+        raise UploadRejected("الملف مش صورة سليمة.") from None
+    finally:
+        stream.seek(0)
+    if w > max_px or h > max_px:
+        raise UploadRejected(f"أبعاد الصورة {w}×{h} — الحد الأقصى {max_px}×{max_px} بكسل.")
+
+
 def save(file, kind: str, owner_id: int) -> str:
     """Validate and store an uploaded FileStorage. Returns "/files/<key>"."""
     spec = KINDS[kind]
@@ -136,6 +155,8 @@ def save(file, kind: str, owner_id: int) -> str:
     stream.seek(0)
     if not _sniff_ok(ext, head):
         raise UploadRejected(f"محتوى الملف لا يطابق الامتداد .{ext}.")
+    if spec.max_px:
+        _check_image(stream, spec.max_px)
 
     # SAAS-030 — storage limit: this file + what the school already uses.
     from .limits import LimitReached, check_and_reserve
