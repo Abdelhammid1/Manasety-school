@@ -51,7 +51,21 @@ def school_settings():
     if not school:
         abort(404)
 
+    from ...services import finance_settings as fin
+    fin_locked = fin.has_financial_activity(school.id)
+
     if request.method == "POST":
+        # The financial tab first: invalid values, or any change to a
+        # locked field (even from a hand-made request), refuse the WHOLE
+        # save — nothing changes.
+        fin_changes, fin_errors = fin.parse_form(request.form, school)
+        if fin_changes and fin_locked:
+            flash(fin.LOCKED_MESSAGE, "danger")
+            return redirect(url_for("admin.school_settings"))
+        if fin_errors:
+            for e in fin_errors:
+                flash(e, "danger")
+            return redirect(url_for("admin.school_settings"))
         # Simple field-map covering every tab. Only whitelisted keys.
         s = school
         get = lambda k: (request.form.get(k) or "").strip() or None
@@ -84,31 +98,10 @@ def school_settings():
             s.phone = clip(get("phone"), 32)
             s.email = clip(get("email"), 128)
             s.website = clip(get("website"), 255)
-            # Tab 3 — finance
-            s.currency = clip(get("currency") or "EGP", 8)
-            s.currency_symbol = clip(get("currency_symbol") or "ج.م", 8)
-            try:
-                rate = Decimal(request.form.get("default_tax_rate") or "0")
-                # Numeric(5,2) allows up to 999.99 — clamp to a sane VAT range.
-                if rate < 0:
-                    rate = Decimal(0)
-                if rate > Decimal(100):
-                    rate = Decimal(100)
-                s.default_tax_rate = rate
-            except (InvalidOperation, ValueError):
-                pass
-            try:
-                month = int(request.form.get("fiscal_year_start_month") or 9)
-                s.fiscal_year_start_month = min(12, max(1, month))
-            except (TypeError, ValueError):
-                pass
-            s.invoice_prefix = clip(get("invoice_prefix") or "INV", 16)
-            try:
-                start = int(request.form.get("invoice_start_number") or 1)
-                s.invoice_start_number = max(1, start)
-            except (TypeError, ValueError):
-                pass
-            s.rounding_policy = clip(get("rounding_policy") or "normal", 16)
+            # Tab 3 — finance: services/finance_settings (validated, and
+            # closed to the school once the year has financial activity)
+            for field, value in fin_changes.items():
+                setattr(s, field, value)
             # Tab 4 — academic
             mode = (request.form.get("attendance_mode") or "daily").strip()
             if mode in ("daily", "per_period", "both"):
@@ -154,7 +147,7 @@ def school_settings():
                 ).order_by(PaymentMethod.name).all()
             )
             return render_template("admin/school_settings.html",
-                                   school=school, bank_methods=bank_methods)
+                                   school=school, bank_methods=bank_methods, fin_locked=fin_locked)
         flash("تم حفظ الإعدادات.", "success")
         return redirect(url_for("admin.school_settings"))
 
@@ -165,7 +158,8 @@ def school_settings():
         ).order_by(PaymentMethod.name).all()
     )
     return render_template("admin/school_settings.html",
-                           school=school, bank_methods=bank_methods)
+                           school=school, bank_methods=bank_methods, fin_locked=fin_locked,
+                           fin_locked_message=fin.LOCKED_MESSAGE)
 
 
 @bp.route("/audit")

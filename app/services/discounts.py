@@ -31,7 +31,9 @@ def _apply(discount_type, base_total, override=None):
             pass
     v = Decimal(str(discount_type.value or 0))
     if discount_type.calc_method == "percentage":
-        return (base_total * v / Decimal(100)).quantize(Decimal("0.01"))
+        from .finance_settings import round_money, settings_for_id
+        return round_money(base_total * v / Decimal(100),
+                           settings_for_id(discount_type.school_id).rounding_policy)
     return v
 
 

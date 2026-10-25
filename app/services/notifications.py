@@ -267,6 +267,9 @@ def _dispatch_push_for(
     student = payload.get("student", "ابنك")
     date = payload.get("date", "")
     amount = payload.get("amount")
+    # the school's current currency (services/finance_settings), never a fixed one
+    from .finance_settings import money, settings_for_id
+    symbol = settings_for_id(school_id).currency_symbol
 
     if kind == "absence":
         # Find child_id to build the deep link
@@ -301,7 +304,7 @@ def _dispatch_push_for(
         _push_to_parent_of(
             target_phone, school_id,
             title="فاتورة جديدة",
-            body=f"فاتورة جديدة{' بمبلغ ' + str(amount) + ' ج.س' if amount else ''}",
+            body=f"فاتورة جديدة{' بمبلغ ' + money(amount, symbol) if amount else ''}",
             data={
                 "route": f"/children/{child_id}/invoices" if child_id else "/",
                 "notification_id": notif_id,
@@ -312,7 +315,7 @@ def _dispatch_push_for(
         _push_to_parent_of(
             target_phone, school_id,
             title="استلام دفعة",
-            body=f"تم استلام دفعة{' بمبلغ ' + str(amount) + ' ج.س' if amount else ''}",
+            body=f"تم استلام دفعة{' بمبلغ ' + money(amount, symbol) if amount else ''}",
             data={
                 "route": f"/children/{child_id}/invoices" if child_id else "/",
                 "notification_id": notif_id,
@@ -323,7 +326,7 @@ def _dispatch_push_for(
         _push_to_parent_of(
             target_phone, school_id,
             title="استرداد مبلغ",
-            body=f"تم استرداد {amount} ج.س" if amount else "تم تسجيل استرداد",
+            body=f"تم استرداد {money(amount, symbol)}" if amount else "تم تسجيل استرداد",
             data={
                 "route": f"/children/{child_id}/invoices" if child_id else "/",
                 "notification_id": notif_id,

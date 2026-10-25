@@ -119,7 +119,7 @@
       </tbody>
     </table>
 
-    {% set curr = (school.currency_symbol if school and school.currency_symbol else 'ج.م') %}
+    {% set curr = currency_symbol() %}
     <div class="totals">
       <div class="totals-row">
         <div>الإجمالي</div>

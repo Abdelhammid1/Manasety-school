@@ -31,13 +31,18 @@ EDITABLE = {
     "tax_number": ("الرقم الضريبي", str), "license_number": ("رقم الترخيص", str),
     "currency": ("العملة", str), "currency_symbol": ("رمز العملة", str),
     "fiscal_year_start_month": ("بداية السنة المالية", int), "invoice_prefix": ("بادئة الفواتير", str),
+    # the financial fields a school can't change after its first financial
+    # activity (services/finance_settings) — the console still can, audited
+    "invoice_start_number": ("رقم الفاتورة الأولى", int), "rounding_policy": ("سياسة التقريب", str),
     "default_tax_rate": ("الضريبة الافتراضية", float), "attendance_mode": ("نمط الحضور", str),
     "notify_channels": ("قنوات الإشعار", str), "blocked_message": ("رسالة للمدرسة عند الحجب", str),
     "notify_on_support_access": ("إشعار المدرسة بدخول الدعم", bool),
 }
 # NOT NULL columns: blank is an error, not "clear it".
 REQUIRED = {"name", "currency", "currency_symbol", "invoice_prefix", "fiscal_year_start_month",
-            "default_tax_rate", "attendance_mode", "notify_channels"}
+            "default_tax_rate", "attendance_mode", "notify_channels", "invoice_start_number",
+            "rounding_policy"}
+MAX_LEN = {"currency": 8, "currency_symbol": 8, "invoice_prefix": 16}
 SLUG_REDIRECT_DAYS = 90
 
 
@@ -96,6 +101,15 @@ def school_edit(school_id):
                 continue
             if field == "attendance_mode" and new not in ("daily", "per_period"):
                 errors.append("نمط الحضور غير صحيح.")
+                continue
+            if field == "rounding_policy" and new not in ("normal", "up", "down"):
+                errors.append("سياسة التقريب غير صحيحة.")
+                continue
+            if field == "invoice_start_number" and new is not None and new < 1:
+                errors.append("رقم الفاتورة الأولى لازم 1 أو أكثر.")
+                continue
+            if field in MAX_LEN and isinstance(new, str) and len(new) > MAX_LEN[field]:
+                errors.append(f"{label}: حتى {MAX_LEN[field]} حروف.")
                 continue
             old = getattr(school, field)
             if field == "default_tax_rate" and old is not None:

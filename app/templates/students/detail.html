@@ -397,7 +397,7 @@
           </div>
           <div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
             <span class="font-label-md text-label-md text-on-surface font-bold">المتبقّي</span>
-            <span class="font-title-md text-title-md {% if fin_totals.remaining > 0 %}text-error{% else %}text-[#10B981]{% endif %} font-bold">{{ fin_totals.remaining|round(2) }} ر.س</span>
+            <span class="font-title-md text-title-md {% if fin_totals.remaining > 0 %}text-error{% else %}text-[#10B981]{% endif %} font-bold">{{ '%.2f'|format((fin_totals.remaining) or 0) }} {{ currency_symbol() }}</span>
           </div>
         </div>
         {% if invoices %}

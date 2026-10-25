@@ -17,6 +17,13 @@
           <option value="daily" {% if v == 'daily' %}selected{% endif %}>يومي</option>
           <option value="per_period" {% if v == 'per_period' %}selected{% endif %}>بالحصة</option>
         </select>
+      {% elif field == 'rounding_policy' %}
+        <label for="{{ field }}">{{ label }}</label>
+        <select id="{{ field }}" name="{{ field }}">
+          <option value="normal" {% if v == 'normal' %}selected{% endif %}>عادي (نصف لأعلى)</option>
+          <option value="up" {% if v == 'up' %}selected{% endif %}>دائماً لأعلى</option>
+          <option value="down" {% if v == 'down' %}selected{% endif %}>دائماً لأسفل</option>
+        </select>
       {% elif field == 'notify_on_support_access' %}
         <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="{{ field }}" value="1" style="width:auto;height:auto" {% if v %}checked{% endif %}> {{ label }}</label>
       {% elif field == 'blocked_message' %}

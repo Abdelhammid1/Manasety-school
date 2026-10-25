@@ -277,6 +277,9 @@ class Invoice(db.Model):
     # GROSS (net + tax) so paid/remaining math doesn't change.
     tax_rate = db.Column(db.Numeric(5, 2), default=0, nullable=False)
     tax_amount = db.Column(db.Numeric(12, 2), default=0, nullable=False)
+    # the rounding policy the invoice was issued with (services/finance_settings);
+    # with tax_rate, what keeps an issued invoice's amounts stable
+    rounding_policy = db.Column(db.String(16), nullable=True)
     notes = db.Column(db.String(255))
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
 

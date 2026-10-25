@@ -107,6 +107,19 @@
 
     {# Tab 3 — Finance #}
     <div id="t3" class="tab p-space-lg" style="display:none">
+      {% if fin_locked %}
+      <div role="status" class="mb-space-md p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant flex items-start gap-2">
+        <span class="material-symbols-outlined">lock</span>
+        <span class="font-body-md">{{ fin_locked_message }}</span>
+      </div>
+      {% else %}
+      <div class="mb-space-md p-space-md rounded-xl bg-surface-container-low text-on-surface-variant flex items-start gap-2">
+        <span class="material-symbols-outlined text-primary">info</span>
+        <span class="font-body-md">الإعدادات دي بتتطبق على كل الفواتير والتقارير. بعد أول فاتورة أو دفعة أو قيد في السنة الدراسية بتتقفل، وتعديلها بعد كده بيبقى من فريق Manasety بس.</span>
+      </div>
+      {% endif %}
+      {# disabled while locked: the browser neither edits nor sends these #}
+      <fieldset {% if fin_locked %}disabled{% endif %} data-fin-fields class="disabled:opacity-60">
       <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
         <div class="flex flex-col gap-1"><label class="font-label-md font-bold">العملة (رمز ISO)</label>
           <input name="currency" dir="ltr" value="{{ school.currency }}" maxlength="8" placeholder="EGP"
@@ -140,6 +153,7 @@
             <option value="down" {% if school.rounding_policy == 'down' %}selected{% endif %}>دائماً لأسفل</option>
           </select></div>
       </div>
+      </fieldset>
     </div>
 
     {# Tab 4 — Academic #}
@@ -265,5 +279,18 @@
     if (b) b.classList.add('border-primary','text-primary');
   }
   showTab('t1');
+  // Before the lock: saving a changed financial field asks first.
+  (function () {
+    const box = document.querySelector('[data-fin-fields]');
+    if (!box || box.disabled) return;
+    const fields = Array.from(box.querySelectorAll('input, select'));
+    const initial = fields.map(f => f.value);
+    box.closest('form').addEventListener('submit', (e) => {
+      if (fields.some((f, i) => f.value !== initial[i]) &&
+          !confirm('هتغيّر إعدادات مالية بتتطبق على كل الفواتير الجديدة والتقارير. بعد أول نشاط مالي في السنة هتتقفل. متأكد؟')) {
+        e.preventDefault();
+      }
+    });
+  })();
 </script>
 {% endblock %}

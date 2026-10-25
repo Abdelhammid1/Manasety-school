@@ -38,7 +38,7 @@
       <div class="text-left shrink-0">
         <div class="font-label-md text-on-primary/85">الرصيد الحالي</div>
         <div class="font-headline-lg font-extrabold {% if current_balance < 0 %}text-rose-100{% else %}text-on-primary{% endif %}">
-          {{ '{:,.2f}'.format(current_balance) }}
+          {{ '{:,.2f}'.format(current_balance) }} <span class="text-label-sm text-outline font-normal">{{ currency_symbol() }}</span>
         </div>
         <div class="font-label-xs text-on-primary/70">{{ totals.count }} حركة</div>
       </div>
@@ -75,15 +75,15 @@
   <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
     <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
       <div class="font-label-md text-on-surface-variant">إجمالي المدين</div>
-      <div class="font-headline-md font-extrabold text-primary mt-1">{{ '{:,.2f}'.format(totals.debit) }}</div>
+      <div class="font-headline-md font-extrabold text-primary mt-1">{{ '{:,.2f}'.format(totals.debit) }} <span class="text-label-sm text-outline font-normal">{{ currency_symbol() }}</span></div>
     </div>
     <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
       <div class="font-label-md text-on-surface-variant">إجمالي الدائن</div>
-      <div class="font-headline-md font-extrabold text-secondary mt-1">{{ '{:,.2f}'.format(totals.credit) }}</div>
+      <div class="font-headline-md font-extrabold text-secondary mt-1">{{ '{:,.2f}'.format(totals.credit) }} <span class="text-label-sm text-outline font-normal">{{ currency_symbol() }}</span></div>
     </div>
     <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
       <div class="font-label-md text-on-surface-variant">الرصيد الختامي</div>
-      <div class="font-headline-md font-extrabold {% if current_balance < 0 %}text-rose-600{% else %}text-emerald-700{% endif %} mt-1">{{ '{:,.2f}'.format(current_balance) }}</div>
+      <div class="font-headline-md font-extrabold {% if current_balance < 0 %}text-rose-600{% else %}text-emerald-700{% endif %} mt-1">{{ '{:,.2f}'.format(current_balance) }} <span class="text-label-sm text-outline font-normal">{{ currency_symbol() }}</span></div>
     </div>
   </div>
 

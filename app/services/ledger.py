@@ -39,8 +39,11 @@ def _dec(v) -> Decimal:
     return Decimal(str(v or 0))
 
 
-def next_invoice_number(school_id: int, year_name: str) -> str:
-    """Race-safe sequential invoice number for the given (school, year).
+def next_invoice_number(school_id: int, year_name: str, prefix: str = "INV", start: int = 1) -> str:
+    """Race-safe sequential invoice number for the given (school, prefix,
+    year): `{prefix}-{year}-00001`. The school's prefix and first number
+    come from its settings (services/finance_settings); the sequence
+    starts at `start` when no invoice carries this prefix + year yet.
 
     Uses `SELECT MAX(number) ... FOR UPDATE` on Postgres so parallel
     invoice_new calls serialize on the same row-set instead of both
@@ -50,7 +53,7 @@ def next_invoice_number(school_id: int, year_name: str) -> str:
     """
     import re
     from sqlalchemy import func
-    prefix = f"INV-{year_name}-"
+    prefix = f"{prefix}-{year_name}-"
     q = (
         db.session.query(func.max(Invoice.number))
         .filter(Invoice.school_id == school_id)
@@ -60,7 +63,7 @@ def next_invoice_number(school_id: int, year_name: str) -> str:
     if dialect == "postgresql":
         q = q.with_for_update()
     last = q.scalar()
-    n = 1
+    n = max(1, int(start or 1))
     if last:
         m = re.search(r"(\d+)$", last)
         if m:
@@ -388,7 +391,9 @@ def apply_advance_deductions(payroll: Payroll) -> Decimal:
             break
         # Compute per-payroll installment.
         if adv.deduction_plan == "installments" and (adv.installment_count or 0) > 0:
-            per = (_dec(adv.amount) / Decimal(adv.installment_count)).quantize(Decimal("0.01"))
+            from .finance_settings import round_money, settings_for_id
+            per = round_money(_dec(adv.amount) / Decimal(adv.installment_count),
+                              settings_for_id(payroll.school_id).rounding_policy)
         else:
             per = _dec(adv.remaining_balance)   # full_next_month → clear it
         take = min(per, _dec(adv.remaining_balance), remaining_on_payroll)
@@ -1030,16 +1035,20 @@ def create_invoice(*, school_id: int, enrollment_id: int, year_name: str,
     from ..services.discounts import applicable_discounts_for
     from datetime import timedelta
 
+    from .finance_settings import round_money, settings_for
+    school = db.session.get(School, school_id)
+    fs = settings_for(school)
+
     # ── 1. Race-safe number allocation with retry loop.
     inv = None
     for _ in range(8):
-        number_base = next_invoice_number(school_id, year_name)
+        number_base = next_invoice_number(school_id, year_name, fs.invoice_prefix, fs.invoice_start_number)
         number = (f"{number_base[:-6]}{number_prefix_extra}{number_base[-6:]}"
                   if number_prefix_extra else number_base)
         candidate = Invoice(
             school_id=school_id, enrollment_id=enrollment_id,
             number=number, issue_date=issue_date, due_date=due_date,
-            status=status,
+            status=status, rounding_policy=fs.rounding_policy,
         )
         db.session.add(candidate)
         try:
@@ -1052,8 +1061,9 @@ def create_invoice(*, school_id: int, enrollment_id: int, year_name: str,
         raise LedgerError("تعذّر توليد رقم فاتورة فريد.")
 
     # ── 2. Lines + tax accumulation (pre-discount taxable subtotal).
-    school = db.session.get(School, school_id)
-    default_rate = Decimal(str(school.default_tax_rate or 0))
+    # The VAT rate and the rounding policy are kept on the invoice, so a
+    # later settings change never alters an issued invoice.
+    default_rate = fs.default_tax_rate
     subtotal = Decimal(0); taxable_subtotal = Decimal(0)
     for fee_id, amt in fee_lines:
         amt = Decimal(str(amt or 0))
@@ -1070,7 +1080,7 @@ def create_invoice(*, school_id: int, enrollment_id: int, year_name: str,
         if ft.is_taxable:
             taxable_subtotal += amt
 
-    tax_amount = (taxable_subtotal * default_rate / Decimal(100)).quantize(Decimal("0.01"))
+    tax_amount = round_money(taxable_subtotal * default_rate / Decimal(100), fs.rounding_policy)
     inv.tax_rate = default_rate
     inv.tax_amount = tax_amount
     total = subtotal + tax_amount
@@ -1091,7 +1101,7 @@ def create_invoice(*, school_id: int, enrollment_id: int, year_name: str,
 
     # ── 4. Installments.
     installments_count = max(1, installments_count)
-    per = (total / installments_count).quantize(Decimal("0.01"))
+    per = round_money(total / installments_count, fs.rounding_policy)
     accum = Decimal(0)
     for i in range(installments_count):
         d = due_date if installments_count == 1 else due_date + timedelta(days=30 * i)

@@ -61,22 +61,22 @@
           {% for line in inv.lines %}
           <tr class="border-t border-outline-variant">
             <td class="px-3 py-2 font-body-md">{{ line.description }}</td>
-            <td class="px-3 py-2 text-left font-label-lg font-bold text-primary tabular-nums">{{ line.amount|round(2) }}</td>
+            <td class="px-3 py-2 text-left font-label-lg font-bold text-primary tabular-nums">{{ line.amount|money }}</td>
           </tr>
           {% endfor %}
         </tbody>
         <tfoot class="bg-surface-container-low">
           <tr>
             <td class="px-3 py-2 font-title-md text-primary font-bold">الإجمالي</td>
-            <td class="px-3 py-2 text-left font-title-md text-primary font-bold tabular-nums">{{ inv.total_amount|round(2) }}</td>
+            <td class="px-3 py-2 text-left font-title-md text-primary font-bold tabular-nums">{{ inv.total_amount|money }}</td>
           </tr>
           <tr>
             <td class="px-3 py-2 font-label-md text-[#10B981] font-bold">المدفوع</td>
-            <td class="px-3 py-2 text-left font-label-lg text-[#10B981] font-bold tabular-nums">{{ inv.paid_amount|round(2) }}</td>
+            <td class="px-3 py-2 text-left font-label-lg text-[#10B981] font-bold tabular-nums">{{ inv.paid_amount|money }}</td>
           </tr>
           <tr>
             <td class="px-3 py-2 font-label-md text-error font-bold">المتبقّي</td>
-            <td class="px-3 py-2 text-left font-headline-sm text-error font-bold tabular-nums">{{ (inv.total_amount - inv.paid_amount)|round(2) }}</td>
+            <td class="px-3 py-2 text-left font-headline-sm text-error font-bold tabular-nums">{{ (inv.total_amount - inv.paid_amount)|money }}</td>
           </tr>
         </tfoot>
       </table>
@@ -94,9 +94,9 @@
                     {% elif inst.due_date and inst.due_date < today() %}bg-error-container/40 border border-error/30
                     {% else %}bg-surface-container-low border border-outline-variant{% endif %}">
           <div class="font-label-xs text-label-xs text-on-surface-variant">{{ inst.due_date.strftime('%Y-%m-%d') if inst.due_date else '' }}</div>
-          <div class="font-title-md text-title-md text-primary font-bold tabular-nums">{{ inst.amount|round(2) }}</div>
+          <div class="font-title-md text-title-md text-primary font-bold tabular-nums">{{ inst.amount|money }}</div>
           {% if inst.status == 'paid' %}<span class="font-label-xs text-label-xs text-[#065F46] font-bold">مدفوع</span>
-          {% elif inst.paid_amount > 0 %}<span class="font-label-xs text-label-xs text-secondary font-bold">جزئي · {{ inst.paid_amount|round(2) }}</span>
+          {% elif inst.paid_amount > 0 %}<span class="font-label-xs text-label-xs text-secondary font-bold">جزئي · {{ inst.paid_amount|money }}</span>
           {% else %}<span class="font-label-xs text-label-xs text-outline">معلّق</span>{% endif %}
         </div>
         {% endfor %}
@@ -140,7 +140,7 @@
                 {% endif %}
               </td>
               <td class="p-2 text-center tabular-nums font-bold {% if p.is_refund %}text-error{% else %}text-primary{% endif %}">
-                {{ '{:,.2f}'.format(p.amount) }}
+                {{ p.amount|money }}
               </td>
               <td class="p-2 font-label-sm" dir="ltr">{{ p.reference or '—' }}</td>
               <td class="p-2 font-label-xs text-outline">{{ p.notes or '' }}</td>

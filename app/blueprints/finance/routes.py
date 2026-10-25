@@ -280,7 +280,7 @@ def account_new():
 @require_permission("finance", "view")
 def journal():
     end = _parse_date(request.args.get("end")) or date.today()
-    start = _parse_date(request.args.get("start")) or (end - timedelta(days=365))
+    start = _parse_date(request.args.get("start")) or _fiscal_start(end)
     account_id = request.args.get("account_id", type=int)
     accounts = Account.query.filter_by(school_id=_sid()).order_by(Account.code).all()
 
@@ -859,9 +859,16 @@ def reports_index():
     return render_template("finance/reports_index.html")
 
 
+def _fiscal_start(end):
+    """The start of the school's fiscal year containing `end` — the default
+    period of the financial reports (Settings → شهر بداية السنة المالية)."""
+    from ...services.finance_settings import fiscal_year_start, settings_for_id
+    return fiscal_year_start(end, settings_for_id(_sid()).fiscal_year_start_month)
+
+
 def _report_range():
     end = _parse_date(request.args.get("end")) or date.today()
-    start = _parse_date(request.args.get("start")) or (end - timedelta(days=90))
+    start = _parse_date(request.args.get("start")) or _fiscal_start(end)
     return start, end
 
 
@@ -1917,7 +1924,7 @@ def _report_data(start, end):
 @require_permission("finance", "view")
 def reports():
     end = _parse_date(request.args.get("end")) or date.today()
-    start = _parse_date(request.args.get("start")) or (end - timedelta(days=365))
+    start = _parse_date(request.args.get("start")) or _fiscal_start(end)
     grouped, totals, net_income = _report_data(start, end)
     return render_template(
         "finance/reports.html",
@@ -1932,7 +1939,7 @@ def reports_export():
     """Sprint 9 TC-9.2.2 — export the financial report as PDF or Excel."""
     fmt = (request.args.get("format") or "pdf").lower()
     end = _parse_date(request.args.get("end")) or date.today()
-    start = _parse_date(request.args.get("start")) or (end - timedelta(days=365))
+    start = _parse_date(request.args.get("start")) or _fiscal_start(end)
     grouped, totals, net_income = _report_data(start, end)
 
     label_ar = {

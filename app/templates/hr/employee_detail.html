@@ -22,7 +22,7 @@
             <span class="material-symbols-outlined text-sm">work</span>{{ employee.job_title }}
           </span>
           <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 backdrop-blur font-label-md tabular-nums">
-            <span class="material-symbols-outlined text-sm">payments</span>{{ employee.base_salary|round(2) }} ر.س
+            <span class="material-symbols-outlined text-sm">payments</span>{{ '%.2f'|format((employee.base_salary) or 0) }} {{ currency_symbol() }}
           </span>
         </div>
       </div>

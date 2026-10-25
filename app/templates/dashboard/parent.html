@@ -98,7 +98,7 @@
             </span>
           </div>
           <div class="flex flex-col items-end">
-            <span class="font-label-lg text-label-lg text-primary font-bold">{{ (inv.total_amount - inv.paid_amount)|round(2) }} ر.س</span>
+            <span class="font-label-lg text-label-lg text-primary font-bold">{{ '%.2f'|format(((inv.total_amount - inv.paid_amount)) or 0) }} {{ currency_symbol() }}</span>
             <span class="font-label-xs text-label-xs {% if inv.status=='paid' %}text-secondary{% elif inv.due_date and inv.due_date < today %}text-error{% else %}text-on-surface-variant{% endif %} font-bold">
               {% if inv.status=='paid' %}مدفوعة{% else %}متبقّية{% endif %}
             </span>

@@ -41,6 +41,9 @@ def create_app(config_class=Config):
     # Registered before any blueprint (rules are parsed at registration).
     from .services import hashid as _hashid
     _hashid.init_app(app)
+    # the school's financial settings: |money, currency_symbol() (services/finance_settings.py)
+    from .services import finance_settings as _finance_settings
+    _finance_settings.init_app(app)
 
     # SAAS-001 — surface a visible warning in development/testing when
     # the SECRET_KEY falls back to the dev sentinel. Production boot
