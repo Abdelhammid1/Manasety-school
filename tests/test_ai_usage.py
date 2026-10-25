@@ -278,3 +278,22 @@ def test_a_school_backup_never_carries_or_restores_its_usage():
     from app.services.school_backup import BACKUP_EXCLUDED, backup_tables
     assert "ai_usage_events" in BACKUP_EXCLUDED
     assert "ai_usage_events" not in {t.name for t in backup_tables()}
+
+
+def test_csv_cells_never_run_as_formulas(aapp, two_schools, login_as, monkeypatch):
+    from app.extensions import db
+    from app.models import School, User
+    A = two_schools["A"]
+    with aapp.app_context():
+        db.session.get(User, A["users"]["teacher"].id).full_name = "=HYPERLINK(\"http://x\")"
+        db.session.get(School, A["school"].id).name = "+cmd|' /C calc'!A0"
+        db.session.commit(); db.session.remove()
+    _ai_on(aapp, A)
+    _call(aapp, login_as, A, monkeypatch)
+    c = aapp.test_client()
+    login_as(c, A["users"]["admin"], base_url=host(A))
+    school_csv = c.get("/admin/ai-usage?format=csv", base_url=host(A)).get_data(as_text=True)
+    assert "'=HYPERLINK" in school_csv and ",=HYPERLINK" not in school_csv
+    owner, _ = _console_client(aapp, "owner")
+    console_csv = owner.get("/superadmin/ai-usage?format=csv", base_url=CONSOLE).get_data(as_text=True)
+    assert "'+cmd" in console_csv and ",+cmd" not in console_csv

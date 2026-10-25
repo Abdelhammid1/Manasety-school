@@ -13,6 +13,7 @@ from . import bp, current_platform_user, require_platform_role
 from ...extensions import db
 from ...services import platform_ai_usage as pai
 from ...services.ai_usage import parse_month
+from ...services.school_export import csv_safe
 
 MONEY_ROLES = ("owner", "finance")
 
@@ -32,12 +33,12 @@ def ai_usage():
             head += ["currency", "cost", "price", "profit"]
         w.writerow(head)
         for r in data["rows"]:
-            base = [r["school_id"], r["name"], r["calls"], r["tokens"], r["unpriced"],
+            base = [r["school_id"], csv_safe(r["name"]), r["calls"], r["tokens"], r["unpriced"],
                     r["cap"] if r["cap"] is not None else "", r["percent"] if r["percent"] is not None else "",
                     "yes" if r["open_no_cap"] else ""]
             if money and r["money"]:
                 for cur, m in r["money"].items():
-                    w.writerow(base + [cur, m["cost"], m["price"], m["profit"]])
+                    w.writerow(base + [csv_safe(cur), m["cost"], m["price"], m["profit"]])
             else:
                 w.writerow(base + ([""] * 4 if money else []))
         db.session.commit()

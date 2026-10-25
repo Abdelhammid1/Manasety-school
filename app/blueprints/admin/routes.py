@@ -202,13 +202,14 @@ def ai_usage():
     if request.args.get("format") == "csv":
         buf = io.StringIO()
         w = csv.writer(buf)
+        from ...services.school_export import csv_safe
         w.writerow(["المستخدم", "الاستدعاءات", "التوكنز", "العملة", "المبلغ"])
         for u in rep["users"]:
             if u["amounts"]:
                 for cur, amount in u["amounts"].items():
-                    w.writerow([u["name"], u["calls"], u["tokens"], cur, f"{amount:.4f}"])
+                    w.writerow([csv_safe(u["name"]), u["calls"], u["tokens"], csv_safe(cur), f"{amount:.4f}"])
             else:
-                w.writerow([u["name"], u["calls"], u["tokens"], "", ""])
+                w.writerow([csv_safe(u["name"]), u["calls"], u["tokens"], "", ""])
         return Response("﻿" + buf.getvalue(), mimetype="text/csv",
                         headers={"Content-Disposition": f'attachment; filename="ai-usage-{month}.csv"'})
     from ...services.ai_quota import ai_quota_status

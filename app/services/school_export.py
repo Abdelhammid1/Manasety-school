@@ -83,6 +83,12 @@ def exported_columns(table):
 FORMULA_LEAD = ("=", "+", "-", "@", "\t", "\r")
 
 
+def csv_safe(v):
+    """One CSV cell that a spreadsheet won't run as a formula (shared by
+    every CSV export: the school export and the AI usage reports)."""
+    return _cell(v)
+
+
 def _cell(v):
     if v is None:
         return ""
