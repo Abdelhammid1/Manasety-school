@@ -21,7 +21,7 @@ from ..models import (
     GradeEntry, YearResult, Attendance, Enrollment,
     Student, Guardian, Invoice, Payment, User, Role, Assignment,
     PassRule, AuditLog, PaymentMethod, JournalEntry,
-    ScheduleSlot,
+    ScheduleSlot, School,
 )
 
 
@@ -39,7 +39,19 @@ _WATCHED = [
     # change now leaves an old/new snapshot so admins can rewind to
     # "what the schedule looked like last week".
     ScheduleSlot,
+    # The school's own settings (name, identity, logo, colour, finance,
+    # e-mail …): whoever changes them — its admin or the Manasety team.
+    School,
 ]
+
+# Marks a row written by a platform (console) user: they are not a row in
+# `users`, so the activity log names them "فريق منصتي" from this key.
+BY_PLATFORM = "_by_platform"
+# School columns that are not its settings: the session bump, and the
+# lifecycle (suspend / archive) — that has its own trail in
+# school_subscription_events + platform_audit_logs, and offboarding archives
+# a school after its export, which must still match at purge time.
+_SCHOOL_BOOKKEEPING = frozenset({"auth_epoch", "status", "is_active"})
 
 
 # ─── SAAS-008 — secret redaction ─────────────────────────────────────
@@ -113,25 +125,29 @@ def _record(connection, action, target, before=None):
     the audit row alongside the change it was tracking."""
     entity_type = target.__class__.__name__
     entity_id = getattr(target, "id", None)
-    school_id = getattr(target, "school_id", None)
+    # a School row is its own school's
+    school_id = entity_id if isinstance(target, School) else getattr(target, "school_id", None)
     user_id = getattr(current_user, "id", None) if has_request_context() else None
+    new_value = redact(_serialize(target)) if action != "delete" else None
     # SAAS-028 — a platform (console) user is not a row in `users`; the
-    # console's own trail is platform_audit_logs.
+    # console's own trail is platform_audit_logs. The school's log still
+    # says the Manasety team did it.
     if has_request_context() and getattr(current_user, "is_platform_user", False):
         user_id = None
+        new_value = {**(new_value or {}), BY_PLATFORM: True}
     ip = None
     ua = None
     if has_request_context():
         try:
             ip = request.remote_addr
-            ua = (request.user_agent.string or "")[:255] if request.user_agent else None
+            ua = (request.headers.get("User-Agent") or "")[:255] or None
         except Exception:
             pass
     connection.execute(AuditLog.__table__.insert().values(
         school_id=school_id, user_id=user_id,
         action=action, entity_type=entity_type, entity_id=entity_id,
         old_value=redact(before),
-        new_value=redact(_serialize(target)) if action != "delete" else None,
+        new_value=new_value,
         ip_address=ip, user_agent=ua,
         support_session_id=_support_session_id(),
         created_at=datetime.now(timezone.utc),
@@ -174,7 +190,7 @@ def record_login_event(user, action: str, via: str, reason=None) -> None:
     ip = ua = None
     if has_request_context():
         ip = request.remote_addr
-        ua = (request.user_agent.string or "")[:255] if request.user_agent else None
+        ua = (request.headers.get("User-Agent") or "")[:255] or None
     detail = {"via": via}
     if reason:
         detail["reason"] = reason
@@ -198,6 +214,8 @@ def _register(model):
         pre = _snap_before(mapper, connection, target)
         if pre and _login_bookkeeping_only(target, pre):
             return          # the login itself is a short event (record_login_event)
+        if isinstance(target, School) and not set(pre or {}) - _SCHOOL_BOOKKEEPING:
+            return          # a settings save that changed nothing, or a session bump
         # decimals / dates in `pre` still need normalising
         clean = {}
         for k, v in (pre or {}).items():

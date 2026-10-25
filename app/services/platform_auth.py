@@ -172,7 +172,7 @@ def audit(action: str, user=None, school_id=None, **meta) -> None:
     ip = ua = None
     if _in_request():
         ip = request.remote_addr
-        ua = (request.user_agent.string or "")[:255] if request.user_agent else None
+        ua = (request.headers.get("User-Agent") or "")[:255] or None
     db.session.add(PlatformAuditLog(
         platform_user_id=getattr(user, "id", None), action=action,
         target_school_id=school_id, ip=ip, user_agent=ua,

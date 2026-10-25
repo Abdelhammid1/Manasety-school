@@ -200,3 +200,71 @@ def test_dates_read_in_arabic_in_cairo_time():
     assert format_value("is_refund", True) == "نعم"
     assert format_value("phone", None) == "—"
     assert format_value("status", "absent") == "غائب"
+
+
+# ─── the school's settings, and where a login came from ─────────────
+
+def test_a_login_says_website_or_app_and_the_device(dapp, two_schools, login_as):
+    A = two_schools["A"]
+    from app.services import audit
+    from app.extensions import db
+    from app.models import User
+    ua = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
+          "Chrome/129.0 Safari/537.36")
+    with dapp.test_request_context(headers={"User-Agent": ua}):
+        u = db.session.get(User, A["users"]["teacher"].id)
+        audit.record_login_event(u, audit.LOGIN_OK, "web")
+        audit.record_login_event(u, audit.LOGIN_FAILED, "api", reason="password")
+        db.session.commit()
+        db.session.remove()
+    rows = _rows(_page(dapp, login_as, A)[1])
+    assert "الدخول من" in rows and "الموقع" in rows and "تطبيق الموبايل" in rows
+    assert "Chrome على Windows" in rows
+    assert "كلمة مرور غير صحيحة" in rows
+    assert "من خلال" not in rows
+
+
+def test_school_settings_changes_are_in_the_log(dapp, two_schools, login_as, tmp_path, monkeypatch):
+    import io
+    from PIL import Image
+    monkeypatch.setitem(dapp.config, "WTF_CSRF_ENABLED", False)
+    monkeypatch.setitem(dapp.config, "UPLOAD_ROOT", str(tmp_path / "uploads"))
+    A, B = two_schools["A"], two_schools["B"]
+    c = dapp.test_client()
+    login_as(c, A["users"]["admin"], base_url=host(A))
+    buf = io.BytesIO()
+    Image.new("RGB", (40, 20), (10, 20, 30)).save(buf, "PNG")
+    r = c.post("/admin/settings", base_url=host(A), content_type="multipart/form-data",
+               data={"name": A["school"].name, "primary_color": "#123456", "phone": "0100000",
+                     "smtp_password": "", "logo_file": (io.BytesIO(buf.getvalue()), "logo.png")},
+               follow_redirects=True)
+    assert r.status_code == 200
+    rows = _rows(c.get("/admin/audit", base_url=host(A)).get_data(as_text=True))
+    assert f"عدّل بيانات المدرسة: {A['school'].name}" in rows
+    assert "اللون الأساسي" in rows and "#123456" in rows
+    assert "تم رفع لوجو جديد" in rows and "/files/" not in rows
+    assert "auth_epoch" not in rows
+    # B's log has none of it
+    assert "#123456" not in _rows(_page(dapp, login_as, B)[1])
+    # saving again with nothing changed adds no row
+    from app.extensions import db
+    from app.models import AuditLog
+    with dapp.app_context():
+        n = AuditLog.query.filter_by(entity_type="School", school_id=A["school"].id).count()
+        db.session.remove()
+    c.post("/admin/settings", base_url=host(A), data={"name": A["school"].name, "primary_color": "#123456",
+                                                     "phone": "0100000"})
+    with dapp.app_context():
+        assert AuditLog.query.filter_by(entity_type="School", school_id=A["school"].id).count() == n
+        db.session.remove()
+
+
+def test_a_console_change_is_attributed_to_the_manasety_team(dapp, two_schools, login_as):
+    A = two_schools["A"]
+    from app.services.audit import BY_PLATFORM
+    _raw_row(dapp, school_id=A["school"].id, action="update", entity_type="School", entity_id=A["school"].id,
+             old_value={"primary_color": None},
+             new_value={"name": A["school"].name, "primary_color": "#0F766E", BY_PLATFORM: True})
+    rows = _rows(_page(dapp, login_as, A)[1])
+    assert "فريق منصتي عدّل بيانات المدرسة" in rows
+    assert BY_PLATFORM not in rows

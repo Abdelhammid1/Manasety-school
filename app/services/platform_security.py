@@ -38,7 +38,7 @@ def utcnow():
 def open_session(user) -> None:
     """Called at the end of a successful console login."""
     from ..models import PlatformSession
-    ua = (request.user_agent.string or "")[:255] if request.user_agent else None
+    ua = (request.headers.get("User-Agent") or "")[:255] or None
     known = PlatformSession.query.filter_by(platform_user_id=user.id, ip=request.remote_addr,
                                             user_agent=ua).first() is not None
     row = PlatformSession(id=uuid.uuid4().hex, platform_user_id=user.id, ip=request.remote_addr,

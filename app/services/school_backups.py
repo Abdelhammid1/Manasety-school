@@ -88,7 +88,7 @@ def _audit(action: str, backup, user=None, **meta) -> None:
     ip = ua = None
     if has_request_context():
         ip = request.remote_addr
-        ua = (request.user_agent.string or "")[:255] if request.user_agent else None
+        ua = (request.headers.get("User-Agent") or "")[:255] or None
     db.session.add(AuditLog(
         school_id=backup.school_id, user_id=getattr(user, "id", None), action=action,
         entity_type="SchoolBackup", entity_id=backup.id,

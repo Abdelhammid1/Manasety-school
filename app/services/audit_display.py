@@ -18,7 +18,7 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Any, Iterable, Optional
 
-from .audit import REDACTED, is_secret_field, redact
+from .audit import BY_PLATFORM, REDACTED, is_secret_field, redact
 from .subscription_enforcement import USER_LOGIN_FIELDS
 
 _log = logging.getLogger(__name__)
@@ -93,12 +93,31 @@ FIELD_LABELS = {
     # backups / restores (their meta rows)
     "file": "الملف", "modules": "الأجزاء", "mode": "الوضع", "reason": "السبب", "via": "من خلال",
     "size": "الحجم", "error": "الخطأ", "result": "النتيجة",
+    # the school's settings (School)
+    "code": "كود المدرسة", "slug": "عنوان المدرسة", "legal_name_ar": "الاسم القانوني بالعربي",
+    "legal_name_en": "الاسم القانوني بالإنجليزي", "logo_url": "اللوجو", "primary_color": "اللون الأساسي",
+    "license_number": "رقم الترخيص", "tax_number": "الرقم الضريبي", "website": "الموقع الإلكتروني",
+    "attendance_mode": "طريقة رصد الحضور", "default_tax_rate": "نسبة الضريبة الافتراضية",
+    "currency": "العملة", "currency_symbol": "رمز العملة", "fiscal_year_start_month": "شهر بداية السنة المالية",
+    "invoice_prefix": "بادئة رقم الفاتورة", "invoice_start_number": "رقم أول فاتورة",
+    "rounding_policy": "سياسة التقريب", "invoice_header_text": "رأس الفاتورة",
+    "invoice_footer_text": "تذييل الفاتورة", "invoice_policy_text": "سياسة الفاتورة",
+    "show_logo_on_prints": "اللوجو على المطبوعات", "day_start_time": "بداية اليوم الدراسي",
+    "day_end_time": "نهاية اليوم الدراسي", "blocked_message": "رسالة الإيقاف",
+    "notify_on_support_access": "إشعار عند دخول الدعم", "reminder_days_before": "أيام التذكير قبل الاستحقاق",
+    "notify_channels": "قنوات الإشعار", "smtp_host": "خادم البريد (SMTP)", "smtp_port": "منفذ البريد",
+    "smtp_username": "مستخدم البريد", "smtp_password_encrypted": "كلمة مرور البريد",
+    "smtp_use_tls": "تشفير البريد (TLS)", "smtp_from_name": "اسم المرسل", "smtp_from_email": "بريد المرسل",
+    "approval_threshold": "حد الاعتماد", "installment_reminder_days_before": "أيام تذكير الأقساط",
 }
 
 # Never part of "what changed": bookkeeping, not something the reader acts on.
 HIDDEN_FIELDS = frozenset({
     "id", "school_id", "created_at", "recorded_at", "deleted_at", "deleted_by_id",
+    "auth_epoch", BY_PLATFORM,
 } | USER_LOGIN_FIELDS)
+# A changed secret: one line saying so, never the value.
+SECRET_NOTES = {"smtp_password_encrypted": ("كلمة مرور البريد", "تم تغيير كلمة مرور البريد")}
 # Booleans that read as a state, not yes/no.
 STATE_FIELDS = frozenset({"is_active"})
 
@@ -115,7 +134,9 @@ VALUE_LABELS = {
     "method": {"cash": "نقدي", "bank": "تحويل بنكي", "card": "بطاقة", "cheque": "شيك",
                "overall_only": "المعدل الكلي فقط", "per_subject": "كل مادة على حدة", "mixed": "مختلطة"},
     "kind": {"immediate_cash": "نقدي فوري", "immediate_bank": "بنكي فوري", "deferred": "آجل"},
-    "via": {"web": "الموقع", "api": "التطبيق"},
+    "via": {"web": "الموقع", "api": "تطبيق الموبايل"},
+    "rounding_policy": {"normal": "تقريب عادي", "up": "لأعلى", "down": "لأسفل"},
+    "attendance_mode": {"daily": "يومي", "per_period": "بالحصة"},
     "reason": {"password": "كلمة مرور غير صحيحة", "inactive": "الحساب معطّل", "locked": "الحساب مقفول"},
 }
 
@@ -288,16 +309,26 @@ def _changes(e, names: Names, tz) -> tuple[list[dict], bool]:
     """(changed fields, whether the update was login bookkeeping only)."""
     old = e.old_value if isinstance(e.old_value, dict) else {}
     new = e.new_value if isinstance(e.new_value, dict) else {}
-    out, secret_changed = [], False
+    out, secret_changed, notes = [], False, []
     for field in old:
+        if field in SECRET_NOTES:
+            label, note = SECRET_NOTES[field]
+            notes.append({"field": label, "old": None, "new": None, "note": note})
+            continue
         if is_secret_field(field):
             secret_changed = True
             continue
         if field in HIDDEN_FIELDS:
             continue
+        if field == "logo_url":
+            note = ("تم حذف اللوجو" if not new.get(field) else
+                    "تم رفع لوجو جديد" if not old.get(field) else "تم تغيير اللوجو")
+            out.append({"field": field_label(field), "old": None, "new": None, "note": note})
+            continue
         out.append({"field": field_label(field),
                     "old": format_value(field, old.get(field), names, tz),
                     "new": format_value(field, new.get(field), names, tz)})
+    out.extend(notes)
     if secret_changed:
         out.insert(0, {"field": "كلمة المرور", "old": None, "new": None, "note": "تم تغيير كلمة المرور"})
     only_login = bool(old) and set(old) <= USER_LOGIN_FIELDS
@@ -308,6 +339,9 @@ def _summary(snapshot: dict, names: Names, tz, limit: int = 8) -> list[dict]:
     out = []
     for field, value in snapshot.items():
         if field in HIDDEN_FIELDS or is_secret_field(field) or value in (None, "", [], {}):
+            continue
+        if field == "logo_url":
+            out.append({"field": field_label(field), "old": None, "new": "مرفوع"})
             continue
         out.append({"field": field_label(field), "old": None, "new": format_value(field, value, names, tz)})
         if len(out) >= limit:
@@ -355,9 +389,47 @@ def _actor(e) -> tuple[str, str]:
         return u.full_name or u.username, (getattr(role, "name_ar", None) or "") if role else ""
     if e.support_session_id:
         return "فريق دعم منصتي", ""
+    if isinstance(e.new_value, dict) and e.new_value.get(BY_PLATFORM):
+        return "فريق منصتي", ""
     if e.action in ("login", "login_failed", "login_locked") and isinstance(e.new_value, dict):
         return "مستخدم", ""
     return "النظام", ""
+
+
+# ─── logins: where from, on what ─────────────────────────────────────
+
+_BROWSERS = (("Edg/", "Edge"), ("OPR/", "Opera"), ("SamsungBrowser", "Samsung Internet"),
+             ("Firefox/", "Firefox"), ("CriOS", "Chrome"), ("Chrome/", "Chrome"), ("Safari/", "Safari"))
+_SYSTEMS = (("iPhone", "iPhone"), ("iPad", "iPad"), ("Android", "Android"), ("Windows", "Windows"),
+            ("Mac OS X", "Mac"), ("Macintosh", "Mac"), ("CrOS", "Chromebook"), ("Linux", "Linux"))
+
+
+def device_label(ua: Optional[str]) -> str:
+    """"Chrome على Windows" from a User-Agent; "" when unknown."""
+    if not ua:
+        return ""
+    browser = next((name for key, name in _BROWSERS if key in ua), "")
+    system = next((name for key, name in _SYSTEMS if key in ua), "")
+    if browser and system:
+        return f"{browser} على {system}"
+    return browser or system
+
+
+def _login_details(e) -> list[dict]:
+    """How the user signed in: the website or the mobile app, the browser /
+    device, and — for a failure — why."""
+    detail = e.new_value if isinstance(e.new_value, dict) else {}
+    out = []
+    via = detail.get("via")
+    if via:
+        out.append({"field": "الدخول من", "old": None, "new": VALUE_LABELS["via"].get(via, via)})
+    device = device_label(e.user_agent)
+    if device:
+        out.append({"field": "الجهاز", "old": None, "new": device})
+    reason = detail.get("reason")
+    if reason:
+        out.append({"field": "السبب", "old": None, "new": VALUE_LABELS["reason"].get(reason, reason)})
+    return out
 
 
 def display_rows(entries: Iterable, school_id: int) -> list[dict]:
@@ -369,7 +441,8 @@ def display_rows(entries: Iterable, school_id: int) -> list[dict]:
     entries = [SimpleNamespace(id=e.id, action=e.action, entity_type=e.entity_type,
                                old_value=redact(e.old_value), new_value=redact(e.new_value),
                                created_at=e.created_at, ip_address=e.ip_address,
-                               support_session_id=e.support_session_id, user=e.user)
+                               support_session_id=e.support_session_id, user=e.user,
+                               user_agent=getattr(e, "user_agent", None))
                for e in entries]
     names = Names(school_id)
     for e in entries:
@@ -392,7 +465,9 @@ def display_rows(entries: Iterable, school_id: int) -> list[dict]:
             details = _summary(e.new_value, names, tz)
         elif e.action == "delete" and isinstance(e.old_value, dict):
             details = _summary(e.old_value, names, tz, limit=6)
-        elif e.action in ("login", "login_failed", "login_locked") or isinstance(e.new_value, dict):
+        elif e.action in ("login", "login_failed", "login_locked"):
+            details = _login_details(e)
+        elif isinstance(e.new_value, dict):
             details = _summary(e.new_value or {}, names, tz)
         if e.action in ("login", "login_failed", "login_locked") and e.user is not None:
             subject = ""
