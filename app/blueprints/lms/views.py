@@ -2649,7 +2649,7 @@ def bank_ai_rewrite(bid):
         rewritten = deepseek.rewrite_question(src, directive)
         return jsonify({"original": src, "rewritten": rewritten})
     except deepseek.AIError as e:
-        return jsonify({"error": str(e)}), 502
+        return jsonify({"error": str(e)}), (429 if isinstance(e, deepseek.AIQuotaReached) else 502)
 
 
 @bp.route("/bank/<hid:bid>/ai-rewrite/save",
@@ -2836,7 +2836,7 @@ def submission_ai_grade(sid):
         )
         return jsonify(data)
     except deepseek.AIError as e:
-        return jsonify({"error": str(e)}), 502
+        return jsonify({"error": str(e)}), (429 if isinstance(e, deepseek.AIQuotaReached) else 502)
 
 
 @bp.route("/exams/blueprint/ai-suggest",
@@ -2857,7 +2857,7 @@ def blueprint_ai_suggest():
         mix = deepseek.suggest_blueprint_mix(subject, grade, total)
         return jsonify(mix)
     except deepseek.AIError as e:
-        return jsonify({"error": str(e)}), 502
+        return jsonify({"error": str(e)}), (429 if isinstance(e, deepseek.AIQuotaReached) else 502)
 
 
 @bp.route("/assessment-templates/<hid:tid>/print", endpoint="template_print")

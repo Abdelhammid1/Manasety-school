@@ -1,0 +1,38 @@
+{% extends "superadmin/base.html" %}
+{% block title %}أسعار الذكاء الاصطناعي{% endblock %}
+{% block content %}
+<p><a href="{{ url_for('superadmin.ai_usage') }}">→ استهلاك الذكاء الاصطناعي</a></p>
+<h1>بطاقات أسعار الذكاء الاصطناعي</h1>
+<p class="sub">كل الأسعار لكل مليون توكن، بإدخالك أنت. البطاقة ما بتتعدّلش: بطاقة جديدة بتاريخ سريان لاحق بتحل محلها من التاريخ ده، والاستدعاءات اللي اتسعّرت قبلها بتفضل بمبالغها.</p>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>الموديل</th><th>العملة</th><th>يسري من</th>{% for f in fields %}<th>{{ labels[f] }}</th>{% endfor %}<th>ملاحظة</th></tr></thead>
+    <tbody>
+    {% for c in cards %}
+      <tr><td dir="ltr">{{ c.model }}</td><td>{{ c.currency }}</td><td class="num"><bdi>{{ c.effective_from.strftime('%Y-%m-%d %H:%M') }}</bdi></td>
+        {% for f in fields %}<td class="num">{{ c[f]|float }}</td>{% endfor %}<td style="white-space:normal">{{ c.note or '' }}</td></tr>
+    {% else %}<tr><td colspan="{{ fields|length + 4 }}">مفيش بطاقات — كل الاستدعاءات «بدون تسعيرة».</td></tr>{% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if current_user.role == 'owner' %}
+<h2>بطاقة جديدة</h2>
+<form method="post" class="card">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <div class="row">
+    <div><label for="model">الموديل *</label><input id="model" name="model" required dir="ltr" placeholder="deepseek-chat" maxlength="64"></div>
+    <div><label for="currency">العملة *</label><input id="currency" name="currency" required dir="ltr" placeholder="USD" maxlength="8"></div>
+    <div><label for="effective_from">يسري من (UTC — فاضي = الآن)</label><input type="datetime-local" id="effective_from" name="effective_from"></div>
+  </div>
+  <div class="row">
+    {% for f in fields %}<div><label for="{{ f }}">{{ labels[f] }} *</label><input id="{{ f }}" name="{{ f }}" required inputmode="decimal" dir="ltr"></div>{% endfor %}
+  </div>
+  <label for="note">ملاحظة</label><input id="note" name="note">
+  <button class="btn" type="submit" style="margin-top:12px">إضافة البطاقة</button>
+</form>
+<form method="post" action="{{ url_for('superadmin.ai_price_pending') }}" style="margin-top:12px">
+  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  <button class="btn ghost" type="submit">تسعير الاستدعاءات اللي ملهاش تسعيرة</button>
+</form>
+{% endif %}
+{% endblock %}

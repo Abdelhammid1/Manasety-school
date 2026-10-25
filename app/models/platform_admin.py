@@ -118,6 +118,8 @@ class Plan(db.Model):
     max_students = db.Column(db.Integer)       # NULL = unlimited
     max_users = db.Column(db.Integer)
     max_storage_mb = db.Column(db.Integer)
+    # AI tokens per calendar month (ticket E); NULL = unlimited
+    max_ai_tokens_month = db.Column(db.Integer)
     modules = db.Column(db.JSON, nullable=False, default=list)
     price_amount = db.Column(db.Numeric(12, 2))
     currency = db.Column(db.String(8))
@@ -235,6 +237,7 @@ class SchoolLimitOverride(db.Model):
     max_students = db.Column(db.Integer)
     max_users = db.Column(db.Integer)
     max_storage_mb = db.Column(db.Integer)
+    max_ai_tokens_month = db.Column(db.Integer)      # ticket E; NULL = the plan's
     reason = db.Column(db.Text, nullable=False, default="")
     updated_by_platform_user_id = db.Column(db.Integer, db.ForeignKey("platform_users.id"))
     updated_at = db.Column(db.DateTime(timezone=True), default=_utcnow, onupdate=_utcnow)

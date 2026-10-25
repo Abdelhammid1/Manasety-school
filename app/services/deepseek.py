@@ -44,6 +44,12 @@ class AIError(RuntimeError):
     """Raised on any error from the upstream API (bad key, 5xx, timeout)."""
 
 
+class AIQuotaReached(AIError):
+    """Ticket E — the school used its monthly AI tokens. Raised BEFORE any
+    request leaves; nothing is recorded or billed. An AIError, so every
+    existing `except deepseek.AIError` shows its (Arabic) message."""
+
+
 def is_configured() -> bool:
     return bool(os.environ.get("DEEPSEEK_API_KEY"))
 
@@ -63,11 +69,43 @@ def _cfg():
     }
 
 
-def _chat(system: str, user: str, *, want_json: bool = True,
+def _caller():
+    """(school_id, user_id) of the signed-in school user making the call.
+    Ticket D: every call is billed to a school — no school, no call."""
+    from flask import has_request_context
+    from flask_login import current_user
+    if not has_request_context() or getattr(current_user, "is_platform_user", False):
+        raise AIError("AI calls are made by a school's user only.")
+    sid = getattr(current_user, "school_id", None)
+    if not getattr(current_user, "is_authenticated", False) or not sid:
+        raise AIError("AI calls are made by a school's user only.")
+    return int(sid), getattr(current_user, "id", None)
+
+
+def _chat(system: str, user: str, *, operation: str, want_json: bool = True,
           temperature: float = 0.7, max_tokens: int = 2048) -> Any:
     """POST /chat/completions and return either the parsed JSON payload
-    (when `want_json=True`) or the raw string content."""
+    (when `want_json=True`) or the raw string content. Every call is
+    recorded for the calling school (services/ai_usage): tokens only,
+    never the prompt or the answer; a failed call as an error row."""
+    from . import ai_usage
     cfg = _cfg()
+    school_id, user_id = _caller()
+    from .modules import feature_enabled
+    if not feature_enabled(school_id, "lms.ai"):
+        raise AIError("الذكاء الاصطناعي غير مفعّل لمدرستك.")
+    from . import ai_quota
+    q = ai_quota.ai_quota_status(school_id)
+    if q["cap"] is not None and q["used"] >= q["cap"]:
+        import logging
+        logging.getLogger(__name__).info("AI quota reached: school=%s user=%s op=%s used=%s cap=%s",
+                                         school_id, user_id, operation, q["used"], q["cap"])
+        raise AIQuotaReached(ai_quota.LIMIT_MESSAGE)
+
+    def _record(status, usage=None, model=None):
+        ai_usage.record_call(school_id=school_id, user_id=user_id, operation=operation,
+                             model=model or cfg["model"], status=status, usage=usage)
+
     body = {
         "model": cfg["model"],
         "messages": [
@@ -90,13 +128,22 @@ def _chat(system: str, user: str, *, want_json: bool = True,
             timeout=45,
         )
     except requests.RequestException as e:
+        _record("error")
         raise AIError(f"DeepSeek network error: {e}") from e
     if r.status_code >= 400:
+        _record("error")
         raise AIError(f"DeepSeek {r.status_code}: {r.text[:400]}")
     try:
-        content = r.json()["choices"][0]["message"]["content"]
-    except (KeyError, ValueError, IndexError) as e:
+        payload = r.json()
+        content = payload["choices"][0]["message"]["content"]
+    except (KeyError, ValueError, IndexError, TypeError) as e:
+        _record("error")
         raise AIError(f"Unexpected DeepSeek response shape: {e}") from e
+    # billed whatever happens to the content next (the tokens were spent)
+    if not isinstance(payload.get("usage"), dict):
+        import logging
+        logging.getLogger(__name__).warning("DeepSeek response without `usage` (op=%s)", operation)
+    _record("ok", payload.get("usage"), payload.get("model"))
     if not want_json:
         return content
     try:
@@ -132,7 +179,7 @@ def generate_similar_questions(examples: list[dict], count: int = 5,
         "\"choices\": [{\"label\": \"…\", \"is_correct\": true}, …] }, …] }\n\n"
         f"الأمثلة المرجعية:\n{prompt_examples}"
     )
-    data = _chat(system, user, want_json=True, temperature=0.85)
+    data = _chat(system, user, operation="generate_similar", want_json=True, temperature=0.85)
     if isinstance(data, dict) and "questions" in data:
         return data["questions"]
     if isinstance(data, list):
@@ -157,7 +204,7 @@ def rewrite_question(question: dict, directive: str) -> dict:
         + json.dumps(question, ensure_ascii=False, indent=2)
         + "\n\nأعد النسخة المعدّلة كـ JSON فقط، بدون أي شرح إضافي."
     )
-    data = _chat(system, user, want_json=True, temperature=0.65)
+    data = _chat(system, user, operation="rewrite_question", want_json=True, temperature=0.65)
     return data
 
 
@@ -180,7 +227,7 @@ def suggest_blueprint_mix(subject: str, grade: str,
         "بحيث يكون مجموع الأربعة يساوي بالضبط "
         f"{total_count}."
     )
-    return _chat(system, user, want_json=True, temperature=0.4)
+    return _chat(system, user, operation="suggest_blueprint", want_json=True, temperature=0.4)
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -201,7 +248,7 @@ def review_pending_questions(questions: list[dict]) -> list[dict]:
         "{ \"findings\": [{\"id\": N, \"verdict\": \"…\", "
         "\"note\": \"…\", \"suggested_state\": \"…\"}, …] }"
     )
-    data = _chat(system, user, want_json=True, temperature=0.2, max_tokens=3000)
+    data = _chat(system, user, operation="review_pending", want_json=True, temperature=0.2, max_tokens=3000)
     return data.get("findings", []) if isinstance(data, dict) else []
 
 
@@ -247,7 +294,7 @@ def grade_free_form_answer(prompt: str, student_answer: str,
         f"{criterion_hint}"
         " \"key_points\": [\"نقطة 1\", …] }"
     )
-    return _chat(system, user, want_json=True, temperature=0.2)
+    return _chat(system, user, operation="grade_free_form", want_json=True, temperature=0.2)
 
 
 # ────────────────────────────────────────────────────────────────────
@@ -269,4 +316,4 @@ def summarize_exam_results(exam_title: str,
         "{ \"weak_topics\": [\"…\", …], "
         "\"recommendations\": \"نص عربي مختصر\" }"
     )
-    return _chat(system, user, want_json=True, temperature=0.3)
+    return _chat(system, user, operation="summarize_exam", want_json=True, temperature=0.3)

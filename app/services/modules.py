@@ -339,7 +339,7 @@ FEATURES: tuple[Feature, ...] = (
        "admin.roles_list", "admin.role_new", "admin.role_edit", "admin.role_delete", essential=True),
     _f("core.settings", "إعدادات المدرسة", "admin.school_settings", "admin.smtp_test", essential=True),
     _f("core.support_log", "سجل دخول الدعم", "support.log", "support.enter", "support.end", essential=True),
-    _f("core.ai_usage", "استخدام الذكاء الاصطناعي", essential=True),
+    _f("core.ai_usage", "استخدام الذكاء الاصطناعي", "admin.ai_usage", essential=True),
     _f("core.search", "البحث الشامل", "dashboard.global_search", "dashboard.global_search_json"),
     _f("core.messaging", "الرسائل",
        "messaging.inbox", "messaging.conversation_new", "messaging.conversation_view",

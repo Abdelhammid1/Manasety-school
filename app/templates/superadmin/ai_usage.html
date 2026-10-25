@@ -1,0 +1,47 @@
+{% extends "superadmin/base.html" %}
+{% block title %}استهلاك الذكاء الاصطناعي{% endblock %}
+{% block content %}
+<h1>استهلاك الذكاء الاصطناعي</h1>
+<form method="get" class="row" style="align-items:flex-end;gap:8px">
+  <div style="flex:0 0 180px"><label for="month">الشهر</label><input type="month" id="month" name="month" value="{{ month }}"></div>
+  <button class="btn ghost" type="submit" style="flex:0 0 auto">عرض</button>
+  <a class="btn ghost" style="flex:0 0 auto" href="{{ url_for('superadmin.ai_usage', month=month, format='csv') }}">تصدير CSV</a>
+  {% if money %}<a class="btn ghost" style="flex:0 0 auto" href="{{ url_for('superadmin.ai_prices') }}">بطاقات الأسعار</a>{% endif %}
+</form>
+<p class="sub">{% if money %}التكلفة تقريبية: بطاقة واحدة لكل موديل من غير تفريق وقت الذروة. {% endif %}«بدون تسعيرة» = استدعاءات موديلها مالوش بطاقة وقتها. الحد الشهري تقريبي بهامش استدعاء واحد.</p>
+<div class="grid">
+  <div class="stat"><b class="num">{{ data.total.calls }}</b><span>استدعاء</span></div>
+  <div class="stat"><b class="num">{{ '{:,}'.format(data.total.tokens) }}</b><span>توكن</span></div>
+  <div class="stat"><b class="num">{{ data.total.unpriced }}</b><span>بدون تسعيرة</span></div>
+  {% if money %}{% for cur, m in data.total.money.items() %}
+  <div class="stat"><b class="num"><bdi>{{ '%.2f'|format(m.price) }} {{ cur }}</bdi></b><span>المبيعات</span></div>
+  <div class="stat"><b class="num"><bdi>{{ '%.2f'|format(m.cost) }} {{ cur }}</bdi></b><span>التكلفة</span></div>
+  <div class="stat"><b class="num"><bdi>{{ '%.2f'|format(m.profit) }} {{ cur }}</bdi></b><span>الربح</span></div>
+  {% endfor %}{% endif %}
+</div>
+<div class="card table-wrap">
+  <table>
+    <thead><tr><th>المدرسة</th><th>الاستدعاءات</th><th>التوكنز</th><th>الحد</th><th>% المستخدم</th><th>بدون تسعيرة</th>
+      {% if money %}<th>العملة</th><th>التكلفة</th><th>السعر</th><th>الربح</th>{% endif %}</tr></thead>
+    <tbody>
+    {% for r in data.rows %}
+      {% set cur_rows = r.money.items()|list if money and r.money else [(none, none)] %}
+      {% for cur, m in cur_rows %}
+      <tr{% if r.warn %} style="background:var(--warnbg)"{% endif %}>
+        <td><a href="{{ url_for('superadmin.school_detail', school_id=r.school_id) }}#ai-usage">{{ r.name }}</a>
+          {% if r.open_no_cap %}<span class="chip expired">AI مفتوح بلا حد</span>{% endif %}</td>
+        <td class="num">{{ r.calls }}</td><td class="num">{{ '{:,}'.format(r.tokens) }}</td>
+        <td class="num">{{ '{:,}'.format(r.cap) if r.cap is not none else '∞' }}</td>
+        <td class="num">{{ (r.percent ~ '٪') if r.percent is not none else '—' }}</td>
+        <td class="num">{{ r.unpriced }}</td>
+        {% if money %}{% if m %}<td>{{ cur }}</td><td class="num">{{ '%.4f'|format(m.cost) }}</td><td class="num">{{ '%.4f'|format(m.price) }}</td><td class="num">{{ '%.4f'|format(m.profit) }}</td>
+        {% else %}<td colspan="4">بدون تسعيرة</td>{% endif %}{% endif %}
+      </tr>
+      {% endfor %}
+    {% else %}
+      <tr><td colspan="{{ 10 if money else 6 }}">لا استخدام في هذا الشهر.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

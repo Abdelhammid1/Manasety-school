@@ -116,12 +116,13 @@
   {% if current_user.role in ('owner', 'finance') %}
   <form method="post" action="{{ url_for('superadmin.school_limits_set', school_id=school.id) }}" style="margin-top:8px">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p class="sub" style="margin:0">حد استثنائي للمدرسة دي (فاضي = حد الباقة).</p>
+    <p class="sub" style="margin:0">حد استثنائي للمدرسة دي (فاضي = حد الباقة). حد الـ AI تقريبي بهامش استدعاء واحد؛ ولإيقاف الـ AI استخدم مفتاح الميزة، لا الحد.</p>
     {% set lo = limit_override %}
     <div class="row">
       <div><label for="max_students">الطلاب</label><input id="max_students" name="max_students" inputmode="numeric" value="{{ lo.max_students if lo and lo.max_students is not none else '' }}"></div>
       <div><label for="max_users">الموظفون</label><input id="max_users" name="max_users" inputmode="numeric" value="{{ lo.max_users if lo and lo.max_users is not none else '' }}"></div>
       <div><label for="max_storage_mb">التخزين (MB)</label><input id="max_storage_mb" name="max_storage_mb" inputmode="numeric" value="{{ lo.max_storage_mb if lo and lo.max_storage_mb is not none else '' }}"></div>
+      <div><label for="max_ai_tokens_month">الحد الشهري للـ AI (توكنز)</label><input id="max_ai_tokens_month" name="max_ai_tokens_month" inputmode="numeric" value="{{ lo.max_ai_tokens_month if lo and lo.max_ai_tokens_month is not none else '' }}"></div>
     </div>
     <label for="lim_reason">السبب *</label><input id="lim_reason" name="reason" required>
     <button class="btn" type="submit" style="margin-top:12px">حفظ الحدود</button>

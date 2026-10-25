@@ -1,0 +1,113 @@
+{# The school's own AI usage (ticket D): calls, tokens and what the school
+   is charged — never the platform's cost or margin. #}
+{% extends "partials/stitch_base.html" %}
+{% block title %}استخدام الذكاء الاصطناعي{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">استخدام الذكاء الاصطناعي</span>
+{% endblock %}
+
+{% block page_content %}
+{% set t = rep.totals %}
+<div class="flex flex-col w-full gap-space-md">
+  <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-wrap items-end justify-between gap-space-md">
+    <div>
+      <h1 class="font-headline-lg text-primary font-bold">استخدام الذكاء الاصطناعي</h1>
+      <p class="font-body-md text-on-surface-variant mt-1">كل استخدام لأدوات الذكاء الاصطناعي في مدرستك: مين استخدم، وكام توكن، والمبلغ.</p>
+    </div>
+    <form method="get" class="flex items-end gap-space-sm">
+      <div class="flex flex-col gap-1">
+        <label for="month" class="font-label-md text-on-surface font-bold">الشهر</label>
+        <input type="month" id="month" name="month" value="{{ month }}" class="h-10 px-3 rounded-lg bg-surface-container-low" dir="ltr">
+      </div>
+      <button type="submit" class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold">عرض</button>
+      <a href="{{ url_for('admin.ai_usage', month=month, format='csv') }}" class="h-10 px-4 rounded-lg bg-surface-container-low text-primary font-label-lg font-bold inline-flex items-center gap-1">
+        <span class="material-symbols-outlined text-lg">download</span>CSV
+      </a>
+    </form>
+  </section>
+
+  {# Ticket E — the monthly cap (tokens only, this month) #}
+  {% set q = quota %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm flex flex-col gap-space-sm" id="ai-cap">
+    <div class="flex flex-wrap items-center justify-between gap-2">
+      <h2 class="font-title-md text-primary font-bold">الحد الشهري</h2>
+      {% if q.cap is none %}<span class="font-label-md text-on-surface-variant">غير محدود</span>
+      {% else %}<span class="font-label-md tabular-nums"><bdi>{{ '{:,}'.format(q.used) }} / {{ '{:,}'.format(q.cap) }}</bdi> توكن · متبقي <bdi>{{ '{:,}'.format(q.remaining) }}</bdi> · {{ q.percent }}٪</span>{% endif %}
+    </div>
+    {% if q.cap is not none %}
+    <div class="h-2 rounded-full bg-surface-container overflow-hidden">
+      <div class="h-full {{ 'bg-error' if q.full else ('bg-tertiary' if q.warn else 'bg-primary') }}" style="width: {{ [q.percent, 100]|min }}%"></div>
+    </div>
+    {% if q.full %}
+    <p class="p-space-sm rounded-xl bg-error-container/50 text-on-error-container font-body-md">وصلت مدرستك للحد الشهري، فالذكاء الاصطناعي متوقف لحد بداية الشهر الجاي أو لحد ما الحد يزيد. تواصل مع الدعم لزيادته.</p>
+    {% elif q.warn %}
+    <p class="p-space-sm rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant font-body-md">اقتربت من الحد الشهري ({{ q.percent }}٪).</p>
+    {% endif %}
+    {% endif %}
+  </section>
+
+  <section class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <span class="font-headline-sm text-primary font-bold block tabular-nums">{{ t.calls }}</span>
+      <span class="font-label-md text-on-surface-variant">استخدام</span>
+    </div>
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <span class="font-headline-sm text-primary font-bold block tabular-nums">{{ '{:,}'.format(t.tokens) }}</span>
+      <span class="font-label-md text-on-surface-variant">توكن</span>
+    </div>
+    {% for cur, amount in t.amounts.items() %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <span class="font-headline-sm text-primary font-bold block tabular-nums"><bdi>{{ '%.2f'|format(amount) }} {{ cur }}</bdi></span>
+      <span class="font-label-md text-on-surface-variant">المبلغ</span>
+    </div>
+    {% else %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <span class="font-headline-sm text-primary font-bold block">—</span>
+      <span class="font-label-md text-on-surface-variant">المبلغ</span>
+    </div>
+    {% endfor %}
+    {% if t.unpriced %}
+    <div class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
+      <span class="font-headline-sm text-primary font-bold block tabular-nums">{{ t.unpriced }}</span>
+      <span class="font-label-md text-on-surface-variant">لسه من غير مبلغ</span>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm overflow-x-auto">
+    <h2 class="font-title-md text-primary font-bold mb-space-sm">حسب المستخدم</h2>
+    <table class="min-w-full text-right">
+      <thead class="bg-surface-container-low"><tr>
+        <th class="px-3 py-2">المستخدم</th><th class="px-3 py-2">الاستخدامات</th><th class="px-3 py-2">التوكنز</th><th class="px-3 py-2">المبلغ</th>
+      </tr></thead>
+      <tbody>
+      {% for u in rep.users %}
+        <tr class="border-t border-outline-variant/40">
+          <td class="px-3 py-2">{{ u.name }}</td>
+          <td class="px-3 py-2 tabular-nums">{{ u.calls }}</td>
+          <td class="px-3 py-2 tabular-nums">{{ '{:,}'.format(u.tokens) }}</td>
+          <td class="px-3 py-2 tabular-nums">{% for cur, a in u.amounts.items() %}<bdi>{{ '%.2f'|format(a) }} {{ cur }}</bdi>{% if not loop.last %} · {% endif %}{% else %}—{% endfor %}</td>
+        </tr>
+      {% else %}
+        <tr><td colspan="4" class="px-3 py-6 text-center text-on-surface-variant">مفيش استخدام في الشهر ده.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+
+  {% if rep.operations %}
+  <section class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm overflow-x-auto">
+    <h2 class="font-title-md text-primary font-bold mb-space-sm">حسب الأداة</h2>
+    <table class="min-w-full text-right">
+      <thead class="bg-surface-container-low"><tr><th class="px-3 py-2">الأداة</th><th class="px-3 py-2">الاستخدامات</th><th class="px-3 py-2">التوكنز</th></tr></thead>
+      <tbody>
+      {% for o in rep.operations %}
+        <tr class="border-t border-outline-variant/40"><td class="px-3 py-2">{{ o.label }}</td><td class="px-3 py-2 tabular-nums">{{ o.calls }}</td><td class="px-3 py-2 tabular-nums">{{ '{:,}'.format(o.tokens) }}</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

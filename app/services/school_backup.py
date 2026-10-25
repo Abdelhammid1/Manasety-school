@@ -60,6 +60,7 @@ BACKUP_EXCLUDED: dict[str, str] = {
     "device_tokens": "push tokens of signed-in devices (sessions) — re-registered on next login",
     "school_backups": "the list of the school's backups itself — a restore must not rewrite it",
     "school_restores": "the restore history itself (and its undo links) — never rewritten by a restore",
+    "ai_usage_events": "سجل فوترة، استرجاع نسخة مدرسة يجب ألا يعدّل استهلاكًا حدث بعد النسخة",
 }
 
 

@@ -38,6 +38,9 @@ CAPABILITIES: dict[str, frozenset[str]] = {
     "apps.settings": frozenset({OWNER}),             # 037
     "backups.policy": frozenset({OWNER}),            # 047 — feature on / off, how many to keep
     "backups.restore": frozenset({OWNER}),           # 048 — restore on behalf (reason required)
+    "ai.read": ALL,                                  # AI usage: tokens / calls (support: no amounts)
+    "ai.money": frozenset({OWNER, FINANCE}),         # cost / price / profit, price cards
+    "ai.prices": frozenset({OWNER}),                 # add a price card, price pending calls
 }
 
 G, P = "GET", "POST"
@@ -68,6 +71,9 @@ ROUTES: dict[str, dict[str, str]] = {
     "superadmin.school_nginx_sync": {P: "nginx.sync"},
     "superadmin.school_module_set": {P: "modules.write"},
     "superadmin.school_features_set": {P: "modules.write"},
+    "superadmin.ai_usage": {G: "ai.read"},
+    "superadmin.ai_prices": {G: "ai.money", P: "ai.prices"},
+    "superadmin.ai_price_pending": {P: "ai.prices"},
     "superadmin.school_backup_policy": {P: "backups.policy"},
     "superadmin.school_restore_new": {P: "backups.restore"},
     "superadmin.school_restore_confirm": {P: "backups.restore"},

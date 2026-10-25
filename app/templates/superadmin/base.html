@@ -81,6 +81,7 @@
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.school_new', reset=1) }}">مدرسة جديدة</a>{% endif %}
       <a href="{{ url_for('superadmin.plans') }}">الباقات</a>
       {% if current_user.role in ('owner', 'finance') %}<a href="{{ url_for('superadmin.billing') }}">الفوترة</a>{% endif %}
+      <a href="{{ url_for('superadmin.ai_usage') }}">الذكاء الاصطناعي</a>
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.support_sessions') }}">جلسات الدعم</a>
       <a href="{{ url_for('superadmin.announcements') }}">رسائل المنصة</a>{% endif %}
       {% if current_user.role == 'owner' %}<a href="{{ url_for('superadmin.users') }}">الفريق</a>

@@ -32,6 +32,8 @@ def _apply_form(plan: Plan):
     plan.max_students = _opt_int("max_students")
     plan.max_users = _opt_int("max_users")
     plan.max_storage_mb = _opt_int("max_storage_mb")
+    from ...services.ai_quota import parse_cap
+    plan.max_ai_tokens_month = parse_cap(request.form.get("max_ai_tokens_month"))   # ValueError: shown
     plan.trial_days = _opt_int("trial_days") or 0
     cycle = request.form.get("billing_cycle") or "monthly"
     if cycle not in BILLING_CYCLES:

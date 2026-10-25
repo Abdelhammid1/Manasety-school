@@ -1,0 +1,27 @@
+{# AI usage of one school this month (ticket D) — included by school_detail.html.
+   support sees tokens only, never an amount. #}
+{% set money = current_user.role in ('owner', 'finance') %}
+<h2 id="ai-usage">الذكاء الاصطناعي — {{ ai.start.strftime('%Y-%m') }}</h2>
+<div class="card">
+  <div class="grid">
+    <div class="stat"><b class="num">{{ ai.calls }}</b><span>استدعاء</span></div>
+    <div class="stat"><b class="num">{{ '{:,}'.format(ai.tokens) }}</b><span>توكن</span></div>
+    <div class="stat"><b class="num">{{ ai.unpriced }}</b><span>بدون تسعيرة</span></div>
+    {% set q = ai.quota %}
+    <div class="stat"><b class="num">{% if q.cap is none %}∞{% else %}<bdi>{{ q.percent }}٪</bdi>{% endif %}</b>
+      <span>الحد الشهري: {% if q.cap is none %}بلا حد{% else %}<bdi>{{ '{:,}'.format(q.cap) }}</bdi> ({{ 'المدرسة' if q.source == 'school' else 'الباقة' }}){% endif %}
+        · <a href="#limits">تعديل</a></span></div>
+    {% if money %}{% for cur, m in ai.money.items() %}
+    <div class="stat"><b class="num"><bdi>{{ '%.2f'|format(m.price) }} {{ cur }}</bdi></b><span>السعر</span></div>
+    <div class="stat"><b class="num"><bdi>{{ '%.2f'|format(m.cost) }} {{ cur }}</bdi></b><span>التكلفة</span></div>
+    <div class="stat"><b class="num"><bdi>{{ '%.2f'|format(m.profit) }} {{ cur }}</bdi></b><span>الربح</span></div>
+    {% endfor %}{% endif %}
+  </div>
+  {% if ai.operations %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>العملية</th><th>الاستدعاءات</th><th>التوكنز</th></tr></thead>
+    <tbody>{% for o in ai.operations %}<tr><td>{{ o.label }}</td><td class="num">{{ o.calls }}</td><td class="num">{{ '{:,}'.format(o.tokens) }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<p class="sub">لا استخدام هذا الشهر.</p>{% endif %}
+  <p class="sub"><a href="{{ url_for('superadmin.ai_usage') }}">كل المدارس</a></p>
+</div>

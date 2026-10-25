@@ -141,7 +141,8 @@ def school_detail(school_id):
                            modules=_modules_view(school.id), limits=_limits_view(school.id),
                            limit_override=db.session.get(SchoolLimitOverride, school.id),
                            **_control_view(school.id), **_usage_view(school.id),
-                           **_backups_view(school.id), **_access_view(school.id))
+                           **_backups_view(school.id), **_access_view(school.id),
+                           ai=_ai_view(school.id))
 
 
 def _backups_view(school_id):
@@ -170,6 +171,12 @@ def _modules_view(school_id):
     """Each module with its pages (state, where it comes from) — one pass."""
     from ...services.modules import feature_sources
     return feature_sources(school_id)
+
+
+def _ai_view(school_id):
+    """This month's AI usage of the school (platform_ai_usage, read scope)."""
+    from ...services.platform_ai_usage import school_usage
+    return school_usage(current_platform_user(), school_id)
 
 
 def _access_view(school_id):

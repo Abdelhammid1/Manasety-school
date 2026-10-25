@@ -186,6 +186,36 @@ def school_settings():
                            color_final=_branding.readable(school.primary_color) if school.primary_color else None)
 
 
+@bp.route("/ai-usage", endpoint="ai_usage")
+@login_required
+@require_permission("users", "view")   # admin-tier, like the activity log
+def ai_usage():
+    """The school's own AI usage (ticket D): calls, tokens and what the
+    school is charged, per user and per operation. Never our cost or
+    margin. Stays open when the AI itself is turned off (its history)."""
+    import csv
+    import io
+    from flask import Response
+    from ...services.ai_usage import parse_month, school_month_report
+    rep = school_month_report(current_user.school_id, parse_month(request.args.get("month")))
+    month = f"{rep['start']:%Y-%m}"
+    if request.args.get("format") == "csv":
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(["المستخدم", "الاستدعاءات", "التوكنز", "العملة", "المبلغ"])
+        for u in rep["users"]:
+            if u["amounts"]:
+                for cur, amount in u["amounts"].items():
+                    w.writerow([u["name"], u["calls"], u["tokens"], cur, f"{amount:.4f}"])
+            else:
+                w.writerow([u["name"], u["calls"], u["tokens"], "", ""])
+        return Response("﻿" + buf.getvalue(), mimetype="text/csv",
+                        headers={"Content-Disposition": f'attachment; filename="ai-usage-{month}.csv"'})
+    from ...services.ai_quota import ai_quota_status
+    return render_template("admin/ai_usage.html", rep=rep, month=month,
+                           quota=ai_quota_status(current_user.school_id))
+
+
 @bp.route("/audit")
 @login_required
 @require_permission("users", "view")   # admin-tier permission reuse

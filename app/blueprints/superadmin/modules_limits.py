@@ -51,6 +51,11 @@ def school_limits_set(school_id):
         if not reason:
             raise SubscriptionError("السبب مطلوب.")
         values = {c: _opt_limit(c) for c in ("max_students", "max_users", "max_storage_mb")}
+        from ...services.ai_quota import parse_cap
+        try:
+            values["max_ai_tokens_month"] = parse_cap(request.form.get("max_ai_tokens_month"))
+        except ValueError as e:
+            raise SubscriptionError(str(e)) from None
     except SubscriptionError as e:
         flash(str(e), "danger")
         return redirect(url_for("superadmin.school_detail", school_id=school.id) + "#limits")

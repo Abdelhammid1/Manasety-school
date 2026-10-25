@@ -9,6 +9,7 @@ from .platform_admin import (
     PlatformSession, PlatformSetupToken,
 )
 from .platform_billing import PlatformInvoice, PlatformInvoiceLine, PlatformPayment  # SAAS-033
+from .ai_usage import AIUsageEvent, AIPriceCard, AIUsageCharge, AI_OPERATIONS  # AI usage (ticket D)
 from .academic import AcademicYear, Term, Grade, Section
 from .student import (
     Student, Enrollment, TransferLog,
@@ -154,6 +155,7 @@ __all__ = [
     "PlatformInvoice", "PlatformInvoiceLine", "PlatformPayment", "PlatformUsageSnapshot", "PlatformAlert",
     "SchoolOffboarding", "PlatformSession", "PlatformSetupToken",
     "BILLING_CYCLES", "SUBSCRIPTION_EVENT_KINDS",
+    "AIUsageEvent", "AIPriceCard", "AIUsageCharge", "AI_OPERATIONS",
     "SchoolBackup", "SchoolRestore", "BACKUP_STATUSES", "BACKUP_KINDS",
     "RESTORE_STATUSES", "RESTORE_MODES",
 ]

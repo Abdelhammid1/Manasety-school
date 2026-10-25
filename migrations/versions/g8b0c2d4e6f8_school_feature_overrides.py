@@ -16,6 +16,9 @@ from datetime import datetime, timezone
 from alembic import op
 import sqlalchemy as sa
 
+# like every foreign key since SAAS-048 (c4d6f8a0b2c4)
+DEFER = {"deferrable": True, "initially": "IMMEDIATE"}
+
 revision = 'g8b0c2d4e6f8'
 down_revision = 'f7a9b1c3d5e7'
 branch_labels = None
@@ -32,11 +35,11 @@ def upgrade():
         op.create_table(
             "school_feature_overrides",
             sa.Column("id", sa.Integer(), primary_key=True),
-            sa.Column("school_id", sa.Integer(), sa.ForeignKey("schools.id"), nullable=False),
+            sa.Column("school_id", sa.Integer(), sa.ForeignKey("schools.id", **DEFER), nullable=False),
             sa.Column("feature_key", sa.String(64), nullable=False),
             sa.Column("enabled", sa.Boolean(), nullable=False),
             sa.Column("reason", sa.Text(), nullable=False),
-            sa.Column("updated_by_platform_user_id", sa.Integer(), sa.ForeignKey("platform_users.id")),
+            sa.Column("updated_by_platform_user_id", sa.Integer(), sa.ForeignKey("platform_users.id", **DEFER)),
             sa.Column("updated_at", sa.DateTime(timezone=True)),
             sa.UniqueConstraint("school_id", "feature_key", name="uq_school_feature_override"),
         )
