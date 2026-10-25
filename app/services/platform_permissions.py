@@ -76,6 +76,9 @@ ROUTES: dict[str, dict[str, str]] = {
     "superadmin.support_session_detail": {G: "support.sessions"},
     "superadmin.support_revoke": {P: "support.sessions"},
     "superadmin.school_edit": {G: "schools.edit", P: "schools.edit"},
+    # School Branding from the console: change = edit the school; seeing its logo = see the school
+    "superadmin.school_branding": {P: "schools.edit"},
+    "superadmin.school_branding_logo": {G: "schools.read"},
     "superadmin.school_lifecycle": {P: "schools.dangerous"},
     "superadmin.school_slug_change": {P: "schools.dangerous"},
     "superadmin.school_staff": {G: "staff.tools"},

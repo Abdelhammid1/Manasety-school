@@ -201,3 +201,25 @@ def context() -> dict:
     brand["site_name"] = brand["name"] if brand["branded"] else "منصتي"
     g.brand = brand
     return brand
+
+
+# ─── changing a school's logo (the school's settings AND the console) ──
+# One path for both, so the upload rules (file_storage KINDS["logo"]:
+# png / jpg / webp, 2 MB, decoded, ≤ 2000 px) can never drift apart.
+
+def store_logo(school, file) -> str:
+    """Store `file` as `school`'s logo — under THAT school, whoever is
+    uploading. Raises file_storage.UploadRejected (Arabic message)."""
+    from .file_storage import save
+    from .tenancy import tenant_context
+    with tenant_context(school.id):
+        return save(file, "logo", school.id)
+
+
+def delete_logo_file(url, school_id: int) -> None:
+    """Remove a replaced / deleted logo file — call after the commit."""
+    from .file_storage import delete
+    from .tenancy import tenant_context
+    if url:
+        with tenant_context(school_id):
+            delete(url)

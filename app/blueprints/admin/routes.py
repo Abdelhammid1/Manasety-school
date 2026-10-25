@@ -27,11 +27,11 @@ def _save_school_logo(school, file_storage):
     /files/ URL that should be stored in `school.logo_url`.
     Returns None on validation failure (message flashed by caller).
     """
-    from ...services import file_storage as fs
+    from ...services import branding, file_storage as fs
     if not file_storage or not file_storage.filename:
         return None
     try:
-        return fs.save(file_storage, "logo", school.id)
+        return branding.store_logo(school, file_storage)
     except fs.UploadRejected as e:
         flash(f"ملف الشعار: {e}", "danger")
         return None
@@ -99,7 +99,6 @@ def school_settings():
             s.legal_name_en = clip(get("legal_name_en"), 255)
             # School identity — the logo is an upload only (no external
             # URL any more); replacing or deleting removes the old file.
-            from ...services import file_storage as _fs
             old_logo = s.logo_url if branding.has_own_logo(s) else None
             file_storage = request.files.get("logo_file")
             if request.form.get("remove_logo"):
@@ -153,7 +152,7 @@ def school_settings():
             s.smtp_from_email = get("smtp_from_email") or None
             db.session.commit()
             if stale_logo:                    # only once the new state is saved
-                _fs.delete(stale_logo)
+                branding.delete_logo_file(stale_logo, s.id)
         except Exception:
             db.session.rollback()
             current_app.logger.exception("school settings save failed")

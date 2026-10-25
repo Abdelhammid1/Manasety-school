@@ -51,6 +51,8 @@ SUPERADMIN_ROUTES = {
     "superadmin.support_revoke": {"POST"},
     # SAAS-032
     "superadmin.school_edit": {"GET", "POST"},
+    "superadmin.school_branding": {"POST"},
+    "superadmin.school_branding_logo": {"GET"},
     "superadmin.school_lifecycle": {"POST"},
     "superadmin.school_slug_change": {"POST"},
     "superadmin.school_staff": {"GET"},
@@ -107,6 +109,7 @@ CONSOLE_WRITES = {
     "superadmin.school_restore_new", "superadmin.school_restore_confirm",     # SAAS-048
     "superadmin.support_start", "superadmin.support_revoke",                  # SAAS-031
     "superadmin.school_edit",
+    "superadmin.school_branding",
     "superadmin.school_lifecycle",
     "superadmin.school_slug_change",
     "superadmin.school_staff",

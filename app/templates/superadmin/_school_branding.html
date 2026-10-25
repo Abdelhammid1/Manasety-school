@@ -1,0 +1,58 @@
+{# School Branding from the console — included by school_detail.html.
+   Same rules as the school's own settings page (services/branding). #}
+{% set _own_logo = school.logo_url and school.logo_url.startswith('/files/' ~ school.id ~ '/logo/') %}
+<h2 id="branding">هوية المدرسة</h2>
+<div class="card">
+  <div class="row" style="align-items:center;gap:16px;flex-wrap:wrap">
+    <div style="flex:0 0 auto">
+      {% if _own_logo %}
+      <img src="{{ url_for('superadmin.school_branding_logo', school_id=school.id) }}" alt="لوجو {{ school.name }}"
+           style="height:64px;width:64px;object-fit:contain;background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:4px">
+      {% else %}
+      <span class="chip">بدون لوجو (لوجو منصتي)</span>
+      {% endif %}
+    </div>
+    <div style="flex:1 1 220px">
+      اللون الأساسي:
+      {% if school.primary_color %}
+      <span style="display:inline-block;width:18px;height:18px;border-radius:4px;vertical-align:middle;background:{{ school.primary_color }}"></span>
+      <bdi dir="ltr">{{ school.primary_color }}</bdi>
+      {% else %}<b>افتراضي</b>{% endif %}
+    </div>
+  </div>
+
+  {% if current_user.role == 'owner' %}
+  <form method="post" action="{{ url_for('superadmin.school_branding', school_id=school.id) }}"
+        enctype="multipart/form-data" style="margin-top:12px">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="row" style="gap:12px;flex-wrap:wrap;align-items:flex-end">
+      <div style="flex:1 1 240px">
+        <label for="logo_file">لوجو جديد (PNG / JPG / WebP، حتى 2MB و2000×2000 بكسل)</label>
+        <input type="file" id="logo_file" name="logo_file" accept="image/png,image/jpeg,image/webp">
+      </div>
+      <div style="flex:0 1 220px">
+        <label for="primary_color">اللون الأساسي (#RRGGBB)</label>
+        <div class="row" style="gap:6px;margin:0">
+          <input type="color" id="pc-picker" value="{{ school.primary_color or '#1E3A8A' }}" aria-label="اختيار اللون" style="flex:0 0 48px;height:38px;padding:2px">
+          <input id="primary_color" name="primary_color" dir="ltr" maxlength="7" value="{{ school.primary_color or '' }}"
+                 placeholder="افتراضي" style="flex:1 1 100px">
+        </div>
+      </div>
+      <button class="btn" type="submit" style="flex:0 0 auto">حفظ</button>
+    </div>
+    <p class="sub" style="margin:8px 0 0">اللون الفاتح جدًا بيتغمّق تلقائيًا لضمان وضوح النصوص. التغيير بيظهر على صفحات المدرسة من أول تحميل، ومفيش إيميل بيتبعت.</p>
+    <div class="row" style="gap:8px;margin-top:8px">
+      {% if _own_logo %}<button class="btn ghost" type="submit" name="remove_logo" value="1" formnovalidate>حذف اللوجو</button>{% endif %}
+      {% if school.primary_color %}<button class="btn ghost" type="submit" name="reset_color" value="1" formnovalidate>استعادة اللون الافتراضي</button>{% endif %}
+    </div>
+  </form>
+  <script nonce="{{ csp_nonce }}">
+    (function () {
+      var p = document.getElementById('pc-picker'), f = document.getElementById('primary_color');
+      if (!p || !f) return;
+      p.addEventListener('input', function () { f.value = p.value.toUpperCase(); });
+      f.addEventListener('input', function () { if (/^#[0-9A-Fa-f]{6}$/.test(f.value.trim())) p.value = f.value.trim(); });
+    })();
+  </script>
+  {% endif %}
+</div>

@@ -139,6 +139,80 @@ def school_edit(school_id):
     return render_template("superadmin/school_edit.html", school=school, fields=EDITABLE)
 
 
+# ─── school identity: logo + primary colour (School Branding) ─────────
+# The same rules and services as the school's own settings page
+# (services/branding): this is only another door to them, for the
+# Manasety team. No e-mail / notice to the school; the change shows on
+# its next page load. Every change is audited (what changed, never the
+# file's content).
+
+@bp.route("/schools/<int:school_id>/branding", methods=["POST"], endpoint="school_branding")
+@require_platform_role("owner")
+def school_branding(school_id):
+    from ...services import branding
+    from ...services.file_storage import UploadRejected
+    school = _school(school_id)
+    back = _back(school, "#branding")
+    # the colour first: a refused save must not leave a stored file behind
+    if request.form.get("reset_color"):
+        new_color = None
+    elif "primary_color" in request.form:
+        raw = (request.form.get("primary_color") or "").strip()
+        new_color = branding.normalize_hex(raw) if raw else None
+        if raw and new_color is None:
+            flash("اللون لازم يكون بصيغة #RRGGBB (مثال: #1E3A8A).", "danger")
+            return back
+    else:
+        new_color = school.primary_color
+    changes, stale = {}, None
+    old_logo = school.logo_url if branding.has_own_logo(school) else None
+    upload = request.files.get("logo_file")
+    if request.form.get("remove_logo"):
+        if school.logo_url:
+            school.logo_url, stale = None, old_logo
+            changes["logo"] = "removed"
+    elif upload and upload.filename:
+        try:
+            school.logo_url = branding.store_logo(school, upload)      # under THIS school
+        except UploadRejected as e:
+            flash(f"ملف الشعار: {e}", "danger")
+            return back
+        stale = old_logo
+        changes["logo"] = "replaced" if old_logo else "uploaded"
+    if new_color != school.primary_color:
+        changes["color"] = {"before": school.primary_color, "after": new_color}
+        school.primary_color = new_color
+    if not changes:
+        flash("لا توجد تغييرات.", "success")
+        return back
+    pa.audit("school_branding_changed", current_platform_user(), school_id=school.id, **changes)
+    db.session.commit()
+    branding.delete_logo_file(stale, school.id)                      # only once saved
+    msg = "تم حفظ هوية المدرسة."
+    if new_color and branding.was_darkened(new_color):
+        msg += f" اللون اتغمّق لضمان وضوح النصوص إلى {branding.readable(new_color)}."
+    flash(msg, "success")
+    return back
+
+
+@bp.route("/schools/<int:school_id>/branding/logo", endpoint="school_branding_logo")
+def school_branding_logo(school_id):
+    """The school's current logo, for its console page (the console host's
+    /branding/logo is the platform's)."""
+    from flask import send_file
+    import mimetypes
+    from ...services import branding
+    from ...services.file_storage import key_from_url, parse_key
+    school = _school(school_id)
+    fk = parse_key(key_from_url(school.logo_url) or "") if branding.has_own_logo(school) else None
+    if fk is None or fk.school_id != school.id or fk.kind != "logo":
+        abort(404)
+    resp = send_file(fk.path, mimetype=mimetypes.guess_type(fk.path.name)[0] or "application/octet-stream")
+    resp.headers["X-Content-Type-Options"] = "nosniff"
+    resp.headers["Content-Security-Policy"] = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+    return resp
+
+
 # ─── lifecycle (dangerous) ───────────────────────────────────────────
 
 def _dangerous(school):
