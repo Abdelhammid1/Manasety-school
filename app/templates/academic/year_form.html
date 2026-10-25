@@ -21,7 +21,7 @@
 
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">اسم السنة <span class="text-error">*</span></label>
-      <input name="name" required value="{{ year.name if year else '' }}"
+      <input name="name" required value="{{ values.name }}"
              placeholder="مثال: 2025-2026" dir="ltr"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
@@ -30,13 +30,13 @@
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ البداية <span class="text-error">*</span></label>
         <input name="start_date" type="date" required
-               value="{{ year.start_date.strftime('%Y-%m-%d') if year and year.start_date else '' }}"
+               value="{{ values.start_date }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ النهاية <span class="text-error">*</span></label>
         <input name="end_date" type="date" required
-               value="{{ year.end_date.strftime('%Y-%m-%d') if year and year.end_date else '' }}"
+               value="{{ values.end_date }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
@@ -44,8 +44,8 @@
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">الحالة</label>
       <select name="status" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
-        <option value="active"  {% if year and year.status == 'active' %}selected{% endif %}>نشطة</option>
-        <option value="closed"  {% if year and year.status == 'closed' %}selected{% endif %}>مغلقة</option>
+        <option value="active"  {% if values.status == 'active' %}selected{% endif %}>نشطة</option>
+        <option value="closed"  {% if values.status == 'closed' %}selected{% endif %}>مغلقة</option>
       </select>
     </div>
 
@@ -58,7 +58,7 @@
       <select name="rollover_from" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
         <option value="">— بدون نسخ —</option>
         {% for y in prior_years %}
-        <option value="{{ y.id }}">{{ y.name }}</option>
+        <option value="{{ y.id }}" {% if values.rollover_from == y.id|string %}selected{% endif %}>{{ y.name }}</option>
         {% endfor %}
       </select>
       <p class="font-label-xs text-outline">

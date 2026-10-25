@@ -38,7 +38,7 @@
         <label class="font-label-md text-label-md text-on-surface font-bold">الصف <span class="text-error">*</span></label>
         <select name="grade_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
-          {% for g in grades %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}
+          {% for g in grades %}<option value="{{ g.id }}" {% if values.grade_id == g.id|string %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
         </select>
       </div>
     {% endif %}
@@ -47,14 +47,14 @@
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">اسم الفصل <span class="text-error">*</span></label>
         <input name="name" required
-               value="{{ section.name if section else '' }}"
+               value="{{ values.name }}"
                placeholder="أ / ب / ج"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">السعة القصوى</label>
         <input name="capacity" type="number" min="1" max="60"
-               value="{{ section.capacity if section else 30 }}"
+               value="{{ values.capacity or 30 }}"
                class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
         {% if section and section.current_count %}
         <p class="font-label-xs text-outline">مسجّل حالياً: {{ section.current_count }} — لا يمكن ضبطها لأقل من ذلك.</p>

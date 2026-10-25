@@ -6,6 +6,7 @@ from flask_login import current_user, login_required
 from sqlalchemy import func
 
 from . import bp
+from . import validation as v
 from ..utils import require_permission
 from ...extensions import db
 from ...models import AcademicYear, Grade, Section, Term
@@ -36,24 +37,31 @@ def years_list():
 @login_required
 @require_permission("academic_years", "add")
 def year_new():
+    prior_years = (
+        AcademicYear.query.filter_by(school_id=_sid())
+        .order_by(AcademicYear.start_date.desc()).all()
+    )
+
+    def form_page(form=None):
+        return render_template("academic/year_form.html", year=None, prior_years=prior_years,
+                               values=v.values(None, form, YEAR_FIELDS))
+
     if request.method == "POST":
-        status = request.form.get("status", "active")
-        if status == "active":
+        try:
+            data = _year_data(request.form)
+        except v.Invalid as e:
+            flash(str(e), "danger")
+            return form_page(request.form)
+        if data["status"] == "active":
             existing = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
             if existing:
                 flash(
-                    f"يوجد سنة نشطة ({existing.name}). أغلقها أولاً قبل تفعيل سنة جديدة.",
+                    f"يوجد سنة نشطة ({v.iso(existing.name)}). أغلقها أولاً قبل تفعيل سنة جديدة.",
                     "warning",
                 )
-                return render_template("academic/year_form.html", year=None)
+                return form_page(request.form)
 
-        year = AcademicYear(
-            school_id=_sid(),
-            name=request.form["name"].strip(),
-            start_date=datetime.strptime(request.form["start_date"], "%Y-%m-%d").date(),
-            end_date=datetime.strptime(request.form["end_date"], "%Y-%m-%d").date(),
-            status=status,
-        )
+        year = AcademicYear(school_id=_sid(), **data)
         db.session.add(year)
         db.session.flush()
 
@@ -61,27 +69,42 @@ def year_new():
         # Section rows only (not enrollments or courses — those need
         # a fresh cycle per school policy).
         from_year_id = request.form.get("rollover_from", type=int)
+        copied_msg = None
         if from_year_id:
             source = AcademicYear.query.filter_by(
                 id=from_year_id, school_id=_sid()).first()
             if source:
                 copied = _rollover_sections(source, year)
-                flash(
-                    f"تم نسخ {copied} فصل من {source.name}.",
-                    "info",
-                )
+                copied_msg = f"تم نسخ {copied} فصل من {v.iso(source.name)}."
 
-        db.session.commit()
+        err = v.commit("السنة الدراسية")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
+        if copied_msg:
+            flash(copied_msg, "info")
         flash("تم إنشاء السنة الدراسية.", "success")
         return redirect(url_for("academic.years_list"))
-    prior_years = (
-        AcademicYear.query.filter_by(school_id=_sid())
-        .order_by(AcademicYear.start_date.desc()).all()
-    )
-    return render_template(
-        "academic/year_form.html", year=None,
-        prior_years=prior_years,
-    )
+    return form_page()
+
+
+YEAR_FIELDS = ("name", "start_date", "end_date", "status")
+
+
+def _year_data(form, editing=None) -> dict:
+    """The year's fields, or v.Invalid with the first problem."""
+    name = v.text(form, "name", "اسم السنة الدراسية", max_len=64)
+    start = v.day(form, "start_date", "تاريخ البداية")
+    end = v.day(form, "end_date", "تاريخ النهاية")
+    if end <= start:
+        raise v.Invalid("تاريخ النهاية يجب أن يكون بعد تاريخ البداية.")
+    status = (form.get("status") or (editing.status if editing else "active")).strip()
+    if status not in ("active", "closed"):
+        raise v.Invalid("حالة السنة غير صحيحة — اختر نشطة أو مغلقة.")
+    other = v.clash(AcademicYear, exclude_id=getattr(editing, "id", None), school_id=_sid(), name=name)
+    if other:
+        raise v.Invalid(f"السنة الدراسية \"{v.iso(name)}\" موجودة بالفعل{v.deleted_note(other)}.")
+    return {"name": name, "start_date": start, "end_date": end, "status": status}
 
 
 def _rollover_sections(source_year, target_year):
@@ -114,25 +137,35 @@ def year_edit(year_id):
     """Edit an existing academic year. The template shows a confirm modal
     warning that changes may affect linked reports and records."""
     year = _get(AcademicYear, year_id)
+
+    def form_page(form=None):
+        return render_template("academic/year_form.html", year=year,
+                               values=v.values(year, form, YEAR_FIELDS))
+
     if request.method == "POST":
+        try:
+            data = _year_data(request.form, editing=year)
+        except v.Invalid as e:
+            flash(str(e), "danger")
+            return form_page(request.form)
         # If activating this year, close any other active one first.
-        new_status = request.form.get("status", year.status)
-        if new_status == "active" and year.status != "active":
+        if data["status"] == "active" and year.status != "active":
             other = AcademicYear.query.filter_by(school_id=_sid(), status="active").first()
             if other and other.id != year.id:
                 flash(
-                    f"يوجد سنة نشطة ({other.name}). أغلقها أولاً قبل تفعيل هذه السنة.",
+                    f"يوجد سنة نشطة ({v.iso(other.name)}). أغلقها أولاً قبل تفعيل هذه السنة.",
                     "warning",
                 )
-                return render_template("academic/year_form.html", year=year)
-        year.name = request.form["name"].strip()
-        year.start_date = datetime.strptime(request.form["start_date"], "%Y-%m-%d").date()
-        year.end_date = datetime.strptime(request.form["end_date"], "%Y-%m-%d").date()
-        year.status = new_status
-        db.session.commit()
+                return form_page(request.form)
+        for k, val in data.items():
+            setattr(year, k, val)
+        err = v.commit("السنة الدراسية")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
         flash("تم حفظ التعديلات على السنة الدراسية.", "success")
         return redirect(url_for("academic.years_list"))
-    return render_template("academic/year_form.html", year=year)
+    return form_page()
 
 
 @bp.route("/years/<hid:year_id>/close", methods=["GET", "POST"])
@@ -189,7 +222,7 @@ def year_close(year_id):
     PassRule.query.filter_by(school_id=_sid(), year_id=year.id).update({"is_frozen": True})
     db.session.commit()
     flash(
-        f"تم إقفال السنة {year.name} — صافي الربح/الخسارة: "
+        f"تم إقفال السنة {v.iso(year.name)} — صافي الربح/الخسارة: "
         f"{preview['net_income']:.2f} رُحّل إلى حساب الأرباح المرحّلة.",
         "success",
     )
@@ -207,28 +240,34 @@ def terms_list(year_id):
     return render_template("academic/terms_list.html", year=year, total_weight=total)
 
 
+TERM_FIELDS = ("name", "order_index", "start_date", "end_date", "weight", "status_mode", "manual_status")
+
+
 def _validate_term_dates_and_weight(year, form, editing_id=None):
     """Sprint 9 TC-2.2.5 + TC-2.2.6 — return (data, error_msg).
 
-    Rejects: end<=start, dates overlapping another term in the same year,
-    and cumulative weight > 100%.
+    Rejects, each with its own message: a missing / bad field, end <=
+    start, dates overlapping another term of the year, an order already
+    used in the year, and a cumulative weight over 100%. Under 100% is
+    allowed while the year's terms are being added (the list shows the
+    running total) — the current rule, kept.
     """
     try:
-        start = datetime.strptime(form["start_date"], "%Y-%m-%d").date()
-        end = datetime.strptime(form["end_date"], "%Y-%m-%d").date()
-        weight = Decimal(form["weight"])
-        order_index = int(form["order_index"])
-        name = (form.get("name") or "").strip()
-    # Ticket T6 — Decimal("abc") raises InvalidOperation, which is
-    # NOT a ValueError. Also catch TypeError for None-in-int / None-in-
-    # strptime scenarios so a bad form doesn't 500.
-    except (KeyError, ValueError, InvalidOperation, TypeError) as e:
-        return None, f"بيانات غير صالحة: {e}"
-
-    if not name:
-        return None, "اسم الفترة الدراسية مطلوب."
+        name = v.text(form, "name", "اسم الفترة الدراسية", max_len=64)
+        order_index = v.whole(form, "order_index", "ترتيب الفترة")
+        start = v.day(form, "start_date", "تاريخ البداية")
+        end = v.day(form, "end_date", "تاريخ النهاية")
+        weight = v.percent(form, "weight")
+    except v.Invalid as e:
+        return None, str(e)
     if end <= start:
         return None, "تاريخ النهاية يجب أن يكون بعد تاريخ البداية."
+
+    # the order is unique in the year (uq_term_year_order — deleted terms too)
+    taken = v.clash(Term, exclude_id=editing_id, year_id=year.id, order_index=order_index)
+    if taken:
+        return None, (f"ترتيب الفترة ({order_index}) مستخدم بالفعل في فترة \"{taken.name}\"{v.deleted_note(taken)}، "
+                      "اختر ترتيبًا آخر.")
 
     # TC-2.2.5: date overlap check
     overlap_q = Term.query.filter_by(school_id=year.school_id, year_id=year.id).filter(
@@ -240,7 +279,7 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
     if overlap:
         return None, (
             f"تعارض تواريخ: الفترة الدراسية \"{overlap.name}\" "
-            f"({overlap.start_date} → {overlap.end_date}) تتقاطع مع التواريخ المدخلة. "
+            f"({v.iso(overlap.start_date)} → {v.iso(overlap.end_date)}) تتقاطع مع التواريخ المدخلة. "
             "اختر تواريخ لا تتداخل."
         )
 
@@ -253,8 +292,9 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
     other_weight = Decimal(other_weight_q.scalar() or 0)
     if other_weight + weight > Decimal(100):
         return None, (
-            f"مجموع الأوزان سيتجاوز 100% "
-            f"(المسجّل حاليًا {other_weight}% + الجديد {weight}% = {other_weight + weight}%). "
+            f"مجموع أوزان الفترات لا يجب أن يتجاوز 100% "
+            f"(الحالي بعد التعديل: {_pct(other_weight + weight)}% — "
+            f"الفترات الأخرى {_pct(other_weight)}% + هذه الفترة {_pct(weight)}%). "
             "قلّل الوزن أو عدّل الفترات الأخرى أولًا."
         )
 
@@ -278,6 +318,12 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
     }, None
 
 
+def _pct(x) -> str:
+    """60.00 → 60, 12.50 → 12.5"""
+    d = Decimal(x).normalize()
+    return format(d, "f")
+
+
 @bp.route("/years/<hid:year_id>/terms/new", methods=["GET", "POST"])
 @login_required
 @require_permission("terms", "add")
@@ -286,27 +332,35 @@ def term_new(year_id):
     if year.status == "closed":
         flash("السنة مغلقة، لا يمكن تعديل الفترات الدراسية.", "danger")
         return redirect(url_for("academic.terms_list", year_id=year_id))
+
+    def form_page(form=None):
+        return render_template("academic/term_form.html", year=year, term=None,
+                               values=v.values(None, form, TERM_FIELDS))
+
     if request.method == "POST":
         data, err = _validate_term_dates_and_weight(year, request.form)
         if err:
             flash(err, "danger")
-            return render_template("academic/term_form.html", year=year, term=None, form=request.form)
+            return form_page(request.form)
 
         term = Term(school_id=_sid(), year_id=year.id, **data)
         db.session.add(term)
-        db.session.commit()
+        err = v.commit("الفترة الدراسية")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
 
         total = db.session.query(func.coalesce(func.sum(Term.weight), 0)).filter_by(year_id=year.id).scalar()
         if Decimal(total) == Decimal(100):
             flash("تم إضافة الفترة الدراسية. مجموع الأوزان = 100%.", "success")
         else:
             flash(
-                f"تم إضافة الفترة الدراسية. مجموع الأوزان الحالي = {total}% "
+                f"تم إضافة الفترة الدراسية. مجموع الأوزان الحالي = {_pct(total)}% "
                 "— أضف بقية الفترات حتى يصل الإجمالي إلى 100%.",
                 "warning",
             )
         return redirect(url_for("academic.terms_list", year_id=year.id))
-    return render_template("academic/term_form.html", year=year, term=None)
+    return form_page()
 
 
 @bp.route("/terms/<hid:term_id>/edit", methods=["GET", "POST"])
@@ -319,17 +373,25 @@ def term_edit(term_id):
     if year.status == "closed":
         flash("السنة مغلقة، لا يمكن تعديل الفترات الدراسية.", "danger")
         return redirect(url_for("academic.terms_list", year_id=year.id))
+
+    def form_page(form=None):
+        return render_template("academic/term_form.html", year=year, term=term,
+                               values=v.values(term, form, TERM_FIELDS))
+
     if request.method == "POST":
         data, err = _validate_term_dates_and_weight(year, request.form, editing_id=term.id)
         if err:
             flash(err, "danger")
-            return render_template("academic/term_form.html", year=year, term=term, form=request.form)
-        for k, v in data.items():
-            setattr(term, k, v)
-        db.session.commit()
+            return form_page(request.form)
+        for key, val in data.items():
+            setattr(term, key, val)
+        err = v.commit("الفترة الدراسية")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
         flash("تم تعديل الفترة الدراسية.", "success")
         return redirect(url_for("academic.terms_list", year_id=year.id))
-    return render_template("academic/term_form.html", year=year, term=term)
+    return form_page()
 
 
 @bp.route("/terms/<hid:term_id>/delete", methods=["POST"])
@@ -404,22 +466,49 @@ def grades_list():
     )
 
 
+GRADE_FIELDS = ("name", "order_index", "stage")
+
+
+def _grade_data(form, editing=None) -> dict:
+    """The grade's fields, or v.Invalid. Name and order are unique in the
+    school (uq_grade_school_name / uq_grade_school_order — deleted grades
+    too); an existing grade keeps an order saved before the >= 1 rule."""
+    name = v.text(form, "name", "اسم الصف", max_len=64)
+    order_index = v.whole(form, "order_index", "ترتيب الصف",
+                          keep=editing.order_index if editing else None)
+    exclude = getattr(editing, "id", None)
+    other = v.clash(Grade, exclude_id=exclude, school_id=_sid(), name=name)
+    if other:
+        raise v.Invalid(f"اسم الصف \"{name}\" موجود بالفعل{v.deleted_note(other)}.")
+    other = v.clash(Grade, exclude_id=exclude, school_id=_sid(), order_index=order_index)
+    if other:
+        raise v.Invalid(f"ترتيب الصف ({order_index}) مستخدم بالفعل في صف \"{other.name}\"{v.deleted_note(other)}، "
+                        "اختر ترتيبًا آخر.")
+    return {"name": name, "order_index": order_index, "stage": (form.get("stage") or "").strip() or None}
+
+
 @bp.route("/grades/new", methods=["GET", "POST"])
 @login_required
 @require_permission("grades", "add")
 def grade_new():
+    def form_page(form=None):
+        return render_template("academic/grade_form.html", grade=None,
+                               values=v.values(None, form, GRADE_FIELDS))
+
     if request.method == "POST":
-        grade = Grade(
-            school_id=_sid(),
-            name=request.form["name"].strip(),
-            order_index=int(request.form["order_index"]),
-            stage=request.form.get("stage") or None,
-        )
-        db.session.add(grade)
-        db.session.commit()
+        try:
+            data = _grade_data(request.form)
+        except v.Invalid as e:
+            flash(str(e), "danger")
+            return form_page(request.form)
+        db.session.add(Grade(school_id=_sid(), **data))
+        err = v.commit("الصف")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
         flash("تم إضافة الصف.", "success")
         return redirect(url_for("academic.grades_list"))
-    return render_template("academic/grade_form.html", grade=None)
+    return form_page()
 
 
 @bp.route("/grades/<hid:grade_id>/edit", methods=["GET", "POST"])
@@ -427,14 +516,26 @@ def grade_new():
 @require_permission("grades", "edit")
 def grade_edit(grade_id):
     grade = _get(Grade, grade_id)
+
+    def form_page(form=None):
+        return render_template("academic/grade_form.html", grade=grade,
+                               values=v.values(grade, form, GRADE_FIELDS))
+
     if request.method == "POST":
-        grade.name = request.form["name"].strip()
-        grade.order_index = int(request.form["order_index"])
-        grade.stage = request.form.get("stage") or None
-        db.session.commit()
+        try:
+            data = _grade_data(request.form, editing=grade)
+        except v.Invalid as e:
+            flash(str(e), "danger")
+            return form_page(request.form)
+        for key, val in data.items():
+            setattr(grade, key, val)
+        err = v.commit("الصف")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
         flash("تم تحديث الصف.", "success")
         return redirect(url_for("academic.grades_list"))
-    return render_template("academic/grade_form.html", grade=grade)
+    return form_page()
 
 
 @bp.route("/grades/<hid:grade_id>", methods=["GET"], endpoint="grade_detail")
@@ -516,6 +617,28 @@ def section_detail(section_id):
     )
 
 
+SECTION_FIELDS = ("name", "grade_id", "capacity")
+
+
+def _section_data(form, year, grade, editing=None) -> dict:
+    """Name and capacity, or v.Invalid. A name is unique in its grade for
+    the year (uq_section_year_grade_name — deleted sections too)."""
+    name = v.text(form, "name", "اسم الفصل", max_len=64)
+    raw_cap = (form.get("capacity") or "").strip()
+    if editing is None and not raw_cap:
+        capacity = 30                                   # the form's default, as before
+    else:
+        capacity = v.whole(form, "capacity", "سعة الفصل",
+                           keep=editing.capacity if editing else None)
+    other = v.clash(Section, exclude_id=getattr(editing, "id", None),
+                    year_id=year.id, grade_id=grade.id, name=name)
+    if other:
+        raise v.Invalid(f"يوجد فصل بنفس الاسم \"{name}\" في هذا الصف لهذه السنة الدراسية{v.deleted_note(other)}.")
+    if editing is not None and capacity < editing.current_count:
+        raise v.Invalid(f"لا يمكن ضبط السعة على {capacity} — يوجد {editing.current_count} طالب مسجّل بالفعل.")
+    return {"name": name, "capacity": capacity}
+
+
 @bp.route("/sections/new", methods=["GET", "POST"])
 @login_required
 @require_permission("sections", "add")
@@ -532,24 +655,29 @@ def section_new():
     if not grades:
         flash("يجب إنشاء صف دراسي واحد على الأقل قبل إضافة فصل.", "warning")
         return redirect(url_for("academic.grades_list"))
+
+    def form_page(form=None):
+        return render_template("academic/section_form.html", section=None, grades=grades, year=year,
+                               values=v.values(None, form, SECTION_FIELDS))
+
     if request.method == "POST":
         grade_id = request.form.get("grade_id", type=int)
-        name = (request.form.get("name") or "").strip()
-        if not name or grade_id not in [g.id for g in grades]:
-            flash("اسم الفصل والصف مطلوبان.", "danger")
-            return render_template("academic/section_form.html", section=None, grades=grades, year=year)
-        section = Section(
-            school_id=_sid(),
-            year_id=year.id,
-            grade_id=grade_id,
-            name=name,
-            capacity=int(request.form.get("capacity") or 30),
-        )
-        db.session.add(section)
-        db.session.commit()
+        grade = next((g for g in grades if g.id == grade_id), None)
+        try:
+            if grade is None:
+                raise v.Invalid("الصف المختار غير موجود، برجاء إعادة الاختيار.")
+            data = _section_data(request.form, year, grade)
+        except v.Invalid as e:
+            flash(str(e), "danger")
+            return form_page(request.form)
+        db.session.add(Section(school_id=_sid(), year_id=year.id, grade_id=grade.id, **data))
+        err = v.commit("الفصل")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
         flash("تم إضافة الفصل.", "success")
         return redirect(url_for("academic.sections_list"))
-    return render_template("academic/section_form.html", section=None, grades=grades, year=year)
+    return form_page()
 
 
 @bp.route("/sections/<hid:section_id>/edit", methods=["GET", "POST"])
@@ -561,27 +689,26 @@ def section_edit(section_id):
     name and capacity edits. If the user wants to move students to a
     different grade, promotion/transfer flows handle that."""
     section = _get(Section, section_id)
+
+    def form_page(form=None):
+        return render_template("academic/section_form.html", section=section, grades=[section.grade],
+                               year=section.year, values=v.values(section, form, SECTION_FIELDS))
+
     if request.method == "POST":
-        name = (request.form.get("name") or "").strip()
-        cap  = request.form.get("capacity", type=int) or section.capacity
-        if not name:
-            flash("اسم الفصل مطلوب.", "danger")
-            return render_template("academic/section_form.html", section=section, grades=[section.grade], year=section.year)
-        if cap < section.current_count:
-            flash(
-                f"لا يمكن ضبط السعة على {cap} — يوجد {section.current_count} طالب مسجّل بالفعل.",
-                "danger",
-            )
-            return render_template("academic/section_form.html", section=section, grades=[section.grade], year=section.year)
-        section.name = name
-        section.capacity = cap
-        db.session.commit()
+        try:
+            data = _section_data(request.form, section.year, section.grade, editing=section)
+        except v.Invalid as e:
+            flash(str(e), "danger")
+            return form_page(request.form)
+        for key, val in data.items():
+            setattr(section, key, val)
+        err = v.commit("الفصل")
+        if err:
+            flash(err, "danger")
+            return form_page(request.form)
         flash("تم تعديل الفصل.", "success")
         return redirect(url_for("academic.section_detail", section_id=section.id))
-    return render_template(
-        "academic/section_form.html",
-        section=section, grades=[section.grade], year=section.year,
-    )
+    return form_page()
 
 
 @bp.route("/sections/<hid:section_id>/delete", methods=["POST"])

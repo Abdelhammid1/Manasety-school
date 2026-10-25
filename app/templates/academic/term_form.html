@@ -7,7 +7,8 @@
 {% endblock %}
 
 {% block page_content %}
-{% set F = term if term else (form if form is defined else {}) %}
+{# what the form shows: the saved term, or the input of a refused save (strings) #}
+{% set F = values %}
 <div class="max-w-2xl mx-auto flex flex-col gap-space-md">
   <h1 class="font-headline-lg text-headline-lg text-primary">{% if term %}تعديل الفترة{% else %}إضافة فترة دراسية{% endif %}</h1>
   <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
@@ -23,15 +24,15 @@
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ البداية <span class="text-error">*</span></label>
-        <input name="start_date" type="date" required value="{{ F.start_date.strftime('%Y-%m-%d') if F and F.start_date else '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <input name="start_date" type="date" required value="{{ F.start_date or '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">تاريخ النهاية <span class="text-error">*</span></label>
-        <input name="end_date" type="date" required value="{{ F.end_date.strftime('%Y-%m-%d') if F and F.end_date else '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
+        <input name="end_date" type="date" required value="{{ F.end_date or '' }}" class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="col-span-2 flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">الوزن (%)</label>
-        <input name="weight" type="number" step="0.1" min="0" max="100" value="{{ F.weight if F and F.weight else 50 }}"
+        <input name="weight" type="number" step="0.1" min="0" max="100" value="{{ F.weight if F.weight is defined and F.weight != '' else 50 }}"
                class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
         <span class="font-label-xs text-label-xs text-on-surface-variant">مجموع أوزان فترات السنة يجب أن يساوي 100%</span>
       </div>
