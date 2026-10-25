@@ -105,7 +105,7 @@ def school_edit(school_id):
             if field == "rounding_policy" and new not in ("normal", "up", "down"):
                 errors.append("سياسة التقريب غير صحيحة.")
                 continue
-            if field == "invoice_start_number" and new is not None and new < 1:
+            if field == "invoice_start_number" and isinstance(new, int) and new < 1:
                 errors.append("رقم الفاتورة الأولى لازم 1 أو أكثر.")
                 continue
             if field in MAX_LEN and isinstance(new, str) and len(new) > MAX_LEN[field]:
