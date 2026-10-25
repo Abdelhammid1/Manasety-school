@@ -12,8 +12,8 @@ currency is never stored on it: it is always the school's current one,
 so a currency change shows on every invoice, old and new, with the
 amounts untouched (no conversion).
 
-The lock: once a year that is not closed has financial activity (an
-invoice, a payment or a journal entry), the seven fields below are
+The lock: once there is financial activity (an invoice, a payment or a
+journal entry) since the last year-end close, the seven fields below are
 closed to the school's own users; only the Manasety console may change
 them, and every console change is audited.
 """
@@ -126,38 +126,25 @@ def fiscal_year_start(on: date, start_month: int) -> date:
 # ─── the lock ───────────────────────────────────────────────────────
 
 def has_financial_activity(school_id: int) -> bool:
-    """An invoice, a payment or a journal entry in a year that is not
-    closed yet. Not only the year marked active, and with no upper date:
-    editing a year's dates or status must not reopen the settings. A year
-    counts as closed only when the year-end process closed it (its
-    YEAR-CLOSE journal entry, ledger.close_year) — a status flipped to
-    "closed" in the year form does not."""
-    from datetime import timedelta
+    """An invoice, a payment or a journal entry created since the school's
+    last year-end close (ledger.close_year's YEAR-CLOSE entry) — or ever,
+    if no year was closed yet. Server timestamps only (`created_at`): no
+    date or status the school can edit (a year's dates, its status in the
+    year form, an invoice's issue date) can reopen the settings."""
     from ..extensions import db
-    from ..models import AcademicYear, Enrollment, Invoice, JournalEntry, Payment
-    years = AcademicYear.query.filter_by(school_id=school_id).all()
-    closed_by_process = {r for (r,) in db.session.query(JournalEntry.related_id).filter(
-        JournalEntry.school_id == school_id, JournalEntry.related_kind == "year_close").all()}
-    closed = [y for y in years if y.status == "closed" and y.id in closed_by_process]
-    open_years = [y for y in years if y not in closed]
-    if not open_years:
-        return False
-    since = min(y.start_date for y in open_years)
-    if closed:
-        since = min(since, max(y.end_date for y in closed) + timedelta(days=1))
-    year_ids = [y.id for y in open_years]
-    if (db.session.query(Invoice.id)
-            .outerjoin(Enrollment, Enrollment.id == Invoice.enrollment_id)
-            .filter(Invoice.school_id == school_id,
-                    db.or_(Enrollment.year_id.in_(year_ids), Invoice.issue_date >= since))
-            .first()):
-        return True
-    if (db.session.query(Payment.id)
-            .filter(Payment.school_id == school_id, Payment.payment_date >= since).first()):
-        return True
-    return (db.session.query(JournalEntry.id)
-            .filter(JournalEntry.school_id == school_id, JournalEntry.entry_date >= since)
-            .first()) is not None
+    from ..models import Invoice, JournalEntry, Payment
+    cutoff = (db.session.query(db.func.max(JournalEntry.created_at))
+              .filter(JournalEntry.school_id == school_id,
+                      JournalEntry.related_kind == "year_close").scalar())
+
+    def after(model, *extra):
+        q = db.session.query(model.id).filter(model.school_id == school_id, *extra)
+        if cutoff is not None:
+            q = q.filter(model.created_at > cutoff)
+        return q.first() is not None
+    return (after(Invoice) or after(Payment)
+            or after(JournalEntry, db.or_(JournalEntry.related_kind.is_(None),
+                                          JournalEntry.related_kind != "year_close")))
 
 
 # ─── the settings form ──────────────────────────────────────────────

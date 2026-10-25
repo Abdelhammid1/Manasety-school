@@ -207,32 +207,33 @@ def test_after_an_invoice_the_school_can_not_change_them(fapp, two_schools, logi
 
 
 def test_only_the_year_end_process_reopens_the_settings(fapp, two_schools):
-    """A year flipped to "closed" in the year form, or with its dates
-    shrunk, still locks; a year closed by the year-end process (its
-    YEAR-CLOSE entry) and a fresh year without activity does not."""
+    """Editable dates and statuses never unlock: a year flipped to "closed"
+    or with its dates moved, an invoice back-dated. Only activity created
+    before the last YEAR-CLOSE entry is left behind; new activity after
+    it locks again."""
+    from datetime import datetime, timedelta
     from app.extensions import db
-    from app.models import AcademicYear, JournalEntry
+    from app.models import AcademicYear, Invoice, JournalEntry
     from app.services.finance_settings import has_financial_activity
     A = two_schools["A"]
-    _invoice(fapp, A)
+    inv = _invoice(fapp, A)
     sid = A["school"].id
     with fapp.app_context():
         assert has_financial_activity(sid)
         y = db.session.get(AcademicYear, A["year"].id)
-        start, end = y.start_date, y.end_date
-        y.start_date, y.end_date = date(2020, 1, 1), date(2020, 1, 2)     # shrink: no unlock
+        y.start_date, y.end_date, y.status = date(2020, 1, 1), date(2020, 1, 2), "closed"
+        db.session.get(Invoice, inv["id"]).issue_date = date(2019, 1, 1)
         db.session.flush()
-        assert has_financial_activity(sid)
-        y.start_date, y.end_date = start, end
-        y.status = "closed"                                                # a flipped status: no unlock
-        db.session.add(AcademicYear(school_id=sid, name="سنة جديدة", status="active",
-                                    start_date=date(2030, 9, 1), end_date=date(2031, 6, 30)))
+        assert has_financial_activity(sid)                          # nothing editable unlocks
+        db.session.add(JournalEntry(school_id=sid, entry_date=date.today(), reference="YEAR-CLOSE-x",
+                                    description="إقفال", related_kind="year_close", related_id=y.id,
+                                    created_at=datetime.utcnow() + timedelta(seconds=1)))
         db.session.flush()
-        assert has_financial_activity(sid)
-        db.session.add(JournalEntry(school_id=sid, entry_date=end, reference=f"YEAR-CLOSE-{y.id}",
-                                    description="إقفال", related_kind="year_close", related_id=y.id))
+        assert not has_financial_activity(sid)                      # closed by the process
+        db.session.add(JournalEntry(school_id=sid, entry_date=date(2019, 1, 1), reference="later",
+                                    description="قيد", created_at=datetime.utcnow() + timedelta(seconds=5)))
         db.session.flush()
-        assert not has_financial_activity(sid)                             # closed by the process
+        assert has_financial_activity(sid)                          # new activity locks again
         db.session.rollback(); db.session.remove()
 
 
