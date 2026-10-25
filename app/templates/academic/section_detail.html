@@ -30,18 +30,24 @@
         </div>
       </div>
       <div class="flex items-center gap-space-sm flex-wrap">
+        {% if endpoint_on('attendance.mark') %}
         <a href="{{ url_for('attendance.mark', section_id=section.id) }}"
            class="h-11 px-4 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">fact_check</span><span>رصد الحضور</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('attendance.section_report') %}
         <a href="{{ url_for('attendance.section_report', section_id=section.id) }}"
            class="h-11 px-4 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الحضور</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('lms.report_section') %}
         <a href="{{ url_for('lms.report_section', section_id=section.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">bar_chart</span><span>تقرير الأداء</span>
         </a>
+        {% endif %}
         <a href="{{ url_for('academic.section_edit', section_id=section.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">edit</span><span>تعديل</span>

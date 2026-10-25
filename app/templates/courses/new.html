@@ -21,7 +21,7 @@
     <div class="flex-1">
       <p class="font-title-md font-bold">لا توجد مواد دراسية معرَّفة بعد</p>
       <p class="font-body-md">قبل إنشاء أي مقرّر، أضف
-        <a href="{{ url_for('teachers.subject_new') }}" class="underline font-bold">مادة دراسية</a>
+        {% if endpoint_on('teachers.subject_new') %}<a href="{{ url_for('teachers.subject_new') }}" class="underline font-bold">مادة دراسية</a>{% else %}مادة دراسية{% endif %}
         وحدّد صفوفها وفتراتها.</p>
     </div>
   </div>

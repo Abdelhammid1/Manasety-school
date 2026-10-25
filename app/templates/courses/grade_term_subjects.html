@@ -85,11 +85,13 @@
     <p class="mt-1 font-label-md text-outline">
       تأكد من تفعيل المادة للصف <b>{{ grade.name }}</b> والفترة <b>{{ term.name }}</b> من إدارة المواد.
     </p>
+    {% if endpoint_on('teachers.subjects_list') %}
     <a href="{{ url_for('teachers.subjects_list') }}"
        class="mt-3 inline-flex items-center gap-2 h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold shadow-md"
        style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined">book</span>المواد الدراسية
     </a>
+    {% endif %}
   </div>
   {% endif %}
 </div>

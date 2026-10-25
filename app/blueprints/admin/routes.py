@@ -264,7 +264,7 @@ def role_new():
         if problem:
             flash(problem, "danger")
             return render_template("admin/role_form.html", role=None,
-                                   modules=PERMISSION_MODULES, actions=PERMISSION_ACTIONS)
+                                   modules=_shown_permission_modules(), actions=PERMISSION_ACTIONS)
         role = Role(
             school_id=current_user.school_id,
             name=request.form["name"].strip(),
@@ -278,7 +278,7 @@ def role_new():
     return render_template(
         "admin/role_form.html",
         role=None,
-        modules=PERMISSION_MODULES,
+        modules=_shown_permission_modules(),
         actions=PERMISSION_ACTIONS,
     )
 
@@ -289,12 +289,12 @@ def role_new():
 def role_edit(role_id):
     role = _get_role(role_id)
     if request.method == "POST":
-        perms = _parse_permissions(request.form)
+        perms = _parse_permissions(request.form, existing=role.permissions)
         problem = _non_staff_role_problem(request.form["name"], perms, existing=role)
         if problem:
             flash(problem, "danger")
             return render_template("admin/role_form.html", role=role,
-                                   modules=PERMISSION_MODULES, actions=PERMISSION_ACTIONS)
+                                   modules=_shown_permission_modules(), actions=PERMISSION_ACTIONS)
         role.name = request.form["name"].strip()
         role.name_ar = request.form["name_ar"].strip()
         role.permissions = perms
@@ -304,7 +304,7 @@ def role_edit(role_id):
     return render_template(
         "admin/role_form.html",
         role=role,
-        modules=PERMISSION_MODULES,
+        modules=_shown_permission_modules(),
         actions=PERMISSION_ACTIONS,
     )
 
@@ -470,10 +470,27 @@ def _get_user(user_id):
     return user
 
 
-def _parse_permissions(form) -> dict:
+def _shown_permission_modules() -> list[str]:
+    """Ticket C — the permission rows of modules this school has on. A
+    row of a closed module is not shown (it would grant nothing)."""
+    from ...services.modules import module_enabled, module_for_permission
+    sid = current_user.school_id
+    return [m for m in PERMISSION_MODULES if module_enabled(sid, module_for_permission(m))]
+
+
+def _parse_permissions(form, existing=None) -> dict:
+    """The rows on the form come from the form; the rows NOT shown (their
+    module is closed) keep exactly what the role already had — editing a
+    role never changes what wasn't on the screen, and reopening the module
+    brings the old values back. A hidden row is never read from the form."""
+    shown = set(_shown_permission_modules())
+    existing = existing or {}
     perms = {}
     for module in PERMISSION_MODULES:
-        granted = [a for a in PERMISSION_ACTIONS if form.get(f"perm_{module}_{a}")]
+        if module in shown:
+            granted = [a for a in PERMISSION_ACTIONS if form.get(f"perm_{module}_{a}")]
+        else:
+            granted = list(existing.get(module) or [])
         if granted:
             perms[module] = granted
     return perms

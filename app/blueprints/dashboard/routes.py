@@ -416,7 +416,23 @@ def home():
 
 
 def _admin_dashboard():
+    from ...services.modules import feature_enabled
     sid = current_user.school_id
+    # Ticket C — a card shows only when the page it opens (or the feature
+    # that owns its data) is on; otherwise its query doesn't run at all.
+    show = {
+        "attendance": feature_enabled(sid, "attendance.mark"),
+        "invoices": feature_enabled(sid, "finance.invoices"),
+        "expenses": feature_enabled(sid, "finance.expenses"),
+        "treasury": feature_enabled(sid, "finance.treasury"),
+        "courses": feature_enabled(sid, "lms.courses"),
+        "assignments": feature_enabled(sid, "lms.assignments"),
+        "quizzes": feature_enabled(sid, "lms.quizzes"),
+        "announcements": feature_enabled(sid, "lms.announcements"),
+        "teachers": feature_enabled(sid, "academic.teachers"),
+    }
+    show["finance"] = show["invoices"] or show["expenses"] or show["treasury"]
+    show["lms"] = show["courses"] or show["assignments"] or show["quizzes"] or show["announcements"]
     active_year = _safe(
         lambda: AcademicYear.query.filter_by(school_id=sid, status="active").first()
     )
@@ -433,19 +449,20 @@ def _admin_dashboard():
             school_id=sid, year_id=yid, status="active").count(), 0) if yid else 0
 
     # ── daily-ops metrics ───────────────────────────────────────────────────
-    attendance_today = _safe(lambda: _attendance_today(sid),
-                             {"present": 0, "absent": 0, "late": 0, "total": 0, "rate": 0})
+    no_att = {"present": 0, "absent": 0, "late": 0, "total": 0, "rate": 0}
+    attendance_today = _safe(lambda: _attendance_today(sid), no_att) if show["attendance"] else no_att
     sections_unmarked = _safe(
-        lambda: _sections_unmarked_today(sid, yid), []) if yid else []
-    installments_due_7d = _safe(lambda: _installments_due_next_7d(sid), [])
+        lambda: _sections_unmarked_today(sid, yid), []) if yid and show["attendance"] else []
+    installments_due_7d = _safe(lambda: _installments_due_next_7d(sid), []) if show["invoices"] else []
 
     # ── money row ───────────────────────────────────────────────────────────
-    outstanding_ar = _safe(lambda: _outstanding_ar(sid, yid), 0.0) if yid else 0.0
-    overdue_invoices = _safe(lambda: _overdue_invoices_count(sid), 0)
-    collections_today = _safe(lambda: _payments_sum(sid, today), 0.0)
-    collections_mtd = _safe(lambda: _payments_sum(sid, start_of_month), 0.0)
-    expenses_mtd = _safe(lambda: _expenses_sum(sid, start_of_month), 0.0)
-    cash_on_hand = _safe(lambda: _cash_on_hand(sid), 0.0)
+    inv = show["invoices"]
+    outstanding_ar = _safe(lambda: _outstanding_ar(sid, yid), 0.0) if yid and inv else 0.0
+    overdue_invoices = _safe(lambda: _overdue_invoices_count(sid), 0) if inv else 0
+    collections_today = _safe(lambda: _payments_sum(sid, today), 0.0) if inv else 0.0
+    collections_mtd = _safe(lambda: _payments_sum(sid, start_of_month), 0.0) if inv else 0.0
+    expenses_mtd = _safe(lambda: _expenses_sum(sid, start_of_month), 0.0) if show["expenses"] else 0.0
+    cash_on_hand = _safe(lambda: _cash_on_hand(sid), 0.0) if show["treasury"] else 0.0
 
     # ── academic snapshot ───────────────────────────────────────────────────
     students_by_grade = _safe(
@@ -455,12 +472,13 @@ def _admin_dashboard():
     new_students_month = _safe(lambda: _new_students_this_month(sid), 0)
 
     # ── LMS snapshot ────────────────────────────────────────────────────────
-    lms = _safe(lambda: _lms_kpis(sid, yid), {
+    no_lms = {
         "courses_total": 0, "courses_published": 0, "lessons_total": 0,
         "assignments_open": 0, "submissions_pending": 0, "quizzes_active": 0,
         "quiz_attempts_today": 0, "announcements_week": 0,
-    })
-    top_courses = _safe(lambda: _top_courses_by_engagement(sid, yid), [])
+    }
+    lms = _safe(lambda: _lms_kpis(sid, yid), no_lms) if show["lms"] else no_lms
+    top_courses = _safe(lambda: _top_courses_by_engagement(sid, yid), []) if show["courses"] else []
 
     # ── system health ───────────────────────────────────────────────────────
     users_active = _safe(
@@ -468,7 +486,7 @@ def _admin_dashboard():
     users_locked = _safe(lambda: _users_locked_now(sid), 0)
     notifications_failed = _safe(lambda: _failed_notifications_last_7d(sid), 0)
     teachers_active = _safe(
-        lambda: Teacher.query.filter_by(school_id=sid, is_active=True).count(), 0)
+        lambda: Teacher.query.filter_by(school_id=sid, is_active=True).count(), 0) if show["teachers"] else 0
 
     # ── baseline structural counts (kept for footer stats) ──────────────────
     grades_count = _safe(lambda: Grade.query.filter_by(school_id=sid).count(), 0)
@@ -509,6 +527,7 @@ def _admin_dashboard():
         # LMS
         "lms": lms,
         "top_courses": top_courses,
+        "show": show,
     }
     return render_template("dashboard/home.html", stats=stats, today=today)
 
@@ -630,10 +649,14 @@ def _teacher_dashboard():
             return None
         return round((by.get("present", 0) / total) * 100, 1)
 
+    from ...services.modules import feature_enabled
+    show = {"schedule": feature_enabled(sid, "schedule.timetable"),
+            "assignments": feature_enabled(sid, "lms.assignments"),
+            "attendance": feature_enabled(sid, "attendance.mark")}
     students_count = _safe(_students_count, 0)
-    today_periods = _safe(_today_periods, [])
-    pending = _safe(_pending_submissions, [])
-    attendance_rate = _safe(_attendance_rate_30d, None)
+    today_periods = _safe(_today_periods, []) if show["schedule"] else []
+    pending = _safe(_pending_submissions, []) if show["assignments"] else []
+    attendance_rate = _safe(_attendance_rate_30d, None) if show["attendance"] else None
     def _pending_count():
         # Ticket #2 — mirrors _pending_submissions above.
         if not teacher:
@@ -651,9 +674,10 @@ def _teacher_dashboard():
                     TeachingAssignment.is_active.is_(True),
                     Submission.score.is_(None))\
             .scalar()
-    pending_count = _safe(_pending_count, 0)
+    pending_count = _safe(_pending_count, 0) if show["assignments"] else 0
 
     ctx = {
+        "show": show,
         "teacher": teacher,
         "active_year_name": active_year.name if active_year else "—",
         "today_date": today_,
@@ -672,8 +696,12 @@ def _student_dashboard():
     latest grade + courses grid. Scopes by the linked Student row."""
     from ...models import Assignment as _TA  # noqa: F401 (import parity)
     from ...models import Course
+    from ...services.modules import feature_enabled
 
     sid = current_user.school_id
+    show = {"assignments": feature_enabled(sid, "lms.assignments"),
+            "quizzes": feature_enabled(sid, "lms.quizzes"),
+            "courses": feature_enabled(sid, "lms.courses")}
     student = _safe(
         lambda: Student.query.filter_by(
             school_id=sid, user_id=current_user.id,
@@ -716,7 +744,7 @@ def _student_dashboard():
     # Next due assignment — only within the student's visible courses,
     # published, not yet due.
     next_assignment = None
-    if student and course_ids:
+    if student and course_ids and show["assignments"]:
         next_assignment = _safe(
             lambda: (
                 CourseAssignment.query
@@ -738,7 +766,7 @@ def _student_dashboard():
     # ordered by opens_at ascending with no time filter so a quiz that
     # opened a month ago was still shown as "upcoming".
     next_quiz = None
-    if student and course_ids:
+    if student and course_ids and show["quizzes"]:
         next_quiz = _safe(
             lambda: (
                 Quiz.query
@@ -755,7 +783,7 @@ def _student_dashboard():
         )
     # Latest grade — last submission of this student with a score
     latest_grade = None
-    if student:
+    if student and show["assignments"]:
         latest_grade = _safe(
             lambda: (
                 Submission.query
@@ -773,7 +801,7 @@ def _student_dashboard():
     # became many-to-many with sections (lms.py#39), so it always
     # returned []: "لم يتم فتح مواد لك بعد" even for enrolled students.
     courses = []
-    if student and course_ids:
+    if student and course_ids and show["courses"]:
         courses = _safe(
             lambda: Course.query.filter(
                 Course.id.in_(course_ids),
@@ -785,6 +813,7 @@ def _student_dashboard():
 
     return render_template(
         "dashboard/student.html",
+        show=show,
         student=student,
         next_assignment=next_assignment,
         next_quiz=next_quiz,
@@ -796,7 +825,12 @@ def _student_dashboard():
 def _parent_dashboard():
     """Parent home — child selector + weekly attendance + latest grades +
     fees status + announcements feed. Scopes by parent_user_id on Student."""
+    from ...services.modules import feature_enabled
     sid = current_user.school_id
+    show = {"attendance": feature_enabled(sid, "attendance.mark"),
+            "invoices": feature_enabled(sid, "finance.invoices"),
+            "assignments": feature_enabled(sid, "lms.assignments"),
+            "announcements": feature_enabled(sid, "lms.announcements")}
     children = _safe(
         lambda: Student.query.filter_by(parent_user_id=current_user.id).all(), []
     )
@@ -820,7 +854,7 @@ def _parent_dashboard():
                 student_id=active_child.id, status="active"
             ).order_by(Enrollment.created_at.desc()).first()
         )
-        if enroll:
+        if enroll and show["attendance"]:
             week_att = _safe(
                 lambda: (
                     Attendance.query
@@ -830,7 +864,7 @@ def _parent_dashboard():
                     ).order_by(Attendance.date.asc()).all()
                 ), []
             )
-        latest_grades = _safe(
+        latest_grades = [] if not show["assignments"] else _safe(
             lambda: (
                 Submission.query
                 .filter(Submission.student_id == active_child.id,
@@ -841,7 +875,7 @@ def _parent_dashboard():
             ), []
         )
         # Unpaid invoices for this child
-        invoices = _safe(
+        invoices = [] if not show["invoices"] else _safe(
             lambda: (
                 db.session.query(Invoice)
                 .join(Enrollment, Enrollment.id == Invoice.enrollment_id)
@@ -851,7 +885,7 @@ def _parent_dashboard():
                 .limit(3).all()
             ), []
         )
-    announcements = _safe(
+    announcements = [] if not show["announcements"] else _safe(
         lambda: (
             Announcement.query.filter_by(school_id=sid)
             .order_by(Announcement.is_pinned.desc(), Announcement.created_at.desc())
@@ -861,6 +895,7 @@ def _parent_dashboard():
 
     return render_template(
         "dashboard/parent.html",
+        show=show,
         children=children,
         active_child=active_child,
         week_attendance=week_att,
@@ -937,9 +972,13 @@ def _search_hits(q, sid, *, limit_each):
     renders it into the dropdown or the results page as-is.
     Each group is searched only for a user who may open the page its
     hits link to (a student / parent never lists the school's students)."""
+    from ...services.modules import feature_enabled
     like = f"%{q}%"
     out = {}
     can = current_user.can
+    # Ticket C — a group is searched only when its feature is on for the
+    # school (the students group is essential).
+    on = lambda key: feature_enabled(sid, key)  # noqa: E731
 
     stu = can("students", "view") and (
         Student.query.filter(Student.school_id == sid)
@@ -957,7 +996,7 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "school",
         } for s in stu]
 
-    tch = can("teachers", "view") and (
+    tch = can("teachers", "view") and on("academic.teachers") and (
         Teacher.query.filter(Teacher.school_id == sid)
         .filter(Teacher.full_name.ilike(like))
         .limit(limit_each).all()
@@ -972,7 +1011,7 @@ def _search_hits(q, sid, *, limit_each):
         } for t in tch]
 
     inv = None
-    if can("finance", "view"):
+    if can("finance", "view") and on("finance.invoices"):
         iq = Invoice.query.filter(Invoice.school_id == sid).filter(db.or_(
             Invoice.number.ilike(like),
             Invoice.notes.ilike(like),
@@ -994,7 +1033,7 @@ def _search_hits(q, sid, *, limit_each):
         } for i in inv]
 
     # the courses hub sends non-editors back to their dashboard
-    crs = can("lms", "edit") and (
+    crs = can("lms", "edit") and on("lms.courses") and (
         Course.query.filter(Course.school_id == sid)
         .filter(Course.title.ilike(like))
         .limit(limit_each).all()
@@ -1007,7 +1046,7 @@ def _search_hits(q, sid, *, limit_each):
             "icon": "auto_stories",
         } for c in crs]
 
-    emp = can("payroll", "view") and _has_endpoint("hr.employees_list") and (
+    emp = can("payroll", "view") and _has_endpoint("hr.employees_list") and on("hr.employees") and (
         Employee.query.filter(Employee.school_id == sid)
         .filter(Employee.full_name.ilike(like))
         .limit(limit_each).all()

@@ -24,6 +24,8 @@ def build_student_360(student_id: int) -> dict:
     if student is None:
         return {}
 
+    from .modules import feature_enabled
+    active = next((e for e in student.enrollments if e.status == "active"), None)
     result = {
         "student": {
             "id": student.id,
@@ -31,15 +33,27 @@ def build_student_360(student_id: int) -> dict:
             "permanent_code": student.permanent_code,
             "gender": student.gender,
             "photo_url": student.photo_url,
+            "current_section": (
+                {"grade": active.grade.name if active.grade else None,
+                 "section": active.section.name if active.section else None}
+                if active else None
+            ),
         },
-        "academic": _academic_snapshot(student),
-        "attendance": _attendance_snapshot(student),
-        "behavior": _behavior_snapshot(student),
-        "financial": _financial_snapshot(student),
-        "health": _health_snapshot(student),
-        "documents": _documents_snapshot(student),
         "siblings": _siblings_snapshot(student),
     }
+    # Ticket C — a section exists only when its feature is on for the
+    # student's school: its key is left out (no null, no zeros) and its
+    # query never runs.
+    for key, feature, build in (
+        ("academic", "results.gradebook", _academic_snapshot),
+        ("attendance", "attendance.mark", _attendance_snapshot),
+        ("financial", "finance.invoices", _financial_snapshot),
+        ("behavior", "students.behavior", _behavior_snapshot),
+        ("health", "students.health", _health_snapshot),
+        ("documents", "students.documents", _documents_snapshot),
+    ):
+        if feature_enabled(student.school_id, feature):
+            result[key] = build(student)
     return result
 
 

@@ -113,8 +113,8 @@
     {# Tab 2 — Banks (read-only list; add via PaymentMethod screen) #}
     <div id="t2" class="tab p-space-lg flex flex-col gap-space-md" style="display:none">
       <p class="font-body-md text-on-surface-variant">
-        الحسابات البنكية للمدرسة تُدار كطرق دفع من نوع "بنك فوري". أضف حساب هنا:
-        <a class="text-primary font-bold" href="{{ url_for('finance.payment_methods_list') }}">إعدادات طرق الدفع</a>
+        الحسابات البنكية للمدرسة تُدار كطرق دفع من نوع "بنك فوري".{% if endpoint_on('finance.payment_methods_list') %} أضف حساب هنا:
+        <a class="text-primary font-bold" href="{{ url_for('finance.payment_methods_list') }}">إعدادات طرق الدفع</a>{% endif %}
       </p>
       <table class="min-w-full">
         <thead class="bg-surface-container-high"><tr class="text-right">

@@ -169,7 +169,7 @@
       </h2>
       <p class="mt-2 font-body-md text-body-md">
         بدون نتيجة معتمدة: <b>{{ incomplete_no_yr|length }}</b> · حالة "غير مكتمل": <b>{{ incomplete_status|length }}</b>.
-        اعتمد نتائج السنة أولاً من <a href="{{ url_for('results.grades_index') }}" class="text-primary font-bold underline">صفحة رصد الدرجات</a>.
+        اعتمد نتائج السنة أولاً من {% if endpoint_on('results.grades_index') %}<a href="{{ url_for('results.grades_index') }}" class="text-primary font-bold underline">صفحة رصد الدرجات</a>{% else %}صفحة رصد الدرجات{% endif %}.
       </p>
     </section>
     {% endif %}

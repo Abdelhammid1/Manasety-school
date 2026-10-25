@@ -52,32 +52,42 @@
             {% endif %}
           </span>
         </div>
+        {% if endpoint_on('schedule.index') %}
         <a href="{{ url_for('schedule.index') }}" class="inline-flex items-center gap-1 font-label-xs text-label-xs text-secondary-container bg-surface-container-lowest/15 hover:bg-surface-container-lowest/25 px-2.5 py-1 rounded-lg transition-colors">
           <span>عرض الجدول</span>
           <span class="material-symbols-outlined text-[14px]">arrow_back</span>
         </a>
+        {% endif %}
       </div>
     </div>
   </section>
 
   {# ── Quick actions ── #}
   <section class="flex gap-space-xs overflow-x-auto pb-1 no-scrollbar">
+    {% if endpoint_on('attendance.index') %}
     <a href="{{ url_for('attendance.index') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary font-label-md text-label-md shadow-md hover:bg-primary-container active:scale-95 transition-all shrink-0">
       <span class="material-symbols-outlined text-[20px] text-secondary-container">fact_check</span>
       <span>رصد الحضور السريع</span>
     </a>
+    {% endif %}
+    {% if endpoint_on('lms.assignments_home') %}
     <a href="{{ url_for('lms.assignments_home') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-lowest text-primary font-label-md text-label-md shadow-sm hover:bg-surface-container-low active:scale-95 transition-all shrink-0">
       <span class="material-symbols-outlined text-[20px] text-secondary">add_task</span>
       <span>واجب جديد</span>
     </a>
+    {% endif %}
+    {% if endpoint_on('lms.announcements_home') %}
     <a href="{{ url_for('lms.announcements_home') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface font-label-md text-label-md shadow-sm hover:bg-surface-container-low active:scale-95 transition-all shrink-0">
       <span class="material-symbols-outlined text-[20px] text-secondary">campaign</span>
       <span>إعلان جديد</span>
     </a>
+    {% endif %}
+    {% if endpoint_on('courses.new') %}
     <a href="{{ url_for('courses.new') }}" class="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-surface-container-lowest text-on-surface font-label-md text-label-md shadow-sm hover:bg-surface-container-low active:scale-95 transition-all shrink-0">
       <span class="material-symbols-outlined text-[20px] text-primary">library_add</span>
       <span>مادة جديدة</span>
     </a>
+    {% endif %}
   </section>
 
   {# ── 4 KPI tiles ── #}
@@ -98,6 +108,7 @@
       </div>
     </div>
 
+    {% if show.schedule %}
     {# 2. Today's periods #}
     <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
       <div class="flex items-start justify-between">
@@ -116,7 +127,9 @@
         <div class="h-full bg-secondary-container rounded-full" style="width: {{ [today_periods_count*100//8, 100]|min if today_periods_count else 0 }}%"></div>
       </div>
     </div>
+    {% endif %}
 
+    {% if show.assignments %}
     {# 3. Pending grading #}
     <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
       <div class="flex items-start justify-between">
@@ -137,7 +150,9 @@
         <div class="h-full {% if pending_count %}bg-error{% else %}bg-secondary{% endif %} rounded-full" style="width: {{ [pending_count*100//20, 100]|min if pending_count else 8 }}%"></div>
       </div>
     </div>
+    {% endif %}
 
+    {% if show.attendance %}
     {# 4. Attendance rate #}
     <div class="bg-surface-container-lowest p-space-md rounded-2xl shadow-sm flex flex-col justify-between relative overflow-hidden">
       <div class="flex items-start justify-between">
@@ -160,19 +175,23 @@
         <div class="h-full bg-primary rounded-full" style="width: {{ attendance_rate or 0 }}%"></div>
       </div>
     </div>
+    {% endif %}
   </section>
 
-  {# ── Today's schedule ── #}
+  {% if show.schedule %}
+    {# ── Today's schedule ── #}
   <section class="flex flex-col gap-space-sm">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
         <span class="w-2.5 h-2.5 rounded-full bg-primary"></span>
         <h3 class="font-headline-sm text-headline-sm text-primary font-bold">جدول الحصص اليومية</h3>
       </div>
+      {% if endpoint_on('schedule.index') %}
       <a href="{{ url_for('schedule.index') }}" class="font-label-sm text-label-md text-secondary hover:underline flex items-center gap-0.5">
         <span>عرض الأسبوع</span>
         <span class="material-symbols-outlined text-[16px]">chevron_left</span>
       </a>
+      {% endif %}
     </div>
     <div class="flex flex-col gap-space-xs">
       {% for slot in today_periods %}
@@ -198,10 +217,12 @@
             </div>
           </div>
           {% if loop.first %}
+          {% if endpoint_on('attendance.index') %}
           <a href="{{ url_for('attendance.index') }}" class="shrink-0 flex items-center gap-1.5 bg-gradient-to-l from-primary to-secondary text-on-primary font-label-md text-label-md px-4 py-2.5 rounded-xl shadow-md hover:opacity-95 transition-all">
             <span class="material-symbols-outlined text-[18px]">videocam</span>
             <span>فتح الصف</span>
           </a>
+          {% endif %}
           {% endif %}
         </div>
       </div>
@@ -213,8 +234,10 @@
       {% endfor %}
     </div>
   </section>
+    {% endif %}
 
-  {# ── Pending submissions ── #}
+  {% if show.assignments %}
+    {# ── Pending submissions ── #}
   <section class="flex flex-col gap-space-sm mt-1">
     <div class="flex items-center justify-between">
       <div class="flex items-center gap-2">
@@ -222,7 +245,9 @@
         <h3 class="font-headline-sm text-headline-sm text-primary font-bold">تسليمات بانتظار المراجعة</h3>
       </div>
       {% if pending_count %}
+      {% if endpoint_on('lms.assignments_home') %}
       <a href="{{ url_for('lms.assignments_home') }}" class="font-label-xs text-label-xs bg-error-container text-on-error-container font-bold px-2 py-0.5 rounded-full hover:opacity-90">{{ pending_count }} تسليم</a>
+      {% endif %}
       {% endif %}
     </div>
     <div class="bg-surface-container-lowest rounded-2xl p-space-sm shadow-sm flex flex-col gap-1">
@@ -243,11 +268,13 @@
             </div>
           </div>
         </div>
+        {% if endpoint_on('lms.assignments_home') %}
         <a href="{{ url_for('lms.assignments_home') }}#sub-{{ sub.id }}"
            class="shrink-0 flex items-center gap-1 bg-primary text-on-primary font-label-md text-label-md px-3.5 py-1.5 rounded-xl hover:bg-primary-container transition-all">
           <span class="material-symbols-outlined text-[16px]">edit_note</span>
           <span>تصحيح</span>
         </a>
+        {% endif %}
       </div>
       {% if not loop.last %}<div class="w-full h-[1px] bg-surface-container"></div>{% endif %}
       {% else %}
@@ -258,6 +285,7 @@
       {% endfor %}
     </div>
   </section>
+    {% endif %}
 
   {# ── AI assistant callout — links to LMS content builder #}
   <section class="bg-gradient-to-r from-surface-container-low to-surface-container-lowest rounded-2xl p-space-md flex items-center justify-between gap-space-sm">
@@ -278,9 +306,11 @@
         </span>
       </div>
     </div>
+    {% if endpoint_on('courses.list_courses') %}
     <a href="{{ url_for('courses.list_courses') }}" class="shrink-0 px-3 py-1.5 rounded-xl bg-primary text-on-primary font-label-sm text-label-md shadow hover:bg-primary-container transition-all">
       إدارة الموادّ
     </a>
+    {% endif %}
   </section>
 </div>
 {% endblock %}

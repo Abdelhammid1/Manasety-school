@@ -46,6 +46,7 @@
 
   {# Weekly attendance strip + fees + grades #}
   <section class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
+    {% if show.attendance %}
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
       <div class="flex items-center justify-between mb-space-sm">
         <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
@@ -75,7 +76,9 @@
         {% endfor %}
       </div>
     </div>
+    {% endif %}
 
+    {% if show.invoices %}
     <div class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
       <div class="flex items-center justify-between mb-space-sm">
         <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
@@ -83,7 +86,7 @@
           الرسوم والفواتير
         </h3>
         {# the full invoices page is for finance staff; a parent sees their child's invoices right here #}
-        {% if current_user.can('finance', 'view') %}
+        {% if current_user.can('finance', 'view') and endpoint_on('finance.invoices_list') %}
         <a href="{{ url_for('finance.invoices_list') }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
         {% endif %}
       </div>
@@ -110,8 +113,10 @@
       <p class="text-center text-on-surface-variant font-body-sm text-body-sm py-4">لا فواتير مستحقة حالياً. ✓</p>
       {% endif %}
     </div>
+    {% endif %}
   </section>
 
+  {% if show.assignments %}
   {# Latest grades #}
   <section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
     <div class="flex items-center justify-between mb-space-sm">
@@ -139,7 +144,9 @@
     </div>
   </section>
   {% endif %}
+  {% endif %}
 
+  {% if show.announcements %}
   {# Announcements #}
   <section class="bg-surface-container-lowest rounded-xl p-space-md shadow-sm">
     <div class="flex items-center justify-between mb-space-sm">
@@ -147,7 +154,7 @@
         <span class="material-symbols-outlined text-secondary">campaign</span>
         إعلانات المدرسة
       </h3>
-      <a href="{{ url_for('lms.announcements_home') }}" class="font-label-md text-label-md text-secondary hover:underline">الكل</a>
+      {% if endpoint_on('lms.announcements_home') %}<a href="{{ url_for('lms.announcements_home') }}" class="font-label-md text-label-md text-secondary hover:underline">الكل</a>{% endif %}
     </div>
     <div class="flex flex-col gap-2">
       {% for a in announcements %}
@@ -163,5 +170,6 @@
       {% endfor %}
     </div>
   </section>
+  {% endif %}
 </div>
 {% endblock %}

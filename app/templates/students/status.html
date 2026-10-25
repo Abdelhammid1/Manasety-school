@@ -87,8 +87,10 @@
           <ul class="mt-2 space-y-1 text-sm">
             {% for inv in open_invoices %}
             <li>
+              {% if endpoint_on('finance.invoice_detail') %}
               <a href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}"
                  class="underline hover:text-primary font-mono">{{ inv.number }}</a>
+              {% endif %}
               — {{ inv.status }} — متبقّي: <b class="font-mono">{{ '{:,.2f}'.format((inv.total_amount or 0) - (inv.paid_amount or 0)) }}</b>
             </li>
             {% endfor %}

@@ -21,15 +21,16 @@
     <div class="flex-1 min-w-0">
       <h1 class="font-headline-md text-primary font-extrabold">{{ student.full_name }}</h1>
       <p class="font-label-md text-outline" dir="ltr"><code>{{ student.permanent_code }}</code></p>
-      {% if data.academic.current_section %}
+      {% if data.student.current_section %}
       <p class="font-label-sm text-on-surface-variant">
-        {{ data.academic.current_section.grade }} — {{ data.academic.current_section.section }}
+        {{ data.student.current_section.grade }} — {{ data.student.current_section.section }}
       </p>
       {% endif %}
     </div>
   </section>
 
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
+    {% if 'academic' in data %}
     {# Academic #}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center gap-2 mb-space-sm">
@@ -42,7 +43,9 @@
         <span class="font-label-xs text-outline">{{ data.academic.last_grade.recorded_at }}</span></p>
       {% endif %}
     </div>
+    {% endif %}
 
+    {% if 'attendance' in data %}
     {# Attendance #}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center gap-2 mb-space-sm">
@@ -54,7 +57,9 @@
       <p><b>آخر رصد:</b> {{ data.attendance.last_seen.date }} ({{ data.attendance.last_seen.status }})</p>
       {% endif %}
     </div>
+    {% endif %}
 
+    {% if 'financial' in data %}
     {# Financial #}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center gap-2 mb-space-sm">
@@ -69,7 +74,9 @@
         </span>
       </p>
     </div>
+    {% endif %}
 
+    {% if 'behavior' in data %}
     {# Behavior #}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center gap-2 mb-space-sm">
@@ -82,7 +89,9 @@
       <p><b>آخر حادثة:</b> {{ data.behavior.last_incident.date }} ({{ data.behavior.last_incident.points }})</p>
       {% endif %}
     </div>
+    {% endif %}
 
+    {% if 'health' in data %}
     {# Health #}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center gap-2 mb-space-sm">
@@ -98,14 +107,15 @@
       {% endif %}
       <p><b>حوادث صحية:</b> {{ data.health.incidents_count }}</p>
     </div>
+    {% endif %}
 
     {# Docs + Siblings #}
     <div class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center gap-2 mb-space-sm">
         <span class="material-symbols-outlined text-primary">description</span>
-        <span class="font-title-md font-bold">مستندات + إخوة</span>
+        <span class="font-title-md font-bold">{{ 'مستندات + إخوة' if 'documents' in data else 'الإخوة' }}</span>
       </div>
-      <p><b>عدد المستندات:</b> {{ data.documents.count }}</p>
+      {% if 'documents' in data %}<p><b>عدد المستندات:</b> {{ data.documents.count }}</p>{% endif %}
       <p><b>الإخوة في المدرسة:</b> {{ data.siblings.count }}</p>
     </div>
   </div>

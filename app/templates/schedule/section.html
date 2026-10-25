@@ -24,10 +24,12 @@
          same permission the target page requires so students viewing
          their own schedule don't see a button that 403s on click. #}
       {% if current_user.can('teachers', 'edit') %}
+      {% if endpoint_on('teachers.section_assignments') %}
       <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}"
          class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
         <span class="material-symbols-outlined text-lg">assignment_ind</span><span>إسناد الفصل</span>
       </a>
+      {% endif %}
       {% endif %}
       <button type="button" onclick="window.print()"
               class="h-11 px-4 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold hover:bg-surface-container flex items-center gap-2">
@@ -45,7 +47,7 @@
   <div class="bg-tertiary-fixed text-on-tertiary-fixed-variant rounded-2xl p-space-lg flex items-center gap-3">
     <span class="material-symbols-outlined">warning</span>
     {% if current_user.can('teachers', 'edit') %}
-    <span>لا يوجد إسناد لهذا الفصل بعد. أضف الإسناد من <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="text-primary font-bold underline">صفحة الإسناد</a>.</span>
+    <span>لا يوجد إسناد لهذا الفصل بعد. أضف الإسناد من {% if endpoint_on('teachers.section_assignments') %}<a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}" class="text-primary font-bold underline">صفحة الإسناد</a>{% else %}صفحة الإسناد{% endif %}.</span>
     {% else %}
     <span>لم يُحدَّد جدول هذا الفصل بعد — راجع إدارة المدرسة.</span>
     {% endif %}
@@ -164,10 +166,12 @@
                 </form>
               </details>
               {% else %}
+              {% if endpoint_on('teachers.section_assignments') %}
               <a href="{{ url_for('teachers.section_assignments', section_id=section.id) }}"
                  class="block p-3 rounded-lg border-2 border-dashed border-outline-variant text-center text-outline hover:text-primary hover:border-primary font-label-xs">
                 لا يوجد إسناد — أضف من هنا
               </a>
+              {% endif %}
               {% endif %}
               {% else %}{# non-editor: blank cell, no affordances #}
               <div class="p-3 rounded-lg text-center text-outline font-label-xs">—</div>

@@ -63,35 +63,49 @@
         </div>
       </div>
       <div class="flex items-center gap-space-sm flex-wrap">
+        {% if endpoint_on('lms.report_student') %}
         <a href="{{ url_for('lms.report_student', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">insights</span><span>تقرير الأداء</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('students.health_profile') %}
         <a href="{{ url_for('students.health_profile', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">medical_services</span><span>السجل الصحي</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('students.documents') %}
         <a href="{{ url_for('students.documents', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">folder_open</span><span>المستندات</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('students.behavior_home') %}
         <a href="{{ url_for('students.behavior_home', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">gavel</span><span>السلوك</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('results.transcript_view') %}
         <a href="{{ url_for('results.transcript_view', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">description</span><span>السجل الأكاديمي</span>
         </a>
+        {% endif %}
         {# S1/S7 — 360 + ID card entry points #}
+        {% if endpoint_on('students.student_360') %}
         <a href="{{ url_for('students.student_360', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">dashboard</span><span>الملف الشامل</span>
         </a>
+        {% endif %}
+        {% if endpoint_on('students.student_id_card') %}
         <a href="{{ url_for('students.student_id_card', student_id=student.id) }}" target="_blank"
            class="h-11 px-4 rounded-xl bg-white/10 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/20 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">badge</span><span>بطاقة الطالب</span>
         </a>
+        {% endif %}
         <a href="{{ url_for('students.student_edit', student_id=student.id) }}"
            class="h-11 px-4 rounded-xl bg-white/15 backdrop-blur text-on-primary font-label-lg font-bold hover:bg-white/25 flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">edit</span><span>تعديل الملف</span>
@@ -106,10 +120,12 @@
            page; picks up the active enrollment so the form is already
            pre-selected on arrival. #}
         {% set _active_enr = (student.enrollments | selectattr('status', 'equalto', 'active') | list | first) %}
+        {% if endpoint_on('finance.invoice_new') %}
         <a href="{{ url_for('finance.invoice_new', enrollment_id=_active_enr.id) if _active_enr else url_for('finance.invoice_new') }}"
            class="h-11 px-5 rounded-xl bg-white text-primary font-title-md font-bold shadow-md hover:bg-surface-container-lowest flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">receipt_long</span><span>فاتورة جديدة</span>
         </a>
+        {% endif %}
         {% endif %}
       </div>
     </div>
@@ -130,11 +146,13 @@
         عايز تنشئ فاتورة الرسوم الدراسية دلوقتي؟ الطالب هيتظبط لك في الفورم أوتوماتيك.
       </p>
     </div>
+    {% if endpoint_on('finance.invoice_new') %}
     <a href="{{ url_for('finance.invoice_new', enrollment_id=new_enrollment_id) }}"
        class="h-11 px-5 rounded-xl text-white font-title-md font-bold flex items-center gap-2 shadow-sm"
        style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
       <span class="material-symbols-outlined">add_circle</span><span>إنشاء فاتورة الآن</span>
     </a>
+    {% endif %}
     <a href="{{ url_for('students.student_detail', student_id=student.id) }}"
        class="h-11 w-11 rounded-xl bg-white/60 text-[#065F46] flex items-center justify-center hover:bg-white"
        title="تجاهل">
@@ -403,11 +421,13 @@
         {% if invoices %}
         <div class="mt-space-md flex flex-col gap-1">
           {% for inv in invoices[:5] %}
+          {% if endpoint_on('finance.invoice_detail') %}
           <a href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}"
              class="flex items-center justify-between p-2 rounded-lg hover:bg-surface-container-low transition-colors">
             <span class="font-label-md text-label-md text-primary">#{{ inv.id }} · {{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '' }}</span>
             <span class="font-label-md text-label-md text-on-surface-variant">{{ inv.remaining|round(2) }}</span>
           </a>
+          {% endif %}
           {% endfor %}
         </div>
         {% endif %}

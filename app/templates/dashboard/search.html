@@ -7,7 +7,7 @@
 {% endblock %}
 {% block page_content %}
 <div class="w-full max-w-4xl mx-auto space-y-6 pb-16">
-  <form method="get" action="{{ url_for('dashboard.global_search') }}"
+  <form method="get" action="{{ url_for('dashboard.global_search') }}"{# feature-link-ok: the search page itself #}
         class="flex items-center gap-2 bg-surface-container-lowest rounded-2xl p-space-md shadow-sm">
     <span class="material-symbols-outlined text-primary text-2xl">search</span>
     <input type="text" name="q" value="{{ q }}" autofocus
