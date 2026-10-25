@@ -87,8 +87,9 @@
     </div>
   </div>
 
-  {# Ledger table #}
-  {% if account.is_postable %}
+  {# Ledger table — a header shows one only for lines posted while it was
+     still postable (1120 before the banks tree) #}
+  {% if account.is_postable or rows %}
   <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden">
     <div class="p-space-md border-b border-surface-container-low flex items-center justify-between">
       <div class="flex items-center gap-2">

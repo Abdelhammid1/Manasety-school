@@ -137,17 +137,16 @@ def account_statement(aid):
             if v:
                 party, party_kind = v, "vendor"
 
-    lines = []
-    if acct.is_postable:
-        lines = (
-            db.session.query(JournalLine, JournalEntry)
-            .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
-            .filter(JournalLine.account_id == acct.id)
-            .order_by(JournalEntry.entry_date.asc(),
-                      JournalEntry.id.asc(),
-                      JournalLine.id.asc())
-            .all()
-        )
+    # a header's own lines too: posted while it was still postable (1120)
+    lines = (
+        db.session.query(JournalLine, JournalEntry)
+        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+        .filter(JournalLine.account_id == acct.id)
+        .order_by(JournalEntry.entry_date.asc(),
+                  JournalEntry.id.asc(),
+                  JournalLine.id.asc())
+        .all()
+    )
     # Running balance walks DR/CR side per account type.
     running = 0.0
     is_debit_side = acct.type in ("asset", "expense")
@@ -212,25 +211,38 @@ def _suggest_next_child_code(school_id: int, parent: Account) -> str:
 def account_suggest_code():
     """Ajax endpoint — called by account_form.html when the parent
     dropdown changes. Returns {"code": "5150"}."""
+    from ...services import bank_accounts as banks
     pid = request.args.get("parent_id", type=int)
     if not pid:
-        return {"code": ""}
+        return {"code": "", "manual": False}
     parent = Account.query.filter_by(id=pid, school_id=_sid()).first()
     if not parent:
-        return {"code": ""}
-    return {"code": _suggest_next_child_code(_sid(), parent)}
+        return {"code": "", "manual": False}
+    where = banks.position(_sid(), parent)
+    if where == "bank_account":                 # the real account number, typed by the user
+        return {"code": "", "manual": True, "position": where}
+    code = banks.next_bank_code(_sid()) if where == "bank" else _suggest_next_child_code(_sid(), parent)
+    return {"code": code, "manual": False, "position": where}
 
 
 @bp.route("/accounts/new", methods=["GET", "POST"])
 @login_required
 @require_permission("finance", "edit")
 def account_new():
+    from ...models.finance import ACCOUNT_TYPES
+    from ...services import bank_accounts as banks
     # Ticket B — parents dropdown only lists aggregate accounts
     # (is_postable=False); a postable leaf can never be a parent.
     parents = (
         Account.query.filter_by(school_id=_sid(), is_postable=False)
         .order_by(Account.code).all()
     )
+    positions = {a.id: banks.position(_sid(), a) for a in parents}
+
+    def _form():
+        return render_template("finance/account_form.html", parents=parents, positions=positions,
+                               form=request.form if request.method == "POST" else {})
+
     if request.method == "POST":
         parent_id = request.form.get("parent_id", type=int) or None
         parent = (Account.query.filter_by(id=parent_id, school_id=_sid()).first()
@@ -238,17 +250,43 @@ def account_new():
         if parent_id and parent is None:
             flash("الحساب الأب غير موجود.", "danger")
             return redirect(url_for("finance.account_new"))
-        # Row directly under a root (Level 1) → aggregate.
-        # Row under a Level-2 aggregate → postable Level-3 leaf.
-        is_postable = bool(parent and parent.parent_id is not None)
+        where = banks.position(_sid(), parent)
+        name = (request.form.get("name") or "").strip()
+        type_ = (request.form.get("type") or "").strip()
         code = (request.form.get("code") or "").strip()
-        # Ticket B — auto-fill if left blank (readonly mode).
-        if not code and parent:
-            code = _suggest_next_child_code(_sid(), parent)
+        if not name or len(name) > 128:
+            flash("اسم الحساب مطلوب (حتى 128 حرف).", "danger")
+            return _form()
+        if where == "bank":
+            # a bank's name under 1120: an aggregate, coded 1120-NN
+            is_postable, type_ = False, (parent.type if parent else type_)
+            code = code or banks.next_bank_code(_sid())
+        elif where == "bank_account":
+            # an account at that bank: postable, coded with its real number
+            is_postable, type_ = True, (parent.type if parent else type_)
+            code = banks.normalize_account_number(code)
+            if code is None:
+                flash("رقم الحساب البنكي مطلوب: حتى 30 حرف من الحروف الإنجليزية والأرقام و- فقط، "
+                      "من غير مسافات.", "danger")
+                return _form()
+        else:
+            # Row directly under a root (Level 1) → aggregate.
+            # Row under a Level-2 aggregate → postable Level-3 leaf.
+            is_postable = bool(parent and parent.parent_id is not None)
+            # Ticket B — auto-fill if left blank (readonly mode).
+            if not code and parent:
+                code = _suggest_next_child_code(_sid(), parent)
+        if type_ not in ACCOUNT_TYPES:
+            flash("نوع الحساب غير صحيح.", "danger")
+            return _form()
+        if not code or len(code) > banks.CODE_MAX:
+            flash(f"الكود مطلوب (حتى {banks.CODE_MAX} حرف).", "danger")
+            return _form()
         # Ticket B — prefix-warning check: if user typed a manual code
         # that doesn't share the parent's first digit, we warn but still
-        # accept (rare edge cases might justify it).
-        if parent and code and not code.startswith(parent.code[0]):
+        # accept (rare edge cases might justify it). Not in the banks
+        # tree: an account number starts with anything.
+        if where == "other" and parent and code and not code.startswith(parent.code[0]):
             flash(
                 f"تحذير: الكود {code} لا يبدأ برقم تصنيف الأب ({parent.code[0]}). "
                 "تم الحفظ لكن راجعه.",
@@ -257,8 +295,8 @@ def account_new():
         a = Account(
             school_id=_sid(),
             code=code,
-            name=request.form["name"].strip(),
-            type=request.form["type"],
+            name=name,
+            type=type_,
             parent_id=parent_id, is_postable=is_postable,
         )
         db.session.add(a)
@@ -267,10 +305,10 @@ def account_new():
         except Exception:
             db.session.rollback()
             flash("الكود مستخدم بالفعل — اختر كوداً آخر.", "danger")
-            return render_template("finance/account_form.html", parents=parents)
+            return _form()
         flash(f"تم إضافة الحساب {a.code} — {a.name}.", "success")
         return redirect(url_for("finance.accounts"))
-    return render_template("finance/account_form.html", parents=parents)
+    return _form()
 
 
 # ---------- T-8.1 Journal view ----------
@@ -1108,15 +1146,11 @@ def cost_center_delete(cc_id):
 @require_permission("finance", "view")
 def treasury():
     """Ticket E — treasury dashboard: cash + bank overview with quick
-    actions. Cash accounts = under 1100 with '1110' prefix / bank
-    accounts under 1120."""
-    all_cash_bank = (
-        Account.query.filter_by(school_id=_sid(), is_postable=True, type="asset")
-        .filter(Account.code.startswith("11"))
-        .order_by(Account.code).all()
-    )
-    cash_accounts = [a for a in all_cash_bank if a.code.startswith("111")]
-    bank_accounts = [a for a in all_cash_bank if a.code.startswith("112")]
+    actions. Cash accounts = postable 111x / bank accounts = the postable
+    accounts under 1120, whatever their number (services/bank_accounts)."""
+    from ...services import bank_accounts as banks
+    cash_accounts = banks.cash_accounts(_sid())
+    bank_accounts = [a for a in banks.bank_accounts(_sid()) if a.type == "asset"]
     cash_total = sum((a.balance for a in cash_accounts), 0.0)
     bank_total = sum((a.balance for a in bank_accounts), 0.0)
     return render_template(
@@ -1460,6 +1494,10 @@ def payment_method_new():
         return redirect(url_for("finance.payment_methods_list"))
     if account_id and not owned_id(Account, account_id):
         flash("الحساب المختار غير موجود.", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
+    if account_id and not Account.query.filter_by(id=account_id, school_id=_sid(), is_postable=True).first():
+        # a header (1120, a bank's name …) takes no postings
+        flash("اختر حسابًا قابلًا للترحيل (مش حساب تجميعي).", "danger")
         return redirect(url_for("finance.payment_methods_list"))
     pm = PaymentMethod(
         school_id=_sid(), name=name, kind=kind,
@@ -2200,13 +2238,10 @@ def dashboard():
         aging_report, collection_report, forecast_report,
     )
     from ...models import Invoice
-    # Treasury
-    all_cash_bank = (
-        Account.query.filter_by(school_id=_sid(), is_postable=True, type="asset")
-        .filter(Account.code.startswith("11")).all()
-    )
-    cash_total = sum(a.balance for a in all_cash_bank if a.code.startswith("111"))
-    bank_total = sum(a.balance for a in all_cash_bank if a.code.startswith("112"))
+    # Treasury — the bank accounts by their place under 1120, not their code
+    from ...services import bank_accounts as banks
+    cash_total = sum(a.balance for a in banks.cash_accounts(_sid()))
+    bank_total = sum(a.balance for a in banks.bank_accounts(_sid()) if a.type == "asset")
     # Aging
     aging = aging_report(_sid())
     # Collection this month

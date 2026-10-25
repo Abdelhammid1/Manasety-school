@@ -13,7 +13,8 @@ class Account(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     school_id = db.Column(db.Integer, db.ForeignKey("schools.id"), nullable=False, index=True)
-    code = db.Column(db.String(16), nullable=False)
+    # 30: a bank account under 1120 is coded with its real number / IBAN
+    code = db.Column(db.String(30), nullable=False)
     name = db.Column(db.String(128), nullable=False)
     type = db.Column(db.String(16), nullable=False)
     parent_id = db.Column(db.Integer, db.ForeignKey("accounts.id"))
@@ -40,9 +41,15 @@ class Account(db.Model):
         """Ticket B — an aggregate (is_postable=False) account rolls up
         its children's balances instead of running its own SUM(JournalLine).
         Postable leaves keep the old behaviour: DR/CR side by account type.
+        An aggregate's own lines (posted while it was still postable — 1120
+        before the banks tree) still count: nothing is moved or dropped.
         """
+        own = self._own_balance()
         if not self.is_postable and self.children:
-            return float(sum(c.balance for c in self.children))
+            return own + float(sum(c.balance for c in self.children))
+        return own
+
+    def _own_balance(self) -> float:
         from sqlalchemy import func
         d = db.session.query(func.coalesce(func.sum(JournalLine.debit), 0)).filter_by(account_id=self.id).scalar() or 0
         c = db.session.query(func.coalesce(func.sum(JournalLine.credit), 0)).filter_by(account_id=self.id).scalar() or 0
@@ -66,7 +73,8 @@ DEFAULT_ACCOUNT_TREE = [
     ("1000", "الأصول", "asset", None, False, None),
     ("1100", "النقدية وما في حكمها", "asset", "1000", False, None),
     ("1110", "الصندوق النقدي", "asset", "1100", True, "cash_default"),
-    ("1120", "الحساب البنكي", "asset", "1100", True, None),
+    # the banks (aggregate): bank names under it, real account numbers under those
+    ("1120", "الحساب البنكي", "asset", "1100", False, None),
     ("1200", "ذمم مدينة", "asset", "1000", False, None),
     ("1210", "ذمم الطلاب (AR)", "asset", "1200", True, "ar_default"),
     ("1150", "سلف ومستحقات موظفين", "asset", "1100", False, None),

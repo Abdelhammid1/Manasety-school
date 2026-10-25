@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% macro render_account(a, depth) %}
-  {% if a.children %}
+  {% if a.children or not a.is_postable %}
   <details class="rounded-xl {% if a.parent_id is none %}bg-surface-container-low{% else %}bg-surface-container-lowest{% endif %} border border-outline-variant" {% if a.parent_id is none %}open{% endif %}>
     <summary class="p-space-sm cursor-pointer list-none flex items-center gap-space-sm">
       <span class="material-symbols-outlined text-primary/60">expand_more</span>

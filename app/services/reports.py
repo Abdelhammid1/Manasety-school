@@ -142,16 +142,18 @@ def general_ledger(school_id: int, account_id: int, *, start=None, end=None):
 
 
 def cash_flow(school_id: int, *, start=None, end=None):
-    """Simplified: net cash movement across each 11xx (cash) account."""
+    """Simplified: net cash movement across each 11xx (cash) account — the
+    bank accounts under 1120 included whatever their number, each once."""
+    from .bank_accounts import cash_and_bank_ids
     s, e = _range(start, end)
+    ids = cash_and_bank_ids(school_id)
     rows = (
         db.session.query(Account.code, Account.name,
                          func.coalesce(func.sum(JournalLine.debit), 0),
                          func.coalesce(func.sum(JournalLine.credit), 0))
         .join(JournalLine, JournalLine.account_id == Account.id)
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
-        .filter(Account.school_id == school_id, Account.is_postable == True,
-                Account.code.startswith("11"),
+        .filter(Account.school_id == school_id, Account.id.in_(ids or [-1]),
                 JournalEntry.entry_date >= s, JournalEntry.entry_date <= e)
         .group_by(Account.id).order_by(Account.code).all()
     )

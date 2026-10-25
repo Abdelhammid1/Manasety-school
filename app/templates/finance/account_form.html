@@ -1,7 +1,10 @@
 {# Ticket B — new-account form:
    · Parent select first, code auto-suggested and rendered readonly.
    · "تعديل يدوي" toggle unlocks the code field for the rare custom case
-     and triggers a live uniqueness check before submit. #}
+     and triggers a live uniqueness check before submit.
+   · Banks (services/bank_accounts): under 1120 the child is a bank's name
+     (code 1120-NN); under a bank it is a real account, coded with its real
+     number — typed, required, no suggestion. #}
 {% extends "partials/stitch_base.html" %}
 {% block title %}حساب جديد{% endblock %}
 {% block topbar_crumb %}
@@ -20,16 +23,16 @@
       <select name="parent_id" id="parentSel" required onchange="suggestCode()"
               class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
         <option value="">— اختر الأب —</option>
-        {% for a in parents %}<option value="{{ a.id }}" data-code="{{ a.code }}" data-type="{{ a.type }}">{{ a.code }} — {{ a.name }}</option>{% endfor %}
+        {% for a in parents %}<option value="{{ a.id }}" data-code="{{ a.code }}" data-type="{{ a.type }}" data-position="{{ positions.get(a.id, 'other') }}"{% if form.get('parent_id') == a.id|string %} selected{% endif %}>{{ a.code }} — {{ a.name }}</option>{% endfor %}
       </select>
       <span class="font-label-xs text-outline">النوع سيُحدَّد تلقائياً من الأب، والكود يُقترح تلقائياً بعد الاختيار.</span>
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md">
       <div class="flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">الكود <span class="text-error">*</span></label>
+        <label class="font-label-md text-label-md text-on-surface font-bold"><span id="codeLabel">الكود</span> <span class="text-error">*</span></label>
         <div class="flex items-stretch gap-1">
-          <input name="code" id="codeInput" required dir="ltr" readonly
+          <input name="code" id="codeInput" required dir="ltr" readonly maxlength="30" value="{{ form.get('code', '') }}"
                  class="h-12 flex-1 px-4 rounded-xl bg-surface-container-low font-mono focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <button type="button" onclick="toggleManual()" id="manualBtn"
                   class="h-12 px-3 rounded-xl bg-primary-fixed text-primary font-label-md font-bold">تعديل يدوي</button>
@@ -37,8 +40,8 @@
         <span class="font-label-xs text-outline" id="codeHint">يُقترح بعد اختيار الأب.</span>
       </div>
       <div class="md:col-span-2 flex flex-col gap-1.5">
-        <label class="font-label-md text-label-md text-on-surface font-bold">اسم الحساب <span class="text-error">*</span></label>
-        <input name="name" required
+        <label class="font-label-md text-label-md text-on-surface font-bold"><span id="nameLabel">اسم الحساب</span> <span class="text-error">*</span></label>
+        <input name="name" id="nameInput" required maxlength="128" value="{{ form.get('name', '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
@@ -64,6 +67,32 @@
 </div>
 
 <script>
+  var LABELS = {
+    other:        {code: 'الكود', name: 'اسم الحساب', namePh: ''},
+    bank:         {code: 'الكود', name: 'اسم البنك', namePh: 'مثال: بنك CIB'},
+    bank_account: {code: 'رقم الحساب البنكي', name: 'اسم الحساب', namePh: 'مثال: حساب جاري'}
+  };
+  function applyPosition(pos) {
+    var l = LABELS[pos] || LABELS.other;
+    document.getElementById('codeLabel').textContent = l.code;
+    document.getElementById('nameLabel').textContent = l.name;
+    document.getElementById('nameInput').placeholder = l.namePh;
+    var el = document.getElementById('codeInput');
+    var btn = document.getElementById('manualBtn');
+    if (pos === 'bank_account') {
+      // the real account number: typed by the user, no suggestion, no toggle
+      el.removeAttribute('readonly');
+      el.placeholder = '4501237789 أو SA03…';
+      btn.classList.add('hidden');
+      document.getElementById('codeHint').textContent =
+        'رقم الحساب الفعلي في البنك (حروف إنجليزية وأرقام و- فقط، من غير مسافات، حتى 30). والاسم هو اسم الحساب، مثلًا "حساب جاري".';
+    } else {
+      el.setAttribute('readonly', 'readonly');
+      el.placeholder = '';
+      btn.classList.remove('hidden');
+      btn.textContent = 'تعديل يدوي';
+    }
+  }
   function suggestCode() {
     var sel = document.getElementById('parentSel');
     var pid = sel.value;
@@ -72,11 +101,18 @@
     // Inherit type from parent so tree stays consistent.
     var t = opt.dataset.type;
     if (t) document.getElementById('typeSel').value = t;
+    applyPosition(opt.dataset.position);
     // Fetch a suggested code from the server.
     fetch("{{ url_for('finance.account_suggest_code') }}?parent_id=" + pid)
       .then(function(r) { return r.json(); })
       .then(function(d) {
         var el = document.getElementById('codeInput');
+        if (d.manual) {
+          applyPosition('bank_account');
+          el.value = '';               // never carry a suggested code into an account number
+          el.focus();
+          return;
+        }
         el.value = d.code || '';
         document.getElementById('codeHint').textContent =
           'الكود المقترح تلقائياً. اضغط "تعديل يدوي" لتغييره.';
@@ -96,5 +132,13 @@
       suggestCode();
     }
   }
+  // after a refused save: keep what was typed for the chosen parent
+  (function () {
+    var sel = document.getElementById('parentSel');
+    if (!sel.value) return;
+    var pos = sel.selectedOptions[0].dataset.position;
+    applyPosition(pos);
+    if (pos !== 'bank_account' && !document.getElementById('codeInput').value) suggestCode();
+  })();
 </script>
 {% endblock %}

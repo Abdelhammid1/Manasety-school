@@ -194,15 +194,13 @@ def _expenses_sum(sid: int, since: date) -> float:
 
 
 def _cash_on_hand(sid: int) -> float:
-    """Sum balances of cash + bank accounts only (codes under 1100:
-    1110 prefix for cash, 1120 prefix for bank) — not all asset accounts.
-    Uses ``Account.balance`` @property from the finance model.
+    """Sum balances of cash + bank accounts only (postable 11xx, with the
+    bank accounts found under 1120 whatever their number — each once) —
+    not all asset accounts. Uses ``Account.balance`` from the finance model.
     """
-    accts = (
-        Account.query.filter_by(school_id=sid, is_active=True, is_postable=True)
-        .filter(Account.code.startswith("11"))
-        .all()
-    )
+    from ...services.bank_accounts import cash_and_bank_ids
+    ids = cash_and_bank_ids(sid, active_only=True)
+    accts = Account.query.filter(Account.id.in_(ids)).all() if ids else []
     return sum(a.balance for a in accts)
 
 
