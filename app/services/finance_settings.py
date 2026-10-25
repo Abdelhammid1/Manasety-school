@@ -138,7 +138,7 @@ def has_financial_activity(school_id: int) -> bool:
     No date or status the school can edit (a year's dates, its status in
     the year form, an invoice's issue date) takes part."""
     from ..extensions import db
-    from ..models import Enrollment, Invoice, JournalEntry, Payment
+    from ..models import Enrollment, Invoice, JournalEntry
     closes = (db.session.query(JournalEntry.related_id, JournalEntry.created_at)
               .filter(JournalEntry.school_id == school_id, JournalEntry.related_kind == "year_close").all())
     closed_years = {rid for rid, _ in closes if rid is not None}
@@ -148,10 +148,8 @@ def has_financial_activity(school_id: int) -> bool:
         cond = Enrollment.year_id.notin_(closed_years) if closed_years else db.true()
         return q.join(Enrollment, Enrollment.id == Invoice.enrollment_id).filter(cond).first() is not None
 
+    # (a payment always has its invoice, checked here with it)
     if unclosed_year(db.session.query(Invoice.id).filter(Invoice.school_id == school_id)):
-        return True
-    if unclosed_year(db.session.query(Payment.id).join(Invoice, Invoice.id == Payment.invoice_id)
-                     .filter(Payment.school_id == school_id)):
         return True
 
     def after(q, model):

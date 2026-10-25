@@ -147,7 +147,8 @@ def school_settings():
                 ).order_by(PaymentMethod.name).all()
             )
             return render_template("admin/school_settings.html",
-                                   school=school, bank_methods=bank_methods, fin_locked=fin_locked)
+                                   school=school, bank_methods=bank_methods, fin_locked=fin_locked,
+                                   fin_locked_message=fin.LOCKED_MESSAGE)
         flash("تم حفظ الإعدادات.", "success")
         return redirect(url_for("admin.school_settings"))
 

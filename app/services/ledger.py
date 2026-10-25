@@ -54,15 +54,22 @@ def next_invoice_number(school_id: int, year_name: str, prefix: str = "INV", sta
     import re
     from sqlalchemy import func
     prefix = f"{prefix}-{year_name}-"
+    # the prefix is the school's own text: its % and _ are literal here
+    pattern = prefix.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
+    # highest by NUMBER, not by text ("…-100000" sorts below "…-99999"):
+    # longest first, then text — and a plain row, which FOR UPDATE can lock
     q = (
-        db.session.query(func.max(Invoice.number))
+        db.session.query(Invoice.number)
         .filter(Invoice.school_id == school_id)
-        .filter(Invoice.number.like(f"{prefix}%"))
+        .filter(Invoice.number.like(pattern, escape="\\"))
+        .order_by(func.length(Invoice.number).desc(), Invoice.number.desc())
+        .limit(1)
     )
     dialect = db.session.bind.dialect.name if db.session.bind else ""
     if dialect == "postgresql":
         q = q.with_for_update()
-    last = q.scalar()
+    row = q.first()
+    last = row[0] if row else None
     n = max(1, int(start or 1))
     if last:
         m = re.search(r"(\d+)$", last)
@@ -980,6 +987,16 @@ def close_fiscal_year(school_id: int, year, *, entry_date=None, dry_run=False):
         lines.append((retained.id, -net_income, Decimal(0), "صافي الخسارة المرحّلة"))
 
     if not lines:
+        # nothing to carry over — still leave the YEAR-CLOSE marker (an entry
+        # with no lines, so nothing unbalances): it is what tells the rest of
+        # the app (the financial-settings lock) that this year went through
+        # the year-end process
+        from ..models import JournalEntry
+        db.session.add(JournalEntry(
+            school_id=school_id, entry_date=entry_date or year.end_date,
+            description=f"إقفال السنة المالية {year.name}", reference=f"YEAR-CLOSE-{year.id}",
+            related_kind="year_close", related_id=year.id,
+        ))
         year.status = "closed"
         return preview
 
@@ -1102,6 +1119,8 @@ def create_invoice(*, school_id: int, enrollment_id: int, year_name: str,
     # ── 4. Installments.
     installments_count = max(1, installments_count)
     per = round_money(total / installments_count, fs.rounding_policy)
+    if per * (installments_count - 1) > total:      # rounding up must not leave the last one negative
+        per = round_money(total / installments_count, "down")
     accum = Decimal(0)
     for i in range(installments_count):
         d = due_date if installments_count == 1 else due_date + timedelta(days=30 * i)

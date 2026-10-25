@@ -246,8 +246,11 @@
     </section>
 
     {# 4 — Answer #}
-    {% set cur_labels = item.choices|sort(attribute='order_index')|map(attribute='label')|list if editing else [] %}
-    {% set cur_correct = item.choices|selectattr('is_correct')|map(attribute='order_index')|list if editing else [1] %}
+    {# labels and ticks from ONE ordered list, by position: stored
+       order_index values can have gaps (blank rows are skipped on save) #}
+    {% set cur_choices = item.choices|sort(attribute='order_index')|list if editing else [] %}
+    {% set n_rows = [6, cur_choices|length]|max %}
+    {% set letters = ['أ','ب','ج','د','هـ','و'] %}
     <section class="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm flex flex-col gap-space-md" id="choices-section">
       <div class="flex items-center gap-space-sm pb-space-sm border-b border-surface-container-low">
         <span class="w-8 h-8 rounded-lg bg-surface-container-low flex items-center justify-center text-primary">
@@ -259,14 +262,16 @@
       <div id="choicesBox" class="flex flex-col gap-space-sm">
         <p class="font-label-md text-label-md text-on-surface font-bold" id="choicesHint">الخيارات — علّم الإجابة الصحيحة</p>
         <div class="flex flex-col gap-space-sm" id="choice-rows">
-          {% for i in range(6) %}
+          {% for i in range(n_rows) %}
+          {% set ch = cur_choices[i] if cur_choices|length > i else none %}
+          {% set letter = letters[i] if i < letters|length else (i + 1)|string %}
           <div class="flex items-center gap-space-sm p-space-sm rounded-xl bg-surface-container-low" data-choice-row>
-            <div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center font-title-md text-title-md font-bold text-primary shrink-0">{{ ['أ','ب','ج','د','هـ','و'][i] }}</div>
-            <input type="text" name="choice_label" value="{{ cur_labels[i] if cur_labels|length > i else '' }}"
-                   placeholder="نص الخيار {{ ['أ','ب','ج','د','هـ','و'][i] }}"
+            <div class="w-9 h-9 rounded-lg bg-surface-container-lowest flex items-center justify-center font-title-md text-title-md font-bold text-primary shrink-0">{{ letter }}</div>
+            <input type="text" name="choice_label" value="{{ ch.label if ch else '' }}"
+                   placeholder="نص الخيار {{ letter }}"
                    class="flex-1 min-w-0 h-11 px-space-md rounded-lg bg-surface-container-lowest text-on-surface font-body-md text-body-md placeholder:text-outline focus:outline-none focus:ring-2 focus:ring-primary"/>
             <label class="inline-flex items-center gap-2 px-space-md py-2 rounded-full bg-surface-container-lowest cursor-pointer shrink-0">
-              <input type="checkbox" name="choice_correct" value="{{ i }}" {% if (i + 1) in cur_correct %}checked{% endif %}
+              <input type="checkbox" name="choice_correct" value="{{ i }}" {% if (ch and ch.is_correct) or (not editing and i == 0) %}checked{% endif %}
                      class="w-4 h-4 accent-primary correct-input"/>
               <span class="font-label-md text-label-md text-on-surface font-bold">صحيح</span>
             </label>

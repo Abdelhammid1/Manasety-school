@@ -284,3 +284,49 @@ def test_manasety_changes_them_after_the_lock_and_it_is_audited(fapp, two_school
     bad = c.post(f"/superadmin/schools/{A['school'].id}/edit", base_url=CONSOLE,
                  data={**form, "rounding_policy": "sideways"})
     assert bad.status_code == 400
+
+
+# ─── review fixes ───────────────────────────────────────────────────
+
+def test_numbering_continues_past_99999(fapp, two_schools):
+    A = two_schools["A"]
+    _set(fapp, A["school"].id, invoice_prefix="BIG", invoice_start_number=99999)
+    numbers = [_invoice(fapp, A)["number"] for _ in range(3)]
+    assert [n.rsplit("-", 1)[1] for n in numbers] == ["99999", "100000", "100001"]
+
+
+def test_a_prefix_with_like_wildcards_numbers_on_its_own(fapp, two_schools):
+    A = two_schools["A"]
+    _set(fapp, A["school"].id, invoice_prefix="AB", invoice_start_number=500)
+    assert _invoice(fapp, A)["number"].endswith("00500")
+    _set(fapp, A["school"].id, invoice_prefix="A_", invoice_start_number=1)
+    assert _invoice(fapp, A)["number"].endswith("00001")       # AB-… is not "A_"-…
+
+
+def test_rounding_up_never_leaves_a_negative_installment(fapp, two_schools):
+    A = two_schools["A"]
+    _set(fapp, A["school"].id, rounding_policy="up", default_tax_rate=Decimal("0"))
+    inv = _invoice(fapp, A, amount="0.05", installments=12)
+    assert all(a >= 0 for a in inv["installments"]) and sum(inv["installments"]) == inv["total"]
+
+
+def test_closing_a_year_with_nothing_to_carry_releases_the_lock(fapp, two_schools):
+    """No revenue / expense lines → still a YEAR-CLOSE marker, so the lock
+    doesn't stay forever."""
+    from app.extensions import db
+    from app.models import Account, AcademicYear, JournalEntry
+    from app.services import ledger
+    from app.services.finance_settings import has_financial_activity
+    from app.services.tenancy import tenant_context
+    A = two_schools["A"]
+    sid = A["school"].id
+    with fapp.app_context(), tenant_context(sid):
+        if not Account.query.filter_by(school_id=sid, code="3200").first():
+            db.session.add(Account(school_id=sid, code="3200", name="أرباح مرحّلة", type="equity"))
+        year = db.session.get(AcademicYear, A["year"].id)
+        ledger.close_fiscal_year(sid, year)
+        db.session.flush()
+        marker = JournalEntry.query.filter_by(school_id=sid, related_kind="year_close", related_id=year.id).first()
+        assert marker is not None and year.status == "closed"
+        assert not has_financial_activity(sid)
+        db.session.rollback(); db.session.remove()

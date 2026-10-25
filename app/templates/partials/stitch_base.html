@@ -54,7 +54,10 @@
       var root = document.documentElement;
       function ready() { root.classList.add('icons-ready'); }
       if (!document.fonts || !document.fonts.load) { ready(); return; }
-      document.fonts.load('24px "Material Symbols Outlined"').then(function (f) { if (f.length) ready(); });
+      document.fonts.load('24px "Material Symbols Outlined"').then(function (f) { if (f.length) ready(); }, function () {});
+      // the font never arriving (offline school network, blocked CDN) must not
+      // leave every icon-only button invisible: show what we have after 3s
+      setTimeout(ready, 3000);
     })();
   </script>
 

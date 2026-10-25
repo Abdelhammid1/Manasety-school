@@ -211,3 +211,24 @@ def test_true_false_ignores_the_hidden_rows(bapp, two_schools, login_as):
                       ("choice_label", "صح"), ("choice_label", "خطأ"), ("choice_correct", "0")])
     assert _client(bapp, login_as, A).post("/lms/bank/new", base_url=host(A), data=data).status_code == 302
     assert _question(bapp, A["school"].id, "صح ولا غلط؟")["choices"] == [("صح", True), ("خطأ", False)]
+
+
+def test_edit_keeps_the_right_answer_after_a_blank_row(bapp, two_schools, login_as):
+    """Saved with a blank middle row (order_index 1 and 3), the edit form
+    must tick the right choice — re-saving it keeps the correct answer."""
+    from flask import url_for
+    from werkzeug.datastructures import MultiDict
+    A = two_schools["A"]
+    c = _client(bapp, login_as, A)
+    seed = MultiDict([("kind", "mcq"), ("prompt", "فراغ في النص"), ("subject_id", str(A["subject"].id)),
+                      ("grade_id", str(A["grade"].id)), ("choice_label", "أ"), ("choice_label", ""),
+                      ("choice_label", "ج"), ("choice_correct", "2")])
+    assert c.post("/lms/bank/new", base_url=host(A), data=seed).status_code == 302
+    q = _question(bapp, A["school"].id, "فراغ في النص")
+    assert q["choices"] == [("أ", False), ("ج", True)]
+    with bapp.test_request_context():
+        edit = url_for("lms.bank_edit", bid=q["id"])
+    form = _Form()
+    form.feed(c.get(edit, base_url=host(A)).get_data(as_text=True))
+    assert c.post(edit, base_url=host(A), data=MultiDict(form.data)).status_code == 302
+    assert _question(bapp, A["school"].id, "فراغ في النص")["choices"] == [("أ", False), ("ج", True)]

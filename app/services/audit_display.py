@@ -18,7 +18,7 @@ import logging
 from datetime import date, datetime, timezone
 from typing import Any, Iterable, Optional
 
-from .audit import is_secret_field
+from .audit import REDACTED, is_secret_field, redact
 from .subscription_enforcement import USER_LOGIN_FIELDS
 
 _log = logging.getLogger(__name__)
@@ -257,6 +257,8 @@ class Names:
 def format_value(field: str, value: Any, names: Optional[Names] = None, tz=None) -> str:
     if value is None or value == "":
         return EMPTY
+    if value == REDACTED:
+        return "مخفي"
     if isinstance(value, bool):
         if field in STATE_FIELDS:
             return "مفعّل" if value else "معطّل"
@@ -361,7 +363,14 @@ def _actor(e) -> tuple[str, str]:
 def display_rows(entries: Iterable, school_id: int) -> list[dict]:
     """Readable rows for the page; login-only updates are left out (the
     `login` event covers them). Nothing raw is returned."""
-    entries = list(entries)
+    from types import SimpleNamespace
+    # the same choke point as before (audit.redact: secret names AND any
+    # bcrypt hash under an unexpected key), on a read-only copy of each row
+    entries = [SimpleNamespace(id=e.id, action=e.action, entity_type=e.entity_type,
+                               old_value=redact(e.old_value), new_value=redact(e.new_value),
+                               created_at=e.created_at, ip_address=e.ip_address,
+                               support_session_id=e.support_session_id, user=e.user)
+               for e in entries]
     names = Names(school_id)
     for e in entries:
         for snap in (e.old_value, e.new_value):
