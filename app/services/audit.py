@@ -175,8 +175,11 @@ def _snap_before(mapper, connection, target):
     """Called on after_update; captures the pre-image via the SQLAlchemy
     inspector so we can log old→new."""
     state = inspect(target)
+    columns = {c.key for c in mapper.column_attrs}       # not relationships (a new child isn't an edit)
     old = {}
     for attr in state.attrs:
+        if attr.key not in columns:
+            continue
         hist = attr.history
         if hist.has_changes():
             # deleted holds the pre-image if the attribute changed.
@@ -231,8 +234,10 @@ def _register(model):
         pre = _snap_before(mapper, connection, target)
         if pre and _login_bookkeeping_only(target, pre):
             return          # the login itself is a short event (record_login_event)
-        if isinstance(target, School) and not set(pre or {}) - _SCHOOL_BOOKKEEPING:
-            return          # a settings save that changed nothing, or a session bump
+        if not pre:
+            return          # flushed but nothing changed (a save that set the same values)
+        if isinstance(target, School) and not set(pre) - _SCHOOL_BOOKKEEPING:
+            return          # a session bump or a lifecycle change only
         # decimals / dates in `pre` still need normalising
         clean = {}
         for k, v in (pre or {}).items():
