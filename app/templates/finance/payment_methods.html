@@ -90,6 +90,9 @@
             {% else %}
             <span class="text-outline">—</span>
             {% endif %}
+            {% if not pm.usable %}
+            <span class="block mt-1 font-label-xs text-error font-bold">حساب تجميعي — {{ pm.UNUSABLE_HINT }} (احذفها وأضفها من جديد على الحساب الصحيح)</span>
+            {% endif %}
           </td>
           <td class="px-4 py-3 text-center">
             <form method="post" action="{{ url_for('finance.payment_method_toggle', pm_id=pm.id) }}" class="inline">

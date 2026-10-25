@@ -56,9 +56,10 @@
         <select name="payment_method_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
           {% for pm in payment_methods %}
-          <option value="{{ pm.id }}">
+          <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% endif %}>
             {{ pm.name }}
             {%- if pm.kind == 'deferred' %} · آجل — يسجَّل كالتزام{% endif -%}
+            {%- if not pm.usable %} — {{ pm.UNUSABLE_HINT }}{% endif -%}
           </option>
           {% endfor %}
         </select>

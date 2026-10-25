@@ -462,6 +462,18 @@ class PaymentMethod(SoftDeleteMixin, db.Model):
     def is_deferred(self) -> bool:
         return self.kind == "deferred"
 
+    # Shown on a disabled option when a method can't post (its account is
+    # an aggregate, e.g. 1120 after the banks tree, or it has none).
+    UNUSABLE_HINT = "اربطها بحساب بنك قابل للترحيل"
+
+    @property
+    def usable(self) -> bool:
+        """Deferred methods post nothing of their own; any other needs a
+        postable account (post_journal refuses an aggregate)."""
+        if self.is_deferred:
+            return True
+        return self.account is not None and bool(self.account.is_postable)
+
 
 # ─── Ticket "Additional 8" — Recurring fee schedules ────────────────
 #

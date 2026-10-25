@@ -66,7 +66,7 @@
         <select name="payment_method_id" required
                 class="h-11 px-3 rounded-lg bg-surface-container-low">
           {% for pm in payment_methods %}
-          <option value="{{ pm.id }}">{{ pm.name }}</option>
+          <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% endif %}>{{ pm.name }}{% if not pm.usable %} — {{ pm.UNUSABLE_HINT }}{% endif %}</option>
           {% else %}
           <option value="" disabled selected>— لا توجد طرق دفع —</option>
           {% endfor %}

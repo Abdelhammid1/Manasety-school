@@ -182,7 +182,7 @@
                   onchange="document.getElementById('otherAccWrap').style.display = this.value === '__other__' ? 'flex' : 'none'"
                   class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
             {% for pm in payment_methods %}
-            <option value="{{ pm.id }}">{{ pm.name }}</option>
+            <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% endif %}>{{ pm.name }}{% if not pm.usable %} — {{ pm.UNUSABLE_HINT }}{% endif %}</option>
             {% else %}
             <option value="" disabled selected>— لا توجد طرق دفع مضبوطة —</option>
             {% endfor %}
@@ -250,7 +250,7 @@
                  class="h-11 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <select name="payment_method_id" required class="h-11 px-4 rounded-xl bg-surface-container-low">
             {% for pm in payment_methods %}
-            <option value="{{ pm.id }}">{{ pm.name }} — من هنا يخرج الاسترداد</option>
+            <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% endif %}>{{ pm.name }}{% if pm.usable %} — من هنا يخرج الاسترداد{% else %} — {{ pm.UNUSABLE_HINT }}{% endif %}</option>
             {% endfor %}
           </select>
           <button type="submit" class="h-11 rounded-xl bg-error text-on-error font-title-md font-bold flex items-center justify-center gap-2">

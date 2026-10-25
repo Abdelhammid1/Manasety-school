@@ -44,7 +44,7 @@
         <label class="font-label-md font-bold text-on-surface">طريقة الدفع</label>
         <select name="payment_method_id" required class="h-11 px-3 rounded-lg bg-surface-container-low">
           {% for pm in payment_methods %}
-          <option value="{{ pm.id }}">{{ pm.name }}</option>
+          <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% endif %}>{{ pm.name }}{% if not pm.usable %} — {{ pm.UNUSABLE_HINT }}{% endif %}</option>
           {% endfor %}
         </select>
       </div>

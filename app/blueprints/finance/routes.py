@@ -1521,6 +1521,10 @@ def payment_method_new():
 def payment_method_toggle(pm_id):
     from ...models import PaymentMethod
     pm = PaymentMethod.query.filter_by(id=pm_id, school_id=_sid()).first_or_404()
+    if not pm.is_active and not pm.usable:
+        # turning on a method no collection could post through
+        flash(f"لا يمكن تفعيل طريقة الدفع ({pm.name}): حسابها تجميعي — {pm.UNUSABLE_HINT}.", "danger")
+        return redirect(url_for("finance.payment_methods_list"))
     pm.is_active = not pm.is_active
     db.session.commit()
     flash("تم تحديث حالة طريقة الدفع.", "success")
