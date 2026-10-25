@@ -122,6 +122,9 @@ def _check_image(stream, max_px: int) -> None:
         with Image.open(stream) as im:
             im.verify()
             w, h = im.size
+    except Image.DecompressionBombError:
+        # a tiny file declaring a huge canvas (Pillow refuses to open it)
+        raise UploadRejected(f"أبعاد الصورة كبيرة جدًا — الحد الأقصى {max_px}×{max_px} بكسل.") from None
     except (UnidentifiedImageError, OSError, SyntaxError, ValueError):
         raise UploadRejected("الملف مش صورة سليمة.") from None
     finally:

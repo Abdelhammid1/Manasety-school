@@ -31,6 +31,17 @@ def _png(w=120, h=60, color=(200, 30, 60), fmt="PNG") -> bytes:
     return buf.getvalue()
 
 
+def _bomb_png(w=20000, h=20000) -> bytes:
+    """A few bytes declaring a huge canvas (Pillow's decompression-bomb guard)."""
+    import struct
+    import zlib
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
+            + chunk(b"IDAT", zlib.compress(b"")) + chunk(b"IEND", b""))
+
+
 def _admin(app, login_as, bundle, role="admin"):
     c = app.test_client()
     login_as(c, bundle["users"][role], base_url=host(bundle))
@@ -115,6 +126,7 @@ def test_replacing_the_logo_deletes_the_old_file_and_changes_the_version(bapp, t
     (b'<svg xmlns="http://www.w3.org/2000/svg"></svg>', "logo.svg", "غير مدعومة"),
     (b"not an image at all, just text....", "logo.png", None),
     (_png(2100, 50), "logo.png", "2000"),
+    (_bomb_png(), "logo.png", "2000"),
 ])
 def test_bad_logos_are_refused_and_the_current_one_stays(bapp, two_schools, login_as, data, name, message):
     A = two_schools["A"]
