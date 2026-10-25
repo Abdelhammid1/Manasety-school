@@ -17,6 +17,19 @@ from unittest.mock import patch
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def _keep_link_codes():
+    """These tests build throwaway apps with their own HASHIDS_SALT; each
+    one replaces hashid's module-level encoder (used outside an app
+    context). Put the suite's own back, or every later test that encodes
+    an id by hand (hid(), the isolation sweep) gets codes from the wrong
+    salt."""
+    from app.services import hashid
+    saved = hashid._last
+    yield
+    hashid._last = saved
+
+
 # ─── Helpers ──────────────────────────────────────────────────────────
 
 def _reload_config(**env):
