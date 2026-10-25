@@ -126,25 +126,42 @@ def fiscal_year_start(on: date, start_month: int) -> date:
 # ─── the lock ───────────────────────────────────────────────────────
 
 def has_financial_activity(school_id: int) -> bool:
-    """An invoice, a payment or a journal entry created since the school's
-    last year-end close (ledger.close_year's YEAR-CLOSE entry) — or ever,
-    if no year was closed yet. Server timestamps only (`created_at`): no
-    date or status the school can edit (a year's dates, its status in the
-    year form, an invoice's issue date) can reopen the settings."""
-    from ..extensions import db
-    from ..models import Invoice, JournalEntry, Payment
-    cutoff = (db.session.query(db.func.max(JournalEntry.created_at))
-              .filter(JournalEntry.school_id == school_id,
-                      JournalEntry.related_kind == "year_close").scalar())
+    """Financial activity the year-end process hasn't closed yet:
 
-    def after(model, *extra):
-        q = db.session.query(model.id).filter(model.school_id == school_id, *extra)
-        if cutoff is not None:
-            q = q.filter(model.created_at > cutoff)
-        return q.first() is not None
-    return (after(Invoice) or after(Payment)
-            or after(JournalEntry, db.or_(JournalEntry.related_kind.is_(None),
-                                          JournalEntry.related_kind != "year_close")))
+      * an invoice, or a payment on one, whose enrollment's year has no
+        YEAR-CLOSE entry of its own (ledger.close_year) — closing another
+        (even an empty) year doesn't release it;
+      * anything with no year of its own (a manual journal entry, an
+        invoice without an enrollment) created — server `created_at` —
+        after the last YEAR-CLOSE entry, or at all if none exists.
+
+    No date or status the school can edit (a year's dates, its status in
+    the year form, an invoice's issue date) takes part."""
+    from ..extensions import db
+    from ..models import Enrollment, Invoice, JournalEntry, Payment
+    closes = (db.session.query(JournalEntry.related_id, JournalEntry.created_at)
+              .filter(JournalEntry.school_id == school_id, JournalEntry.related_kind == "year_close").all())
+    closed_years = {rid for rid, _ in closes if rid is not None}
+    cutoff = max((at for _, at in closes), default=None)
+
+    def unclosed_year(q):
+        cond = Enrollment.year_id.notin_(closed_years) if closed_years else db.true()
+        return q.join(Enrollment, Enrollment.id == Invoice.enrollment_id).filter(cond).first() is not None
+
+    if unclosed_year(db.session.query(Invoice.id).filter(Invoice.school_id == school_id)):
+        return True
+    if unclosed_year(db.session.query(Payment.id).join(Invoice, Invoice.id == Payment.invoice_id)
+                     .filter(Payment.school_id == school_id)):
+        return True
+
+    def after(q, model):
+        return (q.filter(model.created_at > cutoff) if cutoff is not None else q).first() is not None
+    if after(db.session.query(Invoice.id).filter(Invoice.school_id == school_id,
+                                                 Invoice.enrollment_id.is_(None)), Invoice):
+        return True
+    return after(db.session.query(JournalEntry.id).filter(
+        JournalEntry.school_id == school_id,
+        db.or_(JournalEntry.related_kind.is_(None), JournalEntry.related_kind != "year_close")), JournalEntry)
 
 
 # ─── the settings form ──────────────────────────────────────────────

@@ -237,6 +237,28 @@ def test_only_the_year_end_process_reopens_the_settings(fapp, two_schools):
         db.session.rollback(); db.session.remove()
 
 
+def test_closing_another_year_does_not_release_this_years_invoices(fapp, two_schools):
+    """An empty dummy year closed by the process must not unlock a year
+    whose invoices were never closed."""
+    from datetime import datetime, timedelta
+    from app.extensions import db
+    from app.models import AcademicYear, JournalEntry
+    from app.services.finance_settings import has_financial_activity
+    A = two_schools["A"]
+    _invoice(fapp, A)
+    sid = A["school"].id
+    with fapp.app_context():
+        dummy = AcademicYear(school_id=sid, name="سنة فاضية", status="closed",
+                             start_date=date(2001, 9, 1), end_date=date(2002, 6, 30))
+        db.session.add(dummy); db.session.flush()
+        db.session.add(JournalEntry(school_id=sid, entry_date=date(2002, 6, 30), reference=f"YEAR-CLOSE-{dummy.id}",
+                                    description="إقفال", related_kind="year_close", related_id=dummy.id,
+                                    created_at=datetime.utcnow() + timedelta(seconds=10)))
+        db.session.flush()
+        assert has_financial_activity(sid)
+        db.session.rollback(); db.session.remove()
+
+
 def test_manasety_changes_them_after_the_lock_and_it_is_audited(fapp, two_schools):
     from app.extensions import db
     from app.models import PlatformAuditLog
