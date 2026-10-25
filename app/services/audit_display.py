@@ -197,6 +197,45 @@ FIELD_LABELS = {
     "notified_at": "وقت الإشعار",
 }
 
+# Who may read an entity's rows in the activity log: the permission that
+# opens its own pages. The log itself needs users.view only, but a salary,
+# a bank account or a medical note must not reach someone who can't open
+# payroll / finance / the student's file (security review, 2026-10-26).
+# Entities not listed (logins, the school, users, roles …) follow the
+# log's own permission.
+ENTITY_PERMISSION = {
+    # people / students
+    "Student": "students", "Guardian": "students", "Enrollment": "students", "StudentDocument": "students",
+    "StudentHealthProfile": "students", "HealthIncident": "students", "BehaviorIncident": "students",
+    "BehaviorCategory": "students", "StudentGuardian": "students", "StudentNote": "students",
+    # academic
+    "AcademicYear": "academic_years", "Term": "terms", "Grade": "grades", "Section": "sections",
+    "Subject": "teachers", "Teacher": "teachers", "Assignment": "teachers",
+    "Day": "schedule", "Period": "schedule", "ScheduleSlot": "schedule", "SchoolCalendarDay": "academic_years",
+    "Room": "schedule",
+    # results / attendance
+    "GradeEntry": "results", "YearResult": "results", "PassRule": "results", "AssessmentComponent": "results",
+    "GradingScale": "results", "Rubric": "results",
+    "Attendance": "attendance", "AttendanceRule": "attendance",
+    # money
+    "Invoice": "finance", "Payment": "finance", "PaymentMethod": "finance", "JournalEntry": "finance",
+    "Account": "finance", "FeeType": "finance", "DiscountType": "finance", "StudentDiscount": "finance",
+    "Vendor": "finance", "CostCenter": "finance", "Budget": "finance", "RecurringFeeSchedule": "finance",
+    "RefundRequest": "finance", "PettyCashTransaction": "finance", "Expense": "expenses",
+    # HR (salaries, bank accounts)
+    "Employee": "payroll", "EmployeeAdvance": "payroll", "LeaveRequest": "payroll", "Payroll": "payroll",
+    "PayrollSettlement": "payroll",
+    # learning
+    "Course": "lms", "CourseAssignment": "lms", "Quiz": "lms", "Announcement": "lms", "BankQuestion": "lms",
+    "AssessmentTemplate": "lms", "NafisCycle": "results", "Material": "portal",
+}
+
+
+def hidden_entity_types(user) -> list[str]:
+    """The entity types this viewer may not read in the log."""
+    return sorted(e for e, perm in ENTITY_PERMISSION.items() if not user.can(perm, "view"))
+
+
 # Never part of "what changed": bookkeeping, not something the reader acts on.
 HIDDEN_FIELDS = frozenset({
     "id", "school_id", "created_at", "recorded_at", "deleted_at", "deleted_by_id",

@@ -324,3 +324,32 @@ def test_each_model_writes_one_row_however_many_apps_exist(dapp, two_schools):
         db.session.commit()
         assert AuditLog.query.filter_by(entity_type="Grade").count() == before + 1
         db.session.remove()
+
+
+def test_the_log_hides_what_the_viewer_cannot_open(dapp, two_schools, login_as):
+    """Security review: the log needs users.view only — a salary, a bank
+    account or a medical note must not reach someone without payroll /
+    finance / students access."""
+    from app.extensions import db
+    from app.models import Role, User
+    from app.models.hr import Employee
+    A = two_schools["A"]
+    sid = A["school"].id
+    with dapp.app_context():
+        db.session.add(Employee(school_id=sid, full_name="Salaried Person", job_title="x", base_salary=98765,
+                                bank_account="EG00SECRETIBAN"))
+        role = Role(school_id=sid, name="log_reader", name_ar="قارئ السجل", is_system=False,
+                    permissions={"users": ["view"]})
+        db.session.add(role); db.session.flush()
+        u = db.session.get(User, A["users"]["teacher"].id)
+        u.role_id = role.id
+        db.session.commit(); db.session.remove()
+    reader = dapp.test_client()
+    login_as(reader, A["users"]["teacher"], base_url=host(A))
+    page = reader.get("/admin/audit", base_url=host(A)).get_data(as_text=True)
+    assert reader.get("/admin/audit", base_url=host(A)).status_code == 200
+    assert "Salaried Person" not in page and "98765" not in page and "EG00SECRETIBAN" not in page
+    assert ">موظف<" not in page                                           # nor in the type filter
+    # the school admin (payroll access) still sees it
+    admin_rows = _rows(_page(dapp, login_as, A)[1])
+    assert "Salaried Person" in admin_rows

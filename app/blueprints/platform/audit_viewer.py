@@ -17,6 +17,7 @@ from ..utils import require_permission
 from ...extensions import db
 from ...models import AuditLog, User
 from ...services.audit import REDACTED, redact
+from ...services.audit_display import hidden_entity_types
 
 
 def _sid() -> int:
@@ -40,6 +41,10 @@ def _base_query():
     parsed filters. Returns (query, filter_dict) so the template can
     echo the current selection back."""
     q = AuditLog.query.filter_by(school_id=_sid())
+    # rows about what this viewer may not open (salaries, health, money …)
+    hidden = hidden_entity_types(current_user)
+    if hidden:
+        q = q.filter(AuditLog.entity_type.notin_(hidden))
 
     filters = {
         "user_id":     request.args.get("user_id", type=int),
@@ -97,6 +102,7 @@ def audit_log_viewer():
         et for (et,) in db.session.query(AuditLog.entity_type)
         .filter(AuditLog.school_id == _sid())
         .distinct().order_by(AuditLog.entity_type).all()
+        if et not in hidden_entity_types(current_user)
     ]
     return render_template(
         "platform/audit_log_viewer.html",

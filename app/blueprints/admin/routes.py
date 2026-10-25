@@ -225,7 +225,12 @@ def audit_log():
     sid = current_user.school_id
     # Strict tenant scope: NULL-school rows are not "global", they are
     # rows nobody can attribute, so no school's admin should see them.
+    from ...services import audit_display as ad
+    # rows about what this viewer may not open (salaries, health, money …)
+    hidden = ad.hidden_entity_types(current_user)
     q = AuditLog.query.filter(AuditLog.school_id == sid)
+    if hidden:
+        q = q.filter(AuditLog.entity_type.notin_(hidden))
     user_id = request.args.get("user_id", type=int)
     entity_type = (request.args.get("entity_type") or "").strip()
     action = (request.args.get("action") or "").strip()
@@ -236,9 +241,8 @@ def audit_log():
     entries = (q.options(joinedload(AuditLog.user).joinedload(User.role))
                .order_by(AuditLog.created_at.desc()).limit(300).all())
 
-    from ...services import audit_display as ad
     types = sorted(t[0] for t in db.session.query(AuditLog.entity_type)
-                   .filter(AuditLog.school_id == sid).distinct().all())
+                   .filter(AuditLog.school_id == sid).distinct().all() if t[0] not in hidden)
     actions = sorted(a[0] for a in db.session.query(AuditLog.action)
                      .filter(AuditLog.school_id == sid).distinct().all())
     users = User.query.filter_by(school_id=sid).order_by(User.full_name).all()
