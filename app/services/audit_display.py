@@ -51,6 +51,27 @@ ENTITY_LABELS = {
     "Assignment": "إسناد تدريس", "PassRule": "قاعدة النجاح", "PaymentMethod": "طريقة دفع",
     "JournalEntry": "قيد محاسبي", "ScheduleSlot": "حصة في الجدول",
     "School": "المدرسة", "SchoolBackup": "نسخة احتياطية", "SchoolRestore": "استرجاع نسخة",
+    # academic structure
+    "AcademicYear": "سنة دراسية", "Term": "فترة دراسية", "Grade": "صف دراسي", "Section": "فصل",
+    "Subject": "مادة", "Teacher": "معلم", "Day": "يوم دراسي", "Period": "حصة",
+    "SchoolCalendarDay": "يوم في التقويم", "Room": "قاعة",
+    # students
+    "StudentDocument": "مستند طالب", "StudentHealthProfile": "ملف صحي", "HealthIncident": "حالة صحية",
+    "BehaviorIncident": "ملاحظة سلوكية", "BehaviorCategory": "تصنيف سلوك", "StudentDiscount": "خصم طالب",
+    "StudentGuardian": "ربط ولي أمر", "StudentNote": "ملاحظة على طالب",
+    # finance
+    "Account": "حساب", "FeeType": "نوع رسوم", "DiscountType": "نوع خصم", "Expense": "مصروف",
+    "Vendor": "مورد", "CostCenter": "مركز تكلفة", "Budget": "بند موازنة",
+    "RecurringFeeSchedule": "رسوم متكررة", "RefundRequest": "طلب استرداد", "PettyCashTransaction": "حركة عهدة",
+    # HR
+    "Employee": "موظف", "EmployeeAdvance": "سلفة موظف", "LeaveRequest": "طلب إجازة", "Payroll": "مسير رواتب",
+    "PayrollSettlement": "صرف رواتب",
+    # assessment / learning
+    "AssessmentComponent": "مكوّن تقييم", "GradingScale": "سلم درجات", "Rubric": "معيار تقييم",
+    "Course": "مقرر", "CourseAssignment": "واجب", "Quiz": "اختبار", "Announcement": "إعلان",
+    "BankQuestion": "سؤال في البنك", "AssessmentTemplate": "نموذج تقييم",
+    "AttendanceRule": "قاعدة حضور", "NafisCycle": "دورة نافس", "Material": "مادة في المكتبة",
+    "UserScope": "نطاق مستخدم",
 }
 
 FIELD_LABELS = {
@@ -109,11 +130,77 @@ FIELD_LABELS = {
     "smtp_username": "مستخدم البريد", "smtp_password_encrypted": "كلمة مرور البريد",
     "smtp_use_tls": "تشفير البريد (TLS)", "smtp_from_name": "اسم المرسل", "smtp_from_email": "بريد المرسل",
     "approval_threshold": "حد الاعتماد", "installment_reminder_days_before": "أيام تذكير الأقساط",
+    # academic structure
+    "start_date": "تاريخ البداية", "end_date": "تاريخ النهاية", "weight": "الوزن", "order_index": "الترتيب",
+    "stage": "المرحلة", "capacity": "السعة", "status_mode": "طريقة الحالة", "manual_status": "الحالة اليدوية",
+    "start_time": "وقت البداية", "end_time": "وقت النهاية", "is_break": "استراحة", "duration_minutes": "المدة (دقائق)",
+    "day_type": "نوع اليوم", "room_type": "نوع القاعة", "specialization": "التخصص", "hire_date": "تاريخ التعيين",
+    "academic_year_id": "السنة الدراسية", "gregorian_year": "السنة الميلادية", "hijri_year": "السنة الهجرية",
+    # students
+    "document_type": "نوع المستند", "document_number": "رقم المستند", "expiry_date": "تاريخ الانتهاء",
+    "blood_type": "فصيلة الدم", "allergies": "الحساسية", "chronic_conditions": "الأمراض المزمنة",
+    "regular_medications": "الأدوية المنتظمة", "special_needs": "الاحتياجات الخاصة", "doctor_name": "اسم الطبيب",
+    "doctor_phone": "هاتف الطبيب", "insurance_provider": "شركة التأمين", "insurance_number": "رقم التأمين",
+    "emergency_instructions": "تعليمات الطوارئ", "incident_date": "التاريخ", "incident_type": "نوع الحالة",
+    "action_taken": "الإجراء المتخذ", "referred_to_hospital": "تحويل للمستشفى", "guardian_notified": "إبلاغ ولي الأمر",
+    "category_id": "التصنيف", "points": "النقاط", "default_points": "النقاط الافتراضية", "severity": "الدرجة",
+    "action": "الإجراء", "guardian_id": "ولي الأمر", "relationship": "صلة القرابة", "is_primary": "أساسي",
+    "is_emergency_contact": "جهة طوارئ", "can_pickup_student": "يستلم الطالب",
+    "can_receive_notifications": "يستقبل الإشعارات", "can_view_academic_data": "يرى البيانات الدراسية",
+    "can_view_financial_data": "يرى البيانات المالية", "note": "ملاحظة", "body": "النص",
+    "discount_type_id": "نوع الخصم", "value": "القيمة", "calc_method": "طريقة الحساب",
+    "approval_status": "حالة الاعتماد", "reject_reason": "سبب الرفض",
+    # finance
+    "type": "النوع", "parent_id": "الحساب الأب", "is_postable": "قابل للترحيل", "account_role": "دور الحساب",
+    "default_amount": "المبلغ الافتراضي", "revenue_account_id": "حساب الإيراد", "is_taxable": "خاضع للضريبة",
+    "installable": "يقبل التقسيط", "installment_count": "عدد الأقساط", "expense_account_id": "حساب المصروف",
+    "counter_account_id": "الحساب المقابل", "override_account_id": "حساب بديل", "ap_account_id": "حساب الذمم الدائنة",
+    "vendor_id": "المورد", "cost_center_id": "مركز التكلفة", "payment_method_id": "طريقة الدفع",
+    "payment_id": "الدفعة", "contact_person": "مسؤول التواصل", "bank_account": "الحساب البنكي",
+    "planned_amount": "المبلغ المخطط", "period": "الفترة", "period_month": "الشهر", "period_year": "السنة",
+    "frequency": "التكرار", "day_of_period": "يوم الاستحقاق", "fee_type_id": "نوع الرسوم",
+    "applies_to_fee_type_id": "يطبَّق على الرسوم", "applies_to_grade_id": "يطبَّق على الصف",
+    "applies_to_stage": "يطبَّق على المرحلة", "requires_approval": "يحتاج اعتماد", "tx_date": "التاريخ",
+    "custodian_employee_id": "أمين العهدة", "warn_pct": "نسبة التنبيه", "threshold": "الحد",
+    # HR
+    "job_title": "المسمى الوظيفي", "base_salary": "الراتب الأساسي", "allowances": "البدلات",
+    "deductions": "الخصومات", "net_pay": "صافي الراتب", "employee_id": "الموظف", "date_given": "تاريخ الصرف",
+    "deduction_plan": "طريقة الخصم", "remaining_balance": "المتبقي", "leave_type": "نوع الإجازة",
+    "days_count": "عدد الأيام", "payroll_id": "مسير الرواتب", "paid_at": "تاريخ الصرف",
+    "settled_at": "تاريخ التسوية",
+    # assessment / learning
+    "title": "العنوان", "course_id": "المقرر", "lesson_id": "الدرس", "unit_id": "الوحدة",
+    "max_score": "الدرجة العظمى", "is_published": "منشور", "is_pinned": "مثبّت", "is_archived": "مؤرشف",
+    "is_default": "افتراضي", "is_template": "قالب", "due_at": "موعد التسليم", "opens_at": "يفتح في",
+    "closes_at": "يغلق في", "instructions": "التعليمات", "max_attempts": "عدد المحاولات",
+    "allow_late": "يقبل التأخير", "allow_resubmit": "يسمح بإعادة التسليم", "allow_review": "يسمح بالمراجعة",
+    "allow_partial_credit": "درجات جزئية", "late_penalty_per_day": "خصم التأخير اليومي",
+    "late_penalty_percent": "نسبة خصم التأخير", "max_penalty_percent": "أقصى خصم",
+    "shuffle_questions": "ترتيب عشوائي للأسئلة", "shuffle_choices": "ترتيب عشوائي للاختيارات",
+    "show_answers_after": "عرض الإجابات بعد", "result_publish_mode": "طريقة نشر النتيجة",
+    "result_publish_at": "موعد نشر النتيجة", "retake_policy": "سياسة الإعادة",
+    "retake_cooldown_minutes": "مهلة الإعادة (دقائق)", "navigation_mode": "طريقة التنقل",
+    "negative_marking_value": "الدرجة السالبة", "prompt": "نص السؤال", "difficulty": "الصعوبة",
+    "cognitive_level": "المستوى المعرفي", "hint_text": "التلميح", "correct_short": "الإجابة الصحيحة",
+    "explanation_video_url": "فيديو الشرح", "review_state": "حالة المراجعة", "review_notes": "ملاحظات المراجعة",
+    "tags": "الوسوم", "source": "المصدر", "source_type": "نوع المصدر", "source_id": "رقم المصدر",
+    "source_template_id": "القالب المصدر", "passage_id": "القطعة", "axis_id": "المحور", "indicator_id": "المؤشر",
+    "outcome_id": "ناتج التعلم", "nafis_level": "مستوى نافس", "rubric_id": "معيار التقييم",
+    "scale_type": "نوع السلم", "levels": "المستويات", "difficulty_mix": "توزيع الصعوبة",
+    "visibility": "الظهور", "cover_url": "الغلاف", "external_url": "الرابط", "internal_label": "التسمية الداخلية",
+    "author_id": "الكاتب", "auto_rule": "قاعدة تلقائية", "auto_sync": "مزامنة تلقائية", "window": "المدة",
+    "scope_type": "نوع النطاق", "scope_value": "قيمة النطاق", "stage_value": "المرحلة",
+    "state": "الحالة", "override_value": "قيمة بديلة",
+    # who
+    "created_by_id": "أنشأه", "approved_by_id": "اعتمده", "reported_by_user_id": "سجّله",
+    "requested_by_user_id": "طلبه", "updated_by_user_id": "عدّله", "uploaded_by_user_id": "رفعه",
+    "notified_at": "وقت الإشعار",
 }
 
 # Never part of "what changed": bookkeeping, not something the reader acts on.
 HIDDEN_FIELDS = frozenset({
     "id", "school_id", "created_at", "recorded_at", "deleted_at", "deleted_by_id",
+    "uuid", "updated_at", "last_updated_at", "last_run_at", "file_path", "mime_type", "file_size",
     "auth_epoch", BY_PLATFORM,
 } | USER_LOGIN_FIELDS)
 # A changed secret: one line saying so, never the value.
@@ -134,6 +221,8 @@ VALUE_LABELS = {
     "method": {"cash": "نقدي", "bank": "تحويل بنكي", "card": "بطاقة", "cheque": "شيك",
                "overall_only": "المعدل الكلي فقط", "per_subject": "كل مادة على حدة", "mixed": "مختلطة"},
     "kind": {"immediate_cash": "نقدي فوري", "immediate_bank": "بنكي فوري", "deferred": "آجل"},
+    "type": {"asset": "أصول", "liability": "خصوم", "equity": "حقوق ملكية", "revenue": "إيرادات",
+             "expense": "مصروفات"},
     "via": {"web": "الموقع", "api": "تطبيق الموبايل"},
     "rounding_policy": {"normal": "تقريب عادي", "up": "لأعلى", "down": "لأسفل"},
     "attendance_mode": {"daily": "يومي", "per_period": "بالحصة"},
@@ -153,6 +242,20 @@ FK_TARGETS = {
     "account_id": ("Account", "name"), "ar_account_id": ("Account", "name"),
     "cash_account_id": ("Account", "name"), "journal_entry_id": ("JournalEntry", "reference"),
     "component_id": ("AssessmentComponent", "name"),
+    # the tables audited since the activity-log follow-up
+    "parent_id": ("Account", "name"), "revenue_account_id": ("Account", "name"),
+    "expense_account_id": ("Account", "name"), "counter_account_id": ("Account", "name"),
+    "override_account_id": ("Account", "name"), "ap_account_id": ("Account", "name"),
+    "academic_year_id": ("AcademicYear", "name"), "course_id": ("Course", "title"),
+    "employee_id": ("Employee", "full_name"), "custodian_employee_id": ("Employee", "full_name"),
+    "vendor_id": ("Vendor", "name"), "fee_type_id": ("FeeType", "name"), "applies_to_fee_type_id": ("FeeType", "name"),
+    "applies_to_grade_id": ("Grade", "name"), "guardian_id": ("Guardian", "full_name"),
+    "cost_center_id": ("CostCenter", "name"), "payment_method_id": ("PaymentMethod", "name"),
+    "discount_type_id": ("DiscountType", "name"), "rubric_id": ("Rubric", "name"),
+    "created_by_id": ("User", "full_name"), "approved_by_id": ("User", "full_name"),
+    "author_id": ("User", "full_name"), "reported_by_user_id": ("User", "full_name"),
+    "requested_by_user_id": ("User", "full_name"), "updated_by_user_id": ("User", "full_name"),
+    "uploaded_by_user_id": ("User", "full_name"),
 }
 DELETED = "غير متاح (محذوف)"
 EMPTY = "—"
@@ -423,9 +526,8 @@ def _login_details(e) -> list[dict]:
     via = detail.get("via")
     if via:
         out.append({"field": "الدخول من", "old": None, "new": VALUE_LABELS["via"].get(via, via)})
-    device = device_label(e.user_agent)
-    if device:
-        out.append({"field": "الجهاز", "old": None, "new": device})
+    # rows before 2026-10-25 never stored the browser (a bug): say so
+    out.append({"field": "الجهاز", "old": None, "new": device_label(e.user_agent) or "غير مسجّل"})
     reason = detail.get("reason")
     if reason:
         out.append({"field": "السبب", "old": None, "new": VALUE_LABELS["reason"].get(reason, reason)})

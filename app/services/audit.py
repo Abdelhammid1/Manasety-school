@@ -44,6 +44,23 @@ _WATCHED = [
     School,
 ]
 
+# Activity-log follow-up (2026-10-26): what a school's staff set up and
+# change day to day — the academic structure, the chart of accounts and
+# banks, fees, expenses, HR, courses … High-volume rows (answers,
+# attempts, messages, notifications, statistics, logs) stay out.
+_WATCHED_BY_NAME = (
+    "AcademicYear", "Term", "Grade", "Section", "Subject", "Teacher", "Day", "Period",
+    "SchoolCalendarDay", "Room",
+    "StudentDocument", "StudentHealthProfile", "HealthIncident", "BehaviorIncident", "BehaviorCategory",
+    "StudentDiscount", "StudentGuardian", "StudentNote",
+    "Account", "FeeType", "DiscountType", "Expense", "Vendor", "CostCenter", "Budget",
+    "RecurringFeeSchedule", "RefundRequest", "PettyCashTransaction",
+    "Employee", "EmployeeAdvance", "LeaveRequest", "Payroll", "PayrollSettlement",
+    "AssessmentComponent", "GradingScale", "Rubric",
+    "Course", "CourseAssignment", "Quiz", "Announcement", "BankQuestion", "AssessmentTemplate",
+    "AttendanceRule", "NafisCycle", "Material", "UserScope",
+)
+
 # Marks a row written by a platform (console) user: they are not a row in
 # `users`, so the activity log names them "فريق منصتي" from this key.
 BY_PLATFORM = "_by_platform"
@@ -229,7 +246,15 @@ def _register(model):
         _record(connection, "delete", target, before=_serialize(target))
 
 
+_installed: set = set()
+
+
 def install():
-    """Called from app factory once per process."""
-    for m in _WATCHED:
-        _register(m)
+    """Called from the app factory: listeners attach to the model classes
+    (process-wide), so each model is registered once however many apps
+    are built (tests build several) — never one audit row per app."""
+    from .. import models as M
+    for m in _WATCHED + [getattr(M, name) for name in _WATCHED_BY_NAME]:
+        if m not in _installed:
+            _register(m)
+            _installed.add(m)

@@ -268,3 +268,59 @@ def test_a_console_change_is_attributed_to_the_manasety_team(dapp, two_schools, 
     rows = _rows(_page(dapp, login_as, A)[1])
     assert "فريق منصتي عدّل بيانات المدرسة" in rows
     assert BY_PLATFORM not in rows
+
+
+# ─── activity-log follow-up: what the staff set up shows in the log ──
+
+def test_everyday_setup_actions_are_in_the_log(dapp, two_schools, login_as, monkeypatch):
+    from app.extensions import db
+    from app.models.finance import ensure_default_chart
+    monkeypatch.setitem(dapp.config, "WTF_CSRF_ENABLED", False)
+    A, B = two_schools["A"], two_schools["B"]
+    with dapp.app_context():
+        ensure_default_chart(A["school"].id)
+        db.session.commit(); db.session.remove()
+    c = dapp.test_client()
+    login_as(c, A["users"]["admin"], base_url=host(A))
+    h = host(A)
+    c.post("/academic/grades/new", base_url=h, data={"name": "الصف الخامس", "order_index": "5"})
+    c.post("/academic/years/new", base_url=h, data={"name": "2027-2028", "start_date": "2027-09-01",
+                                                   "end_date": "2028-06-01", "status": "closed"})
+    c.post("/academic/sections/new", base_url=h, data={"grade_id": A["grade"].id, "name": "ب", "capacity": "25"})
+    from app.models import Account
+    with dapp.app_context():
+        root = Account.query.filter_by(school_id=A["school"].id, code="1120").one().id
+        db.session.remove()
+    c.post("/finance/accounts/new", base_url=h, data={"parent_id": root, "name": "بنك CIB", "code": "", "type": "asset"})
+    rows = _rows(c.get("/admin/audit", base_url=h).get_data(as_text=True))
+    for sentence in ("أضاف صف دراسي: الصف الخامس", "أضاف سنة دراسية: 2027-2028", "أضاف فصل: ب",
+                     "أضاف حساب: بنك CIB"):
+        assert sentence in rows, sentence
+    assert "الحساب الأب" in rows and "الحساب البنكي" in rows                # the FK reads as a name
+    assert "is_postable" not in rows and "parent_id" not in rows and "order_index" not in rows
+    _no_raw(c.get("/admin/audit", base_url=h).get_data(as_text=True))
+    # B's log has none of it
+    assert "الصف الخامس" not in _rows(_page(dapp, login_as, B)[1])
+
+
+def test_an_old_login_row_says_the_device_was_not_recorded(dapp, two_schools, login_as):
+    A = two_schools["A"]
+    _raw_row(dapp, school_id=A["school"].id, user_id=A["users"]["teacher"].id, action="login",
+             entity_type="User", entity_id=A["users"]["teacher"].id, new_value={"via": "web"})
+    rows = _rows(_page(dapp, login_as, A)[1])
+    assert "الدخول من" in rows and "الجهاز" in rows and "غير مسجّل" in rows
+
+
+def test_each_model_writes_one_row_however_many_apps_exist(dapp, two_schools):
+    """Listeners attach to the model classes: building another app (tests
+    do) must not double every audit row."""
+    from app import create_app
+    from app.extensions import db
+    from app.models import AuditLog, Grade
+    create_app()
+    with dapp.app_context():
+        before = AuditLog.query.filter_by(entity_type="Grade").count()
+        db.session.add(Grade(school_id=two_schools["A"]["school"].id, name="مرة واحدة", order_index=44))
+        db.session.commit()
+        assert AuditLog.query.filter_by(entity_type="Grade").count() == before + 1
+        db.session.remove()
