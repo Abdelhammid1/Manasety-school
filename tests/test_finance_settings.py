@@ -206,20 +206,33 @@ def test_after_an_invoice_the_school_can_not_change_them(fapp, two_schools, logi
     _set(fapp, A["school"].id, name=before["name"])
 
 
-def test_activity_in_a_past_year_only_does_not_lock(fapp, two_schools):
+def test_only_the_year_end_process_reopens_the_settings(fapp, two_schools):
+    """A year flipped to "closed" in the year form, or with its dates
+    shrunk, still locks; a year closed by the year-end process (its
+    YEAR-CLOSE entry) and a fresh year without activity does not."""
     from app.extensions import db
-    from app.models import AcademicYear
+    from app.models import AcademicYear, JournalEntry
     from app.services.finance_settings import has_financial_activity
     A = two_schools["A"]
     _invoice(fapp, A)
+    sid = A["school"].id
     with fapp.app_context():
-        assert has_financial_activity(A["school"].id)
+        assert has_financial_activity(sid)
         y = db.session.get(AcademicYear, A["year"].id)
-        y.status = "closed"
-        db.session.add(AcademicYear(school_id=A["school"].id, name="سنة جديدة", status="active",
+        start, end = y.start_date, y.end_date
+        y.start_date, y.end_date = date(2020, 1, 1), date(2020, 1, 2)     # shrink: no unlock
+        db.session.flush()
+        assert has_financial_activity(sid)
+        y.start_date, y.end_date = start, end
+        y.status = "closed"                                                # a flipped status: no unlock
+        db.session.add(AcademicYear(school_id=sid, name="سنة جديدة", status="active",
                                     start_date=date(2030, 9, 1), end_date=date(2031, 6, 30)))
-        db.session.commit()
-        assert not has_financial_activity(A["school"].id)
+        db.session.flush()
+        assert has_financial_activity(sid)
+        db.session.add(JournalEntry(school_id=sid, entry_date=end, reference=f"YEAR-CLOSE-{y.id}",
+                                    description="إقفال", related_kind="year_close", related_id=y.id))
+        db.session.flush()
+        assert not has_financial_activity(sid)                             # closed by the process
         db.session.rollback(); db.session.remove()
 
 

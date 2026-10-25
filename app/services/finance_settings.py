@@ -12,7 +12,7 @@ currency is never stored on it: it is always the school's current one,
 so a currency change shows on every invoice, old and new, with the
 amounts untouched (no conversion).
 
-The lock: once the current academic year has financial activity (an
+The lock: once a year that is not closed has financial activity (an
 invoice, a payment or a journal entry), the seven fields below are
 closed to the school's own users; only the Manasety console may change
 them, and every console change is audited.
@@ -126,28 +126,38 @@ def fiscal_year_start(on: date, start_month: int) -> date:
 # ─── the lock ───────────────────────────────────────────────────────
 
 def has_financial_activity(school_id: int) -> bool:
-    """An invoice, a payment or a journal entry in the current academic
-    year (by its dates, or for invoices by the year of the enrollment)."""
+    """An invoice, a payment or a journal entry in a year that is not
+    closed yet. Not only the year marked active, and with no upper date:
+    editing a year's dates or status must not reopen the settings. A year
+    counts as closed only when the year-end process closed it (its
+    YEAR-CLOSE journal entry, ledger.close_year) — a status flipped to
+    "closed" in the year form does not."""
+    from datetime import timedelta
     from ..extensions import db
     from ..models import AcademicYear, Enrollment, Invoice, JournalEntry, Payment
-    year = AcademicYear.query.filter_by(school_id=school_id, status="active").first()
-    if year is None:
+    years = AcademicYear.query.filter_by(school_id=school_id).all()
+    closed_by_process = {r for (r,) in db.session.query(JournalEntry.related_id).filter(
+        JournalEntry.school_id == school_id, JournalEntry.related_kind == "year_close").all()}
+    closed = [y for y in years if y.status == "closed" and y.id in closed_by_process]
+    open_years = [y for y in years if y not in closed]
+    if not open_years:
         return False
-    inv = (db.session.query(Invoice.id)
-           .outerjoin(Enrollment, Enrollment.id == Invoice.enrollment_id)
-           .filter(Invoice.school_id == school_id,
-                   db.or_(Enrollment.year_id == year.id,
-                          Invoice.issue_date.between(year.start_date, year.end_date)))
-           .first())
-    if inv:
+    since = min(y.start_date for y in open_years)
+    if closed:
+        since = min(since, max(y.end_date for y in closed) + timedelta(days=1))
+    year_ids = [y.id for y in open_years]
+    if (db.session.query(Invoice.id)
+            .outerjoin(Enrollment, Enrollment.id == Invoice.enrollment_id)
+            .filter(Invoice.school_id == school_id,
+                    db.or_(Enrollment.year_id.in_(year_ids), Invoice.issue_date >= since))
+            .first()):
         return True
     if (db.session.query(Payment.id)
-            .filter(Payment.school_id == school_id,
-                    Payment.payment_date.between(year.start_date, year.end_date)).first()):
+            .filter(Payment.school_id == school_id, Payment.payment_date >= since).first()):
         return True
     return (db.session.query(JournalEntry.id)
-            .filter(JournalEntry.school_id == school_id,
-                    JournalEntry.entry_date.between(year.start_date, year.end_date)).first()) is not None
+            .filter(JournalEntry.school_id == school_id, JournalEntry.entry_date >= since)
+            .first()) is not None
 
 
 # ─── the settings form ──────────────────────────────────────────────
