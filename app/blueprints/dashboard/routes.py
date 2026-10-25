@@ -196,12 +196,14 @@ def _expenses_sum(sid: int, since: date) -> float:
 def _cash_on_hand(sid: int) -> float:
     """Sum balances of cash + bank accounts only (postable 11xx, with the
     bank accounts found under 1120 whatever their number — each once) —
-    not all asset accounts. Uses ``Account.balance`` from the finance model.
+    not all asset accounts; each account by its own lines.
     """
     from ...services.bank_accounts import cash_and_bank_ids
     ids = cash_and_bank_ids(sid, active_only=True)
     accts = Account.query.filter(Account.id.in_(ids)).all() if ids else []
-    return sum(a.balance for a in accts)
+    # each account's OWN lines: a legacy aggregate (1120) is in the set and
+    # its .balance would add its children a second time
+    return sum(a._own_balance() for a in accts)
 
 
 def _students_by_grade(sid: int, yid: int):

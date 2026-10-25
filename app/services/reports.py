@@ -30,7 +30,9 @@ def _range(start: Optional[_date_cls], end: Optional[_date_cls]):
 # ─── Financial reports ─────────────────────────────────────────────
 
 def trial_balance(school_id: int, *, start=None, end=None):
-    """Every postable account with its DR/CR totals within the range."""
+    """Every postable account with its DR/CR totals within the range —
+    plus an aggregate that holds lines from before it became one (1120
+    after the banks tree): dropping them would unbalance the report."""
     s, e = _range(start, end)
     rows = (
         db.session.query(
@@ -40,7 +42,8 @@ def trial_balance(school_id: int, *, start=None, end=None):
         )
         .join(JournalLine, JournalLine.account_id == Account.id, isouter=True)
         .join(JournalEntry, JournalEntry.id == JournalLine.entry_id, isouter=True)
-        .filter(Account.school_id == school_id, Account.is_postable == True,
+        .filter(Account.school_id == school_id,
+                (Account.is_postable == True) | (JournalLine.id.isnot(None)),
                 (JournalEntry.entry_date >= s) | (JournalEntry.entry_date.is_(None)),
                 (JournalEntry.entry_date <= e) | (JournalEntry.entry_date.is_(None)))
         .group_by(Account.id).order_by(Account.code).all()
@@ -66,8 +69,9 @@ def income_statement(school_id: int, *, start=None, end=None):
                              func.coalesce(func.sum(JournalLine.credit), 0))
             .join(JournalLine, JournalLine.account_id == Account.id)
             .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+            # every account WITH lines (inner join): an aggregate's old
+            # lines (1120) count, as they did before it became one
             .filter(Account.school_id == school_id, Account.type == type_,
-                    Account.is_postable == True,
                     JournalEntry.entry_date >= s, JournalEntry.entry_date <= e)
             .group_by(Account.id).order_by(Account.code).all()
         )
@@ -93,7 +97,6 @@ def balance_sheet(school_id: int, *, at=None):
             .join(JournalLine, JournalLine.account_id == Account.id)
             .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
             .filter(Account.school_id == school_id, Account.type == type_,
-                    Account.is_postable == True,
                     JournalEntry.entry_date <= at)
             .group_by(Account.id).order_by(Account.code).all()
         )

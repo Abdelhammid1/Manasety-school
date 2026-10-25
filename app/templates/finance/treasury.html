@@ -83,8 +83,18 @@
       <h2 class="font-title-md text-primary font-bold mb-space-md flex items-center gap-2">
         <span class="material-symbols-outlined text-brand-mid">account_balance</span>البنوك
       </h2>
-      {% if bank_accounts %}
+      {% if bank_accounts or legacy_banks %}
       <ul class="flex flex-col gap-1">
+        {% for a, own in legacy_banks %}
+        <li class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <code class="font-mono text-outline" dir="ltr">{{ a.code }}</code>
+            <span class="font-label-lg text-primary font-bold">{{ a.name }}</span>
+            <span class="font-label-xs text-outline">قيود قبل هيكل البنوك</span>
+          </div>
+          <span class="font-title-md tabular-nums font-bold {% if own < 0 %}text-error{% else %}text-[#065F46]{% endif %}">{{ own|round(2) }}</span>
+        </li>
+        {% endfor %}
         {% for a in bank_accounts %}
         <li class="p-space-sm rounded-lg bg-surface-container-low flex items-center justify-between">
           <div class="flex items-center gap-2">

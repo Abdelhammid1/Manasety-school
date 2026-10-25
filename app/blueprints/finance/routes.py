@@ -1149,13 +1149,15 @@ def treasury():
     actions. Cash accounts = postable 111x / bank accounts = the postable
     accounts under 1120, whatever their number (services/bank_accounts)."""
     from ...services import bank_accounts as banks
-    cash_accounts = banks.cash_accounts(_sid())
-    bank_accounts = [a for a in banks.bank_accounts(_sid()) if a.type == "asset"]
+    tree = banks.subtree_ids(_sid())
+    cash_accounts = banks.cash_accounts(_sid(), banks=tree)
+    bank_accounts = [a for a in banks.bank_accounts(_sid(), ids=tree) if a.type == "asset"]
+    legacy_banks = banks.legacy_banks(_sid(), tree)       # 1120's lines from before the tree
     cash_total = sum((a.balance for a in cash_accounts), 0.0)
-    bank_total = sum((a.balance for a in bank_accounts), 0.0)
+    bank_total = sum((a.balance for a in bank_accounts), 0.0) + sum(bal for _a, bal in legacy_banks)
     return render_template(
         "finance/treasury.html",
-        cash_accounts=cash_accounts, bank_accounts=bank_accounts,
+        cash_accounts=cash_accounts, bank_accounts=bank_accounts, legacy_banks=legacy_banks,
         cash_total=cash_total, bank_total=bank_total,
         all_accounts=cash_accounts + bank_accounts,
     )
@@ -2245,7 +2247,7 @@ def dashboard():
     # Treasury — the bank accounts by their place under 1120, not their code
     from ...services import bank_accounts as banks
     cash_total = sum(a.balance for a in banks.cash_accounts(_sid()))
-    bank_total = sum(a.balance for a in banks.bank_accounts(_sid()) if a.type == "asset")
+    bank_total = banks.bank_total(_sid())
     # Aging
     aging = aging_report(_sid())
     # Collection this month

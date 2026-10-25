@@ -57,10 +57,10 @@ def subtree_ids(school_id: int) -> set[int]:
     return out
 
 
-def bank_accounts(school_id: int, *, active_only: bool = False) -> list[Account]:
+def bank_accounts(school_id: int, *, active_only: bool = False, ids: set | None = None) -> list[Account]:
     """The postable accounts under 1120 (1120 itself while it is still
     postable, before the migration), by code."""
-    ids = subtree_ids(school_id)
+    ids = subtree_ids(school_id) if ids is None else ids
     if not ids:
         return []
     q = Account.query.filter(Account.school_id == school_id, Account.id.in_(ids),
@@ -70,9 +70,32 @@ def bank_accounts(school_id: int, *, active_only: bool = False) -> list[Account]
     return q.order_by(Account.code).all()
 
 
-def cash_accounts(school_id: int, *, active_only: bool = False) -> list[Account]:
+def legacy_banks(school_id: int, ids: set | None = None) -> list[tuple[Account, float]]:
+    """[(aggregate, balance of its OWN lines)] in the bank tree — 1120's
+    postings from before it became an aggregate. They are never moved,
+    so every bank total adds them (own lines only: an aggregate's
+    .balance also counts its children, which are listed already)."""
+    from ..models import JournalLine
+    ids = subtree_ids(school_id) if ids is None else ids
+    if not ids:
+        return []
+    with_lines = {aid for (aid,) in db.session.query(JournalLine.account_id)
+                  .filter(JournalLine.account_id.in_(ids)).distinct()}
+    rows = (Account.query.filter(Account.id.in_(with_lines), Account.is_postable.is_(False))
+            .order_by(Account.code).all()) if with_lines else []
+    return [(a, a._own_balance()) for a in rows]
+
+
+def bank_total(school_id: int) -> float:
+    """Every bank account's balance + the legacy lines on aggregates."""
+    ids = subtree_ids(school_id)
+    return (sum(a.balance for a in bank_accounts(school_id, ids=ids) if a.type == "asset")
+            + sum(bal for _a, bal in legacy_banks(school_id, ids)))
+
+
+def cash_accounts(school_id: int, *, active_only: bool = False, banks: set | None = None) -> list[Account]:
     """Postable 111x asset accounts — outside the bank tree."""
-    banks = subtree_ids(school_id)
+    banks = subtree_ids(school_id) if banks is None else banks
     q = Account.query.filter(Account.school_id == school_id, Account.is_postable.is_(True),
                              Account.type == "asset", Account.code.startswith("111"))
     if active_only:
@@ -82,7 +105,10 @@ def cash_accounts(school_id: int, *, active_only: bool = False) -> list[Account]
 
 def cash_and_bank_ids(school_id: int, *, active_only: bool = False) -> set[int]:
     """What used to be "postable 11xx": every postable 11xx account outside
-    the bank tree, plus the bank accounts (whatever their number) — each once."""
+    the bank tree, plus the bank accounts (whatever their number), plus an
+    aggregate in the bank tree that still holds its own old lines — each
+    once. Sum these with Account._own_balance (an aggregate's .balance
+    would count its children twice)."""
     banks = subtree_ids(school_id)
     q = db.session.query(Account.id).filter(Account.school_id == school_id,
                                             Account.is_postable.is_(True),
@@ -90,7 +116,8 @@ def cash_and_bank_ids(school_id: int, *, active_only: bool = False) -> set[int]:
     if active_only:
         q = q.filter(Account.is_active.is_(True))
     out = {aid for (aid,) in q.all() if aid not in banks}
-    return out | {a.id for a in bank_accounts(school_id, active_only=active_only)}
+    out |= {a.id for a in bank_accounts(school_id, active_only=active_only, ids=banks)}
+    return out | {a.id for a, _bal in legacy_banks(school_id, banks)}
 
 
 def position(school_id: int, parent) -> str:

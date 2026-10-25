@@ -295,3 +295,40 @@ def test_the_migration_is_idempotent_and_keeps_every_row():
         mod.downgrade()
         rows = dict(conn.execute(sa.text("SELECT id, is_postable FROM accounts")).all())
         assert bool(rows[2]) is False and bool(rows[4]) is True      # 1120 with a child stays aggregate
+
+
+def test_old_1120_lines_stay_in_every_report_and_total_once(bapp, two_schools, login_as):
+    """Review: after 1120 became an aggregate its old postings must still
+    count — trial balance (balanced), balance sheet, treasury, dashboards,
+    cash flow — and never twice once banks exist under it."""
+    from app.extensions import db
+    from app.models import Account
+    from app.services import bank_accounts as banks
+    from app.services.reports import balance_sheet, cash_flow, trial_balance
+    from app.blueprints.dashboard.routes import _cash_on_hand
+    A = two_schools["A"]
+    sid = A["school"].id
+    with bapp.app_context():
+        Account.query.filter_by(school_id=sid, code="1120").one().is_postable = True
+        db.session.commit(); db.session.remove()
+    _post(bapp, sid, "1120", "3100", "300")                              # before the tree
+    with bapp.app_context():
+        Account.query.filter_by(school_id=sid, code="1120").one().is_postable = False
+        db.session.commit(); db.session.remove()
+    with bapp.test_request_context():
+        tb = trial_balance(sid)
+        assert tb["total_debit"] == tb["total_credit"] == Decimal("300")
+        assert sum(r["amount"] for r in balance_sheet(sid)["assets"]) == Decimal("300")
+        assert banks.bank_total(sid) == 300 and _cash_on_hand(sid) == 300
+        assert cash_flow(sid)["total_in"] == Decimal("300")
+        db.session.remove()
+    c = _admin(bapp, login_as, A)
+    assert "قيود قبل هيكل البنوك" in c.get("/finance/treasury", base_url=host(A)).get_data(as_text=True)
+    # banks added under it: 300 + 1000, never 1120's rolled-up balance on top
+    _bank_with_account(bapp, c, A)
+    _post(bapp, sid, "4501237789", "3100", "1000")
+    with bapp.test_request_context():
+        assert banks.bank_total(sid) == 1300 and _cash_on_hand(sid) == 1300
+        tb = trial_balance(sid)
+        assert tb["total_debit"] == tb["total_credit"] == Decimal("1300")
+        db.session.remove()

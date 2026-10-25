@@ -133,7 +133,7 @@ def overview(user, month_at=None) -> dict:
     """Every school with usage this month, and the platform's total."""
     from ..models import School
     start, end = month_bounds(month_at)
-    from .ai_quota import ai_quota_status
+    from .ai_quota import effective_ai_cap
     from .modules import feature_enabled
     this_month = month_bounds()[0] == start
     with platform_read_scope("ai_usage_overview", user, month=start.isoformat()):
@@ -145,12 +145,13 @@ def overview(user, month_at=None) -> dict:
         names = {sc.id: sc.name for sc in schools}
         names.update({sc.id: sc.name for sc in School.query.filter(School.id.in_(list(per) or [-1]))})
         for sid, r in per.items():
-            q = ai_quota_status(sid, start)
-            r["cap"], r["cap_source"] = q["cap"], q["source"]
-            r["percent"] = round(r["tokens"] / q["cap"] * 100) if q["cap"] else None
+            # the cap only: the month's tokens are r["tokens"] already (no second SUM)
+            cap, source = effective_ai_cap(sid)
+            r["cap"], r["cap_source"] = cap, source
+            r["percent"] = round(r["tokens"] / cap * 100) if cap else None
             r["warn"] = r["percent"] is not None and r["percent"] >= 90
             r["ai_on"] = sid in ai_on
-            r["open_no_cap"] = r["ai_on"] and q["cap"] is None and this_month
+            r["open_no_cap"] = r["ai_on"] and cap is None and this_month
     total = {"calls": 0, "tokens": 0, "unpriced": 0, "money": {}}
     for r in per.values():
         for k in ("calls", "tokens", "unpriced"):

@@ -224,3 +224,18 @@ def test_a_database_refusal_is_a_message_not_a_500(vapp, two_schools, login_as, 
     status, body = _post(c, A, "/academic/grades/new", {"name": "G1-alpha", "order_index": "9"})
     assert status == 200 and "تعذّر حفظ الصف" in body
     assert "IntegrityError" not in body and "UNIQUE" not in body
+
+
+def test_an_empty_capacity_on_edit_keeps_the_current_one(vapp, two_schools, login_as):
+    """Review: as before the validation ticket — renaming a section with
+    the capacity left empty keeps its capacity."""
+    from app.extensions import db
+    from app.models import Section
+    A = two_schools["A"]
+    c = _c(vapp, login_as, A)
+    _, body = _post(c, A, f"/academic/sections/{hid(A['section'].id)}/edit", {"name": "Sec-renamed", "capacity": ""})
+    assert "تم تعديل الفصل" in body
+    with vapp.app_context():
+        s = db.session.get(Section, A["section"].id)
+        assert (s.name, s.capacity) == ("Sec-renamed", 30)
+        db.session.remove()

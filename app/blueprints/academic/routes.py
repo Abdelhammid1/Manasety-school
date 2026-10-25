@@ -625,8 +625,9 @@ def _section_data(form, year, grade, editing=None) -> dict:
     the year (uq_section_year_grade_name — deleted sections too)."""
     name = v.text(form, "name", "اسم الفصل", max_len=64)
     raw_cap = (form.get("capacity") or "").strip()
-    if editing is None and not raw_cap:
-        capacity = 30                                   # the form's default, as before
+    if not raw_cap:
+        # as before: a new section gets the form's default, an edit keeps its capacity
+        capacity = 30 if editing is None else editing.capacity
     else:
         capacity = v.whole(form, "capacity", "سعة الفصل",
                            keep=editing.capacity if editing else None)
