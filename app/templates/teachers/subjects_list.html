@@ -37,13 +37,44 @@
         <div class="flex flex-col min-w-0 flex-1">
           <span class="font-title-md text-title-md text-primary font-bold truncate">{{ s.name }}</span>
           {% if s.code %}<code class="font-label-xs text-label-xs text-outline" dir="ltr">{{ s.code }}</code>{% endif %}
-          <div class="flex items-center gap-2 mt-1 flex-wrap">
-            {% for g in s.grades %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs text-label-xs">{{ g.name }}</span>
-            {% endfor %}
-            {% for t in s.terms %}
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">{{ t.name }}</span>
-            {% endfor %}
+          {# Grades grouped by stage (ordered by order_index), terms in own row #}
+          {% set grades_sorted = s.grades|rejectattr('deleted_at')|sort(attribute='order_index')|list %}
+          {% set terms_sorted = s.terms|rejectattr('deleted_at')|sort(attribute='order_index')|list %}
+          {% set ns = namespace(groups=[]) %}
+          {% for g in grades_sorted %}
+            {% if ns.groups and ns.groups[-1][0] == (g.stage or '') %}
+              {% set _ = ns.groups[-1][1].append(g) %}
+            {% else %}
+              {% set _ = ns.groups.append(((g.stage or ''), [g])) %}
+            {% endif %}
+          {% endfor %}
+          <div class="flex flex-col gap-2 mt-2">
+            <div class="flex flex-col gap-1">
+              <span class="font-label-md text-label-md text-primary font-bold">الصفوف</span>
+              {% for stage, gs in ns.groups %}
+              <div class="flex items-center gap-1 flex-wrap">
+                {% if stage %}<span class="font-label-xs text-label-xs text-primary font-bold">{{ stage }}:</span>{% endif %}
+                {% for g in gs %}
+                  {% set lbl = g.name %}
+                  {% if lbl.startswith('الصف ') %}{% set lbl = lbl[5:] %}{% endif %}
+                  {% if stage %}{% set lbl = (lbl|replace(' ال' ~ stage, '')|replace(' ' ~ stage, ''))|trim %}{% endif %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs text-label-xs">{{ lbl or g.name }}</span>
+                {% endfor %}
+              </div>
+              {% else %}
+              <span class="font-label-xs text-label-xs text-outline">غير محدد</span>
+              {% endfor %}
+            </div>
+            <div class="flex flex-col gap-1">
+              <span class="font-label-md text-label-md text-primary font-bold">الفصول الدراسية</span>
+              <div class="flex items-center gap-1 flex-wrap">
+                {% for t in terms_sorted %}
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs text-label-xs">{{ t.name }}</span>
+                {% else %}
+                <span class="font-label-xs text-label-xs text-outline">غير محدد</span>
+                {% endfor %}
+              </div>
+            </div>
           </div>
         </div>
       </div>
