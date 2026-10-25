@@ -1,33 +1,108 @@
 {# SAAS-030 — included by school_detail.html #}
-<h2 id="modules">الموديولات</h2>
-<div class="card table-wrap">
-  <table>
-    <thead><tr><th>الموديول</th><th>الحالة</th><th>المصدر</th>{% if current_user.role == 'owner' %}<th>تعديل</th>{% endif %}</tr></thead>
-    <tbody>
-    {% for m in modules %}
-      <tr>
-        <td style="white-space:normal">{{ m.module.label_ar }}</td>
-        <td><span class="chip {{ 'active' if m.enabled else 'expired' }}">{{ 'مفعّل' if m.enabled else 'مقفول' }}</span></td>
-        <td style="white-space:normal">{{ {'core':'أساسي','plan':'الباقة','override':'استثناء'}[m.source] }}{% if m.override %} — {{ m.override.reason }}{% endif %}</td>
-        {% if current_user.role == 'owner' %}
-        <td>{% if not m.module.core %}
-          <form method="post" action="{{ url_for('superadmin.school_module_set', school_id=school.id) }}" class="row" style="margin:0;align-items:center">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="hidden" name="module" value="{{ m.module.key }}">
-            <select name="state" aria-label="حالة {{ m.module.label_ar }}" style="flex:0 0 130px">
-              <option value="plan" {% if not m.override %}selected{% endif %}>حسب الباقة</option>
-              <option value="on" {% if m.override and m.override.enabled %}selected{% endif %}>تفعيل</option>
-              <option value="off" {% if m.override and not m.override.enabled %}selected{% endif %}>إيقاف</option>
-            </select>
-            <input name="reason" required placeholder="السبب" aria-label="السبب" style="flex:1 1 140px">
-            <button class="btn ghost" type="submit" style="flex:0 0 auto">حفظ</button>
-          </form>{% endif %}</td>
-        {% endif %}
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+{# Modules and their pages (features ticket B): one tree, one reason, one save.
+   The server is the reference — the small script only greys out the pages
+   of a module set to "off"; without it the save still does the right thing. #}
+{% set is_owner = current_user.role == 'owner' %}
+{% set kept = access_form or {} %}
+{% set src_label = {'essential': 'أساسية', 'module_off': 'الموديول مقفول', 'override': 'استثناء', 'default': 'الافتراضي'} %}
+<h2 id="modules">الموديولات والصفحات</h2>
+<div class="card">
+  <p class="sub" style="margin:0 0 8px">الصفحة شغالة = الموديول بتاعها شغال <b>و</b> (استثناء المدرسة لو موجود، وإلا الافتراضي). قفل أي حاجة ما بيمسحش داتا.</p>
+  {% if is_owner %}
+  <form method="post" action="{{ url_for('superadmin.school_features_set', school_id=school.id) }}" id="access-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  {% endif %}
+  {% for m in modules %}
+    {% set mk = m.module.key %}
+    {% set on_count = m.features|selectattr('enabled')|list|length %}
+    <details class="mod" open>
+      <summary>
+        <b>{{ m.module.label_ar }}</b>
+        <span class="chip {{ 'active' if m.enabled else 'expired' }}">{{ 'مفعّل' if m.enabled else 'مقفول' }}</span>
+        <span class="sub">{{ {'core':'أساسي','plan':'الباقة','override':'استثناء'}[m.source] }}{% if m.override %} — {{ m.override.reason }}{% endif %}</span>
+        <span class="sub num" style="margin-inline-start:auto"><bdi>{{ on_count }} / {{ m.features|length }}</bdi> صفحة</span>
+      </summary>
+      {% if is_owner and not m.module.core %}
+      {% set cur = ('on' if m.override.enabled else 'off') if m.override else 'plan' %}
+      {% set chosen = (kept.get('module_' ~ mk) or [cur])[0] %}
+      <div class="row" style="margin:8px 0;align-items:center">
+        <label for="module_{{ mk }}" style="flex:0 0 auto;margin:0">حالة الموديول</label>
+        <select id="module_{{ mk }}" name="module_{{ mk }}" data-module="{{ mk }}" data-in-plan="{{ 1 if m.in_plan else 0 }}" style="flex:0 0 160px">
+          <option value="plan" {% if chosen == 'plan' %}selected{% endif %}>حسب الباقة ({{ 'مفعّل' if m.in_plan else 'مقفول' }})</option>
+          <option value="on" {% if chosen == 'on' %}selected{% endif %}>تفعيل</option>
+          <option value="off" {% if chosen == 'off' %}selected{% endif %}>إيقاف</option>
+        </select>
+      </div>
+      {% endif %}
+      <ul class="feats">
+      {% for f in m.features %}
+        {% set fk = f.feature.key %}
+        {% set editable = is_owner and f.source != 'essential' and m.enabled %}
+        {% set checked = ('feature_' ~ fk) in kept if kept and editable else f.stored %}
+        <li>
+          {% if editable %}
+          <input type="hidden" name="known" value="{{ fk }}" data-module="{{ mk }}">
+          <input type="checkbox" id="f_{{ fk }}" name="feature_{{ fk }}" value="1" data-module="{{ mk }}" {% if checked %}checked{% endif %}>
+          {% else %}
+          <input type="checkbox" id="f_{{ fk }}" disabled {% if f.enabled %}checked{% endif %} aria-describedby="s_{{ fk }}">
+          {% endif %}
+          <label for="f_{{ fk }}">{{ f.feature.label_ar }}</label>
+          <span id="s_{{ fk }}" class="sub">{{ src_label[f.source] }}{% if f.source == 'default' and not f.default_on %} (مقفولة افتراضيًا){% endif %}{% if f.override %} — {{ f.override.reason }}{% endif %}</span>
+        </li>
+      {% endfor %}
+      </ul>
+    </details>
+  {% endfor %}
+  {% if is_owner %}
+    <label for="access_reason">السبب * (سبب واحد لكل التغييرات)</label>
+    <input id="access_reason" name="reason" required value="{{ (kept.get('reason') or [''])[0] }}">
+    <button class="btn" type="submit" style="margin-top:12px">حفظ الموديولات والصفحات</button>
+  </form>
+  <script nonce="{{ csp_nonce }}">
+    (function () {
+      var form = document.getElementById('access-form');
+      if (!form) return;
+      function sync(sel) {
+        var off = sel.value === 'off' || (sel.value === 'plan' && sel.dataset.inPlan === '0');
+        form.querySelectorAll('input[data-module="' + sel.dataset.module + '"]').forEach(function (i) {
+          i.disabled = off;
+        });
+      }
+      form.querySelectorAll('select[data-module]').forEach(function (sel) {
+        sel.addEventListener('change', function () { sync(sel); });
+      });
+    })();
+  </script>
+  {% endif %}
+
+  <h3 style="margin-top:16px">آخر التغييرات</h3>
+  {% if access_events %}
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>التاريخ</th><th>بواسطة</th><th>قبل ← بعد</th><th>السبب</th></tr></thead>
+      <tbody>
+      {% for row in access_events %}
+        <tr>
+          <td class="num"><bdi>{{ row.event.created_at.strftime('%Y-%m-%d %H:%M') if row.event.created_at else '' }}</bdi></td>
+          <td>{{ row.by }}</td>
+          <td style="white-space:normal"><bdi dir="ltr">{{ row.event.from_value or '—' }} → {{ row.event.to_value or '—' }}</bdi></td>
+          <td style="white-space:normal">{{ row.event.reason or '' }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="sub">مفيش تغييرات لسه.</p>
+  {% endif %}
 </div>
+<style>
+  details.mod{border-top:1px solid #eef2f7;padding:8px 0}
+  details.mod summary{display:flex;flex-wrap:wrap;gap:8px;align-items:center;cursor:pointer}
+  ul.feats{list-style:none;margin:6px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 16px}
+  ul.feats li{display:flex;gap:6px;align-items:baseline;flex-wrap:wrap}
+  ul.feats label{margin:0;font-weight:600}
+</style>
 
 <h2 id="limits">الحدود والاستخدام</h2>
 <div class="card">

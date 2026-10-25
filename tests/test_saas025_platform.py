@@ -41,6 +41,7 @@ SUPERADMIN_ROUTES = {
     "superadmin.slug_check": {"GET"},
     "superadmin.school_nginx_sync": {"POST"},                       # SAAS-029
     "superadmin.school_module_set": {"POST"},                       # SAAS-030
+    "superadmin.school_features_set": {"POST"},                     # features ticket B
     "superadmin.school_backup_policy": {"POST"},                    # SAAS-047
     "superadmin.school_restore_new": {"POST"},                      # SAAS-048
     "superadmin.school_restore_confirm": {"POST"},                  # SAAS-048
@@ -105,6 +106,7 @@ CONSOLE_WRITES = {
     "superadmin.school_new_step", "superadmin.school_create",                 # SAAS-028
     "superadmin.school_nginx_sync",                                           # SAAS-029
     "superadmin.school_module_set", "superadmin.school_limits_set",           # SAAS-030
+    "superadmin.school_features_set",                                          # features ticket B
     "superadmin.school_backup_policy",                                        # SAAS-047
     "superadmin.school_restore_new", "superadmin.school_restore_confirm",     # SAAS-048
     "superadmin.support_start", "superadmin.support_revoke",                  # SAAS-031

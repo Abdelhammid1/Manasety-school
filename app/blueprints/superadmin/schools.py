@@ -141,7 +141,7 @@ def school_detail(school_id):
                            modules=_modules_view(school.id), limits=_limits_view(school.id),
                            limit_override=db.session.get(SchoolLimitOverride, school.id),
                            **_control_view(school.id), **_usage_view(school.id),
-                           **_backups_view(school.id))
+                           **_backups_view(school.id), **_access_view(school.id))
 
 
 def _backups_view(school_id):
@@ -167,8 +167,27 @@ def _control_view(school_id):
 
 
 def _modules_view(school_id):
-    from ...services.modules import module_sources
-    return module_sources(school_id)
+    """Each module with its pages (state, where it comes from) — one pass."""
+    from ...services.modules import feature_sources
+    return feature_sources(school_id)
+
+
+def _access_view(school_id):
+    """The last 15 module / page changes, and — after a refused save — what
+    the owner had chosen, so the tree shows it again."""
+    from flask import session
+    from ...models import PlatformUser, SchoolSubscriptionEvent
+    from .modules_limits import FEATURES_FORM_KEY
+    events = (SchoolSubscriptionEvent.query
+              .filter(SchoolSubscriptionEvent.school_id == school_id,
+                      SchoolSubscriptionEvent.kind.in_(("module_override", "feature_override")))
+              .order_by(SchoolSubscriptionEvent.id.desc()).limit(15).all())
+    ids = {e.platform_user_id for e in events if e.platform_user_id}
+    names = {u.id: (u.full_name or u.email) for u in PlatformUser.query.filter(PlatformUser.id.in_(ids))}         if ids else {}
+    kept = session.pop(FEATURES_FORM_KEY, None)
+    kept_form = kept["form"] if kept and kept.get("school_id") == school_id else None
+    return {"access_events": [{"event": e, "by": names.get(e.platform_user_id, "—")} for e in events],
+            "access_form": kept_form}
 
 
 def _limits_view(school_id):

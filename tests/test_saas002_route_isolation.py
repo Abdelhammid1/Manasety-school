@@ -645,6 +645,15 @@ _PRE_AUTH_OR_SHARED: dict[str, str] = {
     "superadmin.school_module_set":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-030 console tests",
+    "superadmin.school_features_set":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by tests/test_console_features.py",
+    "superadmin.school_branding":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by tests/test_console_branding.py",
+    "superadmin.school_branding_logo":
+        "platform console (no school tenant): 404 on every school host and when "
+        "resolution is off — covered by tests/test_console_branding.py",
     "superadmin.school_limits_set":
         "platform console (no school tenant): 404 on every school host and when "
         "resolution is off — covered by the SAAS-030 console tests",

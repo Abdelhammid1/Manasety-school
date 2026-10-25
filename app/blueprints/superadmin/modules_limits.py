@@ -72,3 +72,61 @@ def school_limits_set(school_id):
     db.session.commit()
     flash("تم تحديث الحدود.", "success")
     return redirect(url_for("superadmin.school_detail", school_id=school.id) + "#limits")
+
+
+# ─── modules + pages in one save (features ticket B) ─────────────────
+# The form sends every toggleable module's state (plan / on / off), the
+# page keys it showed as editable (`known`) and a checkbox per page. A
+# page becomes an exception only when it differs from its default;
+# going back to the default removes the exception. One reason, one
+# transaction, one event and one audit line.
+
+FEATURES_FORM_KEY = "school_features_form"
+
+
+@bp.route("/schools/<int:school_id>/features", methods=["POST"], endpoint="school_features_set")
+@require_platform_role("owner")
+def school_features_set(school_id):
+    from flask import session
+    from ...services.modules import (FEATURES_BY_KEY, ESSENTIAL_FEATURES, TOGGLEABLE,
+                                     set_school_access)
+    school = db.session.get(School, school_id) or abort(404)
+    back = redirect(url_for("superadmin.school_detail", school_id=school.id) + "#modules")
+    form = request.form
+    try:
+        posted = {k[len("module_"):] for k in form if k.startswith("module_")}
+        if posted - set(TOGGLEABLE):
+            raise SubscriptionError("موديولات أساسية أو غير معروفة: " + ", ".join(sorted(posted - set(TOGGLEABLE))))
+        modules = {}
+        for key in TOGGLEABLE:
+            raw = form.get(f"module_{key}")
+            if raw is None:
+                continue
+            if raw not in ("plan", "on", "off"):
+                raise SubscriptionError("حالة موديول غير صحيحة.")
+            modules[key] = {"plan": None, "on": True, "off": False}[raw]
+        known = [k.strip() for k in form.getlist("known") if k.strip()]
+        bad = sorted({k for k in known if k not in FEATURES_BY_KEY or k in ESSENTIAL_FEATURES})
+        if bad:
+            raise SubscriptionError(f"صفحات غير معروفة أو أساسية: {', '.join(bad)}")
+        from ...models import SchoolFeatureOverride
+        stored = {o.feature_key: o.enabled for o in SchoolFeatureOverride.query.filter_by(school_id=school.id)}
+        features = {}
+        for key in known:
+            want = form.get(f"feature_{key}") == "1"
+            now = stored.get(key, FEATURES_BY_KEY[key].default_on)
+            if want != now:
+                features[key] = None if want == FEATURES_BY_KEY[key].default_on else want
+        diff = set_school_access(school, modules, features, form.get("reason") or "",
+                                 current_platform_user())
+    except SubscriptionError as e:
+        db.session.rollback()
+        # keep what the owner chose on the page
+        session[FEATURES_FORM_KEY] = {"school_id": school.id, "form": form.to_dict(flat=False)}
+        flash(f"لم يُحفظ أي تغيير: {e}", "danger")
+        return back
+    db.session.commit()
+    session.pop(FEATURES_FORM_KEY, None)
+    m, f = len(diff["modules"]), len(diff["features"])
+    flash(f"تم تعديل {m} وحدة و{f} صفحة." if (m or f) else "لا توجد تغييرات.", "success")
+    return back

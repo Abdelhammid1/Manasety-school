@@ -67,6 +67,7 @@ ROUTES: dict[str, dict[str, str]] = {
     "superadmin.slug_check": {G: "schools.create"},
     "superadmin.school_nginx_sync": {P: "nginx.sync"},
     "superadmin.school_module_set": {P: "modules.write"},
+    "superadmin.school_features_set": {P: "modules.write"},
     "superadmin.school_backup_policy": {P: "backups.policy"},
     "superadmin.school_restore_new": {P: "backups.restore"},
     "superadmin.school_restore_confirm": {P: "backups.restore"},
