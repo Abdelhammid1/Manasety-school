@@ -151,10 +151,21 @@
               {% endif %}
             </td>
             <td class="px-4 py-3 text-center">
-              <a href="{{ url_for('students.student_detail', student_id=s.id) }}"
-                 class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/40" title="فتح ملف الطالب">
-                <span class="material-symbols-outlined text-lg">chevron_left</span>
-              </a>
+              {# visible actions (ticket «أزرار الإجراءات») — edit for who may
+                 edit; there is no student delete in the system to show #}
+              <div class="inline-flex items-center gap-1">
+                {% if current_user.can('students', 'edit') %}
+                <a href="{{ url_for('students.student_edit', student_id=s.id) }}"
+                   class="inline-flex items-center justify-center gap-1 h-8 px-2 rounded-lg text-primary bg-primary-container/20 hover:bg-primary-container/40 font-label-md font-bold"
+                   title="تعديل بيانات الطالب" aria-label="تعديل بيانات {{ s.full_name }}">
+                  <span class="material-symbols-outlined text-base">edit</span><span class="hidden sm:inline">تعديل</span>
+                </a>
+                {% endif %}
+                <a href="{{ url_for('students.student_detail', student_id=s.id) }}"
+                   class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-primary hover:bg-primary-container/40" title="فتح ملف الطالب" aria-label="فتح ملف {{ s.full_name }}">
+                  <span class="material-symbols-outlined text-lg">chevron_left</span>
+                </a>
+              </div>
             </td>
           </tr>
           {% else %}

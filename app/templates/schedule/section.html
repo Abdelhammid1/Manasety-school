@@ -114,23 +114,65 @@
                 <div class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-secondary-container/40 text-secondary font-label-xs">
                   <span class="material-symbols-outlined text-xs">meeting_room</span>{{ slot.room.name }}
                 </div>
+                {% else %}
+                <div class="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-surface-container-high text-outline font-label-xs">
+                  <span class="material-symbols-outlined text-xs">meeting_room</span>القاعة: غير محددة
+                </div>
                 {% endif %}
-                {# Only editors see the slot-delete affordance. #}
-                {% if current_user.can('teachers', 'edit') %}
+                {# The buttons follow the routes' own permissions; always
+                   visible (a hover-only button doesn't exist on a phone). #}
+                {% if current_user.can('schedule', 'delete') %}
                 <form method="post" action="{{ url_for('schedule.slot_delete', section_id=section.id, slot_id=slot.id) }}"
-                      onsubmit="return confirm('حذف حصة {{ slot.subject.name }} ({{ d.name }} - {{ p.name }})؟')"
-                      class="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      data-name="{{ slot.subject.name }} ({{ d.name }} - {{ p.name }})"
+                      onsubmit="return confirm('حذف حصة ' + this.dataset.name + '؟')"
+                      class="absolute top-1 left-1">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="w-6 h-6 rounded-lg text-error hover:bg-error-container flex items-center justify-center" title="حذف">
+                  <button type="submit" class="w-6 h-6 rounded-lg text-error hover:bg-error-container flex items-center justify-center" title="حذف الحصة" aria-label="حذف الحصة">
                     <span class="material-symbols-outlined text-sm">close</span>
                   </button>
                 </form>
+                {% endif %}
+                {% if current_user.can('schedule', 'edit') %}
+                {# Ticket «تعديل حصة» — the same save as adding: it updates
+                   this slot in place (same row, attendance stays linked),
+                   with the same teacher / room clash checks. #}
+                {% set cur = assignment_options|selectattr('subject_id', 'equalto', slot.subject_id)|selectattr('teacher_id', 'equalto', slot.teacher_id)|first %}
+                <details class="mt-2">
+                  <summary class="inline-flex items-center gap-1 h-7 px-2 rounded-md bg-surface-container-lowest text-primary font-label-xs font-bold cursor-pointer list-none hover:bg-primary-container/20">
+                    <span class="material-symbols-outlined text-xs">edit</span>تعديل
+                  </summary>
+                  <form method="post" action="{{ url_for('schedule.slot_save', section_id=section.id) }}" class="pt-2 flex flex-col gap-1">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="day_id" value="{{ d.id }}">
+                    <input type="hidden" name="period_id" value="{{ p.id }}">
+                    <select name="assignment_id" required aria-label="المادة والمعلم"
+                            class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md">
+                      {% if not cur %}<option value="">— اختر الإسناد —</option>{% endif %}
+                      {% for opt in assignment_options %}
+                      {% set mine = cur and opt.id == cur.id %}
+                      <option value="{{ opt.id }}" {% if mine %}selected{% elif opt.full %}disabled{% endif %}>
+                        {{ opt.subject_name }} — {{ opt.teacher_name }} ({{ opt.allocated }}/{{ opt.required }}){% if opt.full and not mine %} — مكتمل{% endif %}
+                      </option>
+                      {% endfor %}
+                    </select>
+                    <select name="room_id" aria-label="القاعة"
+                            class="w-full h-9 px-2 rounded-lg bg-surface-container-low font-label-md text-label-md">
+                      <option value="">— القاعة (اختياري) —</option>
+                      {% for r in rooms %}
+                      <option value="{{ r.id }}" {% if slot.room_id == r.id %}selected{% endif %}>{{ r.name }}{% if r.capacity %} · سعة {{ r.capacity }}{% endif %}</option>
+                      {% endfor %}
+                    </select>
+                    <button type="submit" class="h-9 rounded-lg bg-primary text-on-primary font-label-md font-bold flex items-center justify-center gap-1">
+                      <span class="material-symbols-outlined text-sm">save</span><span>حفظ التعديل</span>
+                    </button>
+                  </form>
+                </details>
                 {% endif %}
               </div>
               {% else %}
               {# Empty-cell editor affordances — only shown to editors.
                  Students viewing their own schedule see a blank cell. #}
-              {% if current_user.can('teachers', 'edit') %}
+              {% if current_user.can('schedule', 'edit') %}
               {% if assignment_options %}
               <details class="rounded-lg border-2 border-dashed border-outline-variant hover:border-primary">
                 <summary class="p-3 cursor-pointer text-center text-outline hover:text-primary font-label-md list-none">
