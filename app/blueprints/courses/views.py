@@ -13,7 +13,7 @@ from ...models import (
     Course, CourseSection, Lesson, AcademicYear, Section, Subject, Teacher,
     Grade, Term, Unit, Assignment, Student,
 )
-from ...services.scoping import owned_or_404  # isolation sweep: school-scoped get
+from ...services.scoping import owned_id, owned_or_404  # isolation sweep: school-scoped get
 
 
 # ─── Embed URL normalizer ──────────────────────────────────────────────
@@ -289,18 +289,24 @@ def _section_links(course):
 def section_link(course_id):
     """Publish the course to one or more sections: their students see it in
     «موادي» (when the course itself is published)."""
-    from datetime import datetime, timezone
     course = owned_or_404(Course, course_id)
-    back = redirect(url_for("courses.detail", course_id=course.id) + "#sections")
     ids = {int(x) for x in request.form.getlist("section_ids") if str(x).strip().isdigit()}
+    _link_sections(course, ids)
+    return redirect(url_for("courses.detail", course_id=course.id) + "#sections")
+
+
+def _link_sections(course, ids: set) -> None:
+    """Link `course` to the sections `ids` (flashes the outcome) — shared by
+    the course page and the section page, one set of rules."""
+    from datetime import datetime, timezone
     if not ids:
         flash("اختر شعبة واحدة على الأقل.", "danger")
-        return back
+        return
     pool = {s.id: s for s in _course_sections_pool(course)}
     if ids - set(pool):
         # another school's id, another grade's / year's section, or a deleted one
         flash("الشعبة المختارة غير متاحة لهذا المقرّر.", "danger")
-        return back
+        return
     have = {cs.section_id for cs in course.course_sections}
     dup = sorted(pool[i].name for i in ids & have)
     new = sorted(ids - have)
@@ -320,7 +326,37 @@ def section_link(course_id):
         flash(f"تم ربط المقرّر بـ {len(new)} شعبة: " + "، ".join(pool[i].name for i in new) + ".", "success")
     if dup:
         flash("مرتبطة بالفعل (لم تتكرر): " + "، ".join(dup) + ".", "warning")
+
+
+@bp.route("/sections/<hid:section_id>/link-course", methods=["POST"], endpoint="section_course_link")
+@login_required
+@require_permission("lms", "edit")
+def section_course_link(section_id):
+    """The same link from the section page: pick a course of the section's
+    grade and year."""
+    section = owned_or_404(Section, section_id)
+    back = redirect(url_for("academic.section_detail", section_id=section.id) + "#courses")
+    course = Course.query.filter_by(id=request.form.get("course_id", type=int),
+                                    school_id=section.school_id).first()
+    if course is None:
+        flash("اختر مقرّراً.", "danger")
+        return back
+    _link_sections(course, {section.id})
     return back
+
+
+def section_courses(section):
+    """For the section page: ([(link, course)], [courses of its grade and
+    year not linked yet])."""
+    links = (CourseSection.query.filter_by(section_id=section.id)
+             .join(Course, Course.id == CourseSection.course_id)
+             .order_by(Course.title).all())
+    rows = [(cs, cs.course) for cs in links if cs.course is not None]
+    taken = {c.id for _cs, c in rows}
+    pool = (Course.query.filter_by(school_id=section.school_id, grade_id=section.grade_id,
+                                   academic_year_id=section.year_id)
+            .order_by(Course.title).all())
+    return rows, [c for c in pool if c.id not in taken]
 
 
 @bp.route("/<hid:course_id>/sections/<hid:link_id>/unlink", methods=["POST"], endpoint="section_unlink")
@@ -330,7 +366,9 @@ def section_unlink(course_id, link_id):
     """Unpublish the course from one section. Only the link goes: lessons,
     assignments, submissions and grades stay as they are."""
     course = owned_or_404(Course, course_id)
-    back = redirect(url_for("courses.detail", course_id=course.id) + "#sections")
+    back_section = owned_id(Section, request.form.get("back_section", type=int))
+    back = redirect(url_for("academic.section_detail", section_id=back_section) + "#courses"
+                    if back_section else url_for("courses.detail", course_id=course.id) + "#sections")
     cs = CourseSection.query.filter_by(id=link_id, course_id=course.id).first()
     if cs is None:
         flash("هذا الربط غير موجود — ربما أُلغي من قبل.", "warning")

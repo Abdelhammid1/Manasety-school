@@ -527,6 +527,9 @@ ROUTE_MATRIX: dict[str, Entry] = {
     "courses.section_link": _ent("course", "Course", "course_id",
                                  form=lambda A, B: {"section_ids": [str(A["section"].id)]},
                                  snapshot=_cnt("CourseSection", "course_id", "course")),
+    "courses.section_course_link": _ent("section", "Section", "section_id",
+                                        form=lambda A, B: {"course_id": str(A["course"])},
+                                        snapshot=_cnt("CourseSection", "section_id", "section")),
     "courses.section_unlink": _ent("course", "Course", "course_id",
                                    extra=lambda B: {"link_id": B["course_section"]},
                                    snapshot=_cnt("CourseSection", "course_id", "course")),
@@ -1142,6 +1145,10 @@ FORM_ID_MATRIX: dict[str, Entry] = {
                                                              "teacher_id": B["teacher"]},
                                           snapshot=_xlink("Assignment", ("teacher_id", "teacher"),
                                                           ("subject_id", "subject"))),
+    # BUG-007 — link a course from the section page: B's course id in A's form
+    "courses.section_course_link": _in_a("section_id", "section",
+                                         form=lambda A, B: {"course_id": B["course"]},
+                                         snapshot=_cnt("CourseSection", "course_id", "course")),
     # SAAS-016 — courses form ids (3).
     "courses.lesson_edit": _in_a("lesson_id", "lesson", form=lambda A, B: {"title": "x", "unit_id": B["unit"]},
                                  snapshot=_xlink("Lesson", ("unit_id", "unit"))),

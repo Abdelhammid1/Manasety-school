@@ -275,3 +275,42 @@ def test_a_link_to_a_live_section_outside_the_grade_is_not_called_deleted(sapp, 
     admin = _client(sapp, login_as, A["users"]["admin"], A)
     page = admin.get(f"/courses/{hid(A['course'])}", base_url=host(A)).get_data(as_text=True)
     assert "old-link" in page and "شعبة محذوفة" not in page
+
+
+def test_link_and_unlink_from_the_section_page(sapp, school, login_as):
+    A = school["A"]
+    admin = _client(sapp, login_as, A["users"]["admin"], A)
+    page = admin.get(f"/academic/sections/{hid(school['sec_a'])}", base_url=host(A)).get_data(as_text=True)
+    assert "المقرّرات المرتبطة" in page and "Course-alpha" in page and 'name="course_id"' in page
+    r = admin.post(f"/courses/sections/{hid(school['sec_a'])}/link-course", base_url=host(A),
+                   data={"course_id": str(A["course"])})
+    assert r.status_code == 302 and f"/academic/sections/{hid(school['sec_a'])}" in r.headers["Location"]
+    assert _links(sapp, A["course"]) == [school["sec_a"]]
+    student = _client(sapp, login_as, A["users"]["student"], A)
+    assert "Course-alpha" in _my_subjects(student, A)
+    # a second link from here is refused like on the course page
+    r = admin.post(f"/courses/sections/{hid(school['sec_a'])}/link-course", base_url=host(A),
+                   data={"course_id": str(A["course"])}, follow_redirects=True)
+    assert "مرتبطة بالفعل" in r.get_data(as_text=True)
+    # unlink from the section page comes back to it
+    from app.extensions import db
+    from app.models import CourseSection
+    with sapp.app_context():
+        link = CourseSection.query.filter_by(course_id=A["course"]).one().id
+        db.session.remove()
+    r = admin.post(f"/courses/{hid(A['course'])}/sections/{hid(link)}/unlink", base_url=host(A),
+                   data={"back_section": str(school["sec_a"])})
+    assert f"/academic/sections/{hid(school['sec_a'])}" in r.headers["Location"]
+    assert _links(sapp, A["course"]) == []
+
+
+def test_section_page_link_is_refused_without_lms_edit_or_across_schools(sapp, school, world, login_as):
+    A, B = school["A"], world["B"]
+    student = _client(sapp, login_as, A["users"]["student"], A)
+    assert student.post(f"/courses/sections/{hid(school['sec_a'])}/link-course", base_url=host(A),
+                        data={"course_id": str(A["course"])}).status_code == 403
+    admin = _client(sapp, login_as, A["users"]["admin"], A)
+    r = admin.post(f"/courses/sections/{hid(school['sec_a'])}/link-course", base_url=host(A),
+                   data={"course_id": str(B["course"])}, follow_redirects=True)
+    assert "اختر مقرّراً" in r.get_data(as_text=True)
+    assert _links(sapp, A["course"]) == [] and _links(sapp, B["course"]) == [B["section"].id]
