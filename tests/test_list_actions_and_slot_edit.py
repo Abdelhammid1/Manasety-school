@@ -129,3 +129,15 @@ def test_another_schools_section_is_refused(sapp, world, login_as):
         f"/schedule/section/{hid(B['section'].id)}/slot", base_url=host(A),
         data={"day_id": A["day"], "period_id": A["period"], "assignment_id": A["teacher_assignment"]})
     assert r.status_code == 404
+
+
+def test_editing_keeps_a_room_that_was_deactivated_since(sapp, world, login_as):
+    from app.extensions import db
+    from app.models import Room
+    A = world["A"]
+    with sapp.app_context():
+        db.session.get(Room, A["room"]).is_active = False
+        db.session.commit(); db.session.remove()
+    page = _client(sapp, login_as, A, "admin").get(f"/schedule/section/{hid(A['section'].id)}",
+                                                    base_url=host(A)).get_data(as_text=True)
+    assert f'<option value="{A["room"]}" selected>' in page and "(غير نشطة)" in page

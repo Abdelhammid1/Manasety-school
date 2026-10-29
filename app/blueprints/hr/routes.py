@@ -204,22 +204,19 @@ def payroll_list():
         .limit(200).all()
     )
     # BUG-006 (recommended option): «الصافي» stays what was earned; the
-    # header shows what was really paid out and what is still owed. Paid
-    # out = paid_amount minus the advances recovered at accrual (one query).
-    from ...models import JournalEntry, JournalLine
-    refs = [f"PAYROLL-{p.id}" for p in items]
-    advances = float(
-        db.session.query(db.func.coalesce(db.func.sum(JournalLine.debit), 0))
-        .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
-        .filter(JournalEntry.school_id == _sid(), JournalEntry.related_kind == "advance_deduction",
-                JournalEntry.reference.in_(refs or [""]))
-        .scalar() or 0)
-    totals = {
-        "net": sum(float(p.net_pay) for p in items),
-        "advances": advances,
-        "paid": sum(float(p.paid_amount or 0) for p in items) - advances,
-        "remaining": sum(max(0.0, p.remaining) for p in items),
-    }
+    # header shows what was really paid out and what is still owed — over
+    # ALL the school's payrolls (the table shows the latest 200). Paid out
+    # per payroll = paid_amount minus its advance, never below zero.
+    rows = (db.session.query(Payroll.id, Payroll.net_pay, Payroll.paid_amount)
+            .filter(Payroll.school_id == _sid()).all())
+    adv = Payroll.advances_by_payroll(_sid())
+    totals = {"net": 0.0, "advances": 0.0, "paid": 0.0, "remaining": 0.0}
+    for pid, net, paid in rows:
+        net, paid, a = float(net or 0), float(paid or 0), adv.get(pid, 0.0)
+        totals["net"] += net
+        totals["advances"] += a
+        totals["paid"] += max(0.0, paid - a)
+        totals["remaining"] += max(0.0, net - paid)
     return render_template("hr/payroll_list.html", payrolls=items, totals=totals)
 
 

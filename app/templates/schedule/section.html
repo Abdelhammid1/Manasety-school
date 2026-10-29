@@ -161,6 +161,11 @@
                       {% for r in rooms %}
                       <option value="{{ r.id }}" {% if slot.room_id == r.id %}selected{% endif %}>{{ r.name }}{% if r.capacity %} · سعة {{ r.capacity }}{% endif %}</option>
                       {% endfor %}
+                      {# the slot's room even when it was deactivated since —
+                         else saving another change would silently drop it #}
+                      {% if slot.room and slot.room_id not in rooms|map(attribute='id')|list %}
+                      <option value="{{ slot.room_id }}" selected>{{ slot.room.name }} (غير نشطة)</option>
+                      {% endif %}
                     </select>
                     <button type="submit" class="h-9 rounded-lg bg-primary text-on-primary font-label-md font-bold flex items-center justify-center gap-1">
                       <span class="material-symbols-outlined text-sm">save</span><span>حفظ التعديل</span>

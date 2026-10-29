@@ -144,10 +144,15 @@
         {% if q.kind in ('mcq','tf','multi') %}
         <div class="flex flex-col gap-1.5">
           <label class="font-label-md text-on-surface font-bold">الخيارات — ضع علامة على الصحيح</label>
+          {% if q.kind == 'tf' and q.choices and q.choices|selectattr('is_correct')|list|length != 1 %}
+          <p class="p-space-sm rounded-lg bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-md font-bold">
+            هذا السؤال محفوظ بإجابة صحيحة غير واحدة — اختر «صح» أو «خطأ» قبل الحفظ.
+          </p>
+          {% endif %}
           <div class="flex flex-col gap-2">
             {% for c in q.choices %}
             <label class="flex items-center gap-2 p-2 rounded-lg bg-surface-container-low">
-              <input type="{{ 'radio' if q.kind == 'tf' else 'checkbox' }}" name="correct_choices" value="{{ c.id }}" {% if (P and c.id|string in P.getlist('correct_choices')) or (not P and c.is_correct) %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+              <input type="{{ 'radio' if q.kind == 'tf' else 'checkbox' }}" name="correct_choices" value="{{ c.id }}" {% if (P and c.id|string in P.getlist('correct_choices')) or (not P and c.is_correct and not (q.kind == 'tf' and q.choices|selectattr('is_correct')|list|length != 1)) %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
               <input name="choice_label[{{ c.id }}]" value="{{ P.get('choice_label[%d]' % c.id, c.label) if P else c.label }}" class="flex-1 h-9 px-2 rounded-lg bg-surface-container-lowest">
             </label>
             {% endfor %}

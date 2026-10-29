@@ -190,10 +190,21 @@ def tf_invalid(kind, choices) -> bool:
     return kind == "tf" and tf_correct_count(choices) != 1
 
 
+def tf_labels_invalid(kind, labels, correct_flags) -> bool:
+    """The same rule for choices written from a form or from AI output:
+    labels + the set of correct indices (as strings). No labels = nothing
+    to judge (the caller seeds or keeps defaults)."""
+    if kind != "tf" or not labels:
+        return False
+    return sum(1 for i, lbl in enumerate(labels)
+               if (lbl or "").strip() and str(i) in correct_flags) != 1
+
+
 def _tf_refused(q, correct_ids) -> bool:
     """For an update: the posted correct ids must be exactly one of this
-    question's own choices."""
-    if q.kind != "tf":
+    question's own choices. A tf question with no choices at all (an old
+    import) can't be fixed from this page — it stays editable."""
+    if q.kind != "tf" or not q.choices:
         return False
     own = {c.id for c in q.choices}
     return bool(correct_ids - own) or len(correct_ids & own) != 1
@@ -1986,7 +1997,8 @@ def blueprint_exam_create():
         )
         if src["difficulty"]:
             pool = pool.filter(BankQuestion.difficulty == src["difficulty"])
-        pool_list = pool.all()
+        # a broken صح/خطأ (not exactly one answer) never reaches an exam
+        pool_list = [bq for bq in pool.all() if not tf_invalid(bq.kind, bq.choices)]
         if not pool_list:
             continue
         picks = _stratified_sample(pool_list, src["count"])
@@ -2133,14 +2145,11 @@ def _bank_save(item):
         flash("نص السؤال مطلوب.", "danger")
         return redirect(request.url)
 
-    if kind == "tf":
-        labels_in = request.form.getlist("choice_label")
-        flags_in = set(request.form.getlist("choice_correct"))
-        if labels_in:       # (no labels = the default صح / خطأ with صح correct)
-            n_correct = sum(1 for i, lbl in enumerate(labels_in) if (lbl or "").strip() and str(i) in flags_in)
-            if n_correct != 1:
-                flash(TF_ONE_ANSWER, "danger")
-                return redirect(request.url)
+    # (no labels = the default صح / خطأ with صح correct)
+    if tf_labels_invalid(kind, request.form.getlist("choice_label"),
+                         set(request.form.getlist("choice_correct"))):
+        flash(TF_ONE_ANSWER, "danger")
+        return redirect(request.url)
 
     is_new = item is None
     if is_new:
@@ -2370,6 +2379,10 @@ def template_ai_generate(tid):
         prompt = (gq.get("prompt") or "").strip()
         if not prompt:
             continue
+        ai_choices = gq.get("choices") or []
+        if tf_labels_invalid(gq.get("kind") or "mcq", [c.get("label") for c in ai_choices],
+                             {str(i) for i, c in enumerate(ai_choices) if c.get("is_correct")}):
+            continue        # an AI صح/خطأ without exactly one answer is not saved
         bq = BankQuestion(
             school_id=sid,
             created_by_id=getattr(current_user, "id", None),
@@ -2735,6 +2748,9 @@ def bank_ai_rewrite_save(bid):
     kind = request.form.get("kind") or q.kind
     labels = request.form.getlist("choice_label")
     correct_flags = set(request.form.getlist("choice_correct"))
+    if tf_labels_invalid(kind, labels, correct_flags):
+        flash(TF_ONE_ANSWER, "danger")
+        return redirect(url_for("lms.bank_edit", bid=q.id))
 
     def _rewrite_choices(target):
         for c in list(target.choices):

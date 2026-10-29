@@ -3,7 +3,8 @@ answer is not exactly one (ticket «صح/خطأ بإجابتين»). Nothing is 
 the list goes to Abdelhamid, the teachers fix each question from its page
 (the save now requires one answer). Prints no student data — school,
 where the question lives, its id, how many choices are marked correct,
-and the start of the prompt."""
+and the start of the prompt. Deleted questions (nobody can open them) are
+left out."""
 
 import click
 
@@ -14,30 +15,24 @@ from ...extensions import db
 def _rows():
     from ...models import (
         AssignmentChoice, AssignmentQuestion, BankChoice, BankQuestion, Choice,
-        CourseAssignment, Course, Question, Quiz,
+        CourseAssignment, Question, Quiz,
     )
     sources = (
-        ("quiz", Question, Choice, Choice.question_id,
-         lambda q: (db.session.get(Quiz, q.quiz_id), "quiz")),
-        ("assignment", AssignmentQuestion, AssignmentChoice, AssignmentChoice.question_id,
-         lambda q: (db.session.get(CourseAssignment, q.assignment_id), "assignment")),
-        ("bank", BankQuestion, BankChoice, BankChoice.question_id, None),
+        ("quiz", Question, Choice, Quiz, Question.quiz_id),
+        ("assignment", AssignmentQuestion, AssignmentChoice, CourseAssignment, AssignmentQuestion.assignment_id),
+        ("bank", BankQuestion, BankChoice, None, None),
     )
-    for where, model, choice, fk, parent in sources:
+    for where, model, choice, parent, parent_fk in sources:
         n_correct = (db.session.query(db.func.count(choice.id))
-                     .filter(fk == model.id, choice.is_correct.is_(True))
+                     .filter(choice.question_id == model.id, choice.is_correct.is_(True))
                      .correlate(model).scalar_subquery())
-        q = (db.session.query(model, n_correct).execution_options(include_deleted=True)
-             .filter(model.kind == "tf", n_correct != 1))
-        for row, n in q.all():
-            if parent is None:
-                school_id, owner = row.school_id, ""
-            else:
-                p, _ = parent(row)
-                course = db.session.get(Course, p.course_id) if p is not None else None
-                school_id = course.school_id if course is not None else None
-                owner = f"{where} #{p.id} «{(p.title or '')[:40]}»" if p is not None else where
-            yield school_id, where, row.id, n, owner, (row.prompt or "")[:60]
+        cols = [model.school_id, model.id, n_correct, model.prompt]
+        q = db.session.query(*cols)
+        if parent is not None:          # the owner's title in the same query (no per-row lookups)
+            q = q.add_columns(parent.id, parent.title).join(parent, parent.id == parent_fk)
+        for row in q.filter(model.kind == "tf", n_correct != 1).all():
+            owner = f"{where} #{row[4]} «{(row[5] or '')[:40]}»" if parent is not None else ""
+            yield row[0], where, row[1], row[2], owner, (row[3] or "")[:60]
 
 
 @bp.cli.command("tf-report")

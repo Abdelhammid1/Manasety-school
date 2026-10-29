@@ -180,3 +180,96 @@ def test_the_report_lists_broken_tf_and_changes_nothing(sapp, world):
     with sapp.app_context():
         assert sorted((c.id, c.is_correct) for c in BankChoice.query.all()) == before
         db.session.remove()
+
+
+def test_an_old_tf_with_two_answers_shows_none_ticked_and_a_warning(sapp, world, login_as):
+    """Two ticked radios keep only the last — saving would silently flip
+    the answer. Nothing is ticked; the teacher must pick."""
+    from app.extensions import db
+    from app.models import Question
+    A = world["A"]
+    c = _client(sapp, login_as, A)
+    qid, (yes, no) = _add_tf(c, A, "quiz")
+    with sapp.app_context():
+        for ch in db.session.get(Question, qid).choices:
+            ch.is_correct = True
+        db.session.commit(); db.session.remove()
+    body = c.get(f"/lms/quizzes/{hid(A['quiz'])}/questions", base_url=host(A)).get_data(as_text=True)
+    for cid in (yes, no):
+        i = body.index(f'name="correct_choices" value="{cid}"')
+        assert "checked" not in body[i:i + 120].split(">")[0]
+    assert "محفوظ بإجابة صحيحة غير واحدة" in body
+
+
+def test_a_tf_without_choices_can_still_be_saved(sapp, world, login_as):
+    from app.extensions import db
+    from app.models import Question
+    A = world["A"]
+    with sapp.app_context():
+        q = Question(quiz_id=A["quiz"], prompt="tf-empty", kind="tf", points=1)
+        db.session.add(q); db.session.commit()
+        qid = q.id
+        db.session.remove()
+    r = _client(sapp, login_as, A).post(_update_url("quiz", qid), base_url=host(A),
+                                         data={"prompt": "tf-empty edited", "points": "2"})
+    assert r.status_code == 302
+
+
+def test_the_blueprint_exam_never_draws_a_broken_tf(sapp, world, login_as):
+    from app.extensions import db
+    from app.models import BankQuestion, Question, Quiz
+    A = world["A"]
+    with sapp.app_context():                 # only broken tf in this subject's pool
+        for bq in BankQuestion.query.filter_by(school_id=A["school"].id).all():
+            bq.subject_id = None
+        db.session.commit(); db.session.remove()
+    bad = _bank_tf(sapp, A, (True, True))
+    good = _bank_tf(sapp, A, (False, True))
+    with sapp.app_context():
+        for bid in (bad, good):
+            db.session.get(BankQuestion, bid).subject_id = A["subject"].id
+        db.session.commit(); db.session.remove()
+    c = _client(sapp, login_as, A, "admin")
+    c.post("/lms/exams/blueprint/create", base_url=host(A), data={
+        "title": "BP-exam", "section_id": A["section"].id, "duration_minutes": "30",
+        f"subject_count_{A['subject'].id}": "5"})
+    with sapp.app_context():
+        quiz = Quiz.query.filter_by(title="BP-exam").one()
+        srcs = {q.source_bank_id for q in Question.query.filter_by(quiz_id=quiz.id)}
+        assert srcs == {good}                # the broken one never drawn
+        db.session.remove()
+
+
+def test_an_ai_rewrite_cannot_save_a_tf_with_two_answers(sapp, world, login_as):
+    from app.extensions import db
+    from app.models import BankChoice
+    from app.models import SchoolFeatureOverride
+    A = world["A"]
+    with sapp.app_context():                 # the AI pages 404 while the feature is off
+        db.session.add(SchoolFeatureOverride(school_id=A["school"].id, feature_key="lms.ai",
+                                             enabled=True, reason="test"))
+        db.session.commit(); db.session.remove()
+    bid = _bank_tf(sapp, A, (True, False))
+    with sapp.app_context():
+        before = sorted((c.label, c.is_correct) for c in BankChoice.query.filter_by(question_id=bid))
+        db.session.remove()
+    r = _client(sapp, login_as, A).post(f"/lms/bank/{hid(bid)}/ai-rewrite/save", base_url=host(A),
+                                         follow_redirects=True, data={
+        "mode": "replace", "prompt": "x", "kind": "tf",
+        "choice_label": ["صح", "خطأ"], "choice_correct": ["0", "1"]})
+    assert "إجابة صحيحة واحدة بالضبط" in r.get_data(as_text=True)
+    with sapp.app_context():
+        assert sorted((c.label, c.is_correct) for c in BankChoice.query.filter_by(question_id=bid)) == before
+        db.session.remove()
+
+
+def test_the_report_leaves_out_deleted_questions(sapp, world):
+    from app.extensions import db
+    from app.models import BankQuestion
+    A = world["A"]
+    bid = _bank_tf(sapp, A, (True, True))
+    with sapp.app_context():
+        db.session.get(BankQuestion, bid).soft_delete()
+        db.session.commit(); db.session.remove()
+    out = sapp.test_cli_runner().invoke(args=["lms", "tf-report"]).output
+    assert f"\tbank\t{bid}\t" not in out

@@ -73,19 +73,32 @@ class Payroll(SoftDeleteMixin, db.Model):
     def is_settled(self) -> bool:
         return self.remaining <= 0.005
 
+    @staticmethod
+    def advances_by_payroll(school_id: int, payroll_ids=None) -> dict:
+        """{payroll_id: advance recovered at accrual} — read from the journal
+        entries apply_advance_deductions posts (related_kind
+        "advance_deduction", reference PAYROLL-<id>). One query; all the
+        school's payrolls when payroll_ids is None. The one place this rule
+        lives (the detail page and the list header both use it)."""
+        from .finance import JournalEntry, JournalLine
+        q = (db.session.query(JournalEntry.reference, db.func.sum(JournalLine.debit))
+             .join(JournalLine, JournalLine.entry_id == JournalEntry.id)
+             .filter(JournalEntry.school_id == school_id,
+                     JournalEntry.related_kind == "advance_deduction",
+                     JournalEntry.reference.like("PAYROLL-%")))
+        if payroll_ids is not None:
+            q = q.filter(JournalEntry.reference.in_([f"PAYROLL-{i}" for i in payroll_ids] or [""]))
+        out = {}
+        for ref, total in q.group_by(JournalEntry.reference).all():
+            pid = ref.split("-", 1)[1]
+            if pid.isdigit():
+                out[int(pid)] = float(total or 0)
+        return out
+
     @property
     def advance_deducted(self) -> float:
-        """Advances (سلف) recovered from this payroll at accrual — read from
-        the journal entries apply_advance_deductions posted for it, not
-        inferred from what paid_amount leaves over."""
-        from .finance import JournalEntry, JournalLine
-        total = (db.session.query(db.func.coalesce(db.func.sum(JournalLine.debit), 0))
-                 .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
-                 .filter(JournalEntry.school_id == self.school_id,
-                         JournalEntry.related_kind == "advance_deduction",
-                         JournalEntry.reference == f"PAYROLL-{self.id}")
-                 .scalar())
-        return float(total or 0)
+        """Advances (سلف) recovered from this payroll at accrual."""
+        return self.advances_by_payroll(self.school_id, [self.id]).get(self.id, 0.0)
 
     @property
     def cash_paid(self) -> float:
