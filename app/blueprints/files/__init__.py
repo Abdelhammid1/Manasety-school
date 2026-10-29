@@ -85,17 +85,14 @@ def _excuse(user, owner_id, school_id):
 
 
 def _lessons(user, owner_id, school_id):
-    from ...models import Course, CourseSection
+    from ...models import Course
+    from ...services.lms_visibility import course_visible
     if _owned(Course, owner_id, school_id) is None:
         return NOT_FOUND
     if user.can("lms", "edit"):
         return OK
-    sections = _enrolled_section_ids(_student_links(user))
-    published = CourseSection.query.filter(
-        CourseSection.course_id == owner_id,
-        CourseSection.section_id.in_(sections or {0}),
-        CourseSection.is_published.is_(True)).first()
-    return OK if published else FORBIDDEN
+    # a draft course's files stay closed even when it is linked (BUG-007)
+    return OK if course_visible(owner_id, _enrolled_section_ids(_student_links(user))) else FORBIDDEN
 
 
 def _submissions(user, owner_id, school_id):

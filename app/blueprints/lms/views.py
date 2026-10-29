@@ -176,12 +176,8 @@ def _visible_course_ids_for_viewer():
     }
     if not section_ids:
         return set()
-    return {
-        cs.course_id for cs in CourseSection.query.filter(
-            CourseSection.section_id.in_(section_ids),
-            CourseSection.is_published.is_(True),
-        ).all()
-    }
+    from ...services.lms_visibility import visible_course_ids
+    return visible_course_ids(section_ids)
 
 
 @bp.route("/assignments", endpoint="assignments_home")

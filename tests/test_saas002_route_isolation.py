@@ -523,6 +523,13 @@ ROUTE_MATRIX: dict[str, Entry] = {
                                snapshot=_cnt("Lesson", "course_id", "course")),
     "courses.lesson_view": _ent("lesson", "Lesson", "lesson_id", ('GET',), roles=("admin", "teacher", "student")),
     "courses.unit_delete": _ent("unit", "Unit", "unit_id"),
+    # BUG-007 — publish a course to sections: B's course / B's link
+    "courses.section_link": _ent("course", "Course", "course_id",
+                                 form=lambda A, B: {"section_ids": [str(A["section"].id)]},
+                                 snapshot=_cnt("CourseSection", "course_id", "course")),
+    "courses.section_unlink": _ent("course", "Course", "course_id",
+                                   extra=lambda B: {"link_id": B["course_section"]},
+                                   snapshot=_cnt("CourseSection", "course_id", "course")),
     "courses.unit_edit": _ent("unit", "Unit", "unit_id", form=lambda A, B: {"title": "HACK"}),
     "courses.unit_new": _ent("course", "Course", "course_id", form=lambda A, B: {"title": "HACK"},
                              snapshot=_cnt("Unit", "course_id", "course")),

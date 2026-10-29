@@ -56,7 +56,8 @@ def lms_world(files_app, two_schools):
     A = two_schools["A"]
     with files_app.app_context():
         course = Course(school_id=A["school"].id, academic_year_id=A["year"].id,
-                        grade_id=A["grade"].id, subject_id=A["subject"].id, title="C-alpha")
+                        grade_id=A["grade"].id, subject_id=A["subject"].id, title="C-alpha",
+                        is_published=True)      # a draft course's files stay closed (BUG-007)
         db.session.add(course); db.session.flush()
         db.session.add(CourseSection(course_id=course.id, section_id=A["section"].id,
                                      is_published=True))

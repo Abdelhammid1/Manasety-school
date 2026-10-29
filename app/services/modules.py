@@ -436,7 +436,7 @@ FEATURES: tuple[Feature, ...] = (
        "courses.list_courses", "courses.new", "courses.detail", "courses.delete", "courses.grade_terms",
        "courses.grade_term_subjects", "courses.course_pick_section", "courses.unit_new", "courses.unit_edit",
        "courses.unit_delete", "courses.lesson_new", "courses.lesson_edit", "courses.lesson_delete",
-       "courses.lesson_view"),
+       "courses.lesson_view", "courses.section_link", "courses.section_unlink"),
     _f("lms.qbank", "بنك الأسئلة والتصنيف",
        "lms.bank_home", "lms.bank_new", "lms.bank_smart_new", "lms.bank_edit", "lms.bank_delete",
        "lms.bank_archive", "lms.bank_set_state", "lms.qbank_dashboard",

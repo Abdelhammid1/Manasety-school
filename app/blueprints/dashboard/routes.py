@@ -730,20 +730,14 @@ def _student_dashboard():
     # Course visibility to a section goes through lms_course_sections.
     # Collect the course_ids this student can actually see so assignment
     # and quiz lookups don't surface another section's content.
-    from ...models import CourseSection
+    from ...services.lms_visibility import visible_course_ids
     course_ids: list[int] = []
     if section_ids:
         course_ids = _safe(
             lambda: [
-                cs.course_id for cs in CourseSection.query
-                .join(Course, Course.id == CourseSection.course_id)
-                .filter(
-                    CourseSection.section_id.in_(section_ids),
-                    CourseSection.is_published.is_(True),
-                    # BUG-007 — a draft course stays hidden even when linked:
-                    # its assignment / quiz must not reach the cards below
-                    Course.is_published.is_(True),
-                ).all()
+                # BUG-007 — a draft course stays hidden even when linked:
+                # its assignment / quiz must not reach the cards below
+                *visible_course_ids(section_ids)
             ],
             [],
         )

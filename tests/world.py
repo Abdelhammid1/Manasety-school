@@ -198,7 +198,8 @@ def seed_lms(bundle: dict) -> dict:
     for o in (course, bank, skill, obj, coll, fb, atpl, stpl, passage, ann):
         add(o)
     db.session.flush()
-    add(CourseSection(course_id=course.id, section_id=bundle["section"].id, is_published=True))
+    cs = CourseSection(course_id=course.id, section_id=bundle["section"].id, is_published=True)
+    add(cs)
     add(BankChoice(question_id=bank.id, label=f"BankChoice-{slug}", is_correct=True))
     unit = Unit(course_id=course.id, title=f"Unit-{slug}")
     add(unit)
@@ -228,7 +229,7 @@ def seed_lms(bundle: dict) -> dict:
         "bank_question": bank.id, "skill": skill.id, "objective": obj.id, "collection": coll.id,
         "feedback_template": fb.id, "assign_template": atpl.id, "assess_template": stpl.id,
         "template_item": item.id, "passage": passage.id, "announcement": ann.id, "extension": ext.id,
-        "rubric": rubric.id, "choice": choice.id,
+        "rubric": rubric.id, "choice": choice.id, "course_section": cs.id,
         "markers": (f"Course-{slug}", f"BankQ-{slug}", f"Skill-{slug}", f"Objective-{slug}",
                     f"Collection-{slug}", f"Feedback-{slug}", f"AssignTpl-{slug}", f"AssessTpl-{slug}",
                     f"Passage-{slug}", f"Announce-{slug}", f"Unit-{slug}", f"Lesson-{slug}",

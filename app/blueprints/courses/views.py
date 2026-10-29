@@ -267,13 +267,20 @@ def _course_sections_pool(course):
 
 
 def _section_links(course):
-    """([(link, section or None)], [sections not linked yet]). A link whose
-    section was deleted shows as such and can still be removed."""
-    pool = _course_sections_pool(course)
-    by_id = {s.id: s for s in pool}
-    linked = [(cs, by_id.get(cs.section_id)) for cs in sorted(course.course_sections, key=lambda cs: cs.id)]
-    taken = {cs.section_id for cs in course.course_sections}
-    return linked, [s for s in pool if s.id not in taken]
+    """([(link, section or None, students)], [sections not linked yet]). A
+    link is shown with its own section whatever its grade / year; None only
+    when the section was deleted (it can still be unlinked)."""
+    from ...models import Enrollment
+    links = sorted(course.course_sections, key=lambda cs: cs.id)
+    taken = {cs.section_id for cs in links}
+    sections = ({s.id: s for s in Section.query.filter(Section.id.in_(taken),
+                                                       Section.school_id == course.school_id)}
+                if taken else {})
+    counts = dict(db.session.query(Enrollment.section_id, db.func.count(Enrollment.id))
+                  .filter(Enrollment.section_id.in_(taken), Enrollment.status == "active")
+                  .group_by(Enrollment.section_id).all()) if taken else {}
+    linked = [(cs, sections.get(cs.section_id), counts.get(cs.section_id, 0)) for cs in links]
+    return linked, [s for s in _course_sections_pool(course) if s.id not in taken]
 
 
 @bp.route("/<hid:course_id>/sections/link", methods=["POST"], endpoint="section_link")
@@ -298,15 +305,17 @@ def section_link(course_id):
     dup = sorted(pool[i].name for i in ids & have)
     new = sorted(ids - have)
     now = datetime.now(timezone.utc)
+    added = []
     for sid in new:
-        db.session.add(CourseSection(course_id=course.id, section_id=sid,
-                                     is_published=True, published_at=now))
-    try:
-        db.session.commit()
-    except IntegrityError:          # the same link saved meanwhile (another tab)
-        db.session.rollback()
-        flash("هذه الشعبة مرتبطة بالمقرّر بالفعل.", "warning")
-        return back
+        try:
+            with db.session.begin_nested():     # one savepoint per section
+                db.session.add(CourseSection(course_id=course.id, section_id=sid,
+                                             is_published=True, published_at=now))
+            added.append(sid)
+        except IntegrityError:      # linked meanwhile from another tab: the rest still go
+            dup.append(pool[sid].name)
+    db.session.commit()
+    new = added
     if new:
         flash(f"تم ربط المقرّر بـ {len(new)} شعبة: " + "، ".join(pool[i].name for i in new) + ".", "success")
     if dup:

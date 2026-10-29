@@ -21,6 +21,7 @@ from ...models import (
 from ...models.results import RESULT_STATUSES
 from ...services.auth_jwt import issue_token, jwt_required
 from ...services.notifications import send_notification
+from ...services.lms_visibility import visible_course_ids
 
 # CSRF exempt entire API (uses JWT instead of session cookies)
 csrf.exempt(bp)
@@ -2241,9 +2242,7 @@ def student_home():
 
         # Assignments visible to this student's section — via CourseSection.
         section_course_ids = [
-            cs.course_id for cs in CourseSection.query.filter_by(
-                section_id=enr.section_id,
-            ).all()
+            *visible_course_ids({enr.section_id})     # published course + link (BUG-007)
         ]
         stats["assignments_total"] = (
             CourseAssignment.query.filter(
@@ -2285,9 +2284,7 @@ def student_home():
     if enr:
         from ...models import Course, CourseAssignment, CourseSection
         section_course_ids = [
-            cs.course_id for cs in CourseSection.query.filter_by(
-                section_id=enr.section_id,
-            ).all()
+            *visible_course_ids({enr.section_id})     # published course + link (BUG-007)
         ]
         if section_course_ids:
             cas = (
@@ -2365,10 +2362,8 @@ def student_courses():
         return jsonify({"courses": []})
 
     # Every Course bound to this student's section via CourseSection.
-    cs_rows = CourseSection.query.filter_by(
-        section_id=enr.section_id, is_published=True,
-    ).all()
-    course_ids = [cs.course_id for cs in cs_rows]
+    # a draft course stays off the app even when linked (BUG-007)
+    course_ids = sorted(visible_course_ids({enr.section_id}))
     courses = Course.query.filter(Course.id.in_(course_ids)).all() if course_ids else []
     # Batch subject lookup so we don't re-query per course.
     subject_ids = {c.subject_id for c in courses if c.subject_id}
@@ -2452,9 +2447,7 @@ def student_assignments():
     if not enr:
         return jsonify({"assignments": []})
     section_course_ids = [
-        cs.course_id for cs in CourseSection.query.filter_by(
-            section_id=enr.section_id,
-        ).all()
+        *visible_course_ids({enr.section_id})     # published course + link (BUG-007)
     ]
     if not section_course_ids:
         return jsonify({"assignments": []})
@@ -2775,9 +2768,7 @@ def student_quizzes():
     if not enr:
         return jsonify({"quizzes": []})
     section_course_ids = [
-        cs.course_id for cs in CourseSection.query.filter_by(
-            section_id=enr.section_id,
-        ).all()
+        *visible_course_ids({enr.section_id})     # published course + link (BUG-007)
     ]
     if not section_course_ids:
         return jsonify({"quizzes": []})

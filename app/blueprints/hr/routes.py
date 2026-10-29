@@ -198,8 +198,10 @@ def employee_delete(employee_id):
 @login_required
 @require_permission("payroll", "view")
 def payroll_list():
+    from sqlalchemy.orm import selectinload
     items = (
         Payroll.query.filter_by(school_id=_sid())
+        .options(selectinload(Payroll.settlements))     # the status column (one query, not per row)
         .order_by(Payroll.period_year.desc(), Payroll.period_month.desc(), Payroll.id.desc())
         .limit(200).all()
     )
@@ -320,7 +322,7 @@ def payroll_detail(payroll_id):
 def payroll_settle(payroll_id):
     from decimal import InvalidOperation
     from ...services.ledger import settle_accrual, LedgerError
-    from ...services.locks import transaction_lock
+    from ...services.locks import AlreadyRunning, transaction_lock
     p = Payroll.query.filter_by(id=payroll_id, school_id=_sid()).first_or_404()
     back = redirect(url_for("hr.payroll_detail", payroll_id=p.id))
     # Empty = the whole remaining. Anything typed must be a positive number:
@@ -343,7 +345,11 @@ def payroll_settle(payroll_id):
     notes = (request.form.get("notes") or "").strip() or None
     # A double click (or two tabs) sends two settles: the second waits here
     # and then sees the first one's paid_amount, so it can't pay twice.
-    transaction_lock(f"payroll-settle-{p.id}")
+    try:
+        transaction_lock(f"payroll-settle-{p.id}")
+    except AlreadyRunning:
+        flash("يتم صرف هذا الراتب الآن من نافذة أخرى — حدّث الصفحة بعد لحظات.", "warning")
+        return back
     db.session.refresh(p)
     try:
         settle_accrual(p, pm_id, amount=amount,

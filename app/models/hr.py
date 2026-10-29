@@ -84,11 +84,17 @@ class Payroll(SoftDeleteMixin, db.Model):
         time — apply_advance_deductions raises paid_amount, not a settlement."""
         return max(0.0, float(self.paid_amount or 0) - self.cash_paid)
 
+    STATUS_LABELS = {"settled": "مصروف بالكامل", "partial": "مصروف جزئيًا", "accrued": "مستحق"}
+
+    @property
+    def status_key(self) -> str:
+        if self.is_settled:
+            return "settled"
+        return "partial" if self.settlements else "accrued"
+
     @property
     def status_label(self) -> str:
-        if self.is_settled:
-            return "مصروف بالكامل"
-        return "مصروف جزئيًا" if self.settlements else "مستحق"
+        return self.STATUS_LABELS[self.status_key]
 
 
 class EmployeeAdvance(db.Model):

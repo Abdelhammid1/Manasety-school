@@ -234,3 +234,44 @@ def test_link_and_unlink_are_in_the_activity_log(sapp, school, login_as):
         assert AuditLog.query.filter(AuditLog.id > seen, AuditLog.entity_type == "CourseSection",
                                      AuditLog.action == "delete").count() == 1
         db.session.remove()
+
+
+def test_the_mobile_app_hides_a_linked_draft_course_too(sapp, school, login_as):
+    from app.extensions import db
+    from app.models import Course, CourseSection
+    from app.services.auth_jwt import issue_token
+    A = school["A"]
+    with sapp.app_context():
+        db.session.add(CourseSection(course_id=A["course"], section_id=school["sec_a"], is_published=True))
+        db.session.commit()
+        token = issue_token(A["users"]["student"])
+        db.session.remove()
+    c = sapp.test_client()
+    auth = {"Authorization": f"Bearer {token}"}
+    titles = lambda: [x.get("title") for x in c.get("/api/student/courses", base_url=host(A),  # noqa: E731
+                                                     headers=auth).get_json()["courses"]]
+    assert "Course-alpha" in titles()
+    with sapp.app_context():
+        db.session.get(Course, A["course"]).is_published = False
+        db.session.commit()
+        db.session.remove()
+    assert "Course-alpha" not in titles()
+
+
+def test_a_link_to_a_live_section_outside_the_grade_is_not_called_deleted(sapp, school, login_as):
+    from app.extensions import db
+    from app.models import CourseSection, Grade, Section
+    A = school["A"]
+    with sapp.app_context():
+        g2 = Grade(school_id=A["school"].id, name="G2-alpha", order_index=2)
+        db.session.add(g2)
+        db.session.flush()
+        other = Section(school_id=A["school"].id, year_id=A["year"].id, grade_id=g2.id, name="old-link")
+        db.session.add(other)
+        db.session.flush()
+        db.session.add(CourseSection(course_id=A["course"], section_id=other.id, is_published=True))
+        db.session.commit()
+        db.session.remove()
+    admin = _client(sapp, login_as, A["users"]["admin"], A)
+    page = admin.get(f"/courses/{hid(A['course'])}", base_url=host(A)).get_data(as_text=True)
+    assert "old-link" in page and "شعبة محذوفة" not in page
