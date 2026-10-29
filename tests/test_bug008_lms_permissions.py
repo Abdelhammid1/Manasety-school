@@ -188,10 +188,12 @@ def test_the_teacher_manages_assignment_and_quiz_questions(sapp, world, login_as
     assert c.post(f"/lms/quizzes/{quiz}/questions/add", base_url=h,
                   data={"kind": "tf", "prompt": "new-q", "points": "1"}).status_code == 302
     with sapp.app_context():
-        qid = Question.query.filter_by(prompt="new-q").one().id
+        nq = Question.query.filter_by(prompt="new-q").one()
+        qid, first = nq.id, min(nq.choices, key=lambda ch: ch.order_index).id
         db.session.remove()
+    # a صح/خطأ save names its one correct answer (ticket «صح/خطأ بإجابتين»)
     assert c.post(f"/lms/questions/{hid(qid)}/update", base_url=h,
-                  data={"prompt": "edited-q", "points": "1"}).status_code == 302
+                  data={"prompt": "edited-q", "points": "1", "correct_choices": [str(first)]}).status_code == 302
     assert c.post(f"/lms/quizzes/{quiz}/pick", base_url=h,
                   data={"bank_ids": [str(A["bank_question"])]}).status_code == 302
     assert c.post(f"/lms/questions/{hid(qid)}/delete", base_url=h).status_code == 302
