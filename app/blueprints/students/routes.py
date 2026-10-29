@@ -228,6 +228,7 @@ def students_list():
                             section_field=Enrollment.section_id,
                             grade_field=Enrollment.grade_id)
 
+    from ...services.guardians import shown_guardians
     students = query.order_by(Student.full_name).limit(500).all()
     from ...models import StudentTag as _ST
     all_tags = (
@@ -238,28 +239,9 @@ def students_list():
         "students/list.html", students=students, q=q,
         active_year=year, section_ctx=section_ctx,
         all_tags=all_tags, selected_tag_ids=tag_ids,
-        guardian_of=_list_guardians([st.id for st in students]),
+        guardian_of=shown_guardians(_sid(), [st.id for st in students]),
     )
 
-
-def _list_guardians(student_ids) -> dict:
-    """{student_id: (name, phone)} of the guardian the list shows: the
-    primary link, else the first one linked. One query for the page (the
-    column used to read the old parent_name only, so a student linked to an
-    existing guardian showed «—»)."""
-    from ...models import Guardian, StudentGuardian
-    if not student_ids:
-        return {}
-    rows = (db.session.query(StudentGuardian.student_id, Guardian.full_name, Guardian.phone)
-            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
-            .filter(StudentGuardian.student_id.in_(student_ids), Guardian.school_id == _sid())
-            .order_by(StudentGuardian.student_id, StudentGuardian.is_primary.desc(),
-                      StudentGuardian.id)
-            .all())
-    out = {}
-    for sid, name, phone in rows:
-        out.setdefault(sid, (name, phone))
-    return out
 
 
 @bp.route("/new", methods=["GET", "POST"])

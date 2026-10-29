@@ -611,20 +611,21 @@ def section_detail(section_id):
         Enrollment.query.filter_by(school_id=_sid(), section_id=section.id, status="active")
         .join(Student).order_by(Student.full_name).all()
     )
-    from ..students.routes import _list_guardians
+    from ...services.guardians import shown_guardians
     # BUG-007 follow-up — the courses published to this section, linkable
-    # from here too (same rules and routes as the course page)
+    # from here too (same rules and routes as the course page). Editors
+    # only: a view-only role would get 403 opening those course pages.
+    can_link = current_user.can("lms", "edit")
     course_links, linkable_courses = [], []
-    if current_user.can("lms", "view") or current_user.can("lms", "edit"):
+    if can_link:
         from ..courses.views import section_courses
         course_links, linkable_courses = section_courses(section)
     return render_template(
         "academic/section_detail.html",
         section=section, enrollments=enrollments,
-        guardian_of=_list_guardians([e.student_id for e in enrollments]),
+        guardian_of=shown_guardians(_sid(), [e.student_id for e in enrollments]),
         course_links=course_links, linkable_courses=linkable_courses,
-        show_courses=current_user.can("lms", "view") or current_user.can("lms", "edit"),
-        can_link=current_user.can("lms", "edit"),
+        can_link=can_link,
     )
 
 

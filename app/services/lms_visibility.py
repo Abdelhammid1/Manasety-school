@@ -23,4 +23,15 @@ def visible_course_ids(section_ids) -> set[int]:
 
 
 def course_visible(course_id: int, section_ids) -> bool:
-    return course_id in visible_course_ids(section_ids)
+    """The same rule for one course (one EXISTS, not the whole set)."""
+    section_ids = {s for s in (section_ids or ()) if s is not None}
+    if not section_ids:
+        return False
+    return db.session.query(
+        db.session.query(CourseSection.id)
+        .join(Course, Course.id == CourseSection.course_id)
+        .filter(CourseSection.course_id == course_id,
+                CourseSection.section_id.in_(section_ids),
+                CourseSection.is_published.is_(True),
+                Course.is_published.is_(True))
+        .exists()).scalar()

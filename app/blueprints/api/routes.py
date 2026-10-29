@@ -549,6 +549,9 @@ def teacher_attendance():
         if existing:
             existing.status = status
             existing.notes = r.get("notes")
+            # the app only sends present / absent / late: an excused day's
+            # reason doesn't belong to the new status (same as the web)
+            existing.excuse_reason = None
             existing.recorded_by_user_id = _user().id
             existing.recorded_at = datetime.utcnow()
             updates += 1
@@ -2192,14 +2195,12 @@ def _student_sees_course(student, course) -> bool:
     """SAAS-017 — same rule as the web (lms._assert_can_view_course_item):
     a published course of this school, published to a section the student
     is actively enrolled in. Fails closed (no enrollment = no access)."""
-    from ...models import CourseSection
-    if course is None or course.school_id != _sid() or not course.is_published:
+    from ...services.lms_visibility import course_visible
+    if course is None or course.school_id != _sid():
         return False
     section_ids = {e.section_id for e in Enrollment.query.filter_by(
         student_id=student.id, status="active") if e.section_id is not None}
-    return bool(section_ids) and CourseSection.query.filter(
-        CourseSection.course_id == course.id, CourseSection.is_published.is_(True),
-        CourseSection.section_id.in_(section_ids)).first() is not None
+    return course_visible(course.id, section_ids)
 
 
 def _active_enrollment(student):

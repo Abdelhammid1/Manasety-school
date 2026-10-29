@@ -74,15 +74,24 @@ class Payroll(SoftDeleteMixin, db.Model):
         return self.remaining <= 0.005
 
     @property
-    def cash_paid(self) -> float:
-        """What was actually paid out (the settlements)."""
-        return float(sum((s.amount or 0) for s in self.settlements))
+    def advance_deducted(self) -> float:
+        """Advances (سلف) recovered from this payroll at accrual — read from
+        the journal entries apply_advance_deductions posted for it, not
+        inferred from what paid_amount leaves over."""
+        from .finance import JournalEntry, JournalLine
+        total = (db.session.query(db.func.coalesce(db.func.sum(JournalLine.debit), 0))
+                 .join(JournalEntry, JournalEntry.id == JournalLine.entry_id)
+                 .filter(JournalEntry.school_id == self.school_id,
+                         JournalEntry.related_kind == "advance_deduction",
+                         JournalEntry.reference == f"PAYROLL-{self.id}")
+                 .scalar())
+        return float(total or 0)
 
     @property
-    def advance_deducted(self) -> float:
-        """The part of paid_amount that recovered advances (سلف) at accrual
-        time — apply_advance_deductions raises paid_amount, not a settlement."""
-        return max(0.0, float(self.paid_amount or 0) - self.cash_paid)
+    def cash_paid(self) -> float:
+        """Paid out to the employee: everything covered except advances
+        (settlements, and payments recorded before settlements existed)."""
+        return max(0.0, float(self.paid_amount or 0) - self.advance_deducted)
 
     STATUS_LABELS = {"settled": "مصروف بالكامل", "partial": "مصروف جزئيًا", "accrued": "مستحق"}
 
@@ -90,7 +99,7 @@ class Payroll(SoftDeleteMixin, db.Model):
     def status_key(self) -> str:
         if self.is_settled:
             return "settled"
-        return "partial" if self.settlements else "accrued"
+        return "partial" if float(self.paid_amount or 0) > 0.005 else "accrued"
 
     @property
     def status_label(self) -> str:

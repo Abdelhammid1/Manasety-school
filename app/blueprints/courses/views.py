@@ -510,8 +510,8 @@ def _assert_course_visible(course):
             student_id=student.id, status="active",
         ).all() if e.section_id is not None
     }
-    if not any(cs.section_id in student_section_ids and cs.is_published
-               for cs in course.course_sections):
+    from ...services.lms_visibility import course_visible
+    if not course_visible(course.id, student_section_ids):      # the one rule
         abort(404)
 
 

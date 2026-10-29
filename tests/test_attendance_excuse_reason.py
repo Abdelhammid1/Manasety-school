@@ -134,3 +134,51 @@ def test_without_attendance_rights_it_is_403(sapp, klass, login_as, role):
     r = c.post(klass["url"], base_url=host(A), data={
         "date": DAY, f"status_{klass['e2']}": "excused", f"excuse_reason_{klass['e2']}": "x"})
     assert r.status_code == 403 and _records(sapp) == {}
+
+
+@pytest.fixture
+def per_period(sapp, klass):
+    from app.extensions import db
+    from app.models import Period, School
+    from datetime import time
+    A = klass["A"]
+    with sapp.app_context():
+        db.session.get(School, A["school"].id).attendance_mode = "per_period"
+        p = Period(school_id=A["school"].id, name="الحصة 1", order_index=1, is_break=False,
+                   start_time=time(8, 0), end_time=time(8, 45))
+        db.session.add(p); db.session.commit()
+        pid = p.id
+        db.session.remove()
+    return {**klass, "period": pid}
+
+
+def test_an_excused_period_needs_a_reason_too(sapp, per_period, login_as):
+    A, k = per_period["A"], per_period
+    c = _admin(sapp, login_as, A)
+    cell = f"perstatus_{k['e2']}_{k['period']}"
+    r = c.post(k["url"], base_url=host(A), data={"date": DAY, cell: "excused", f"perreason_{k['e2']}": " "})
+    body = r.get_data(as_text=True)
+    assert r.status_code == 400 and "اكتب سبب العذر لـ: سلمى العتيبي" in body
+    assert _records(sapp) == {}
+    assert 'value="excused" selected' in body                   # the grid keeps the choice
+    r = c.post(k["url"], base_url=host(A), data={"date": DAY, cell: "excused", f"perreason_{k['e2']}": "طبيب"})
+    assert r.status_code == 302 and _records(sapp)[k["e2"]] == ("excused", "طبيب")
+    page = c.get(f"{k['url']}?date={DAY}", base_url=host(A)).get_data(as_text=True)
+    assert 'value="طبيب"' in page
+    # moved to present: the reason goes
+    c.post(k["url"], base_url=host(A), data={"date": DAY, cell: "present", f"perreason_{k['e2']}": "طبيب"})
+    assert _records(sapp)[k["e2"]] == ("present", None)
+
+
+def test_the_page_has_no_html_required_that_a_hidden_pane_could_block(sapp, per_period, login_as):
+    from app.extensions import db
+    from app.models import Attendance
+    A, k = per_period["A"], per_period
+    with sapp.app_context():                   # an old excused daily row without a reason
+        db.session.add(Attendance(school_id=A["school"].id, enrollment_id=k["e2"],
+                                  date=date(2026, 10, 27), status="excused"))
+        db.session.commit(); db.session.remove()
+    page = _admin(sapp, login_as, A).get(f"{k['url']}?date={DAY}", base_url=host(A)).get_data(as_text=True)
+    assert f'name="excuse_reason_{k["e2"]}"' in page
+    i = page.index(f'name="excuse_reason_{k["e2"]}"')
+    assert "required" not in page[i:i + 300]

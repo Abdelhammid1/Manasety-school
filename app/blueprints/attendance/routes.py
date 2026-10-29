@@ -271,20 +271,31 @@ def mark(section_id):
         # written: one message names every student missing it, nothing is
         # saved, and the form comes back with what the teacher entered.
         missing, too_long = [], []
+        per_period_on = mode in ("per_period", "both") and periods
         for e in enrollments:
-            if request.form.get(f"status_{e.id}") != "excused":
-                continue
-            reason = (request.form.get(f"excuse_reason_{e.id}") or "").strip()
-            if not reason:
-                missing.append(e.student.full_name)
-            elif len(reason) > EXCUSE_REASON_MAX:
-                too_long.append(e.student.full_name)
+            # the daily card's reason, and the per-period grid's (one per
+            # student for its «مستأذن» periods)
+            fields = []
+            if request.form.get(f"status_{e.id}") == "excused":
+                fields.append(f"excuse_reason_{e.id}")
+            if per_period_on and any(request.form.get(f"perstatus_{e.id}_{p.id}") == "excused"
+                                     for p in periods):
+                fields.append(f"perreason_{e.id}")
+            for field in fields:
+                reason = (request.form.get(field) or "").strip()
+                if not reason:
+                    missing.append(e.student.full_name)
+                elif len(reason) > EXCUSE_REASON_MAX:
+                    too_long.append(e.student.full_name)
+        missing, too_long = list(dict.fromkeys(missing)), list(dict.fromkeys(too_long))
         if missing or too_long:
             errors = []
             if missing:
                 errors.append("اكتب سبب العذر لـ: " + "، ".join(missing) + " (حالة «مستأذن بعذر» تتطلب سبباً).")
             if too_long:
                 errors.append(f"سبب العذر أطول من {EXCUSE_REASON_MAX} حرف لـ: " + "، ".join(too_long) + ".")
+            if any(f.filename for k, f in request.files.items(multi=True) if k.startswith("excuse_file_")):
+                errors.append("لم يُحفظ شيء — أعد إرفاق مستندات العذر التي اخترتها قبل الحفظ.")
             for msg in errors:
                 flash(msg, "danger")
             return render_template(
@@ -370,18 +381,21 @@ def mark(section_id):
                     st = request.form.get(field)
                     if st not in ("present", "absent", "late", "excused", "left_early"):
                         continue
+                    reason = ((request.form.get(f"perreason_{e.id}") or "").strip() or None
+                              if st == "excused" else None)
                     row = existing_by_period.get((e.id, p.id))
                     if row is None:
                         row = Attendance(
                             school_id=_sid(),
                             enrollment_id=e.id, date=on_date,
                             period_id=p.id,
-                            status=st,
+                            status=st, excuse_reason=reason,
                             recorded_by_user_id=current_user.id,
                         )
                         db.session.add(row); creates += 1
                     else:
                         row.status = st
+                        row.excuse_reason = reason
                         row.recorded_by_user_id = current_user.id
                         row.recorded_at = datetime.utcnow()
                         updates += 1

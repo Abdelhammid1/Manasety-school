@@ -119,11 +119,8 @@ def _assert_can_view_course_item(course):
     }
     if not section_ids:
         abort(404)
-    published_to_student = any(
-        cs.section_id in section_ids and cs.is_published
-        for cs in course.course_sections
-    )
-    if not published_to_student:
+    from ...services.lms_visibility import course_visible
+    if not course_visible(course.id, section_ids):      # the one rule
         abort(404)
 
 

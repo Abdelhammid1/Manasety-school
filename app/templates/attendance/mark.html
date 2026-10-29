@@ -114,6 +114,10 @@
 
   {# ── The actual form: one radio group per student × status + note ── #}
   {# T8 — enctype needed for excuse_file_* uploads. #}
+  <div id="excuseMissing" hidden role="alert"
+       class="mb-space-md p-space-md rounded-xl bg-error-container text-on-error-container font-label-lg font-bold">
+    اكتب سبب العذر لكل طالب «مستأذن بعذر» (الخانات المعلَّمة بالأحمر) ثم احفظ.
+  </div>
   <form method="post" id="attendanceForm" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="date" value="{{ on_date.strftime('%Y-%m-%d') }}">
@@ -129,6 +133,7 @@
               {% for p in periods %}
               <th class="px-2 py-2 text-center font-label-md text-primary min-w-[110px]">{{ p.name }}</th>
               {% endfor %}
+              <th class="px-2 py-2 text-right font-label-md text-primary min-w-[180px]">سبب العذر <span class="text-error">*</span> <span class="font-label-xs text-outline">(لأي حصة «مستأذن»)</span></th>
             </tr>
           </thead>
           <tbody>
@@ -139,7 +144,7 @@
               </td>
               {% for p in periods %}
               {% set cell = existing_by_period.get((e.id, p.id)) %}
-              {% set cst = cell.status if cell else '' %}
+              {% set cst = posted.get('perstatus_' ~ e.id ~ '_' ~ p.id, cell.status if cell else '') %}
               <td class="px-1 py-1 text-center">
                 <select name="perstatus_{{ e.id }}_{{ p.id }}"
                         class="h-8 px-1 rounded-lg bg-surface-container-low text-xs font-bold {% if cst == 'absent' %}text-error{% elif cst == 'late' %}text-tertiary{% else %}text-on-surface{% endif %}">
@@ -152,6 +157,14 @@
                 </select>
               </td>
               {% endfor %}
+              {# one reason per student for the excused periods of the day #}
+              {% set ns_r = namespace(v='') %}
+              {% for p in periods %}{% set cell = existing_by_period.get((e.id, p.id)) %}{% if cell and cell.excuse_reason and not ns_r.v %}{% set ns_r.v = cell.excuse_reason %}{% endif %}{% endfor %}
+              <td class="px-1 py-1">
+                <input type="text" name="perreason_{{ e.id }}" maxlength="255" data-enrollment="{{ e.id }}"
+                       value="{{ posted.get('perreason_' ~ e.id, ns_r.v) }}" placeholder="مثال: مراجعة طبية"
+                       class="per-reason w-full h-8 px-2 rounded-lg bg-surface-container-low text-xs">
+              </td>
             </tr>
             {% endfor %}
           </tbody>
@@ -214,7 +227,6 @@
           <input type="text" name="excuse_reason_{{ e.id }}" maxlength="255"
                  value="{{ posted.get('excuse_reason_' ~ e.id, (rec.excuse_reason or '') if rec else '') }}"
                  placeholder="مثال: مراجعة طبية"
-                 {% if st == 'excused' %}required{% endif %}
                  class="w-full h-9 px-2 rounded-lg bg-blue-50 border border-blue-200 text-on-surface font-label-md text-label-md outline-none focus:ring-2 focus:ring-blue-300">
           <label class="text-outline font-label-xs flex items-center gap-1 cursor-pointer">
             <span class="material-symbols-outlined text-base">upload_file</span>
@@ -346,12 +358,36 @@
     const picked = c.querySelector('input[name="status_'+id+'"]:checked');
     const wrap = c.querySelector('.excuse-wrap');
     if (!wrap) return;
-    const excused = !!(picked && picked.value === 'excused');
-    wrap.classList.toggle('hidden', !excused);
-    // required only while «مستأذن بعذر» is picked (the server checks it too)
-    const reason = wrap.querySelector('input[name="excuse_reason_'+id+'"]');
-    if (reason) reason.required = excused;
+    wrap.classList.toggle('hidden', !(picked && picked.value === 'excused'));
   };
+  // «مستأذن بعذر» needs a reason: stop the submit here (before chosen
+  // excuse files would be lost on a refused save) and point at the
+  // empty fields. The server checks the same rule.
+  const form = document.getElementById('attendanceForm');
+  if (form) form.addEventListener('submit', function(ev){
+    const missing = [];
+    const daily = document.getElementById('dailyPane');
+    if (daily && !daily.hidden && !daily.classList.contains('hidden')) {
+      daily.querySelectorAll('.student-card').forEach(function(c){
+        const id = c.dataset.enrollment;
+        const picked = c.querySelector('input[name="status_'+id+'"]:checked');
+        const reason = c.querySelector('input[name="excuse_reason_'+id+'"]');
+        if (picked && picked.value === 'excused' && reason && !reason.value.trim()) missing.push(reason);
+      });
+    }
+    document.querySelectorAll('.per-reason').forEach(function(r){
+      const id = r.dataset.enrollment;
+      const excused = Array.from(document.querySelectorAll('select[name^="perstatus_'+id+'_"]'))
+        .some(function(s){ return s.value === 'excused'; });
+      if (excused && !r.value.trim()) missing.push(r);
+    });
+    if (!missing.length) return;
+    ev.preventDefault();
+    missing.forEach(function(r){ r.classList.add('ring-2', 'ring-error'); });
+    const box = document.getElementById('excuseMissing');
+    if (box) { box.hidden = false; box.scrollIntoView({behavior: 'smooth', block: 'center'}); }
+    missing[0].focus();
+  });
   window.filterStudents = function(q){
     q = (q||'').toLowerCase();
     document.querySelectorAll('.student-card').forEach(c => {

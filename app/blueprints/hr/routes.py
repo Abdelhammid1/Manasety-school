@@ -198,10 +198,8 @@ def employee_delete(employee_id):
 @login_required
 @require_permission("payroll", "view")
 def payroll_list():
-    from sqlalchemy.orm import selectinload
     items = (
         Payroll.query.filter_by(school_id=_sid())
-        .options(selectinload(Payroll.settlements))     # the status column (one query, not per row)
         .order_by(Payroll.period_year.desc(), Payroll.period_month.desc(), Payroll.id.desc())
         .limit(200).all()
     )

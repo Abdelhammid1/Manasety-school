@@ -166,7 +166,7 @@ def test_an_advance_deducted_at_accrual_shows_and_the_rest_settles(papp, two_sch
     pid = _accrue(papp, c, A, "A")
     assert _state(papp, pid) == (Decimal("1000"), 0, Decimal("5500"))   # the ticket's 5500 left
     page = c.get(f"/hr/payroll/{hid(pid)}", base_url=host(A)).get_data(as_text=True)
-    assert "1000" in page and "5500" in page and "مستحق" in page
+    assert "1000" in page and "5500" in page and "مصروف جزئيًا" in page   # the advance covered part of it
     c.post(f"/hr/payroll/{hid(pid)}/settle", base_url=host(A),
            data={"amount": "5500", "payment_method_id": papp.extra_ids["A"]["pm"]})
     assert _state(papp, pid) == (Decimal("6500"), 1, Decimal("0"))
