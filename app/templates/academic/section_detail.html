@@ -157,8 +157,9 @@
             </td>
             <td class="px-4 py-3">
               <div class="flex flex-col">
-                <span class="font-label-md text-on-surface">{{ e.student.parent_name or '—' }}</span>
-                {% if e.student.parent_phone %}<span class="font-label-xs text-outline" dir="ltr">{{ e.student.parent_phone }}</span>{% endif %}
+                {% set gname, gphone = guardian_of.get(e.student_id, (e.student.parent_name, e.student.parent_phone)) %}
+                <span class="font-label-md text-on-surface">{{ gname or '—' }}</span>
+                {% if gphone %}<span class="font-label-xs text-outline" dir="ltr">{{ gphone }}</span>{% endif %}
               </div>
             </td>
             <td class="px-4 py-3 text-center">

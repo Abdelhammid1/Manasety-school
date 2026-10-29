@@ -135,8 +135,10 @@
             </td>
             <td class="px-4 py-3">
               <div class="flex flex-col">
-                <span class="font-label-md text-label-md text-on-surface">{{ s.parent_name or '—' }}</span>
-                {% if s.parent_phone %}<span class="font-label-xs text-label-xs text-outline" dir="ltr">{{ s.parent_phone }}</span>{% endif %}
+                {# the linked guardian (primary, else first); the old parent_name otherwise #}
+                {% set gname, gphone = guardian_of.get(s.id, (s.parent_name, s.parent_phone)) %}
+                <span class="font-label-md text-label-md text-on-surface">{{ gname or '—' }}</span>
+                {% if gphone %}<span class="font-label-xs text-label-xs text-outline" dir="ltr">{{ gphone }}</span>{% endif %}
               </div>
             </td>
             <td class="px-4 py-3">

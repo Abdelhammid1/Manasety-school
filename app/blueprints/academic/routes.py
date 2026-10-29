@@ -611,6 +611,7 @@ def section_detail(section_id):
         Enrollment.query.filter_by(school_id=_sid(), section_id=section.id, status="active")
         .join(Student).order_by(Student.full_name).all()
     )
+    from ..students.routes import _list_guardians
     # BUG-007 follow-up — the courses published to this section, linkable
     # from here too (same rules and routes as the course page)
     course_links, linkable_courses = [], []
@@ -620,6 +621,7 @@ def section_detail(section_id):
     return render_template(
         "academic/section_detail.html",
         section=section, enrollments=enrollments,
+        guardian_of=_list_guardians([e.student_id for e in enrollments]),
         course_links=course_links, linkable_courses=linkable_courses,
         show_courses=current_user.can("lms", "view") or current_user.can("lms", "edit"),
         can_link=current_user.can("lms", "edit"),

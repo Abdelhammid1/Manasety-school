@@ -194,8 +194,15 @@ def students_list():
 
     if q:
         like = f"%{q}%"
+        from ...models import Guardian, StudentGuardian
+        # a guardian's name finds their children — the linked guardian or
+        # the old parent_name, the same two sources the column shows
+        by_guardian = (db.session.query(StudentGuardian.student_id)
+                       .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+                       .filter(Guardian.school_id == _sid(), Guardian.full_name.ilike(like)))
         query = query.filter(
-            db.or_(Student.full_name.ilike(like), Student.permanent_code.ilike(like))
+            db.or_(Student.full_name.ilike(like), Student.permanent_code.ilike(like),
+                   Student.parent_name.ilike(like), Student.id.in_(by_guardian))
         )
 
     # Ticket S11 — filter by tag(s). `?tag_id=<n>` picks students that
@@ -231,7 +238,28 @@ def students_list():
         "students/list.html", students=students, q=q,
         active_year=year, section_ctx=section_ctx,
         all_tags=all_tags, selected_tag_ids=tag_ids,
+        guardian_of=_list_guardians([st.id for st in students]),
     )
+
+
+def _list_guardians(student_ids) -> dict:
+    """{student_id: (name, phone)} of the guardian the list shows: the
+    primary link, else the first one linked. One query for the page (the
+    column used to read the old parent_name only, so a student linked to an
+    existing guardian showed «—»)."""
+    from ...models import Guardian, StudentGuardian
+    if not student_ids:
+        return {}
+    rows = (db.session.query(StudentGuardian.student_id, Guardian.full_name, Guardian.phone)
+            .join(Guardian, Guardian.id == StudentGuardian.guardian_id)
+            .filter(StudentGuardian.student_id.in_(student_ids), Guardian.school_id == _sid())
+            .order_by(StudentGuardian.student_id, StudentGuardian.is_primary.desc(),
+                      StudentGuardian.id)
+            .all())
+    out = {}
+    for sid, name, phone in rows:
+        out.setdefault(sid, (name, phone))
+    return out
 
 
 @bp.route("/new", methods=["GET", "POST"])
