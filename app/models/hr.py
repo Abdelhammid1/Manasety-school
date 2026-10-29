@@ -73,6 +73,23 @@ class Payroll(SoftDeleteMixin, db.Model):
     def is_settled(self) -> bool:
         return self.remaining <= 0.005
 
+    @property
+    def cash_paid(self) -> float:
+        """What was actually paid out (the settlements)."""
+        return float(sum((s.amount or 0) for s in self.settlements))
+
+    @property
+    def advance_deducted(self) -> float:
+        """The part of paid_amount that recovered advances (سلف) at accrual
+        time — apply_advance_deductions raises paid_amount, not a settlement."""
+        return max(0.0, float(self.paid_amount or 0) - self.cash_paid)
+
+    @property
+    def status_label(self) -> str:
+        if self.is_settled:
+            return "مصروف بالكامل"
+        return "مصروف جزئيًا" if self.settlements else "مستحق"
+
 
 class EmployeeAdvance(db.Model):
     """Ticket "Additional 12" — cash advance to an employee (سلفة).

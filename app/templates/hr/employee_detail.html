@@ -62,16 +62,17 @@
       {% if employee.payrolls %}
       <div class="flex flex-col gap-2">
         {% for p in employee.payrolls[:8] %}
-        <div class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low">
+        <a href="{{ url_for('hr.payroll_detail', payroll_id=p.id) }}"
+           class="flex items-center justify-between p-2 rounded-lg bg-surface-container-low hover:bg-surface-container">
           <div class="flex items-center gap-2">
             <span class="w-10 h-10 rounded-lg bg-primary text-on-primary flex items-center justify-center font-bold">{{ p.period_month }}/{{ p.period_year|string|last }}{{ p.period_year|string|last }}</span>
             <div class="flex flex-col">
               <span class="font-label-md font-bold text-primary">{{ p.period_year }}/{{ '%02d'|format(p.period_month) }}</span>
-              <span class="font-label-xs text-outline">{{ p.paid_at.strftime('%Y-%m-%d') if p.paid_at else '' }}</span>
+              <span class="font-label-xs text-outline">{{ p.status_label }}{% if p.paid_at %} · {{ p.paid_at.strftime('%Y-%m-%d') }}{% endif %}</span>
             </div>
           </div>
           <span class="font-title-md text-title-md tabular-nums font-bold text-primary">{{ p.net_pay|round(2) }}</span>
-        </div>
+        </a>
         {% endfor %}
       </div>
       {% else %}

@@ -318,21 +318,35 @@ def payroll_detail(payroll_id):
 @login_required
 @require_permission("finance_transactions", "add")
 def payroll_settle(payroll_id):
+    from decimal import InvalidOperation
     from ...services.ledger import settle_accrual, LedgerError
+    from ...services.locks import transaction_lock
     p = Payroll.query.filter_by(id=payroll_id, school_id=_sid()).first_or_404()
-    try:
-        amount = Decimal(request.form.get("amount") or "0")
-    except Exception:
-        flash("المبلغ غير صالح.", "danger")
-        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+    back = redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+    # Empty = the whole remaining. Anything typed must be a positive number:
+    # "0" / "-5" used to fall through to None and pay the FULL remaining.
+    raw = (request.form.get("amount") or "").strip()
+    amount = None
+    if raw:
+        try:
+            amount = Decimal(raw)
+        except (InvalidOperation, ValueError):
+            amount = None
+        if amount is None or not amount.is_finite() or amount <= 0:
+            flash("المبلغ يجب أن يكون رقماً أكبر من صفر (أو اتركه فارغاً لصرف المتبقّي كله).", "danger")
+            return back
     pm_id = request.form.get("payment_method_id", type=int)
     if not pm_id:
         flash("اختر طريقة الدفع.", "danger")
-        return redirect(url_for("hr.payroll_detail", payroll_id=p.id))
+        return back
     settled_at = _parse_date(request.form.get("settled_at")) or date.today()
     notes = (request.form.get("notes") or "").strip() or None
+    # A double click (or two tabs) sends two settles: the second waits here
+    # and then sees the first one's paid_amount, so it can't pay twice.
+    transaction_lock(f"payroll-settle-{p.id}")
+    db.session.refresh(p)
     try:
-        settle_accrual(p, pm_id, amount=amount if amount > 0 else None,
+        settle_accrual(p, pm_id, amount=amount,
                        settled_at=settled_at, notes=notes)
     except LedgerError as e:
         db.session.rollback()

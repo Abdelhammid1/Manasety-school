@@ -24,7 +24,7 @@
       </div>
       <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full font-label-md font-bold
                    {% if payroll.is_settled %}bg-[#10B981] text-white{% else %}bg-white/15{% endif %}">
-        {{ 'مصروف بالكامل' if payroll.is_settled else 'مستحق' }}
+        {{ payroll.status_label }}
       </span>
     </div>
     <div class="grid grid-cols-2 md:grid-cols-4 gap-space-md mt-space-md">
@@ -40,24 +40,37 @@
       </div>
       {% endfor %}
     </div>
-    <div class="mt-space-md p-space-md rounded-xl bg-white/10 flex items-center justify-between">
-      <span class="font-title-md">المتبقّي للصرف</span>
-      <span class="font-display-md font-extrabold tabular-nums">{{ payroll.remaining|round(2) }}</span>
+    {# BUG-005 — what happened to the net: advances recovered at accrual,
+       cash paid out (settlements), and what is still owed (2210). #}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-space-md mt-space-md">
+      <div class="bg-white/10 rounded-xl p-space-md">
+        <p class="font-label-md opacity-80">مخصوم سداداً لسلف</p>
+        <p class="font-headline-sm font-extrabold tabular-nums mt-1">{{ payroll.advance_deducted|round(2) }}</p>
+      </div>
+      <div class="bg-white/10 rounded-xl p-space-md">
+        <p class="font-label-md opacity-80">المصروف</p>
+        <p class="font-headline-sm font-extrabold tabular-nums mt-1">{{ payroll.cash_paid|round(2) }}</p>
+      </div>
+      <div class="bg-white/20 rounded-xl p-space-md">
+        <p class="font-label-md opacity-80">المتبقّي للصرف</p>
+        <p class="font-headline-sm font-extrabold tabular-nums mt-1">{{ payroll.remaining|round(2) }}</p>
+      </div>
     </div>
   </section>
 
   {# Settle form — only visible while there's a remaining balance #}
-  {% if payroll.remaining > 0.005 %}
+  {% if payroll.remaining > 0.005 and current_user.can('finance_transactions', 'add') %}
   <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
     <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2 mb-space-md">
       <span class="material-symbols-outlined">payments</span>صرف الراتب
     </h2>
     <form method="post" action="{{ url_for('hr.payroll_settle', payroll_id=payroll.id) }}"
+          onsubmit="var b=this.querySelector('[type=submit]'); if (b.disabled) return false; b.disabled=true; return true;"
           class="grid grid-cols-1 md:grid-cols-4 gap-space-md items-end">
       <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
       <div class="flex flex-col gap-1">
         <label class="font-label-md font-bold text-on-surface">المبلغ (اتركه فارغاً لصرف الكل)</label>
-        <input name="amount" type="number" step="0.01" min="0"
+        <input name="amount" type="number" step="0.01" min="0.01" max="{{ '%.2f'|format(payroll.remaining) }}"
                placeholder="{{ payroll.remaining|round(2) }}"
                class="h-11 px-3 rounded-lg bg-surface-container-low tabular-nums">
       </div>
