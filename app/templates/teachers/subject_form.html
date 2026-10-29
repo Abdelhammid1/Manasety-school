@@ -12,13 +12,20 @@
 {% endblock %}
 
 {% block page_content %}
-{% set current_gids = subject.grades|map(attribute='id')|list if subject else [] %}
-{% set current_tids = subject.terms |map(attribute='id')|list if subject else [] %}
+{# picked_* / vals: the saved subject, or what the user posted after a refused save #}
+{% set current_gids = picked_g %}
+{% set current_tids = picked_t %}
 
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
   <h1 class="font-headline-lg text-headline-lg text-primary">
     {% if subject %}تعديل مادة: {{ subject.name }}{% else %}مادة جديدة{% endif %}
   </h1>
+
+  {% if error %}
+  <div role="alert" class="p-space-md rounded-xl bg-error-container text-on-error-container font-label-lg font-bold flex items-start gap-2">
+    <span class="material-symbols-outlined">error</span><span>{{ error }}</span>
+  </div>
+  {% endif %}
 
   <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -26,8 +33,15 @@
     <!-- Name -->
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">اسم المادة <span class="text-error">*</span></label>
-      <input name="name" value="{{ subject.name if subject else '' }}" required
+      <input name="name" value="{{ vals.name }}" required maxlength="128"
              placeholder="مثال: الرياضيات"
+             class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
+    </div>
+
+    <!-- Code (optional) — kept on edit; the form used to drop it -->
+    <div class="flex flex-col gap-1.5">
+      <label class="font-label-md text-label-md text-on-surface font-bold">كود المادة <span class="font-label-xs text-outline">(اختياري)</span></label>
+      <input name="code" value="{{ vals.code }}" maxlength="32" dir="ltr" placeholder="MATH01"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors">
     </div>
 
@@ -39,7 +53,7 @@
           <span>الصفوف الدراسية <span class="text-error">*</span></span>
           <span id="gradesCount" class="font-label-xs text-outline"></span>
         </label>
-        <select name="grade_ids" id="gradeSelect" multiple size="6"
+        <select name="grade_ids" id="gradeSelect" multiple size="6" required
                 class="px-3 py-2 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 transition-colors font-body-md text-body-md">
           {% for g in grades %}
           <option value="{{ g.id }}" {% if g.id in current_gids %}selected{% endif %}>
@@ -50,6 +64,9 @@
         <p class="font-label-xs text-outline flex items-center gap-1">
           <span class="material-symbols-outlined text-xs">touch_app</span>
           دوس على أي صف لاختياره، ودوس عليه تاني لإلغائه — بدون الحاجة لـ Ctrl.
+        </p>
+        <p class="font-label-xs text-on-surface-variant">
+          مطلوب صف واحد على الأقل: الصفوف هي اللي بتحدد ظهور المادة في توزيع المعلمين والجداول والمقرّرات.
         </p>
       </div>
 
@@ -89,6 +106,9 @@
         <p class="font-label-xs text-outline flex items-center gap-1">
           <span class="material-symbols-outlined text-xs">touch_app</span>
           دوس على أي فترة لاختيارها، ودوس عليها تاني لإلغائها.
+        </p>
+        <p class="font-label-xs text-on-surface-variant">
+          اختياري — لكن المادة بدون فترة لا تظهر عند تصفّح المقرّرات حسب الصف والترم.
         </p>
         {% endif %}
       </div>

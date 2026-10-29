@@ -336,51 +336,90 @@ def _grade_and_term_options():
     return grades, terms
 
 
+def _subject_data(form, grades, terms, editing=None) -> dict:
+    """Ticket «مادة بدون صفوف» — name, code, at least one grade (the
+    recommended option: a subject with no grade never reaches teacher
+    assignments, timetables or courses); terms stay optional, as the form
+    always marked them. Every id must be one of this school's live grades /
+    terms. Raises v.Invalid with one Arabic message."""
+    from ..academic import validation as v
+    name = v.text(form, "name", "اسم المادة", max_len=128)
+    code = (form.get("code") or "").strip() or None
+    if code and len(code) > 32:
+        raise v.Invalid("كود المادة طويل جدًا (الحد الأقصى 32 حرف).")
+    by_g, by_t = {g.id: g for g in grades}, {t.id: t for t in terms}
+    raw_g, raw_t = form.getlist("grade_ids"), form.getlist("term_ids")
+    if any(not str(x).isdigit() or int(x) not in by_g for x in raw_g):
+        raise v.Invalid("أحد الصفوف المختارة غير موجود — حدّث الصفحة واختر من القائمة.")
+    if any(not str(x).isdigit() or int(x) not in by_t for x in raw_t):
+        raise v.Invalid("أحد الفصول الدراسية المختارة غير موجود — حدّث الصفحة واختر من القائمة.")
+    if not raw_g:
+        raise v.Invalid("اختر صفاً دراسياً واحداً على الأقل — المادة بدون صف لا تظهر في "
+                        "توزيع المعلمين ولا الجداول ولا المقرّرات.")
+    other = v.clash(Subject, exclude_id=getattr(editing, "id", None), school_id=_sid(), name=name)
+    if other:
+        raise v.Invalid(f"توجد مادة بنفس الاسم «{name}»{v.deleted_note(other)}.")
+    return {"name": name, "code": code,
+            "grades": [by_g[int(x)] for x in dict.fromkeys(raw_g)],
+            "terms": [by_t[int(x)] for x in dict.fromkeys(raw_t)]}
+
+
+def _subject_form(subject, grades, terms, form=None, error=None):
+    """The form, keeping what the user typed after a refused save."""
+    if form is not None:
+        picked_g = [int(x) for x in form.getlist("grade_ids") if str(x).isdigit()]
+        picked_t = [int(x) for x in form.getlist("term_ids") if str(x).isdigit()]
+        vals = {"name": form.get("name", ""), "code": form.get("code", "")}
+    else:
+        picked_g = [g.id for g in subject.grades] if subject else []
+        picked_t = [t.id for t in subject.terms] if subject else []
+        vals = {"name": subject.name if subject else "", "code": (subject.code or "") if subject else ""}
+    return render_template("teachers/subject_form.html", subject=subject, grades=grades, terms=terms,
+                           picked_g=picked_g, picked_t=picked_t, vals=vals, error=error),         (400 if error else 200)
+
+
 @bp.route("/subjects/new", methods=["GET", "POST"])
 @login_required
 @require_permission("teachers", "add")
 def subject_new():
+    from ..academic import validation as v
     grades, terms = _grade_and_term_options()
     if request.method == "POST":
-        subject = Subject(
-            school_id=_sid(),
-            name=request.form["name"].strip(),
-            code=(request.form.get("code") or "").strip() or None,
-        )
-        gids = request.form.getlist("grade_ids", type=int)
-        tids = request.form.getlist("term_ids",  type=int)
-        subject.grades = [g for g in grades if g.id in gids]
-        subject.terms  = [t for t in terms  if t.id in tids]
+        try:
+            data = _subject_data(request.form, grades, terms)
+        except v.Invalid as e:
+            return _subject_form(None, grades, terms, request.form, str(e))
+        subject = Subject(school_id=_sid(), name=data["name"], code=data["code"])
+        subject.grades, subject.terms = data["grades"], data["terms"]
         db.session.add(subject)
-        db.session.commit()
+        err = v.commit("المادة")
+        if err:
+            return _subject_form(None, grades, terms, request.form, err)
         flash(f"تم إضافة المادة {subject.name}.", "success")
         return redirect(url_for("teachers.subjects_list"))
-    return render_template(
-        "teachers/subject_form.html",
-        subject=None, grades=grades, terms=terms,
-    )
+    return _subject_form(None, grades, terms)
 
 
 @bp.route("/subjects/<hid:subject_id>/edit", methods=["GET", "POST"])
 @login_required
 @require_permission("teachers", "edit")
 def subject_edit(subject_id):
+    from ..academic import validation as v
     subject = _get(Subject, subject_id)
     grades, terms = _grade_and_term_options()
     if request.method == "POST":
-        subject.name = request.form["name"].strip()
-        subject.code = (request.form.get("code") or "").strip() or None
-        gids = request.form.getlist("grade_ids", type=int)
-        tids = request.form.getlist("term_ids",  type=int)
-        subject.grades = [g for g in grades if g.id in gids]
-        subject.terms  = [t for t in terms  if t.id in tids]
-        db.session.commit()
+        try:
+            data = _subject_data(request.form, grades, terms, editing=subject)
+        except v.Invalid as e:
+            return _subject_form(subject, grades, terms, request.form, str(e))
+        subject.name, subject.code = data["name"], data["code"]
+        subject.grades, subject.terms = data["grades"], data["terms"]
+        err = v.commit("المادة")
+        if err:
+            return _subject_form(subject, grades, terms, request.form, err)
         flash("تم تحديث المادة.", "success")
         return redirect(url_for("teachers.subjects_list"))
-    return render_template(
-        "teachers/subject_form.html",
-        subject=subject, grades=grades, terms=terms,
-    )
+    return _subject_form(subject, grades, terms)
 
 
 # ---------- T-4.3 Assignments ----------

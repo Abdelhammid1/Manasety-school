@@ -23,6 +23,17 @@
     </a>
   </div>
 
+  {# Ticket «مادة بدون صفوف» — older subjects saved with no grade, to fix #}
+  {% set unlinked = subjects|selectattr('grades', 'equalto', [])|list %}
+  {% if unlinked %}
+  <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-md flex items-start gap-2">
+    <span class="material-symbols-outlined">warning</span>
+    <span>{{ unlinked|length }} مادة غير مرتبطة بأي صف — لن تظهر في توزيع المعلمين والجداول والمقرّرات حتى تُحدَّد صفوفها:
+      {% for s in unlinked %}<a href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}" class="underline font-bold">{{ s.name }}</a>{% if not loop.last %}، {% endif %}{% endfor %}
+    </span>
+  </div>
+  {% endif %}
+
   <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-space-md">
     {% for s in subjects %}
       {% set n_courses = course_counts.get(s.id, 0) %}
@@ -62,7 +73,9 @@
                 {% endfor %}
               </div>
               {% else %}
-              <span class="font-label-xs text-label-xs text-outline">غير محدد</span>
+              <span class="inline-flex items-center gap-1 w-fit px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs text-label-xs font-bold">
+                <span class="material-symbols-outlined text-xs">warning</span>غير مرتبطة بصف — عدّلها
+              </span>
               {% endfor %}
             </div>
             <div class="flex flex-col gap-1">
