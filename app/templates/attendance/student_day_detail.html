@@ -57,7 +57,9 @@
             </span>
           </td>
           <td class="p-2 font-label-sm text-on-surface-variant">
-            {{ r.notes or (r.excuse_reason or '—') }}
+            {% if r.excuse_reason %}<div><b>سبب العذر:</b> {{ r.excuse_reason }}</div>{% endif %}
+            {% if r.notes %}<div>{{ r.notes }}</div>{% endif %}
+            {% if not r.excuse_reason and not r.notes %}—{% endif %}
           </td>
         </tr>
         {% endfor %}

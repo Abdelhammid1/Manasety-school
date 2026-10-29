@@ -168,7 +168,8 @@
     <div id="studentsGrid" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-space-md">
       {% for e in enrollments %}
       {% set rec = existing.get(e.id) %}
-      {% set st = rec.status if rec else 'present' %}
+      {# after a refused save: what the teacher entered, else the saved record #}
+      {% set st = posted.get('status_' ~ e.id) or (rec.status if rec else 'present') %}
       <div class="student-card group bg-surface-container-lowest rounded-xl p-space-md shadow-sm hover:shadow-md transition-all relative flex flex-col overflow-hidden"
            data-enrollment="{{ e.id }}"
            data-name="{{ e.student.full_name|lower }}"
@@ -201,7 +202,7 @@
           {% endfor %}
         </div>
         <div class="note-wrap hidden mt-2">
-          <input type="text" name="note_{{ e.id }}" value="{{ (rec.notes or '') if rec else '' }}"
+          <input type="text" name="note_{{ e.id }}" value="{{ posted.get('note_' ~ e.id, (rec.notes or '') if rec else '') }}"
                  placeholder="ملاحظة (اختياري)"
                  class="w-full h-9 px-2 rounded-lg bg-surface-container-low text-on-surface font-label-md text-label-md outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-primary/20">
         </div>
@@ -209,9 +210,11 @@
            'excused'. Toggled by toggleExcuse() in the script below. #}
         <div class="excuse-wrap {% if st != 'excused' %}hidden{% endif %} mt-2 space-y-1"
              id="excuse_wrap_{{ e.id }}">
-          <input type="text" name="excuse_reason_{{ e.id }}"
-                 value="{{ (rec.excuse_reason or '') if rec else '' }}"
-                 placeholder="سبب الإعذار (مطلوب لحالة مستأذن)"
+          <label class="font-label-xs text-on-surface font-bold">سبب العذر <span class="text-error">*</span></label>
+          <input type="text" name="excuse_reason_{{ e.id }}" maxlength="255"
+                 value="{{ posted.get('excuse_reason_' ~ e.id, (rec.excuse_reason or '') if rec else '') }}"
+                 placeholder="مثال: مراجعة طبية"
+                 {% if st == 'excused' %}required{% endif %}
                  class="w-full h-9 px-2 rounded-lg bg-blue-50 border border-blue-200 text-on-surface font-label-md text-label-md outline-none focus:ring-2 focus:ring-blue-300">
           <label class="text-outline font-label-xs flex items-center gap-1 cursor-pointer">
             <span class="material-symbols-outlined text-base">upload_file</span>
@@ -343,7 +346,11 @@
     const picked = c.querySelector('input[name="status_'+id+'"]:checked');
     const wrap = c.querySelector('.excuse-wrap');
     if (!wrap) return;
-    wrap.classList.toggle('hidden', !(picked && picked.value === 'excused'));
+    const excused = !!(picked && picked.value === 'excused');
+    wrap.classList.toggle('hidden', !excused);
+    // required only while «مستأذن بعذر» is picked (the server checks it too)
+    const reason = wrap.querySelector('input[name="excuse_reason_'+id+'"]');
+    if (reason) reason.required = excused;
   };
   window.filterStudents = function(q){
     q = (q||'').toLowerCase();

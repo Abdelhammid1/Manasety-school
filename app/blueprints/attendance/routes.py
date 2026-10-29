@@ -14,6 +14,9 @@ from ...models import (
 from ...services.notifications import send_notification
 
 
+EXCUSE_REASON_MAX = 255      # Attendance.excuse_reason is String(255)
+
+
 def _sid() -> int:
     # SAAS-005 — central tenant source of truth. One function
     # here so no blueprint reads current_user.school_id directly.
@@ -263,6 +266,34 @@ def mark(section_id):
                 "danger",
             )
             return redirect(url_for("attendance.mark", section_id=section.id, date=on_date))
+        # Ticket «بعذر بدون سبب» (recommended option: the reason is
+        # required). Checked for the whole class BEFORE anything is
+        # written: one message names every student missing it, nothing is
+        # saved, and the form comes back with what the teacher entered.
+        missing, too_long = [], []
+        for e in enrollments:
+            if request.form.get(f"status_{e.id}") != "excused":
+                continue
+            reason = (request.form.get(f"excuse_reason_{e.id}") or "").strip()
+            if not reason:
+                missing.append(e.student.full_name)
+            elif len(reason) > EXCUSE_REASON_MAX:
+                too_long.append(e.student.full_name)
+        if missing or too_long:
+            errors = []
+            if missing:
+                errors.append("اكتب سبب العذر لـ: " + "، ".join(missing) + " (حالة «مستأذن بعذر» تتطلب سبباً).")
+            if too_long:
+                errors.append(f"سبب العذر أطول من {EXCUSE_REASON_MAX} حرف لـ: " + "، ".join(too_long) + ".")
+            for msg in errors:
+                flash(msg, "danger")
+            return render_template(
+                "attendance/mark.html",
+                section=section, year=year, on_date=on_date,
+                enrollments=enrollments, existing=existing,
+                mode=mode, periods=periods, existing_by_period=existing_by_period,
+                posted=request.form,
+            ), 400
         updates = 0
         creates = 0
         absent_notifs = 0
@@ -285,8 +316,9 @@ def mark(section_id):
             if record:
                 record.status = status
                 record.notes = note
-                if status == "excused":
-                    record.excuse_reason = excuse_reason
+                # the reason belongs to an excused day only: a record moved
+                # to present / absent / late drops it
+                record.excuse_reason = excuse_reason if status == "excused" else None
                 record.recorded_by_user_id = current_user.id
                 record.recorded_at = datetime.utcnow()
                 updates += 1
@@ -367,6 +399,7 @@ def mark(section_id):
         enrollments=enrollments, existing=existing,
         # Ticket #8
         mode=mode, periods=periods, existing_by_period=existing_by_period,
+        posted={},
     )
 
 
