@@ -177,6 +177,28 @@ def _visible_course_ids_for_viewer():
     return visible_course_ids(section_ids)
 
 
+TF_ONE_ANSWER = "سؤال صح/خطأ له إجابة صحيحة واحدة بالضبط — اختر «صح» أو «خطأ» ثم احفظ."
+
+
+def tf_correct_count(choices) -> int:
+    return sum(1 for c in choices if c.is_correct)
+
+
+def tf_invalid(kind, choices) -> bool:
+    """A صح/خطأ question with not exactly one correct choice (ticket
+    «صح/خطأ بإجابتين») — refused on save, skipped when copied."""
+    return kind == "tf" and tf_correct_count(choices) != 1
+
+
+def _tf_refused(q, correct_ids) -> bool:
+    """For an update: the posted correct ids must be exactly one of this
+    question's own choices."""
+    if q.kind != "tf":
+        return False
+    own = {c.id for c in q.choices}
+    return bool(correct_ids - own) or len(correct_ids & own) != 1
+
+
 @bp.route("/assignments", endpoint="assignments_home")
 @login_required
 def assignments_home():
@@ -488,10 +510,15 @@ def assignment_question_update(qid):
             "danger",
         )
         return redirect(url_for("lms.assignment_questions", aid=q.assignment_id))
+    correct_ids = set(int(x) for x in request.form.getlist("correct_choices") if x.isdigit())
+    if _tf_refused(q, correct_ids):
+        # nothing saved; the page comes back with this question open and
+        # what the teacher typed
+        return render_template("lms/assignment_questions.html", assignment=q.assignment,
+                               posted=request.form, posted_qid=q.id, posted_error=TF_ONE_ANSWER), 400
     q.prompt = (request.form.get("prompt") or "").strip()
     q.points = Decimal(request.form.get("points") or "1")
     q.correct_short = (request.form.get("correct_short") or "").strip()
-    correct_ids = set(int(x) for x in request.form.getlist("correct_choices") if x.isdigit())
     for c in q.choices:
         c.label = (request.form.get(f"choice_label[{c.id}]") or c.label).strip()
         c.is_correct = c.id in correct_ids
@@ -584,9 +611,13 @@ def assignment_pick_from_bank(aid):
 
         last = max((q.order_index for q in a.questions), default=0)
         added = 0; skipped = 0
+        bad_tf = 0
         for bq in pool:
             if bq.id in existing_sources:
                 skipped += 1
+                continue
+            if tf_invalid(bq.kind, bq.choices):   # صح/خطأ without exactly one answer
+                bad_tf += 1
                 continue
             last += 1
             aq = AssignmentQuestion(
@@ -609,6 +640,8 @@ def assignment_pick_from_bank(aid):
         msg = f"تمت إضافة {added} سؤال إلى الواجب."
         if skipped:
             msg += f" (تم تجاهل {skipped} سؤال موجود مسبقاً.)"
+        if bad_tf:
+            msg += f" (لم يُضف {bad_tf} سؤال صح/خطأ لأن إجابته الصحيحة ليست واحدة — صحّحه في البنك أولاً.)"
         flash(msg, "success" if added else "warning")
         return redirect(url_for("lms.assignment_questions", aid=a.id))
 
@@ -934,12 +967,15 @@ def quiz_question_update(qid):
             "danger",
         )
         return redirect(url_for("lms.quiz_questions", qid=q.quiz_id))
-    q.prompt = (request.form.get("prompt") or "").strip()
-    q.points = Decimal(request.form.get("points") or "1")
-    q.correct_short = (request.form.get("correct_short") or "").strip()
     # Update choices — labels come in as choice_label[<choice_id>] and
     # correct choice ids come in as correct_choices (a list of ids).
     correct_ids = set(int(x) for x in request.form.getlist("correct_choices") if x.isdigit())
+    if _tf_refused(q, correct_ids):
+        return render_template("lms/quiz_questions.html", quiz=q.quiz,
+                               posted=request.form, posted_qid=q.id, posted_error=TF_ONE_ANSWER), 400
+    q.prompt = (request.form.get("prompt") or "").strip()
+    q.points = Decimal(request.form.get("points") or "1")
+    q.correct_short = (request.form.get("correct_short") or "").strip()
     for c in q.choices:
         c.label = (request.form.get(f"choice_label[{c.id}]") or c.label).strip()
         c.is_correct = c.id in correct_ids
@@ -1749,7 +1785,7 @@ def template_use(tid):
             db.session.flush()
             for idx, it in enumerate(items, start=1):
                 bq = it.bank_question
-                if not bq:
+                if not bq or tf_invalid(bq.kind, bq.choices):   # (a broken صح/خطأ stays out)
                     continue
                 aq = AssignmentQuestion(
                     assignment_id=asg.id,
@@ -1788,7 +1824,7 @@ def template_use(tid):
 
         for idx, it in enumerate(items, start=1):
             bq = it.bank_question
-            if not bq:
+            if not bq or tf_invalid(bq.kind, bq.choices):   # (a broken صح/خطأ stays out)
                 continue
             q = Question(
                 quiz_id=quiz.id,
@@ -2096,6 +2132,15 @@ def _bank_save(item):
     if not prompt:
         flash("نص السؤال مطلوب.", "danger")
         return redirect(request.url)
+
+    if kind == "tf":
+        labels_in = request.form.getlist("choice_label")
+        flags_in = set(request.form.getlist("choice_correct"))
+        if labels_in:       # (no labels = the default صح / خطأ with صح correct)
+            n_correct = sum(1 for i, lbl in enumerate(labels_in) if (lbl or "").strip() and str(i) in flags_in)
+            if n_correct != 1:
+                flash(TF_ONE_ANSWER, "danger")
+                return redirect(request.url)
 
     is_new = item is None
     if is_new:
@@ -2973,9 +3018,13 @@ def quiz_pick_from_bank(qid):
         last = max((qq.order_index for qq in quiz.questions), default=0)
         added = 0
         skipped = 0
+        bad_tf = 0
         for bq in pool:
             if bq.id in existing_sources:
                 skipped += 1
+                continue
+            if tf_invalid(bq.kind, bq.choices):   # صح/خطأ without exactly one answer
+                bad_tf += 1
                 continue
             last += 1
             q = Question(
@@ -3003,6 +3052,8 @@ def quiz_pick_from_bank(qid):
         msg = f"تمت إضافة {added} سؤال."
         if skipped:
             msg += f" (تم تجاهل {skipped} سؤال موجود مسبقاً في هذا الاختبار.)"
+        if bad_tf:
+            msg += f" (لم يُضف {bad_tf} سؤال صح/خطأ لأن إجابته الصحيحة ليست واحدة — صحّحه في البنك أولاً.)"
         flash(msg, "success" if added else "warning")
         return redirect(url_for("lms.quiz_questions", qid=quiz.id))
 

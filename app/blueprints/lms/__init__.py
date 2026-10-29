@@ -9,3 +9,4 @@ from . import announcements   # noqa: E402,F401  P1-18 split
 from . import passages        # noqa: E402,F401  P1-18 split
 from . import taxonomy        # noqa: E402,F401  Phase-2 CRUD
 from . import quiz_runtime    # noqa: E402,F401  Phase-2 runtime API
+from . import tf_report     # noqa: E402,F401  صح/خطأ read-only report
