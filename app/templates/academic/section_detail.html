@@ -64,7 +64,7 @@
   </section>
 
   {# BUG-007 — the courses this section's students see in «موادي» #}
-  {% if can_link and endpoint_on('courses.section_course_link') %}
+  {% if can_link and endpoint_on('courses.section_course_link') and endpoint_on('courses.detail') and endpoint_on('courses.section_unlink') %}
   <section id="courses" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <div class="flex items-center justify-between flex-wrap gap-space-sm">
       <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
