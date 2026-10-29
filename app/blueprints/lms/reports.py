@@ -7,8 +7,8 @@ old N+1); Python only accumulates the tuples afterwards."""
 
 from decimal import Decimal
 
-from flask import render_template
-from flask_login import login_required
+from flask import abort, render_template
+from flask_login import current_user, login_required
 
 from . import bp
 from ...extensions import db
@@ -157,10 +157,20 @@ def _section_quiz_mastery_rows(student_ids):
                bool(ok), awarded or 0, max_pts or 0)
 
 
+def _staff_or_403(module: str) -> None:
+    """BUG-008 — a mastery report is staff-only: whoever manages the LMS,
+    or whoever may open the page that links to it (the student's file /
+    the section). A student or parent gets 403 — they must not read any
+    student's report by id."""
+    if not (current_user.can("lms", "view") or current_user.can(module, "view")):
+        abort(403)
+
+
 @bp.route("/reports/student/<hid:student_id>", endpoint="report_student")
 @login_required
 def report_student(student_id):
     """Per-student mastery per subject × unit — one query per side."""
+    _staff_or_403("students")
     student = owned_or_404(Student, student_id)
     subjects_data = {}
     for row in _student_assignment_mastery_rows(student.id):
@@ -175,6 +185,7 @@ def report_student(student_id):
 @login_required
 def report_section(section_id):
     """Per-section mastery — two queries total regardless of size."""
+    _staff_or_403("sections")
     from ...models import Enrollment
     section = owned_or_404(Section, section_id)
     students = (

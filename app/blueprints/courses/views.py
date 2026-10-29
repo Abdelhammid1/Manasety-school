@@ -107,6 +107,7 @@ def list_courses():
 
 @bp.route("/grade/<hid:grade_id>", endpoint="grade_terms")
 @login_required
+@require_permission("lms", "edit")
 def grade_terms(grade_id):
     """Level 1 — pick a term inside a grade. Open terms are highlighted."""
     sid = getattr(current_user, "school_id", None)
@@ -130,6 +131,7 @@ def grade_terms(grade_id):
 
 @bp.route("/grade/<hid:grade_id>/term/<hid:term_id>", endpoint="grade_term_subjects")
 @login_required
+@require_permission("lms", "edit")
 def grade_term_subjects(grade_id, term_id):
     """Level 2 — subjects available in (grade × term), joined through
     both subject_grades AND subject_terms so a subject only shows here
@@ -174,6 +176,7 @@ def grade_term_subjects(grade_id, term_id):
 @bp.route("/pick/grade/<hid:grade_id>/subject/<hid:subject_id>",
           endpoint="course_pick_section")
 @login_required
+@require_permission("lms", "edit")
 def course_pick_section(grade_id, subject_id):
     """When a subject has courses in multiple sections of the same
     grade, this is the section picker. If only one, we redirect

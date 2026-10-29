@@ -10,6 +10,12 @@ def require_permission(module: str, action: str = "view"):
             if not current_user.is_authenticated:
                 abort(401)
             if not current_user.can(module, action):
+                # BUG-008 — leave a trace of a refused attempt (no request data)
+                from flask import current_app, request
+                current_app.logger.warning(
+                    "permission denied: user=%s school=%s needs %s.%s at %s %s",
+                    current_user.id, getattr(current_user, "school_id", None),
+                    module, action, request.method, request.path)
                 abort(403)
             return view(*args, **kwargs)
         return wrapped

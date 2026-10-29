@@ -24,6 +24,7 @@ from ...services.scoping import owned_id, owned_or_404  # isolation sweep: schoo
 # ── Skills (#2) ────────────────────────────────────────────────────
 @bp.route("/skills/new", methods=["POST"], endpoint="skill_new")
 @login_required
+@require_permission("lms", "edit")
 def skill_new():
     title = (request.form.get("title") or "").strip()
     if not title:
@@ -38,6 +39,7 @@ def skill_new():
 
 @bp.route("/skills/<hid:sid>/delete", methods=["POST"], endpoint="skill_delete")
 @login_required
+@require_permission("lms", "edit")
 def skill_delete(sid):
     s = Skill.query.filter_by(id=sid, school_id=current_user.school_id).first_or_404()
     db.session.delete(s); db.session.commit()
@@ -47,6 +49,7 @@ def skill_delete(sid):
 # ── Learning Objectives (#3) ───────────────────────────────────────
 @bp.route("/objectives/new", methods=["POST"], endpoint="objective_new")
 @login_required
+@require_permission("lms", "edit")
 def objective_new():
     title = (request.form.get("title") or "").strip()
     if not title:
@@ -64,6 +67,7 @@ def objective_new():
 
 @bp.route("/objectives/<hid:oid>/delete", methods=["POST"], endpoint="objective_delete")
 @login_required
+@require_permission("lms", "edit")
 def objective_delete(oid):
     o = LearningObjective.query.filter_by(
         id=oid, school_id=current_user.school_id).first_or_404()
@@ -74,6 +78,7 @@ def objective_delete(oid):
 # ── Question Collections (#28) ─────────────────────────────────────
 @bp.route("/collections/new", methods=["POST"], endpoint="collection_new")
 @login_required
+@require_permission("lms", "edit")
 def collection_new():
     title = (request.form.get("title") or "").strip()
     if not title:
@@ -89,6 +94,7 @@ def collection_new():
 
 @bp.route("/collections/<hid:cid>/add", methods=["POST"], endpoint="collection_add")
 @login_required
+@require_permission("lms", "edit")
 def collection_add(cid):
     from ...models import BankQuestion
     c = QuestionCollection.query.filter_by(
@@ -109,6 +115,7 @@ def collection_add(cid):
 # ── Feedback Templates (#29) ───────────────────────────────────────
 @bp.route("/feedback-templates", endpoint="feedback_templates_json")
 @login_required
+@require_permission("lms", "edit")
 def feedback_templates_json():
     rows = FeedbackTemplate.query.filter_by(
         school_id=current_user.school_id
@@ -120,6 +127,7 @@ def feedback_templates_json():
 
 @bp.route("/feedback-templates/new", methods=["POST"], endpoint="feedback_template_new")
 @login_required
+@require_permission("lms", "edit")
 def feedback_template_new():
     title = (request.form.get("title") or "").strip()
     body  = (request.form.get("body") or "").strip()
@@ -136,6 +144,7 @@ def feedback_template_new():
 @bp.route("/feedback-templates/<hid:tid>/delete", methods=["POST"],
           endpoint="feedback_template_delete")
 @login_required
+@require_permission("lms", "edit")
 def feedback_template_delete(tid):
     t = FeedbackTemplate.query.filter_by(
         id=tid, school_id=current_user.school_id).first_or_404()
@@ -147,6 +156,7 @@ def feedback_template_delete(tid):
 @bp.route("/assignments/<hid:aid>/extensions", methods=["POST"],
           endpoint="assignment_extension_add")
 @login_required
+@require_permission("lms", "edit")
 def assignment_extension_add(aid):
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ("admin", "teacher"):

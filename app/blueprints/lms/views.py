@@ -357,6 +357,7 @@ def assignment_new(cid):
 
 @bp.route("/assignments/<hid:aid>/analytics", endpoint="assignment_analytics")
 @login_required
+@require_permission("lms", "edit")
 def assignment_analytics(aid):
     """Phase-2 ticket #23 — teacher-side view of one assignment's
     submissions: score distribution, late list, avg time to submit
@@ -449,6 +450,7 @@ def assignment_edit(aid):
 
 @bp.route("/assignments/<hid:aid>/questions", endpoint="assignment_questions")
 @login_required
+@require_permission("lms", "edit")
 def assignment_questions(aid):
     a = owned_or_404(CourseAssignment, aid)
     return render_template("lms/assignment_questions.html", assignment=a)
@@ -457,6 +459,7 @@ def assignment_questions(aid):
 @bp.route("/assignments/<hid:aid>/questions/add", methods=["POST"],
           endpoint="assignment_question_add")
 @login_required
+@require_permission("lms", "edit")
 def assignment_question_add(aid):
     a = owned_or_404(CourseAssignment, aid)
     last = max((q.order_index for q in a.questions), default=0)
@@ -483,6 +486,7 @@ def assignment_question_add(aid):
 @bp.route("/assignment-questions/<hid:qid>/update", methods=["POST"],
           endpoint="assignment_question_update")
 @login_required
+@require_permission("lms", "edit")
 def assignment_question_update(qid):
     q = owned_or_404(AssignmentQuestion, qid)
     if q.is_locked:
@@ -506,6 +510,7 @@ def assignment_question_update(qid):
 @bp.route("/assignment-questions/<hid:qid>/delete", methods=["POST"],
           endpoint="assignment_question_delete")
 @login_required
+@require_permission("lms", "edit")
 def assignment_question_delete(qid):
     q = owned_or_404(AssignmentQuestion, qid)
     aid = q.assignment_id
@@ -555,6 +560,7 @@ def _picker_defaults_redirect(parent_course, endpoint, **route_kwargs):
 @bp.route("/assignments/<hid:aid>/pick", methods=["GET", "POST"],
           endpoint="assignment_pick_from_bank")
 @login_required
+@require_permission("lms", "edit")
 def assignment_pick_from_bank(aid):
     """Same UX as quiz_pick_from_bank — clone selected BankQuestions
     into AssignmentQuestion + AssignmentChoice rows for this assignment.
@@ -595,8 +601,8 @@ def assignment_pick_from_bank(aid):
                 kind=bq.kind, prompt=bq.prompt,
                 points=bq.points or Decimal("1"),
                 correct_short=bq.correct_short or "",
-                explanation_video_url=bq.explanation_video_url,
-                hint_text=bq.hint_text,
+                # no explanation_video_url / hint_text: AssignmentQuestion
+                # has no such columns (passing them 500'd the picker)
                 source_bank_id=bq.id,
             )
             db.session.add(aq); db.session.flush()
@@ -665,6 +671,7 @@ def template_home():
 
 @bp.route("/templates/<hid:tid>/delete", methods=["POST"], endpoint="template_delete")
 @login_required
+@require_permission("lms", "edit")
 def template_delete(tid):
     """Hard-delete a template. Cascades to template_questions + choices.
     CourseAssignments cloned from this template are UNAFFECTED —
@@ -681,6 +688,7 @@ def template_delete(tid):
 @bp.route("/assignments/<hid:aid>/save-as-template", methods=["POST"],
           endpoint="assignment_save_as_template")
 @login_required
+@require_permission("lms", "edit")
 def assignment_save_as_template(aid):
     """Snapshot a live CourseAssignment (title + instructions + max_score
     + allow_late + every AssignmentQuestion + Choice) into a fresh
@@ -724,6 +732,7 @@ def assignment_save_as_template(aid):
 @bp.route("/courses/<hid:cid>/assignments/from-template", methods=["GET", "POST"],
           endpoint="assignment_from_template")
 @login_required
+@require_permission("lms", "edit")
 def assignment_from_template(cid):
     """GET  — template picker page scoped to the target course.
     POST — clone the chosen template into a fresh CourseAssignment
@@ -882,6 +891,7 @@ def quiz_delete(qid):
 
 @bp.route("/quizzes/<hid:qid>/questions", methods=["GET"], endpoint="quiz_questions")
 @login_required
+@require_permission("lms", "edit")
 def quiz_questions(qid):
     quiz = owned_or_404(Quiz, qid)
     return render_template("lms/quiz_questions.html", quiz=quiz)
@@ -889,6 +899,7 @@ def quiz_questions(qid):
 
 @bp.route("/quizzes/<hid:qid>/questions/add", methods=["POST"], endpoint="quiz_question_add")
 @login_required
+@require_permission("lms", "edit")
 def quiz_question_add(qid):
     quiz = owned_or_404(Quiz, qid)
     last = max((qq.order_index for qq in quiz.questions), default=0)
@@ -916,6 +927,7 @@ def quiz_question_add(qid):
 
 @bp.route("/questions/<hid:qid>/update", methods=["POST"], endpoint="quiz_question_update")
 @login_required
+@require_permission("lms", "edit")
 def quiz_question_update(qid):
     q = owned_or_404(Question, qid)
     # Ticket #19 — refuse silent edits once a student has answered.
@@ -957,6 +969,7 @@ def quiz_question_delete(qid):
 @bp.route("/questions/<hid:qid>/version", methods=["POST"],
           endpoint="quiz_question_new_version")
 @login_required
+@require_permission("lms", "edit")
 def quiz_question_new_version(qid):
     """Ticket #19 — clone a locked Question into a new row on the same
     Quiz (with version = old.version + 1, is_locked = False, appended
@@ -985,6 +998,7 @@ def quiz_question_new_version(qid):
 @bp.route("/assignment-questions/<hid:qid>/version", methods=["POST"],
           endpoint="assignment_question_new_version")
 @login_required
+@require_permission("lms", "edit")
 def assignment_question_new_version(qid):
     q = owned_or_404(AssignmentQuestion, qid)
     last = max((qq.order_index for qq in q.assignment.questions), default=0)
@@ -1491,6 +1505,7 @@ def template_new():
 
 @bp.route("/assessment-templates/<hid:tid>/edit", methods=["GET", "POST"], endpoint="template_edit")
 @login_required
+@require_permission("lms", "edit")
 def template_edit(tid):
     t = AssessmentTemplate.query.filter_by(
         id=tid, school_id=current_user.school_id).first_or_404()
@@ -1512,6 +1527,7 @@ def template_edit(tid):
 # ─── Template Detail + Question Picker (Stitch lms_6) ──────────────────
 @bp.route("/assessment-templates/<hid:tid>", endpoint="template_detail")
 @login_required
+@require_permission("lms", "edit")
 def template_detail(tid):
     """Stitch lms_6 — a template's items list plus an inline picker
     that pulls from the school bank. GET-only; the write paths live at
@@ -1582,6 +1598,7 @@ def template_detail(tid):
 @bp.route("/assessment-templates/<hid:tid>/items/attach",
           methods=["POST"], endpoint="template_items_attach")
 @login_required
+@require_permission("lms", "edit")
 def template_items_attach(tid):
     """Attach a batch of bank-question ids to a template. Silently
     skips rows already attached (the uq_asstmpl_q constraint would
@@ -1627,6 +1644,7 @@ def template_items_attach(tid):
 @bp.route("/assessment-templates/<hid:tid>/items/<hid:iid>/delete",
           methods=["POST"], endpoint="template_item_delete")
 @login_required
+@require_permission("lms", "edit")
 def template_item_delete(tid, iid):
     sid = current_user.school_id
     t = AssessmentTemplate.query.filter_by(
@@ -1642,6 +1660,7 @@ def template_item_delete(tid, iid):
 @bp.route("/assessment-templates/<hid:tid>/items/save",
           methods=["POST"], endpoint="template_items_save")
 @login_required
+@require_permission("lms", "edit")
 def template_items_save(tid):
     """Bulk-save `points_override` and `order_index` for every item.
     Fields are keyed by item id: `points_<iid>` and `order_<iid>`."""
@@ -1666,6 +1685,7 @@ def template_items_save(tid):
 @bp.route("/assessment-templates/<hid:tid>/use", methods=["GET", "POST"],
           endpoint="template_use")
 @login_required
+@require_permission("lms", "edit")
 def template_use(tid):
     """Spawn a real Quiz from an AssessmentTemplate. Copies every
     attached BankQuestion into fresh Question + Choice rows so the
@@ -1745,9 +1765,7 @@ def template_use(tid):
                     prompt=bq.prompt,
                     points=(it.points_override if it.points_override is not None else bq.points) or 1,
                     correct_short=bq.correct_short or "",
-                    explanation_video_url=bq.explanation_video_url,
-                    hint_text=bq.hint_text,
-                    source_bank_id=bq.id,
+                    source_bank_id=bq.id,       # (no video / hint columns on AssignmentQuestion)
                 )
                 db.session.add(aq)
                 db.session.flush()
@@ -1849,6 +1867,7 @@ def blueprint_exam_new():
 @bp.route("/exams/blueprint/create", methods=["POST"],
           endpoint="blueprint_exam_create")
 @login_required
+@require_permission("lms", "edit")
 def blueprint_exam_create():
     """POST target for the Blueprint form. Builds a Quiz + Questions
     (with copied choices, unlike the JWT API twin) by drawing N approved
@@ -2196,6 +2215,7 @@ def _bank_save(item):
 
 @bp.route("/bank/<hid:bid>/delete", methods=["POST"], endpoint="bank_delete")
 @login_required
+@require_permission("lms", "edit")
 def bank_delete(bid):
     item = BankQuestion.query.filter_by(id=bid, school_id=current_user.school_id).first_or_404()
     db.session.delete(item); db.session.commit()
@@ -2221,6 +2241,7 @@ BANK_STATE_LABEL = {
 
 @bp.route("/bank/<hid:bid>/archive", methods=["POST"], endpoint="bank_archive")
 @login_required
+@require_permission("lms", "edit")
 def bank_archive(bid):
     """Qdrat-parity #5 — soft-hide a bank question (النشطة ↔ الأرشيف)."""
     item = BankQuestion.query.filter_by(
@@ -2234,6 +2255,7 @@ def bank_archive(bid):
 @bp.route("/assessment-templates/<hid:tid>/items/<hid:iid>/toggle-hidden",
           methods=["POST"], endpoint="template_item_toggle_hidden")
 @login_required
+@require_permission("lms", "edit")
 def template_item_toggle_hidden(tid, iid):
     """Qdrat-parity #8 — soft-hide an item inside a specific template."""
     sid = current_user.school_id
@@ -2250,6 +2272,7 @@ def template_item_toggle_hidden(tid, iid):
 @bp.route("/assessment-templates/<hid:tid>/ai/generate",
           methods=["POST"], endpoint="template_ai_generate")
 @login_required
+@require_permission("lms", "edit")
 def template_ai_generate(tid):
     """Qdrat-beat #1 — use DeepSeek to generate N more questions like
     the ones already attached to this template, then land them straight
@@ -2345,6 +2368,7 @@ def template_ai_generate(tid):
 
 @bp.route("/bank/ai-review", methods=["POST"], endpoint="bank_ai_review")
 @login_required
+@require_permission("lms", "edit")
 def bank_ai_review():
     """Qdrat-beat #3 — batch AI review of the school's `pending` bank
     rows. DeepSeek flags each as ok / duplicate / ambiguous / no_answer,
@@ -2390,6 +2414,7 @@ def bank_ai_review():
 @bp.route("/quizzes/<hid:qid>/publish-results",
           methods=["POST"], endpoint="quiz_publish_results")
 @login_required
+@require_permission("lms", "edit")
 def quiz_publish_results(qid):
     """Phase-2 ticket #16 — teacher-triggered publish for `manual` mode.
 
@@ -2410,6 +2435,7 @@ def quiz_publish_results(qid):
 
 @bp.route("/quizzes/<hid:qid>/analysis", endpoint="quiz_analysis")
 @login_required
+@require_permission("lms", "edit")
 def quiz_analysis(qid):
     """Teacher-facing post-exam analysis. Aggregates per-question correct
     percentages across every submitted attempt, then (if DeepSeek is
@@ -2617,6 +2643,7 @@ def _persist_question_stats(q_stats, attempt_count):
 
 @bp.route("/bank/<hid:bid>/rewrite", endpoint="bank_rewrite_panel")
 @login_required
+@require_permission("lms", "edit")
 def bank_rewrite_panel(bid):
     """Renders the Stitch lms_8 AI rewriter drawer as a full page."""
     sid = current_user.school_id
@@ -2627,6 +2654,7 @@ def bank_rewrite_panel(bid):
 @bp.route("/bank/<hid:bid>/ai-rewrite",
           methods=["POST"], endpoint="bank_ai_rewrite")
 @login_required
+@require_permission("lms", "edit")
 def bank_ai_rewrite(bid):
     """Return the AI-rewritten version of a bank question as JSON — the
     drawer decides whether to save-as-copy or replace-in-place."""
@@ -2655,6 +2683,7 @@ def bank_ai_rewrite(bid):
 @bp.route("/bank/<hid:bid>/ai-rewrite/save",
           methods=["POST"], endpoint="bank_ai_rewrite_save")
 @login_required
+@require_permission("lms", "edit")
 def bank_ai_rewrite_save(bid):
     """Persist an AI-rewritten question. mode=copy → new BankQuestion in
     `pending`; mode=replace → mutate the original + bump version."""
@@ -2712,6 +2741,7 @@ def bank_ai_rewrite_save(bid):
 
 @bp.route("/submissions/<hid:sid>/grade", endpoint="submission_grade_panel")
 @login_required
+@require_permission("lms", "edit")
 def submission_grade_panel(sid):
     """Renders the Stitch lms_10 AI grading sidebar as a full page."""
     from ...models import Submission
@@ -2725,6 +2755,7 @@ def submission_grade_panel(sid):
 @bp.route("/submissions/<hid:sid>/grade/save",
           methods=["POST"], endpoint="submission_grade_save")
 @login_required
+@require_permission("lms", "edit")
 def submission_grade_save(sid):
     """Save teacher grades. Two modes:
       · Free-form  → single `score` + `feedback`.
@@ -2793,6 +2824,7 @@ def submission_grade_save(sid):
 @bp.route("/submissions/<hid:sid>/ai-grade",
           methods=["POST"], endpoint="submission_ai_grade")
 @login_required
+@require_permission("lms", "edit")
 def submission_ai_grade(sid):
     """AI-grade a free-form Submission (essay/short). Returns suggested
     {score, feedback, key_points} as JSON. Actual save is a follow-up
@@ -2842,6 +2874,7 @@ def submission_ai_grade(sid):
 @bp.route("/exams/blueprint/ai-suggest",
           methods=["POST"], endpoint="blueprint_ai_suggest")
 @login_required
+@require_permission("lms", "edit")
 def blueprint_ai_suggest():
     """Qdrat-beat #2 — ask DeepSeek for an easy/medium/hard/very_hard
     split for a given (subject, grade, total). Returns JSON so the
@@ -2862,6 +2895,7 @@ def blueprint_ai_suggest():
 
 @bp.route("/assessment-templates/<hid:tid>/print", endpoint="template_print")
 @login_required
+@require_permission("lms", "edit")
 def template_print(tid):
     """Qdrat-parity #4 — print-friendly render of every attached question.
     ?mode=continuous → questions flow; ?mode=per-page → page-break per Q."""
@@ -2880,6 +2914,7 @@ def template_print(tid):
 
 @bp.route("/bank/<hid:bid>/state", methods=["POST"], endpoint="bank_set_state")
 @login_required
+@require_permission("lms", "edit")
 def bank_set_state(bid):
     """Move a bank question through the Qdrat-parity review workflow.
     The classic /bank UI just shows the current state; this endpoint is
@@ -2904,6 +2939,7 @@ def bank_set_state(bid):
 
 @bp.route("/quizzes/<hid:qid>/pick", methods=["GET", "POST"], endpoint="quiz_pick_from_bank")
 @login_required
+@require_permission("lms", "edit")
 def quiz_pick_from_bank(qid):
     """GET: filterable list of bank rows with checkboxes.
     POST: for each ticked bank id, clone the BankQuestion + its BankChoices

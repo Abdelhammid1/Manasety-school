@@ -16,6 +16,7 @@ from flask import abort, jsonify, render_template, request
 from flask_login import current_user, login_required
 
 from . import bp
+from ..utils import require_permission
 from ...extensions import csrf, db
 from ...models import (
     Answer, Choice, Question, QuizAttempt, Student,
@@ -173,6 +174,7 @@ def attempt_autosave(attempt_id):
 # ── Ticket #19 — Live monitor ───────────────────────────────────────
 @bp.route("/quizzes/<hid:qid>/live", endpoint="quiz_live_monitor")
 @login_required
+@require_permission("lms", "edit")
 def quiz_live_monitor(qid):
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ("admin", "teacher"):
@@ -186,6 +188,7 @@ def quiz_live_monitor(qid):
 
 @bp.route("/quizzes/<hid:qid>/live.json", endpoint="quiz_live_monitor_json")
 @login_required
+@require_permission("lms", "edit")
 def quiz_live_monitor_json(qid):
     role = getattr(getattr(current_user, "role", None), "name", None)
     if role not in ("admin", "teacher"):

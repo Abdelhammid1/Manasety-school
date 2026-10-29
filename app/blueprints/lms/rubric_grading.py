@@ -10,6 +10,7 @@ from flask import (
 from flask_login import current_user, login_required
 
 from . import bp
+from ..utils import require_permission
 from ...extensions import db
 from ...models import (
     CourseAssignment, Submission, Rubric, RubricCriterion, RubricScore, Student,
@@ -34,6 +35,7 @@ def effective_rubric_id(question, parent) -> int | None:
 @bp.route("/submissions/<hid:submission_id>/rubric-grade", methods=["GET", "POST"],
           endpoint="submission_rubric_grade")
 @login_required
+@require_permission("lms", "edit")
 def submission_rubric_grade(submission_id):
     """Grade a Submission against every RubricCriterion. Weights are
     honoured — the final Submission.score is the weighted sum of each

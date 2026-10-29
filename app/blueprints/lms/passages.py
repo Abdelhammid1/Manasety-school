@@ -76,6 +76,7 @@ def _passage_form(p):
 
 @bp.route("/passages/<hid:pid>/delete", methods=["POST"], endpoint="passage_delete")
 @login_required
+@require_permission("lms", "edit")
 def passage_delete(pid):
     p = Passage.query.filter_by(
         id=pid, school_id=current_user.school_id).first_or_404()

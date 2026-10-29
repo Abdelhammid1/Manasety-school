@@ -1440,6 +1440,12 @@ def teacher_message_thread(conv_id):
 # All are school-scoped via `_sid()`.
 # ============================================================
 
+def _bank_denied():
+    """BUG-008 — the question bank is staff-side (the web /lms/bank needs
+    lms.edit too): a student / parent token gets 403."""
+    return None if _user().can("lms", "edit") else _err("forbidden", 403)
+
+
 def _bank_scope(source=None, subject_id=None, grade_id=None):
     """Base BankQuestion query respecting school + optional filters."""
     q = BankQuestion.query.filter_by(school_id=_sid())
@@ -1458,6 +1464,9 @@ def qbank_dashboard():
     the subject-coverage bar chart and the difficulty bar chart —
     everything precomputed so the client is one request in and out.
     """
+    denied = _bank_denied()
+    if denied:
+        return denied
     source = request.args.get("source", "school")
     base = _bank_scope(source=source)
     total = base.count()
@@ -1541,6 +1550,9 @@ def _question_dict(q):
 @jwt_required
 def qbank_questions():
     """Paginated + filtered question list for the explorer table."""
+    denied = _bank_denied()
+    if denied:
+        return denied
     source     = request.args.get("source", "school")
     subject_id = request.args.get("subject_id", type=int)
     state      = request.args.get("review_state")
@@ -1571,6 +1583,9 @@ def qbank_questions():
 @jwt_required
 def qbank_set_state(qid):
     """Move a question through the review workflow."""
+    denied = _bank_denied()
+    if denied:
+        return denied
     q = BankQuestion.query.filter_by(id=qid, school_id=_sid()).first()
     if not q: return _not_found()
     data = request.get_json(silent=True) or {}
