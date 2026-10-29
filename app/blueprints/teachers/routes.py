@@ -337,10 +337,10 @@ def _grade_and_term_options():
 
 
 def _subject_data(form, grades, terms, editing=None) -> dict:
-    """Ticket «مادة بدون صفوف» — name, code, at least one grade (the
-    recommended option: a subject with no grade never reaches teacher
-    assignments, timetables or courses); terms stay optional, as the form
-    always marked them. Every id must be one of this school's live grades /
+    """Ticket «مادة بدون صفوف» — name, code, at least one grade (a subject
+    with no grade never reaches teacher assignments, timetables or
+    courses) and at least one term once the school has terms (decision:
+    the recommended option). Every id must be one of this school's live grades /
     terms. Raises v.Invalid with one Arabic message."""
     from ..academic import validation as v
     name = v.text(form, "name", "اسم المادة", max_len=128)
@@ -356,6 +356,12 @@ def _subject_data(form, grades, terms, editing=None) -> dict:
     if not raw_g:
         raise v.Invalid("اختر صفاً دراسياً واحداً على الأقل — المادة بدون صف لا تظهر في "
                         "توزيع المعلمين ولا الجداول ولا المقرّرات.")
+    # Decision (recommended): a term too, once the school has terms —
+    # teacher assignment and the course browse list a subject only for
+    # (grade AND term). A school with no terms yet can still save.
+    if terms and not raw_t:
+        raise v.Invalid("اختر فصلاً دراسياً (ترم) واحداً على الأقل — توزيع المعلمين وتصفّح "
+                        "المقرّرات يعرضان المادة حسب الصف والترم معاً.")
     other = v.clash(Subject, exclude_id=getattr(editing, "id", None), school_id=_sid(), name=name)
     if other:
         raise v.Invalid(f"توجد مادة بنفس الاسم «{name}»{v.deleted_note(other)}.")

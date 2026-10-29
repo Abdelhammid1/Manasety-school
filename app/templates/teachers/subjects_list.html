@@ -25,11 +25,20 @@
 
   {# Ticket «مادة بدون صفوف» — older subjects saved with no grade, to fix #}
   {% set unlinked = subjects|selectattr('grades', 'equalto', [])|list %}
+  {% set no_term = subjects|selectattr('terms', 'equalto', [])|rejectattr('grades', 'equalto', [])|list %}
   {% if unlinked %}
   <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-md flex items-start gap-2">
     <span class="material-symbols-outlined">warning</span>
     <span>{{ unlinked|length }} مادة غير مرتبطة بأي صف — لن تظهر في توزيع المعلمين والجداول والمقرّرات حتى تُحدَّد صفوفها:
       {% for s in unlinked %}<a href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}" class="underline font-bold">{{ s.name }}</a>{% if not loop.last %}، {% endif %}{% endfor %}
+    </span>
+  </div>
+  {% endif %}
+  {% if no_term %}
+  <div class="p-space-md rounded-xl bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-md flex items-start gap-2">
+    <span class="material-symbols-outlined">warning</span>
+    <span>{{ no_term|length }} مادة بدون فصل دراسي — لن تظهر في توزيع المعلمين وتصفّح المقرّرات حتى يُحدَّد فصلها:
+      {% for s in no_term %}<a href="{{ url_for('teachers.subject_edit', subject_id=s.id) }}" class="underline font-bold">{{ s.name }}</a>{% if not loop.last %}، {% endif %}{% endfor %}
     </span>
   </div>
   {% endif %}

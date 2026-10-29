@@ -73,7 +73,7 @@
       <!-- Terms -->
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold flex items-center justify-between">
-          <span>الفصول الدراسية / الترمز</span>
+          <span>الفصول الدراسية / الترمز{% if terms %} <span class="text-error">*</span>{% endif %}</span>
           <span id="termsCount" class="font-label-xs text-outline"></span>
         </label>
         <select name="term_ids" id="termSelect" multiple size="6"
@@ -108,7 +108,7 @@
           دوس على أي فترة لاختيارها، ودوس عليها تاني لإلغائها.
         </p>
         <p class="font-label-xs text-on-surface-variant">
-          اختياري — لكن المادة بدون فترة لا تظهر عند تصفّح المقرّرات حسب الصف والترم.
+          مطلوب فصل واحد على الأقل: توزيع المعلمين وتصفّح المقرّرات يعرضان المادة حسب الصف والترم معاً.
         </p>
         {% endif %}
       </div>
