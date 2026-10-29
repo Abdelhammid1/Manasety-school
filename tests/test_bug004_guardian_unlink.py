@@ -5,6 +5,7 @@ form="…"; no page keeps a form inside a form."""
 
 from __future__ import annotations
 
+import re
 from datetime import date
 from html.parser import HTMLParser
 
@@ -178,3 +179,17 @@ def test_no_other_edit_page_nests_a_delete_form(sapp, world, login_as):
         assert p.nested == 0, url
         delete = [t for a, t in p.buttons if a.get("form") == "delete-form"]
         assert delete and "/delete" in delete[0]["action"], url
+
+
+def test_a_quote_in_the_guardian_name_cannot_break_into_the_script(sapp, family, login_as):
+    from app.extensions import db
+    from app.models import Guardian
+    A = family["A"]
+    with sapp.app_context():
+        db.session.get(Guardian, family["guardian"]).full_name = "x');alert(1);('"
+        db.session.commit()
+        db.session.remove()
+    c = _client(sapp, login_as, A, "admin")
+    html = c.get(f"/students/{hid(family['student'])}", base_url=host(A)).get_data(as_text=True)
+    assert "alert(1)" not in "".join(re.findall(r'onsubmit="([^"]*)"', html))
+    assert 'data-name="x&#39;);alert(1);(&#39;"' in html

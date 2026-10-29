@@ -71,7 +71,8 @@
            courses.detail based on the viewer's lms.edit permission. #}
         {% if can_edit %}
         <form method="post" action="{{ url_for('courses.delete', course_id=course.id) }}"
-              onsubmit="return confirm('حذف المقرّر ({{ course.title|e }}) نهائياً؟\n\nهذا يمسح كل الدروس والواجبات والاختبارات المرتبطة به. الإجراء غير قابل للتراجع.')">
+              data-name="{{ course.title }}"
+              onsubmit="return confirm('حذف المقرّر (' + this.dataset.name + ') نهائياً؟\n\nهذا يمسح كل الدروس والواجبات والاختبارات المرتبطة به. الإجراء غير قابل للتراجع.')">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
           <button type="submit" class="h-9 px-3 rounded-lg bg-white/10 hover:bg-error-container text-white hover:text-on-error-container font-label-md font-bold flex items-center gap-1 transition-colors">
             <span class="material-symbols-outlined text-sm">delete</span>حذف المقرّر
@@ -221,7 +222,8 @@
         {% if can_edit %}
         <div class="flex items-center justify-between pt-2 border-t border-outline-variant mt-2">
           <form method="post" action="{{ url_for('courses.unit_delete', unit_id=u.id) }}"
-                onsubmit="return confirm('حذف الوحدة ({{ u.title|e }})؟\n\nالدروس داخلها لا تُحذف — بتنتقل لبند «بدون وحدة».');"
+                data-name="{{ u.title }}"
+                onsubmit="return confirm('حذف الوحدة (' + this.dataset.name + ')؟\n\nالدروس داخلها لا تُحذف — بتنتقل لبند «بدون وحدة».');"
                 class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="h-8 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
@@ -364,7 +366,7 @@
             <span class="material-symbols-outlined text-lg">edit</span>
           </a>
           <form method="post" action="{{ url_for('lms.assignment_delete', aid=a.id) }}"
-                onsubmit="return confirm('حذف الواجب «{{ a.title }}»؟');" class="inline">
+                data-name="{{ a.title }}" onsubmit="return confirm('حذف الواجب «' + this.dataset.name + '»؟');" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="w-9 h-9 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="حذف">
               <span class="material-symbols-outlined text-lg">delete</span>
@@ -427,7 +429,7 @@
             <span class="material-symbols-outlined text-lg">edit</span>
           </a>
           <form method="post" action="{{ url_for('lms.quiz_delete', qid=q.id) }}"
-                onsubmit="return confirm('حذف الاختبار «{{ q.title }}»؟');" class="inline">
+                data-name="{{ q.title }}" onsubmit="return confirm('حذف الاختبار «' + this.dataset.name + '»؟');" class="inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <button type="submit" class="w-9 h-9 rounded-lg text-error hover:bg-error-container/40 flex items-center justify-center" title="حذف">
               <span class="material-symbols-outlined text-lg">delete</span>

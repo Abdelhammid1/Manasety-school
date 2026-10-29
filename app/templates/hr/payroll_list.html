@@ -66,7 +66,8 @@
               </a>
               {% if current_user.can('payroll', 'delete') %}
               <form method="post" action="{{ url_for('hr.payroll_delete', payroll_id=p.id) }}"
-                    onsubmit="return confirm('حذف راتب {{ p.employee.full_name|e }} لشهر {{ p.period_year }}/{{ '%02d'|format(p.period_month) }}؟\n\nسيُلغى قيد اليومية المرتبط. الإجراء غير قابل للتراجع.')">
+                    data-name="{{ p.employee.full_name }}"
+                    onsubmit="return confirm('حذف راتب ' + this.dataset.name + ' لشهر {{ p.period_year }}/{{ '%02d'|format(p.period_month) }}؟\n\nسيُلغى قيد اليومية المرتبط. الإجراء غير قابل للتراجع.')">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <button type="submit" class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-error-container/40 text-error hover:bg-error-container"
                         title="حذف مع إلغاء القيد">

@@ -346,7 +346,8 @@
             </form>
             <form id="unlink-{{ link.id }}" method="post"
                   action="{{ url_for('students.guardian_link_delete', link_id=link.id) }}"
-                  onsubmit="return confirm('إلغاء ربط {{ g.full_name|e }} بهذا الطالب؟')" hidden>
+                  data-name="{{ g.full_name }}"
+                  onsubmit="return confirm('إلغاء ربط ' + this.dataset.name + ' بهذا الطالب؟')" hidden>
               <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             </form>
           </details>
