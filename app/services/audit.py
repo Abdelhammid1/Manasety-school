@@ -57,7 +57,7 @@ _WATCHED_BY_NAME = (
     "RecurringFeeSchedule", "RefundRequest", "PettyCashTransaction",
     "Employee", "EmployeeAdvance", "LeaveRequest", "Payroll", "PayrollSettlement",
     "AssessmentComponent", "GradingScale", "Rubric",
-    "Course", "CourseAssignment", "Quiz", "Announcement", "BankQuestion", "AssessmentTemplate",
+    "Course", "CourseSection", "CourseAssignment", "Quiz", "Announcement", "BankQuestion", "AssessmentTemplate",
     "AttendanceRule", "NafisCycle", "Material", "UserScope",
 )
 

@@ -246,10 +246,90 @@ def detail(course_id):
         assignments = [a for a in assignments if getattr(a, "is_published", True)]
         quizzes = [q for q in quizzes if getattr(q, "is_published", True)]
 
+    linked, linkable = [], []
+    if can_edit:
+        linked, linkable = _section_links(course)
     return render_template("courses/detail.html",
                            course=course, lessons=lessons,
                            assignments=assignments, quizzes=quizzes,
-                           teachers=teachers, can_edit=can_edit)
+                           teachers=teachers, can_edit=can_edit,
+                           linked_sections=linked, linkable_sections=linkable)
+
+
+# ─── BUG-007 — publish a course to sections (CourseSection) ────────────
+
+def _course_sections_pool(course):
+    """The sections a course may be published to: this school's sections of
+    the course's grade in the course's year (a deleted section is gone)."""
+    return (Section.query.filter_by(school_id=course.school_id, grade_id=course.grade_id,
+                                    year_id=course.academic_year_id)
+            .order_by(Section.name).all())
+
+
+def _section_links(course):
+    """([(link, section or None)], [sections not linked yet]). A link whose
+    section was deleted shows as such and can still be removed."""
+    pool = _course_sections_pool(course)
+    by_id = {s.id: s for s in pool}
+    linked = [(cs, by_id.get(cs.section_id)) for cs in sorted(course.course_sections, key=lambda cs: cs.id)]
+    taken = {cs.section_id for cs in course.course_sections}
+    return linked, [s for s in pool if s.id not in taken]
+
+
+@bp.route("/<hid:course_id>/sections/link", methods=["POST"], endpoint="section_link")
+@login_required
+@require_permission("lms", "edit")
+def section_link(course_id):
+    """Publish the course to one or more sections: their students see it in
+    «موادي» (when the course itself is published)."""
+    from datetime import datetime, timezone
+    course = owned_or_404(Course, course_id)
+    back = redirect(url_for("courses.detail", course_id=course.id) + "#sections")
+    ids = {int(x) for x in request.form.getlist("section_ids") if str(x).strip().isdigit()}
+    if not ids:
+        flash("اختر شعبة واحدة على الأقل.", "danger")
+        return back
+    pool = {s.id: s for s in _course_sections_pool(course)}
+    if ids - set(pool):
+        # another school's id, another grade's / year's section, or a deleted one
+        flash("الشعبة المختارة غير متاحة لهذا المقرّر.", "danger")
+        return back
+    have = {cs.section_id for cs in course.course_sections}
+    dup = sorted(pool[i].name for i in ids & have)
+    new = sorted(ids - have)
+    now = datetime.now(timezone.utc)
+    for sid in new:
+        db.session.add(CourseSection(course_id=course.id, section_id=sid,
+                                     is_published=True, published_at=now))
+    try:
+        db.session.commit()
+    except IntegrityError:          # the same link saved meanwhile (another tab)
+        db.session.rollback()
+        flash("هذه الشعبة مرتبطة بالمقرّر بالفعل.", "warning")
+        return back
+    if new:
+        flash(f"تم ربط المقرّر بـ {len(new)} شعبة: " + "، ".join(pool[i].name for i in new) + ".", "success")
+    if dup:
+        flash("مرتبطة بالفعل (لم تتكرر): " + "، ".join(dup) + ".", "warning")
+    return back
+
+
+@bp.route("/<hid:course_id>/sections/<hid:link_id>/unlink", methods=["POST"], endpoint="section_unlink")
+@login_required
+@require_permission("lms", "edit")
+def section_unlink(course_id, link_id):
+    """Unpublish the course from one section. Only the link goes: lessons,
+    assignments, submissions and grades stay as they are."""
+    course = owned_or_404(Course, course_id)
+    back = redirect(url_for("courses.detail", course_id=course.id) + "#sections")
+    cs = CourseSection.query.filter_by(id=link_id, course_id=course.id).first()
+    if cs is None:
+        flash("هذا الربط غير موجود — ربما أُلغي من قبل.", "warning")
+        return back
+    db.session.delete(cs)
+    db.session.commit()
+    flash("تم فك ربط المقرّر بالشعبة — لن يظهر لطلابها في «موادي».", "success")
+    return back
 
 
 def _course_form_options():

@@ -68,7 +68,7 @@ ENTITY_LABELS = {
     "PayrollSettlement": "صرف رواتب",
     # assessment / learning
     "AssessmentComponent": "مكوّن تقييم", "GradingScale": "سلم درجات", "Rubric": "معيار تقييم",
-    "Course": "مقرر", "CourseAssignment": "واجب", "Quiz": "اختبار", "Announcement": "إعلان",
+    "Course": "مقرر", "CourseSection": "ربط مقرر بشعبة", "CourseAssignment": "واجب", "Quiz": "اختبار", "Announcement": "إعلان",
     "BankQuestion": "سؤال في البنك", "AssessmentTemplate": "نموذج تقييم",
     "AttendanceRule": "قاعدة حضور", "NafisCycle": "دورة نافس", "Material": "مادة في المكتبة",
     "UserScope": "نطاق مستخدم",
@@ -170,7 +170,7 @@ FIELD_LABELS = {
     "settled_at": "تاريخ التسوية",
     # assessment / learning
     "title": "العنوان", "course_id": "المقرر", "lesson_id": "الدرس", "unit_id": "الوحدة",
-    "max_score": "الدرجة العظمى", "is_published": "منشور", "is_pinned": "مثبّت", "is_archived": "مؤرشف",
+    "max_score": "الدرجة العظمى", "is_published": "منشور", "published_at": "تاريخ النشر", "is_pinned": "مثبّت", "is_archived": "مؤرشف",
     "is_default": "افتراضي", "is_template": "قالب", "due_at": "موعد التسليم", "opens_at": "يفتح في",
     "closes_at": "يغلق في", "instructions": "التعليمات", "max_attempts": "عدد المحاولات",
     "allow_late": "يقبل التأخير", "allow_resubmit": "يسمح بإعادة التسليم", "allow_review": "يسمح بالمراجعة",
@@ -226,7 +226,7 @@ ENTITY_PERMISSION = {
     "Employee": "payroll", "EmployeeAdvance": "payroll", "LeaveRequest": "payroll", "Payroll": "payroll",
     "PayrollSettlement": "payroll",
     # learning
-    "Course": "lms", "CourseAssignment": "lms", "Quiz": "lms", "Announcement": "lms", "BankQuestion": "lms",
+    "Course": "lms", "CourseSection": "lms", "CourseAssignment": "lms", "Quiz": "lms", "Announcement": "lms", "BankQuestion": "lms",
     "AssessmentTemplate": "lms", "NafisCycle": "results", "Material": "portal",
 }
 

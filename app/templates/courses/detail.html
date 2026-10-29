@@ -103,6 +103,75 @@
     {% endfor %}
   </div>
 
+  {# BUG-007 — the sections this course is published to: their students
+     see it in «موادي» while the course itself is published. #}
+  {% if can_edit %}
+  <section id="sections" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
+    <div class="flex items-center justify-between flex-wrap gap-space-sm">
+      <h2 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
+        <span class="material-symbols-outlined text-secondary">groups</span>الشُعب المرتبطة
+      </h2>
+      <span class="font-label-md text-on-surface-variant">{{ linked_sections|length }} شعبة</span>
+    </div>
+    {% if not course.is_published %}
+    <p class="p-space-sm rounded-lg bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-md">
+      المقرّر مسودة — لن يظهر لطلاب الشُعب المرتبطة حتى يُنشر.
+    </p>
+    {% endif %}
+
+    {% if linked_sections %}
+    <ul class="flex flex-col gap-space-xs">
+      {% for link, sec in linked_sections %}
+      <li class="flex items-center justify-between gap-space-sm p-space-sm rounded-lg bg-surface-container-low flex-wrap">
+        <div class="flex items-center gap-2 min-w-0">
+          <span class="material-symbols-outlined text-primary">group</span>
+          {% if sec %}
+          <span class="font-label-lg text-primary font-bold">{{ course.grade.name if course.grade }} — {{ sec.name }}</span>
+          <span class="font-label-xs text-outline">{{ sec.current_count }} طالب</span>
+          {% else %}
+          <span class="font-label-lg text-outline font-bold">شعبة محذوفة</span>
+          {% endif %}
+        </div>
+        <form method="post" action="{{ url_for('courses.section_unlink', course_id=course.id, link_id=link.id) }}"
+              onsubmit="return confirm('فك ربط المقرّر بهذه الشعبة؟ لن يظهر لطلابها، وتبقى تسليماتهم ودرجاتهم كما هي.')">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button type="submit" class="h-9 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
+            <span class="material-symbols-outlined text-sm">link_off</span>فك الربط
+          </button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p class="font-body-md text-on-surface-variant">المقرّر غير مرتبط بأي شعبة بعد — لن يظهر لأي طالب.</p>
+    {% endif %}
+
+    {% if linkable_sections %}
+    <form method="post" action="{{ url_for('courses.section_link', course_id=course.id) }}"
+          class="flex flex-col gap-space-sm pt-space-sm border-t border-outline-variant">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="font-label-md text-on-surface font-bold">ربط بشُعب {{ course.grade.name if course.grade }}</span>
+      <div class="flex flex-wrap gap-2">
+        {% for s in linkable_sections %}
+        <label class="flex items-center gap-2 px-3 h-10 rounded-lg bg-surface-container-low cursor-pointer">
+          <input type="checkbox" name="section_ids" value="{{ s.id }}" class="w-5 h-5 rounded accent-primary">
+          <span class="font-label-md text-on-surface">{{ s.name }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      <div>
+        <button type="submit" class="h-10 px-4 rounded-xl text-on-primary font-label-lg font-bold inline-flex items-center gap-2 shadow-md"
+                style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
+          <span class="material-symbols-outlined text-lg">add_link</span><span>ربط الشُعب المختارة</span>
+        </button>
+      </div>
+    </form>
+    {% elif not linked_sections %}
+    <p class="font-label-md text-outline">لا توجد شُعب لهذا الصف في سنة المقرّر — أضفها من إدارة الشُعب.</p>
+    {% endif %}
+  </section>
+  {% endif %}
+
   <!-- Units + Lessons (Ticket #16 pt 1) — accordion of units, each
        hosting its lesson list. Lessons with unit_id NULL fall into a
        trailing "بدون وحدة" bucket so historical data stays reachable. -->

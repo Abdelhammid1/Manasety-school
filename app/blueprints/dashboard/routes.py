@@ -735,9 +735,14 @@ def _student_dashboard():
     if section_ids:
         course_ids = _safe(
             lambda: [
-                cs.course_id for cs in CourseSection.query.filter(
+                cs.course_id for cs in CourseSection.query
+                .join(Course, Course.id == CourseSection.course_id)
+                .filter(
                     CourseSection.section_id.in_(section_ids),
                     CourseSection.is_published.is_(True),
+                    # BUG-007 — a draft course stays hidden even when linked:
+                    # its assignment / quiz must not reach the cards below
+                    Course.is_published.is_(True),
                 ).all()
             ],
             [],
