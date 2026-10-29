@@ -170,3 +170,26 @@ def test_an_advance_deducted_at_accrual_shows_and_the_rest_settles(papp, two_sch
     c.post(f"/hr/payroll/{hid(pid)}/settle", base_url=host(A),
            data={"amount": "5500", "payment_method_id": papp.extra_ids["A"]["pm"]})
     assert _state(papp, pid) == (Decimal("6500"), 1, Decimal("0"))
+
+
+def test_bug006_the_list_header_shows_what_was_really_paid(papp, two_schools, login_as):
+    """BUG-006 (recommended option): «الصافي» stays what was earned; the
+    header separates advances, money paid out and what is still owed."""
+    from app.extensions import db
+    from app.models import EmployeeAdvance
+    A = two_schools["A"]
+    with papp.app_context():
+        db.session.add(EmployeeAdvance(school_id=A["school"].id, employee_id=papp.extra_ids["A"]["emp"],
+                                       amount=Decimal("1000"), remaining_balance=Decimal("1000"),
+                                       deduction_plan="full_next_month", status="active"))
+        db.session.commit(); db.session.remove()
+    c = _client(papp, login_as, A)
+    pid = _accrue(papp, c, A, "A")
+    c.post(f"/hr/payroll/{hid(pid)}/settle", base_url=host(A),
+           data={"amount": "2000", "payment_method_id": papp.extra_ids["A"]["pm"]})
+    body = c.get("/hr/payroll", base_url=host(A)).get_data(as_text=True)
+    head = body[body.index("مسيرة ·"):body.index("مسيرة ·") + 900]
+    for label, value in (("إجمالي الصافي المستحق", "6500"), ("مخصوم سلف", "1000"),
+                         ("مصروف فعلياً", "2000"), ("متبقٍّ للصرف", "3500")):
+        i = head.index(label)
+        assert value in head[i:i + 120], (label, value)

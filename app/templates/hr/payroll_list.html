@@ -7,12 +7,15 @@
 {% endblock %}
 
 {% block page_content %}
-{% set total_net = payrolls|sum(attribute='net_pay') %}
 <div class="flex flex-col w-full gap-space-md">
   <div class="flex items-center justify-between flex-wrap gap-space-md">
     <div>
       <h1 class="font-headline-lg text-headline-lg text-primary">مسيرات الرواتب</h1>
-      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ payrolls|length }} مسيرة · صافي مصروف: <b class="text-primary tabular-nums">{{ total_net|round(2) }}</b></p>
+      <p class="font-body-md text-body-md text-on-surface-variant mt-1">{{ payrolls|length }} مسيرة ·
+        إجمالي الصافي المستحق: <b class="text-primary tabular-nums">{{ totals.net|round(2) }}</b> ·
+        مخصوم سلف: <b class="tabular-nums">{{ totals.advances|round(2) }}</b> ·
+        مصروف فعلياً: <b class="text-primary tabular-nums">{{ totals.paid|round(2) }}</b> ·
+        متبقٍّ للصرف: <b class="text-error tabular-nums">{{ totals.remaining|round(2) }}</b></p>
     </div>
     <a href="{{ url_for('hr.payroll_new') }}" class="h-11 px-5 rounded-xl text-on-primary font-title-md font-bold flex items-center gap-2 shadow-md"
        style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
