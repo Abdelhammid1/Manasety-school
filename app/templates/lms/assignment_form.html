@@ -121,13 +121,11 @@
 
     <div class="flex items-center justify-between gap-space-sm mt-space-md">
       {% if assignment %}
-      <form method="post" action="{{ url_for('lms.assignment_delete', aid=assignment.id) }}"
-            onsubmit="return confirm('حذف الواجب نهائياً؟ التسليمات المرتبطة ستُحذف كذلك.');">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <button type="submit" class="h-11 px-5 rounded-xl bg-error-container/40 text-error font-label-lg font-bold hover:bg-error-container flex items-center gap-2">
+      {# BUG-004 — the delete form sits after this one: a form inside a
+         form is dropped by the browser, so the button used to save. #}
+      <button type="submit" form="delete-form" class="h-11 px-5 rounded-xl bg-error-container/40 text-error font-label-lg font-bold hover:bg-error-container flex items-center gap-2">
           <span class="material-symbols-outlined text-lg">delete</span><span>حذف الواجب</span>
         </button>
-      </form>
       {% else %}<span></span>{% endif %}
       <div class="flex items-center gap-space-sm">
         <a href="{{ url_for('courses.detail', course_id=course.id) }}" class="h-11 px-5 rounded-xl bg-surface-container-low text-primary font-label-lg font-bold">إلغاء</a>
@@ -138,5 +136,11 @@
       </div>
     </div>
   </form>
+  {% if assignment %}
+  <form id="delete-form" method="post" action="{{ url_for('lms.assignment_delete', aid=assignment.id) }}"
+        onsubmit="return confirm('حذف الواجب نهائياً؟ التسليمات المرتبطة ستُحذف كذلك.');" hidden>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+  </form>
+  {% endif %}
 </div>
 {% endblock %}

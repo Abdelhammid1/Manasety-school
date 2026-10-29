@@ -330,19 +330,24 @@
                 {% endfor %}
               </div>
               <div class="flex items-center justify-between pt-2 border-t border-outline-variant">
-                <form method="post" action="{{ url_for('students.guardian_link_delete', link_id=link.id) }}"
-                      onsubmit="return confirm('إلغاء ربط {{ g.full_name|e }} بهذا الطالب؟')"
-                      class="inline">
-                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                  <button type="submit" class="h-9 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
-                    <span class="material-symbols-outlined text-sm">link_off</span>إلغاء الربط
-                  </button>
-                </form>
+                {# BUG-004 — the unlink form lives outside this one (a form
+                   inside a form is dropped by the browser, and the button
+                   then saved the permissions instead); the button reaches
+                   it through form="…". #}
+                <button type="submit" form="unlink-{{ link.id }}"
+                        class="h-9 px-3 rounded-lg bg-error-container/40 text-error font-label-md font-bold flex items-center gap-1 hover:bg-error-container">
+                  <span class="material-symbols-outlined text-sm">link_off</span>إلغاء الربط
+                </button>
                 <button type="submit" class="h-9 px-4 rounded-lg text-on-primary font-label-md font-bold shadow-md"
                         style="background: var(--brand-gradient, linear-gradient(135deg, #1E3A8A 0%, #2563EB 55%, #0099CC 100%));">
                   حفظ الصلاحيات
                 </button>
               </div>
+            </form>
+            <form id="unlink-{{ link.id }}" method="post"
+                  action="{{ url_for('students.guardian_link_delete', link_id=link.id) }}"
+                  onsubmit="return confirm('إلغاء ربط {{ g.full_name|e }} بهذا الطالب؟')" hidden>
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             </form>
           </details>
           {% endfor %}
