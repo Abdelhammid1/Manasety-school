@@ -355,6 +355,9 @@
     <div class="border-t border-white/10">
       <div class="max-w-7xl mx-auto px-space-md py-4 flex items-center justify-between flex-wrap gap-2 font-label-sm text-sidebar-icon">
         <span>© {{ 2026 }} {{ app_name }} · جميع الحقوق محفوظة</span>
+        {% if brand_credit and brand_credit.show %}
+        <span dir="ltr">{{ brand_credit.text }} <a href="{{ brand_credit.url }}" target="_blank" rel="noopener noreferrer" class="font-bold text-on-primary hover:underline">{{ brand_credit.name }}</a></span>
+        {% endif %}
         <span dir="ltr">Made with ♥ in Arabic — RTL-first</span>
       </div>
     </div>

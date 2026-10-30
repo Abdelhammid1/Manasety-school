@@ -338,6 +338,7 @@
   {% if shell_hidden %}
     {# Focus mode — no sidebar, no topbar. Used by auth, errors, quiz-taking. #}
     {% block focus_content %}{% endblock %}
+    {% include "_footer.html" ignore missing %}
   {% else %}
     {# Full app shell #}
     {% include "partials/stitch_sidebar.html" %}
@@ -395,6 +396,9 @@
           {% block page_content %}{% endblock %}
         </div>
       </main>
+      {# Manasety credit footer — inside #app-main-wrapper so it sits in the
+         column that is already offset from the fixed sidebar. #}
+      {% include "_footer.html" ignore missing %}
     </div>
   {% endif %}
 

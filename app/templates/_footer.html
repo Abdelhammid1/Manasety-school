@@ -1,0 +1,12 @@
+{# BRAND: shared Manasety-credit footer. One place so stitch_base.html and
+   the landing page never drift apart. The whole thing disappears when
+   BRAND_SHOW=0 in the env. `brand` is already the School Branding dict
+   (services/branding.py), so this credit lives on its own key, `brand_credit`. #}
+{% if brand_credit and brand_credit.show %}
+<footer class="w-full border-t border-outline-variant bg-surface-container-lowest py-3 text-center text-label-sm text-on-surface-variant">
+  <span>&copy; {{ now().year }} {{ app_name }} &mdash; {{ brand_credit.text }}</span>
+  {# rel=noopener stops the opened tab from navigating this window via window.opener #}
+  <a href="{{ brand_credit.url }}" target="_blank" rel="noopener noreferrer"
+     class="font-bold text-primary hover:underline">{{ brand_credit.name }}</a>
+</footer>
+{% endif %}

@@ -1,3 +1,6 @@
+import os
+from datetime import datetime, timezone
+
 from flask import Flask, abort, redirect, render_template, request, url_for
 
 from .config import Config
@@ -242,6 +245,22 @@ def create_app(config_class=Config):
             "app_name_en": "Manasety",
             "app_tagline": "منصة التعلم الذكية للمدارس",
             "school_name": app.config["DEFAULT_SCHOOL_NAME"],
+            # Used by _footer.html so templates can print the current year.
+            # Wrapped in a lambda so templates call it with `now()` — same as
+            # the elyasmin partial — AND so we avoid the deprecated
+            # `datetime.utcnow` (removed in a future Python); `now(timezone.utc)`
+            # is the modern replacement.
+            "now": lambda: datetime.now(timezone.utc),
+            # BRAND: the four values are env-driven so a deployment can rebrand
+            # or hide the Manasety attribution without a code change.
+            # BRAND_SHOW=0 removes it everywhere. The key is `brand_credit`
+            # because `brand` is already the School Branding dict below.
+            "brand_credit": {
+                "text": os.getenv("BRAND_TEXT", "Developed by"),
+                "name": os.getenv("BRAND_NAME", "Manasety"),
+                "url":  os.getenv("BRAND_URL",  "https://manasety.ai"),
+                "show": os.getenv("BRAND_SHOW", "1") != "0",
+            },
         }
         # School Branding — the current school's name / logo / colours
         # (services/branding.py); the platform's own when there is none.
