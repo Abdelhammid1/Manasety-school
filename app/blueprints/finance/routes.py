@@ -1,5 +1,5 @@
 from datetime import datetime, date, timedelta
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from io import BytesIO
 
 from flask import (
@@ -1706,9 +1706,21 @@ def expense_new():
         .order_by(CostCenter.name).all()
     )
     if request.method == "POST":
-        amount = Decimal(request.form["amount"])
+        # A crafted form must not do what the page can't: a negative amount
+        # reverses the entry, and any other account would be debited (cash).
+        try:
+            amount = Decimal((request.form.get("amount") or "").strip())
+        except InvalidOperation:
+            amount = None
+        if amount is None or not amount.is_finite() or amount <= 0:
+            flash("المبلغ يجب أن يكون رقماً أكبر من صفر.", "danger")
+            return redirect(url_for("finance.expense_new"))
         d = _parse_date(request.form.get("date")) or date.today()
-        ex_account = _get(Account, int(request.form["expense_account_id"]))
+        ex_account = next((a for a in exp_accounts
+                           if a.id == request.form.get("expense_account_id", type=int)), None)
+        if ex_account is None:
+            flash("اختر حساب مصروف صالحاً.", "danger")
+            return redirect(url_for("finance.expense_new"))
         raw_cc = request.form.get("cost_center_id", type=int) or None
         cost_center_id = owned_id(CostCenter, raw_cc)
         if raw_cc and not cost_center_id:
@@ -1759,6 +1771,11 @@ def expense_new():
         school = db.session.get(School, _sid())
         threshold = Decimal(str(school.approval_threshold or 0))
         needs_approval = threshold > 0 and amount >= threshold
+        # expenses.add alone (the warehouse role) records a request: it never
+        # posts to the ledger or moves money. expenses.edit posts as before;
+        # finance_transactions.add approves.
+        if not current_user.can("expenses", "edit"):
+            needs_approval = True
 
         if needs_approval:
             e = Expense(
@@ -2194,13 +2211,13 @@ def expense_approve(eid):
     e = Expense.query.filter_by(id=eid, school_id=_sid()).first_or_404()
     if e.approval_status == "approved":
         flash("المصروف معتمد بالفعل.", "info")
-        return redirect(url_for("finance.expenses"))
+        return redirect(url_for("finance.expenses_list"))
     try:
         post_expense_journal(e)
     except Exception as exc:  # noqa: BLE001
         db.session.rollback()
         flash(f"تعذّر الاعتماد: {exc}", "danger")
-        return redirect(url_for("finance.expenses"))
+        return redirect(url_for("finance.expenses_list"))
     e.approval_status = "approved"
     e.approved_by_id = current_user.id
     e.approved_at = datetime.utcnow()
@@ -2209,7 +2226,7 @@ def expense_approve(eid):
     auto_create_for_expense(e)
     db.session.commit()
     flash(f"تم اعتماد المصروف #{e.id} وترحيله محاسبياً.", "success")
-    return redirect(url_for("finance.expenses"))
+    return redirect(url_for("finance.expenses_list"))
 
 
 @bp.route("/expenses/<hid:eid>/reject", methods=["POST"],
@@ -2221,14 +2238,14 @@ def expense_reject(eid):
     e = Expense.query.filter_by(id=eid, school_id=_sid()).first_or_404()
     if e.approval_status != "pending":
         flash("لا يمكن الرفض إلا للمصروفات قيد المراجعة.", "warning")
-        return redirect(url_for("finance.expenses"))
+        return redirect(url_for("finance.expenses_list"))
     e.approval_status = "rejected"
     e.reject_reason = (request.form.get("reason") or "").strip() or "بدون سبب"
     e.approved_by_id = current_user.id
     e.approved_at = datetime.utcnow()
     db.session.commit()
     flash(f"تم رفض المصروف #{e.id}.", "warning")
-    return redirect(url_for("finance.expenses"))
+    return redirect(url_for("finance.expenses_list"))
 
 
 # ── Unified financial dashboard ────────────────────────────────────

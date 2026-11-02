@@ -114,3 +114,86 @@ def test_the_admin_dashboard_keeps_the_money_figures(fapp, world, login_as):
     body = _client(fapp, login_as, A["users"]["admin"], A).get("/dashboard", base_url=host(A)).get_data(as_text=True)
     for label in MONEY:
         assert label in body
+
+
+def _expense_form(app, A, **over):
+    from app.extensions import db
+    from app.models import Account
+    with app.app_context():
+        acct = Account.query.filter_by(school_id=A["school"].id, code="5101").one().id
+        db.session.remove()
+    return {"amount": "75", "date": "2026-10-20", "expense_account_id": acct,
+            "payment_method_id": A["payment_method"], "description": "expense-probe", **over}
+
+
+def _probe(app):
+    """(status, has a journal entry) of the expense the form created, or None."""
+    from app.extensions import db
+    from app.models import Expense
+    with app.app_context():
+        e = Expense.query.filter_by(description="expense-probe").first()
+        out = (e.approval_status, e.journal_entry_id is not None, e.id) if e else None
+        db.session.remove()
+    return out
+
+
+def _journal_count(app, A):
+    from app.extensions import db
+    from app.models import JournalEntry
+    with app.app_context():
+        n = JournalEntry.query.filter_by(school_id=A["school"].id).count()
+        db.session.remove()
+    return n
+
+
+def test_add_only_records_a_pending_expense_and_moves_no_money(fapp, world, login_as):
+    A = world["A"]
+    before = _journal_count(fapp, A)
+    c = _client(fapp, login_as, _user_with_default_role(fapp, A, "warehouse"), A)
+    r = c.post("/finance/expenses/new", base_url=host(A), data=_expense_form(fapp, A))
+    assert r.status_code == 302
+    status, posted, eid = _probe(fapp)
+    assert (status, posted) == ("pending", False)
+    assert _journal_count(fapp, A) == before
+    # the accountant approves it: only then it posts
+    acc = _client(fapp, login_as, _user_with_default_role(fapp, A, "accountant"), A)
+    assert acc.post(f"/finance/expenses/{hid(eid)}/approve", base_url=host(A)).status_code == 302
+    assert _probe(fapp)[:2] == ("approved", True) and _journal_count(fapp, A) > before
+
+
+def test_expenses_edit_still_posts_directly(fapp, world, login_as):
+    A = world["A"]
+    c = _client(fapp, login_as, _user_with_default_role(fapp, A, "accountant"), A)
+    assert c.post("/finance/expenses/new", base_url=host(A), data=_expense_form(fapp, A)).status_code == 302
+    assert _probe(fapp)[:2] == ("approved", True)
+
+
+@pytest.mark.parametrize("over", [{"amount": "-75"}, {"amount": "0"}, {"amount": "abc"}, {"amount": "NaN"}, {"amount": ""}])
+def test_a_bad_amount_is_refused(fapp, world, login_as, over):
+    A = world["A"]
+    c = _client(fapp, login_as, _user_with_default_role(fapp, A, "accountant"), A)
+    r = c.post("/finance/expenses/new", base_url=host(A), data=_expense_form(fapp, A, **over), follow_redirects=True)
+    assert r.status_code == 200 and "أكبر من صفر" in r.get_data(as_text=True)
+    assert _probe(fapp) is None
+
+
+def test_only_a_postable_expense_account_can_be_debited(fapp, world, login_as):
+    A, B = world["A"], world["B"]
+    c = _client(fapp, login_as, _user_with_default_role(fapp, A, "accountant"), A)
+    for acct in (A["account"], B["account"]):        # A's cash; another school's account
+        r = c.post("/finance/expenses/new", base_url=host(A), follow_redirects=True,
+                   data=_expense_form(fapp, A, expense_account_id=acct))
+        assert "اختر حساب مصروف صالحاً" in r.get_data(as_text=True)
+    assert _probe(fapp) is None
+
+
+def test_rejecting_a_pending_expense_redirects_and_posts_nothing(fapp, world, login_as):
+    A = world["A"]
+    before = _journal_count(fapp, A)
+    c = _client(fapp, login_as, _user_with_default_role(fapp, A, "warehouse"), A)
+    c.post("/finance/expenses/new", base_url=host(A), data=_expense_form(fapp, A))
+    eid = _probe(fapp)[2]
+    acc = _client(fapp, login_as, _user_with_default_role(fapp, A, "accountant"), A)
+    r = acc.post(f"/finance/expenses/{hid(eid)}/reject", base_url=host(A), data={"reason": "no"})
+    assert r.status_code == 302 and "/finance/expenses" in r.headers["Location"]
+    assert _probe(fapp)[:2] == ("rejected", False) and _journal_count(fapp, A) == before
