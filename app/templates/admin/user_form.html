@@ -8,38 +8,41 @@
 
 {% block page_content %}
 {% set U = user %}
+{# after a refused edit: what the admin typed (never the password) #}
+{% set F = posted or {} %}
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
   <h1 class="font-headline-lg text-headline-lg text-primary">
-    {% if U %}تعديل مستخدم: {{ U.full_name }}{% else %}إضافة مستخدم جديد{% endif %}
+    {% if U %}تعديل مستخدم: <span dir="ltr">{{ U.username }}</span>{% else %}إضافة مستخدم جديد{% endif %}
   </h1>
   <form method="post" class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm flex flex-col gap-space-md">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">اسم المستخدم <span class="text-error">*</span></label>
-        <input name="username" required dir="ltr" {% if U %}value="{{ U.username }}" readonly{% endif %}
+        <input name="username" required maxlength="64" dir="ltr" {% if U %}value="{{ F.get('username', U.username) }}"{% endif %}
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono">
+        {% if U %}<p class="font-label-xs text-outline">عند تغييره يدخل المستخدم بالاسم الجديد فقط، ولا يعمل القديم — بلّغه به.</p>{% endif %}
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">الاسم الكامل <span class="text-error">*</span></label>
-        <input name="full_name" required value="{{ U.full_name if U else '' }}"
+        <input name="full_name" required value="{{ F.get('full_name', U.full_name if U else '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">البريد الإلكتروني</label>
-        <input name="email" type="email" dir="ltr" value="{{ U.email or '' if U else '' }}"
+        <input name="email" type="email" dir="ltr" value="{{ F.get('email', U.email or '' if U else '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">الجوال</label>
-        <input name="phone" dir="ltr" value="{{ U.phone or '' if U else '' }}"
+        <input name="phone" dir="ltr" value="{{ F.get('phone', U.phone or '' if U else '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">الدور <span class="text-error">*</span></label>
         <select name="role_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
-          {% for r in roles %}<option value="{{ r.id }}" {% if U and U.role_id == r.id %}selected{% endif %}>{{ r.name_ar }}</option>{% endfor %}
+          {% for r in roles %}<option value="{{ r.id }}" {% if (F.get('role_id') == r.id|string) or (not F and U and U.role_id == r.id) %}selected{% endif %}>{{ r.name_ar }}</option>{% endfor %}
         </select>
       </div>
       <div class="flex flex-col gap-1.5">
@@ -51,7 +54,7 @@
       </div>
     </div>
     <label class="flex items-center gap-2 cursor-pointer">
-      <input type="checkbox" name="is_active" value="1" {% if (not U) or U.is_active %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
+      <input type="checkbox" name="is_active" value="1" {% if (F and 'is_active' in F) or (not F and ((not U) or U.is_active)) %}checked{% endif %} class="w-5 h-5 rounded accent-primary">
       <span class="font-label-md text-on-surface font-bold">الحساب نشط</span>
     </label>
     <div class="flex items-center justify-end gap-space-sm">

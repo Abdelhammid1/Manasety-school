@@ -1,5 +1,6 @@
 from flask import abort, current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
+from sqlalchemy.exc import IntegrityError
 
 from . import bp
 from ..utils import require_permission
@@ -456,24 +457,60 @@ def user_edit(user_id):
               "danger")
         return redirect(url_for("admin.users_list"))
     if request.method == "POST":
+        def refused(message=None):
+            """Nothing saved; the form comes back with what was typed."""
+            if message:
+                flash(message, "danger")
+            return render_template("admin/user_form.html", user=user, roles=roles,
+                                   posted=request.form), 400
         role_id = int(request.form["role_id"])
         if _reject_non_admin_role(role_id, roles):
-            return render_template("admin/user_form.html", user=user, roles=roles)
+            return refused()
+        # Every check runs before the row is touched.
+        username = (request.form.get("username") or "").strip()
+        problem = _username_problem(user, username)
+        if problem:
+            return refused(problem)
+        new_password = request.form.get("password")
+        if new_password and len(new_password) < 8:
+            return refused("كلمة المرور يجب ألا تقل عن 8 أحرف.")
+        user.username = username
         user.role_id = role_id
         user.full_name = request.form["full_name"].strip()
         user.email = request.form.get("email") or None
         user.phone = request.form.get("phone") or None
         user.is_active = bool(request.form.get("is_active"))
-        new_password = request.form.get("password")
         if new_password:
-            if len(new_password) < 8:
-                flash("كلمة المرور يجب ألا تقل عن 8 أحرف.", "danger")
-                return render_template("admin/user_form.html", user=user, roles=roles)
             user.set_password(new_password)
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:      # the same name saved a moment ago (uq_user_school_username)
+            db.session.rollback()
+            return refused(f"اسم المستخدم «{username}» مستخدم لحساب آخر — اختر اسماً غيره.")
         flash("تم تحديث المستخدم.", "success")
         return redirect(url_for("admin.users_list"))
     return render_template("admin/user_form.html", user=user, roles=roles)
+
+
+def _username_problem(user, username: str) -> str | None:
+    """BUG-015 — why this username can't be saved, or None. The same rule as
+    creating a user and as /api/me/username: unique inside the school (case
+    sensitive). A clash is refused, never altered with extra characters. An
+    unchanged name always passes: old accounts keep whatever they have."""
+    from ...services.support_policy import username_reserved
+    if not username:
+        return "اسم المستخدم: الحقل مطلوب."
+    if username == user.username:
+        return None
+    if len(username) > 64:
+        return "اسم المستخدم طويل جدًا (الحد الأقصى 64 حرف)."
+    if username_reserved(username):
+        return "اسم المستخدم محجوز."
+    taken = User.query.filter(User.school_id == user.school_id, User.username == username,
+                              User.id != user.id).first()
+    if taken:
+        return f"اسم المستخدم «{username}» مستخدم لحساب آخر — اختر اسماً غيره."
+    return None
 
 
 @bp.route("/users/<hid:user_id>/toggle", methods=["POST"])
