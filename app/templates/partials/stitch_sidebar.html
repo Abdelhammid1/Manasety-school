@@ -9,11 +9,15 @@
       icon-only list — headers hidden, expansion inert.
 #}
 {% set _role = (current_user.role.name if current_user.is_authenticated and current_user.role else 'guest') %}
+{# BUG-016 — any other staff role (accountant, student affairs, warehouse, a
+   school's own role) had no branch below and got an empty menu. They use
+   the admin tree, each link shown only if its route would let them in. #}
+{% set _strict = _role not in ('admin', 'admin_full', 'system_admin') %}
 
 {% macro nav_item(endpoint, label, icon, extra_endpoints=None, perm=None) -%}
   {# SAAS-030 — a link into a module the school doesn't have isn't shown;
      `perm` (module, action): nor a page this user's role can't open. #}
-  {% if endpoint_on(endpoint) and (not perm or current_user.can(perm[0], perm[1])) %}
+  {% if endpoint_on(endpoint) and (not perm or current_user.can(perm[0], perm[1])) and (not _strict or can_open(endpoint)) %}
   {% set _cur = request.endpoint or '' %}
   {% set _active = (_cur == endpoint) or (extra_endpoints and _cur in extra_endpoints) or (_cur and _cur.split('.')[0] == endpoint.split('.')[0] and endpoint.endswith('.index')) %}
   <div class="group relative">
@@ -91,7 +95,7 @@
     {# Role-aware nav — Admin sidebar organized into 10 groups per ticket #10 #}
     <nav class="flex flex-col gap-0.5 px-space-xs mt-space-xs" aria-label="التنقل الرئيسي">
 
-      {% if _role in ('admin', 'admin_full', 'system_admin') or (current_user.is_authenticated and current_user.can('users','view')) %}
+      {% if _role in ('admin', 'admin_full', 'system_admin') or (current_user.is_authenticated and current_user.can('users','view')) or _role not in ('teacher', 'parent', 'student', 'guest') %}
         {# 1 · Dashboard #}
         {{ nav_item('dashboard.home', 'لوحة التحكم', 'dashboard') }}
 
@@ -102,13 +106,13 @@
           {{ nav_item('academic.sections_list',  'الفصول والشعب',   'meeting_room') }}
           {{ nav_item('academic.calendar_month', 'التقويم الدراسي',  'calendar_month') }}
           {{ nav_item('teachers.subjects_list',  'المواد الدراسية',   'book') }}
-          {{ nav_item('courses.list_courses',    'المقرّرات والدروس', 'auto_stories') }}
+          {{ nav_item('courses.list_courses',    'المقرّرات والدروس', 'auto_stories', perm=('lms', 'view')) }}
         {% endcall %}
 
         {# 3 · Schedule & rooms #}
         {% call group('admin-schedule', 'الجدول والقاعات', 'schedule') %}
           {{ nav_item('platform.rooms_list', 'القاعات',        'meeting_room') }}
-          {{ nav_item('schedule.index',      'الجدول المدرسي', 'calendar_month') }}
+          {{ nav_item('schedule.index',      'الجدول المدرسي', 'calendar_month', perm=('schedule', 'view')) }}
         {% endcall %}
 
         {# 4 · Teachers #}
@@ -132,14 +136,14 @@
           {{ nav_item('lms.qbank_dashboard',    'بنك الأسئلة',   'inventory_2') }}
           {{ nav_item('lms.passages_home',      'القطع اللفظية',  'menu_book') }}
           {{ nav_item('lms.template_home',      'مكتبة الواجبات', 'bookmarks') }}
-          {{ nav_item('lms.assignments_home',   'واجبات الطلاب',  'assignment') }}
+          {{ nav_item('lms.assignments_home',   'واجبات الطلاب',  'assignment', perm=('lms', 'view')) }}
           {{ nav_item('lms.announcements_home', 'الإعلانات',      'campaign') }}
           {{ nav_item('admin.ai_usage',         'استخدام الذكاء الاصطناعي', 'auto_awesome', perm=('users', 'view')) }}
         {% endcall %}
 
         {# 7 · Assessment #}
         {% call group('admin-assessment', 'التقييم', 'grading') %}
-          {{ nav_item('lms.quizzes_home',      'الاختبارات',      'quiz') }}
+          {{ nav_item('lms.quizzes_home',      'الاختبارات',      'quiz', perm=('lms', 'view')) }}
           {{ nav_item('lms.blueprint_exam_new','توليد Blueprint', 'schema') }}
           {{ nav_item('lms.templates_gallery', 'مكتبة النماذج',   'library_books') }}
           {{ nav_item('results.grades_index',  'رصد الدرجات',    'grading') }}

@@ -45,7 +45,7 @@
      class="md:hidden fixed bottom-0 inset-x-0 z-40 bg-surface-container-lowest/95 backdrop-blur-xl border-t border-outline-variant">
   <ul class="flex items-stretch justify-around">
     {% for ep, label, icon, perm in _items %}
-      {% if endpoint_on(ep) and (not perm or current_user.can(perm[0], perm[1])) %}
+      {% if endpoint_on(ep) and (not perm or current_user.can(perm[0], perm[1])) and can_open(ep) %}
       {% set _url = url_for(ep) %}
       {% set _bp = ep.split('.')[0] %}
       {% set _shared = _eps.count(' ' ~ _bp ~ '.') > 1 %}

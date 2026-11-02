@@ -195,7 +195,9 @@ def install(app) -> None:
 
     def endpoint_on(endpoint):
         return module_on(module_for_endpoint(endpoint, "")) and feature_on(feature_for_endpoint(endpoint))
-    app.jinja_env.globals.update(module_on=module_on, endpoint_on=endpoint_on, feature_on=feature_on)
+    from ..blueprints.utils import can_open
+    app.jinja_env.globals.update(module_on=module_on, endpoint_on=endpoint_on, feature_on=feature_on,
+                                 can_open=can_open)
 
 
 # ─── effective modules ─────────────────────────────────────────────

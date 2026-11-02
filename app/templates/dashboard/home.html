@@ -56,7 +56,7 @@
         ('attendance.index',     'رصد الحضور',    'fact_check',   False),
         ('finance.reports',      'التقارير المالية','analytics',    False),
         ('hr.payroll_new',       'صرف رواتب',      'paid',         False),
-    ] if endpoint_on(endpoint) %}
+    ] if endpoint_on(endpoint) and can_open(endpoint) %}
     <a href="{{ url_for(endpoint) }}"
        class="flex items-center gap-2 h-11 px-4 rounded-xl font-label-lg font-bold shrink-0 shadow-sm hover:shadow-md active:scale-95 transition-all
               {% if gradient %}text-on-primary{% else %}bg-surface-container-lowest text-primary hover:bg-surface-container-low{% endif %}"
@@ -147,14 +147,14 @@
   <!-- ══════ Ops alerts: unmarked sections + installments ══════ -->
   {% if show.attendance or show.invoices %}
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-space-md">
-    {% if show.attendance %}
+    {% if show.attendance and can_open('attendance.mark') %}
     <section class="bg-surface-container-lowest rounded-2xl p-space-lg shadow-sm">
       <div class="flex items-center justify-between mb-space-md">
         <h3 class="font-title-md text-title-md text-primary font-bold flex items-center gap-2">
           <span class="material-symbols-outlined text-secondary">fact_check</span>
           الفصول التي لم تُرصَد بعد
         </h3>
-        {% if endpoint_on('attendance.index') %}
+        {% if endpoint_on('attendance.index') and can_open('attendance.index') %}
         <a href="{{ url_for('attendance.index') }}" class="font-label-md text-secondary hover:underline flex items-center gap-1">
           <span>عرض الكل</span><span class="material-symbols-outlined text-sm">arrow_back</span>
         </a>
@@ -196,7 +196,7 @@
           <span class="material-symbols-outlined text-secondary">event_repeat</span>
           أقساط قريبة الاستحقاق
         </h3>
-        {% if endpoint_on('finance.invoices_list') %}
+        {% if endpoint_on('finance.invoices_list') and can_open('finance.invoices_list') %}
         <a href="{{ url_for('finance.invoices_list') }}" class="font-label-md text-secondary hover:underline flex items-center gap-1">
           <span>عرض الكل</span><span class="material-symbols-outlined text-sm">arrow_back</span>
         </a>
@@ -204,7 +204,7 @@
       </div>
       {% if stats.installments_due_7d %}
       <div class="flex flex-col gap-2">
-        {% for i in stats.installments_due_7d if endpoint_on('finance.invoice_detail') %}
+        {% for i in stats.installments_due_7d if endpoint_on('finance.invoice_detail') and can_open('finance.invoice_detail') %}
         <a href="{{ url_for('finance.invoice_detail', invoice_id=i.invoice_id) }}"
            class="flex items-center justify-between p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
           <div class="flex items-center gap-2">
@@ -391,7 +391,7 @@
       أكثر المواد نشاطاً — آخر ٣٠ يوماً
     </h3>
     <div class="flex flex-col gap-2">
-      {% for c in stats.top_courses if endpoint_on('courses.detail') %}
+      {% for c in stats.top_courses if endpoint_on('courses.detail') and current_user.can('lms', 'edit') %}
       <a href="{{ url_for('courses.detail', course_id=c.course_id) }}"
          class="flex items-center gap-3 p-space-sm rounded-xl bg-surface-container-low hover:bg-surface-container transition-colors">
         <div class="w-10 h-10 rounded-full text-on-primary flex items-center justify-center font-bold tabular-nums"
@@ -415,11 +415,11 @@
 
   <div class="grid grid-cols-2 lg:grid-cols-4 gap-space-md">
     {% for label, value, color, icon, href in [
-        ('المستخدمون النشطون', stats.users_active,         '#10B981', 'group',       url_for('admin.users_list')),
-        ('حسابات مقفلة',       stats.users_locked,         '#EF4444', 'lock',        url_for('admin.users_list')),
+        ('المستخدمون النشطون', stats.users_active,         '#10B981', 'group',       url_for('admin.users_list') if can_open('admin.users_list') else none),
+        ('حسابات مقفلة',       stats.users_locked,         '#EF4444', 'lock',        url_for('admin.users_list') if can_open('admin.users_list') else none),
         ('إشعارات فاشلة (٧أيام)', stats.notifications_failed,'#F59E0B', 'error',       '#'),
         ('المعلمون النشطون',    stats.teachers_active,      '#0C2461', 'menu_book',
-         url_for('teachers.teachers_list') if show.teachers and endpoint_on('teachers.teachers_list') else none),
+         url_for('teachers.teachers_list') if show.teachers and endpoint_on('teachers.teachers_list') and can_open('teachers.teachers_list') else none),
     ] if href is not none %}
     <a href="{{ href }}" class="bg-surface-container-lowest rounded-2xl p-space-md shadow-sm hover:shadow-md transition-all relative overflow-hidden">
       <div class="absolute right-0 top-0 bottom-0 w-1.5" style="background: {{ color }}"></div>
