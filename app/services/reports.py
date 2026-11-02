@@ -221,7 +221,7 @@ def cost_center_pl(school_id: int, *, start=None, end=None):
             .filter(InvoiceLine.cost_center_id == cc.id,
                     Invoice.issue_date >= s, Invoice.issue_date <= e).scalar() or 0
         exp = db.session.query(func.coalesce(func.sum(Expense.amount), 0))\
-            .filter(Expense.cost_center_id == cc.id,
+            .filter(Expense.cost_center_id == cc.id, Expense.approval_status == "approved",
                     Expense.date >= s, Expense.date <= e).scalar() or 0
         rev = Decimal(str(rev)); exp = Decimal(str(exp))
         out.append({"center": cc.name, "revenue": rev, "expense": exp,
@@ -320,7 +320,7 @@ def cost_per_student(school_id: int, *, start=None, end=None):
     s, e = _range(start, end)
     from ..models import Expense
     total_exp = db.session.query(func.coalesce(func.sum(Expense.amount), 0))\
-        .filter(Expense.school_id == school_id,
+        .filter(Expense.school_id == school_id, Expense.approval_status == "approved",
                 Expense.date >= s, Expense.date <= e).scalar() or 0
     active_enrollments = Enrollment.query.filter_by(
         school_id=school_id, status="active",

@@ -7,6 +7,7 @@ from flask import (
 )
 from flask_login import current_user, login_required
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 
 from . import bp
 from ..utils import owned_id, require_permission
@@ -1679,11 +1680,28 @@ def expenses_list():
         .filter(Expense.date >= start, Expense.date <= end)
         .order_by(Expense.date.desc()).all()
     )
-    total = sum((Decimal(str(e.amount)) for e in items), Decimal(0))
+    # the total is money spent: pending / rejected rows posted nothing
+    total = sum((Decimal(str(e.amount)) for e in items if e.approval_status == "approved"), Decimal(0))
+    from ...models import ReceiptVoucher
+    ids = [e.id for e in items]
+    with_voucher = ({x for (x,) in db.session.query(ReceiptVoucher.expense_id)
+                     .filter(ReceiptVoucher.expense_id.in_(ids))} if ids else set())
     return render_template(
         "finance/expenses_list.html",
-        expenses=items, total=total, start=start, end=end,
+        expenses=items, total=total, start=start, end=end, with_voucher=with_voucher,
     )
+
+
+EXPENSE_AMOUNT_ERROR = "المبلغ يجب أن يكون رقماً أكبر من صفر."
+
+
+def _expense_amount(form):
+    """The posted amount as a positive Decimal, else None."""
+    try:
+        amount = Decimal((form.get("amount") or "").strip())
+    except InvalidOperation:
+        return None
+    return amount if amount.is_finite() and amount > 0 else None
 
 
 @bp.route("/expenses/new", methods=["GET", "POST"])
@@ -1708,12 +1726,9 @@ def expense_new():
     if request.method == "POST":
         # A crafted form must not do what the page can't: a negative amount
         # reverses the entry, and any other account would be debited (cash).
-        try:
-            amount = Decimal((request.form.get("amount") or "").strip())
-        except InvalidOperation:
-            amount = None
-        if amount is None or not amount.is_finite() or amount <= 0:
-            flash("المبلغ يجب أن يكون رقماً أكبر من صفر.", "danger")
+        amount = _expense_amount(request.form)
+        if amount is None:
+            flash(EXPENSE_AMOUNT_ERROR, "danger")
             return redirect(url_for("finance.expense_new"))
         d = _parse_date(request.form.get("date")) or date.today()
         ex_account = next((a for a in exp_accounts
@@ -1821,6 +1836,8 @@ def expense_new():
             approval_status="approved",
         )
         db.session.add(e)
+        db.session.flush()
+        je.related_id = e.id
         db.session.commit()
         # Auto-create the outgoing voucher.
         from ...services.vouchers import auto_create_for_expense
@@ -1844,11 +1861,15 @@ def expense_new():
 @login_required
 @require_permission("expenses", "edit")
 def expense_edit(exp_id):
-    """Edit an expense. The journal entry is regenerated on save so that
-    accounts, amount, and cash flow stay consistent — we delete the
-    original entry (cascades lines) and post a fresh one, keeping the
-    Expense row's identity."""
-    from ...models import PaymentMethod
+    """Edit an expense. BUG-018: the posted entry is never deleted (Postgres
+    refused it, expenses.journal_entry_id points at it): when the amount, date
+    or accounts change, the original is reversed on its own date and a new
+    entry is posted, in one transaction — balances move by the net difference
+    and all the entries stay in the ledger. Only the description / reference
+    changed: the same entry is updated, nothing is posted. A pending or
+    rejected expense has no entry and gets none here: posting is the approval
+    step's."""
+    from ...models import PaymentMethod, ReceiptVoucher
     e = _get(Expense, exp_id)
     vendors = Vendor.query.filter_by(school_id=_sid(), is_active=True).order_by(Vendor.name).all()
     exp_accounts = Account.query.filter_by(school_id=_sid(), type="expense", is_postable=True).order_by(Account.code).all()
@@ -1857,19 +1878,42 @@ def expense_edit(exp_id):
         .order_by(PaymentMethod.name).all()
     )
 
+    def form_page(error=None):
+        """The form; after a refused save, with the message and what was typed."""
+        if error:
+            flash(error, "danger")
+        html = render_template(
+            "finance/expense_form.html",
+            vendors=vendors, exp_accounts=exp_accounts, payment_methods=payment_methods,
+            expense=e, posted=request.form if error else None,
+        )
+        return (html, 400) if error else html
+
     if request.method == "POST":
-        amount = Decimal(request.form["amount"])
-        d = _parse_date(request.form.get("date")) or date.today()
-        ex_account = _get(Account, int(request.form["expense_account_id"]))
-        desc = request.form["description"].strip()
-        pm_id = request.form.get("payment_method_id", type=int)
+        form = request.form
+        amount = _expense_amount(form)
+        if amount is None:
+            return form_page(EXPENSE_AMOUNT_ERROR)
+        try:
+            d = _parse_date(form.get("date"))
+        except ValueError:
+            d = None
+        if d is None:
+            return form_page("التاريخ مطلوب — اختره من منتقي التاريخ.")
+        ex_account = next((a for a in exp_accounts if a.id == form.get("expense_account_id", type=int)), None)
+        if ex_account is None:
+            return form_page("اختر حساب مصروف صالحاً.")
+        desc = (form.get("description") or "").strip()
+        if not desc:
+            return form_page("الوصف مطلوب.")
+        reference = (form.get("reference") or "").strip() or None
+        pm_id = form.get("payment_method_id", type=int)
         pm = PaymentMethod.query.filter_by(
             id=pm_id, school_id=_sid(), is_active=True,
         ).first() if pm_id else None
         if not pm:
-            flash("اختر طريقة دفع صالحة.", "danger")
-            return redirect(url_for("finance.expense_edit", exp_id=e.id))
-        vendor_id = request.form.get("vendor_id", type=int)
+            return form_page("اختر طريقة دفع صالحة.")
+        vendor_id = form.get("vendor_id", type=int)
         vendor = Vendor.query.filter_by(id=vendor_id, school_id=_sid()).first() \
             if vendor_id else None
         if pm.kind == "deferred":
@@ -1880,62 +1924,96 @@ def expense_edit(exp_id):
                 from ...services.system_codes import get_account_by_code
                 credit_account = get_account_by_code(_sid(), "2110")
                 if not credit_account:
-                    flash("لا يوجد حساب افتراضي لذمم الموردين.", "danger")
-                    return redirect(url_for("finance.accounts"))
+                    return form_page("لا يوجد حساب افتراضي لذمم الموردين — اختر مورداً.")
             note = f"التزام مورد (آجل){' — ' + vendor.name if vendor else ''}"
         else:
             credit_account = _get(Account, pm.account_id) if pm.account_id else None
             if not credit_account:
-                flash("طريقة الدفع غير مرتبطة بحساب.", "danger")
-                return redirect(url_for("finance.expense_edit", exp_id=e.id))
+                return form_page("طريقة الدفع غير مرتبطة بحساب.")
             note = f"خروج — {pm.name}"
 
-        # Replace the old journal entry with a fresh one.
-        if e.journal_entry_id:
-            old_je = JournalEntry.query.get(e.journal_entry_id)
-            if old_je:
-                db.session.delete(old_je)
-                db.session.flush()
-
-        je = post_journal(
-            school_id=_sid(),
-            entry_date=d,
-            description=f"مصروف: {desc}",
-            reference=(request.form.get("reference") or "").strip() or None,
-            lines=[
-                (ex_account.id, amount, Decimal(0), "مصروف"),
-                (credit_account.id, Decimal(0), amount, note),
-            ],
-            related_kind="expense", related_id=e.id,
-        )
-        e.vendor_id = int(request.form["vendor_id"]) if request.form.get("vendor_id") else None
-        e.expense_account_id = ex_account.id
-        e.cash_account_id = credit_account.id
-        e.date = d
-        e.amount = amount
-        e.description = desc
-        e.reference = (request.form.get("reference") or "").strip() or None
-        e.journal_entry_id = je.id
-        db.session.commit()
-        flash("تم تعديل المصروف وإعادة قيده محاسبياً.", "success")
+        unposted = e.approval_status in ("pending", "rejected")
+        old_je = db.session.get(JournalEntry, e.journal_entry_id) if e.journal_entry_id else None
+        # Raised to or past the approval threshold: the same rule as a new
+        # expense, or an edit could skip the approval. The posted effect is
+        # reversed and it waits for approval like any other.
+        threshold = Decimal(str(db.session.get(School, _sid()).approval_threshold or 0))
+        back_to_approval = (not unposted and threshold > 0 and amount >= threshold
+                            and amount > Decimal(str(e.amount)))
+        same_money = (old_je is not None and Decimal(str(e.amount)) == amount and e.date == d
+                      and e.expense_account_id == ex_account.id and e.cash_account_id == credit_account.id)
+        try:
+            if same_money:
+                old_je.description = f"مصروف: {desc}"
+                old_je.reference = reference
+            elif not unposted:
+                if old_je is not None:
+                    post_journal(
+                        school_id=_sid(),
+                        entry_date=old_je.entry_date,
+                        description=f"عكس قيد المصروف #{e.id} (تعديل)",
+                        reference=old_je.reference,
+                        lines=[(x.account_id, x.credit, x.debit, f"عكس {x.description or ''}".strip())
+                               for x in old_je.lines],
+                        related_kind="expense_reversal", related_id=e.id,
+                    )
+                if back_to_approval:
+                    e.journal_entry_id = None
+                    e.approval_status = "pending"
+                    e.approved_by_id = None
+                    e.approved_at = None
+                else:
+                    je = post_journal(
+                        school_id=_sid(),
+                        entry_date=d,
+                        description=f"مصروف: {desc}",
+                        reference=reference,
+                        lines=[
+                            (ex_account.id, amount, Decimal(0), "مصروف"),
+                            (credit_account.id, Decimal(0), amount, note),
+                        ],
+                        related_kind="expense", related_id=e.id,
+                    )
+                    e.journal_entry_id = je.id
+            e.vendor_id = vendor.id if vendor else None
+            e.expense_account_id = ex_account.id
+            e.cash_account_id = credit_account.id
+            e.date = d
+            e.amount = amount
+            e.description = desc
+            e.reference = reference
+            # the payment voucher (سند الصرف) shows the same figures
+            for v in ReceiptVoucher.query.filter_by(expense_id=e.id):
+                v.amount, v.voucher_date, v.notes = amount, d, desc
+            db.session.commit()
+        except (ValueError, IntegrityError) as exc:
+            # nothing stays half done: the reversal, the new entry and the
+            # row go or stay together
+            db.session.rollback()
+            current_app.logger.warning("expense edit refused: expense=%s %s", exp_id, type(exc).__name__)
+            return form_page(str(exc) if isinstance(exc, ValueError)
+                             else "تعذّر حفظ التعديل — لم يتغيّر شيء. حدّث الصفحة وحاول مرة أخرى.")
+        flash("تم حفظ تعديل المصروف بانتظار الاعتماد." if unposted
+              else ("تجاوز المبلغ حد الاعتماد: عُكس القيد والمصروف بانتظار الاعتماد." if back_to_approval
+                    else "تم تعديل المصروف وإعادة قيده محاسبياً."), "success")
         return redirect(url_for("finance.expenses_list"))
 
-    return render_template(
-        "finance/expense_form.html",
-        vendors=vendors, exp_accounts=exp_accounts, payment_methods=payment_methods,
-        expense=e,
-    )
+    return form_page()
 
 
 @bp.route("/expenses/<hid:exp_id>/delete", methods=["POST"])
 @login_required
 @require_permission("expenses", "delete")
 def expense_delete(exp_id):
-    """Delete an expense + its journal entry. Cascade on JournalEntry
-    handles the lines. We keep this destructive rather than reversing —
-    schools running double-entry religiously should post a corrective
-    expense instead, but for typo-fix use the delete is the right tool."""
+    """Delete an expense + its journal entry (the entry's lines go with it).
+    One with a payment voucher is refused: it was paid out, the voucher is an
+    accounting document (and the foreign key made this a 500 on Postgres), so
+    it is corrected through edit instead."""
+    from ...models import ReceiptVoucher
     e = _get(Expense, exp_id)
+    if ReceiptVoucher.query.filter_by(expense_id=e.id).first():
+        flash("لا يمكن حذف مصروف له سند صرف — صحّحه من «تعديل».", "danger")
+        return redirect(url_for("finance.expenses_list"))
     je_id = e.journal_entry_id
     db.session.delete(e)
     if je_id:
@@ -2221,9 +2299,15 @@ def expense_approve(eid):
     e.approval_status = "approved"
     e.approved_by_id = current_user.id
     e.approved_at = datetime.utcnow()
-    # Auto-generate the outgoing voucher (سند صرف).
+    # The outgoing voucher (سند صرف): an expense an edit sent back already
+    # has one — one voucher per expense.
+    from ...models import ReceiptVoucher
     from ...services.vouchers import auto_create_for_expense
-    auto_create_for_expense(e)
+    voucher = ReceiptVoucher.query.filter_by(expense_id=e.id).first()
+    if voucher is None:
+        auto_create_for_expense(e)
+    else:
+        voucher.amount, voucher.voucher_date, voucher.notes = e.amount, e.date, e.description
     db.session.commit()
     flash(f"تم اعتماد المصروف #{e.id} وترحيله محاسبياً.", "success")
     return redirect(url_for("finance.expenses_list"))
@@ -2241,6 +2325,9 @@ def expense_reject(eid):
         return redirect(url_for("finance.expenses_list"))
     e.approval_status = "rejected"
     e.reject_reason = (request.form.get("reason") or "").strip() or "بدون سبب"
+    from ...models import ReceiptVoucher
+    for v in ReceiptVoucher.query.filter_by(expense_id=e.id):
+        v.notes = f"ملغي — المصروف مرفوض: {e.reject_reason}"[:255]
     e.approved_by_id = current_user.id
     e.approved_at = datetime.utcnow()
     db.session.commit()

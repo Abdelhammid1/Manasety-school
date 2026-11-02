@@ -310,6 +310,9 @@ def create_app(config_class=Config):
 
     @app.errorhandler(500)
     def err_500(_):
+        # the failed request's session: left as is, the page below can't query
+        # and the user gets a blank "Internal Server Error" instead (BUG-018)
+        db.session.rollback()
         return render_template("errors/error.html", code=500,
                                title="خطأ داخلي", msg="حدث خطأ في الخادم. تواصل مع الدعم الفنّي."), 500
 

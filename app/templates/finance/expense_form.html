@@ -10,6 +10,8 @@
 
 {% block page_content %}
 {% set post_url = url_for('finance.expense_edit', exp_id=expense.id) if expense else url_for('finance.expense_new') %}
+{# after a refused edit: what was typed #}
+{% set F = posted or {} %}
 <div class="max-w-3xl mx-auto flex flex-col gap-space-md">
   <h1 class="font-headline-lg text-headline-lg text-primary">
     {% if expense %}تعديل المصروف{% else %}تسجيل مصروف جديد{% endif %}
@@ -20,13 +22,13 @@
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">التاريخ</label>
         <input name="date" type="date"
-               value="{{ expense.date.strftime('%Y-%m-%d') if expense and expense.date else '' }}"
+               value="{{ F.get('date', expense.date.strftime('%Y-%m-%d') if expense and expense.date else '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">المبلغ <span class="text-error">*</span></label>
         <input name="amount" type="number" step="0.01" min="0.01" required
-               value="{{ expense.amount if expense else '' }}"
+               value="{{ F.get('amount', expense.amount if expense else '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
       </div>
       <div class="flex flex-col gap-1.5">
@@ -45,7 +47,7 @@
         <select name="expense_account_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
           {% for a in exp_accounts %}
-          <option value="{{ a.id }}" {% if expense and expense.expense_account_id == a.id %}selected{% endif %}>
+          <option value="{{ a.id }}" {% if (F.get('expense_account_id') == a.id|string) or (not F and expense and expense.expense_account_id == a.id) %}selected{% endif %}>
             {{ a.code }} — {{ a.name }}
           </option>
           {% endfor %}
@@ -56,7 +58,7 @@
         <select name="payment_method_id" required class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
           <option value="">— اختر —</option>
           {% for pm in payment_methods %}
-          <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% endif %}>
+          <option value="{{ pm.id }}"{% if not pm.usable %} disabled{% elif F.get('payment_method_id') == pm.id|string %} selected{% endif %}>
             {{ pm.name }}
             {%- if pm.kind == 'deferred' %} · آجل — يسجَّل كالتزام{% endif -%}
             {%- if not pm.usable %} — {{ pm.UNUSABLE_HINT }}{% endif -%}
@@ -67,13 +69,13 @@
       <div class="flex flex-col gap-1.5">
         <label class="font-label-md text-label-md text-on-surface font-bold">مرجع (فاتورة، رقم شيك...)</label>
         <input name="reference" dir="ltr"
-               value="{{ expense.reference if expense and expense.reference else '' }}"
+               value="{{ F.get('reference', expense.reference if expense and expense.reference else '') }}"
                class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
       </div>
     </div>
     <div class="flex flex-col gap-1.5">
       <label class="font-label-md text-label-md text-on-surface font-bold">الوصف <span class="text-error">*</span></label>
-      <input name="description" required value="{{ expense.description if expense else '' }}"
+      <input name="description" required value="{{ F.get('description', expense.description if expense else '') }}"
              class="h-12 px-4 rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20">
     </div>
     {# Ticket F — optional cost center. #}
@@ -93,7 +95,7 @@
       <span class="material-symbols-outlined">info</span>
       <p class="font-body-md text-body-md">
         {% if expense %}
-          عند الحفظ، يُلغى القيد الأصلي ويُنشأ قيد مزدوج جديد: <b>DR</b> حساب المصروف / <b>CR</b> حساب الدفع.
+          عند الحفظ، يُعكس القيد الأصلي ويبقى في الدفاتر، ويُنشأ قيد مزدوج جديد: <b>DR</b> حساب المصروف / <b>CR</b> حساب الدفع.
         {% else %}
           عند الحفظ يُنشأ قيد يومية مزدوج: <b>DR</b> حساب المصروف / <b>CR</b> حساب الدفع النقدي.
         {% endif %}

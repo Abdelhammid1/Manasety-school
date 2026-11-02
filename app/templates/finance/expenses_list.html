@@ -50,6 +50,7 @@
             <th class="px-4 py-3 font-label-lg text-primary">المورد</th>
             <th class="px-4 py-3 font-label-lg text-primary">حساب المصروف</th>
             <th class="px-4 py-3 font-label-lg text-primary text-left">المبلغ</th>
+            <th class="px-4 py-3 font-label-lg text-primary text-center">الحالة</th>
             <th class="px-4 py-3 font-label-lg text-primary text-center">إجراءات</th>
           </tr>
         </thead>
@@ -61,24 +62,54 @@
             <td class="px-4 py-3 font-label-md">{{ e.vendor.name if e.vendor else '—' }}</td>
             <td class="px-4 py-3 font-label-md text-on-surface-variant">{{ e.expense_account.name if e.expense_account else '—' }}</td>
             <td class="px-4 py-3 text-left font-label-lg text-error font-bold tabular-nums">{{ '%.2f'|format(e.amount or 0) }}</td>
+            <td class="px-4 py-3 text-center">
+              {% if e.approval_status == 'pending' %}
+              <span class="inline-flex px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">بانتظار الاعتماد</span>
+              {% elif e.approval_status == 'rejected' %}
+              <span class="inline-flex px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold" title="{{ e.reject_reason or '' }}">مرفوض</span>
+              {% else %}
+              <span class="inline-flex px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">معتمد</span>
+              {% endif %}
+            </td>
             <td class="px-4 py-3">
-              <div class="flex items-center justify-center gap-1">
+              <div class="flex items-center justify-center gap-1 flex-wrap">
+                {% if e.approval_status == 'pending' and can_open('finance.expense_approve') %}
+                <form method="post" action="{{ url_for('finance.expense_approve', eid=e.id) }}"
+                      data-name="{{ e.description }}" onsubmit="return confirm('اعتماد المصروف (' + this.dataset.name + ') وترحيله محاسبياً؟')">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <button type="submit" class="h-8 px-2 rounded-lg bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">check_circle</span><span>اعتماد</span>
+                  </button>
+                </form>
+                <form method="post" action="{{ url_for('finance.expense_reject', eid=e.id) }}" class="flex items-center gap-1">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input name="reason" placeholder="سبب الرفض" aria-label="سبب الرفض" maxlength="200"
+                         class="h-8 w-28 px-2 rounded-lg bg-surface-container-low font-label-xs">
+                  <button type="submit" class="h-8 px-2 rounded-lg bg-error-container/40 text-error font-label-xs font-bold flex items-center gap-1">
+                    <span class="material-symbols-outlined text-xs">cancel</span><span>رفض</span>
+                  </button>
+                </form>
+                {% endif %}
                 <a href="{{ url_for('finance.expense_edit', exp_id=e.id) }}"
                    class="h-8 px-2 rounded-lg bg-surface-container-low text-primary font-label-xs font-bold flex items-center gap-1 hover:bg-surface-container">
                   <span class="material-symbols-outlined text-xs">edit</span><span>تعديل</span>
                 </a>
+                {# one with a voucher is corrected through edit, not deleted #}
+                {% if e.id not in with_voucher %}
                 <form method="post" action="{{ url_for('finance.expense_delete', exp_id=e.id) }}"
-                      onsubmit="return confirm('حذف المصروف ({{ e.description|e }})؟\n\nسيُلغى قيده المحاسبي أيضاً.')">
+                      data-name="{{ e.description }}"
+                      onsubmit="return confirm('حذف المصروف (' + this.dataset.name + ')؟\n\nسيُلغى قيده المحاسبي أيضاً.')">
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <button type="submit" class="h-8 px-2 rounded-lg bg-error-container/40 text-error font-label-xs font-bold flex items-center gap-1 hover:bg-error-container">
                     <span class="material-symbols-outlined text-xs">delete</span><span>حذف</span>
                   </button>
                 </form>
+                {% endif %}
               </div>
             </td>
           </tr>
           {% else %}
-          <tr><td colspan="6" class="px-6 py-8 text-center text-on-surface-variant">لا مصروفات في هذه الفترة.</td></tr>
+          <tr><td colspan="7" class="px-6 py-8 text-center text-on-surface-variant">لا مصروفات في هذه الفترة.</td></tr>
           {% endfor %}
         </tbody>
       </table>

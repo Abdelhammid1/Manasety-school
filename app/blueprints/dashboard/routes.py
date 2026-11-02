@@ -188,7 +188,8 @@ def _payments_sum(sid: int, since: date) -> float:
 def _expenses_sum(sid: int, since: date) -> float:
     q = (
         db.session.query(func.coalesce(func.sum(Expense.amount), 0))
-        .filter(Expense.school_id == sid, Expense.date >= since)
+        .filter(Expense.school_id == sid, Expense.date >= since,
+                Expense.approval_status == "approved")     # pending / rejected spent nothing
     )
     return float(q.scalar() or 0)
 
