@@ -424,9 +424,11 @@ def _admin_dashboard():
     # that owns its data) is on; otherwise its query doesn't run at all.
     show = {
         "attendance": feature_enabled(sid, "attendance.mark"),
-        "invoices": feature_enabled(sid, "finance.invoices"),
-        "expenses": feature_enabled(sid, "finance.expenses"),
-        "treasury": feature_enabled(sid, "finance.treasury"),
+        # money figures need the permission too: this console also serves
+        # staff roles without it (student affairs, warehouse)
+        "invoices": feature_enabled(sid, "finance.invoices") and current_user.can("finance", "view"),
+        "expenses": feature_enabled(sid, "finance.expenses") and current_user.can("expenses", "view"),
+        "treasury": feature_enabled(sid, "finance.treasury") and current_user.can("finance", "view"),
         "courses": feature_enabled(sid, "lms.courses"),
         "assignments": feature_enabled(sid, "lms.assignments"),
         "quizzes": feature_enabled(sid, "lms.quizzes"),

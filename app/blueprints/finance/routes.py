@@ -1688,7 +1688,7 @@ def expenses_list():
 
 @bp.route("/expenses/new", methods=["GET", "POST"])
 @login_required
-@require_permission("expenses", "edit")
+@require_permission("expenses", "add")
 def expense_new():
     """Ticket "Full financial automation" + "Additional 1" — an expense
     is booked as DR expense / CR payment_method.account. When the picked
