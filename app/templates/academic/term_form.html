@@ -34,7 +34,7 @@
         <label class="font-label-md text-label-md text-on-surface font-bold">الوزن (%)</label>
         <input name="weight" type="number" step="0.1" min="0" max="100" value="{{ F.weight if F.weight is defined and F.weight != '' else 50 }}"
                class="h-12 px-4 text-center rounded-xl bg-surface-container-low focus:bg-surface-container-lowest focus:outline-none focus:ring-2 focus:ring-primary/20 tabular-nums">
-        <span class="font-label-xs text-label-xs text-on-surface-variant">مجموع أوزان فترات السنة يجب أن يساوي 100%</span>
+        <span class="font-label-xs text-label-xs text-on-surface-variant">الفترات الأخرى: {{ '%g'|format(other_weight|float) }}% — المتاح لهذه الفترة: {{ '%g'|format([100 - other_weight|float, 0]|max) }}%. مجموع أوزان كل الفترات لازم يصل 100% عند اكتمال السنة.</span>
       </div>
     </div>
 

@@ -324,6 +324,16 @@ def _pct(x) -> str:
     return format(d, "f")
 
 
+def _other_weight(year, editing_id=None):
+    """Sum of the year's term weights, leaving out the term being edited
+    (same query the validation uses, so the form and the check agree)."""
+    q = db.session.query(func.coalesce(func.sum(Term.weight), 0)).filter_by(
+        school_id=year.school_id, year_id=year.id)
+    if editing_id is not None:
+        q = q.filter(Term.id != editing_id)
+    return Decimal(q.scalar() or 0)
+
+
 @bp.route("/years/<hid:year_id>/terms/new", methods=["GET", "POST"])
 @login_required
 @require_permission("terms", "add")
@@ -335,6 +345,7 @@ def term_new(year_id):
 
     def form_page(form=None):
         return render_template("academic/term_form.html", year=year, term=None,
+                               other_weight=_other_weight(year),
                                values=v.values(None, form, TERM_FIELDS))
 
     if request.method == "POST":
@@ -376,6 +387,7 @@ def term_edit(term_id):
 
     def form_page(form=None):
         return render_template("academic/term_form.html", year=year, term=term,
+                               other_weight=_other_weight(year, term.id),
                                values=v.values(term, form, TERM_FIELDS))
 
     if request.method == "POST":
