@@ -339,6 +339,7 @@ def student_new():
             )
             db.session.add(student)
             db.session.flush()
+            guardian_login_username = None
 
             # Ticket #7 — link an existing Guardian if the admin picked one;
             # otherwise fall through to the legacy sync path.
@@ -387,6 +388,7 @@ def student_new():
                             flash(err, "danger")
                             return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
                         primary_guardian.user_id = new_user.id
+                        guardian_login_username = new_user.username
                         student.parent_user_id = new_user.id
 
             # Ticket #1 (2026-09-25) — the student account is now
@@ -417,7 +419,7 @@ def student_new():
             )
             return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
 
-        flash(f"تم إنشاء ملف الطالب — كود دائم: {student.permanent_code} — اسم المستخدم: {new_user.username}", "success")
+        flash(f"تم إنشاء ملف الطالب — كود دائم: {student.permanent_code} — اسم المستخدم: {new_user.username}" + (f" — اسم مستخدم ولي الأمر: {guardian_login_username}" if guardian_login_username else ""), "success")
         return redirect(url_for("students.student_detail", student_id=student.id))
     return render_template("students/form.html", student=None, form={}, dup=None, **render_kwargs)
 
@@ -764,6 +766,7 @@ def guardian_new():
         )
         db.session.add(guardian); db.session.flush()
 
+        created_username = None
         if request.form.get("create_account"):
             from ...services.user_provisioning import provision_user
             new_user, err = provision_user(
@@ -778,6 +781,7 @@ def guardian_new():
                 return render_template("students/guardian_form.html",
                                        form=request.form, students=students_pool)
             guardian.user_id = new_user.id
+            created_username = new_user.username
 
         # Ticket #8 — link one or more students in the same step.
         picked_student_ids = request.form.getlist("student_ids", type=int)
@@ -796,7 +800,7 @@ def guardian_new():
                 stu.parent_user_id = guardian.user_id
 
         db.session.commit()
-        flash(f"تم إضافة ولي الأمر {guardian.full_name}.", "success")
+        flash(f"تم إضافة ولي الأمر {guardian.full_name}." + (f" (اسم المستخدم: {created_username})" if created_username else ""), "success")
         return redirect(url_for("students.guardians_list"))
 
     return render_template("students/guardian_form.html",

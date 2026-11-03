@@ -110,7 +110,7 @@
 
         {% if not student %}
         <div data-guardian-account class="mt-space-md grid grid-cols-1 md:grid-cols-2 gap-space-md" style="display:none">
-          {{ field('guardian_account_username', 'اسم مستخدم ولي الأمر (اختياري)', '', ph='يُولَّد تلقائيًا لو تُرك فارغًا') }}
+          {{ field('guardian_account_username', 'اسم مستخدم ولي الأمر (اختياري)', '', ph='يُولَّد تلقائيًا لو تُرك فارغًا، لازم يكون فريدًا') }}
           {{ field('guardian_account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password') }}
         </div>
         {% endif %}

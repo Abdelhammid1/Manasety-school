@@ -62,6 +62,7 @@ def employee_new():
             return render_template("hr/employee_form.html", employee=None, users=users)
 
         # Ticket #1 — inline account creation.
+        created_username = None
         if not e.user_id and request.form.get("create_account"):
             from ...services.user_provisioning import provision_user
             new_user, err = provision_user(
@@ -74,9 +75,10 @@ def employee_new():
                 flash(err, "danger")
                 return render_template("hr/employee_form.html", employee=None, users=users)
             e.user_id = new_user.id
+            created_username = new_user.username
 
         db.session.add(e); db.session.commit()
-        flash(f"تم إضافة الموظف {e.full_name}.", "success")
+        flash(f"تم إضافة الموظف {e.full_name}." + (f" (اسم المستخدم: {created_username})" if created_username else ""), "success")
         return redirect(url_for("hr.employee_detail", employee_id=e.id))
     return render_template("hr/employee_form.html", employee=None, users=users)
 

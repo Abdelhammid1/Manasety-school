@@ -231,7 +231,7 @@
         <form method="post" action="{{ url_for('students.guardian_account_create', guardian_id=guardian.id) }}"
               class="flex flex-col gap-2">
           <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-          <input name="username" placeholder="اسم المستخدم (اختياري)"
+          <input name="username" placeholder="اسم المستخدم (اختياري)، لازم يكون فريدًا"
                  class="h-10 px-3 rounded-lg bg-surface-container-low">
           <input name="password" type="password" required minlength="8" placeholder="كلمة المرور (٨ أحرف على الأقل)"
                  class="h-10 px-3 rounded-lg bg-surface-container-low">

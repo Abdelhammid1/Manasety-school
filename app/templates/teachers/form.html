@@ -64,7 +64,7 @@
         كل معلم لازم يبقى ليه حساب دخول — لا يوجد خيار لإنشاء ملف بدون حساب.
       </p>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-space-md">
-        {{ fld('account_username', 'اسم المستخدم (يُولَّد تلقائيًا لو تُرك فارغًا)', form.get('account_username') if form else '', ph='مثلاً: teacher1234') }}
+        {{ fld('account_username', 'اسم المستخدم (يُولَّد تلقائيًا لو تُرك فارغًا)', form.get('account_username') if form else '', ph='مثلاً: teacher1234، لازم يكون فريدًا') }}
         {{ fld('account_password', 'كلمة المرور (٨ أحرف على الأقل)', '', kind='password', ph='••••••••', required=True) }}
       </div>
     </section>
