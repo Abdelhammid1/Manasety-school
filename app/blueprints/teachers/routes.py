@@ -83,7 +83,7 @@ def teacher_new():
         )
         db.session.add(teacher)
         db.session.commit()
-        flash(f"تم إنشاء ملف المعلم {teacher.full_name} + حساب دخول.", "success")
+        flash(f"تم إنشاء ملف المعلم {teacher.full_name} (اسم المستخدم: {new_user.username}) + حساب دخول.", "success")
         return redirect(url_for("teachers.teacher_detail", teacher_id=teacher.id))
     return render_template("teachers/form.html", teacher=None, form={})
 

@@ -417,7 +417,7 @@ def student_new():
             )
             return render_template("students/form.html", student=None, form=request.form, dup=None, **render_kwargs)
 
-        flash(f"تم إنشاء ملف الطالب — كود دائم: {student.permanent_code}", "success")
+        flash(f"تم إنشاء ملف الطالب — كود دائم: {student.permanent_code} — اسم المستخدم: {new_user.username}", "success")
         return redirect(url_for("students.student_detail", student_id=student.id))
     return render_template("students/form.html", student=None, form={}, dup=None, **render_kwargs)
 

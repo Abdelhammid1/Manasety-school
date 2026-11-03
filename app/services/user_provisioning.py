@@ -13,6 +13,7 @@ from __future__ import annotations
 import re
 import secrets
 from typing import Optional
+from sqlalchemy.exc import IntegrityError
 
 from ..extensions import db
 from ..models import Role, User
@@ -84,18 +85,27 @@ def provision_user(
         except LimitReached as e:
             return None, str(e)
 
-    username = (username or "").strip() or suggest_username(full_name, phone)
+    typed = (username or "").strip()
+    username = typed or suggest_username(full_name, phone)
     from .support_policy import username_reserved
     if username_reserved(username):
         return None, "اسم المستخدم محجوز."
-    # De-duplicate username inside the school by appending a short tail.
-    base = username
-    tries = 0
-    while User.query.filter_by(school_id=school_id, username=username).first():
-        tries += 1
-        if tries > 20:
-            return None, "تعذّر توليد اسم مستخدم فريد — أدخل اسمًا مختلفًا."
-        username = f"{base}{secrets.token_hex(1)}"
+    # Ticket P3 - never change a username the user typed. A typed duplicate
+    # is rejected; only an auto-suggested name (field left blank) is
+    # de-duplicated, and the final value is shown to the user after creation.
+    def _taken(u):
+        return User.query.filter_by(school_id=school_id, username=u).first() is not None
+
+    if _taken(username):
+        if typed:
+            return None, f"اسم المستخدم «{username}» مستخدم بالفعل في هذه المدرسة، اختر اسمًا آخر."
+        base = username
+        for _ in range(20):
+            username = f"{base}{secrets.token_hex(1)}"
+            if not _taken(username):
+                break
+        else:
+            return None, "تعذّر توليد اسم مستخدم فريد، أدخل اسمًا مختلفًا."
 
     password = (password or "").strip()
     if len(password) < 8:
@@ -111,6 +121,10 @@ def provision_user(
         is_active=True,
     )
     user.set_password(password)
-    db.session.add(user)
-    db.session.flush()
+    try:
+        with db.session.begin_nested():
+            db.session.add(user)
+            db.session.flush()
+    except IntegrityError:
+        return None, f"اسم المستخدم «{username}» مستخدم بالفعل في هذه المدرسة، اختر اسمًا آخر."
     return user, None
