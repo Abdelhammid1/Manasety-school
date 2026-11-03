@@ -3128,7 +3128,7 @@ def assignment_detail(aid):
     return render_template(
         "lms/assignment_detail.html",
         assignment=a, student=student, submission=submission,
-        now=_tz_safe_now(a.due_at),
+        now_dt=_tz_safe_now(a.due_at),
         past_due=_past_due(a.due_at),
         hide_detail=hide_detail,
     )
@@ -3423,7 +3423,7 @@ def quiz_take(qid):
         prior_answers=prior_answers,
         flagged_ids=flagged_ids,
         hard_stop_iso=hard_stop.isoformat() + "Z",
-        now=now,
+        now_dt=now,
     )
 
 

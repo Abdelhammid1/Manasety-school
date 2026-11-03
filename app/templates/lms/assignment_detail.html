@@ -95,7 +95,7 @@
         </p>
       </div>
     </div>
-    {% if assignment.due_at and now <= assignment.due_at %}
+    {% if assignment.due_at and now_dt <= assignment.due_at %}
     <button type="button" onclick="document.getElementById('editArea').classList.remove('hidden'); this.remove();"
             class="h-10 px-4 rounded-xl bg-surface-container-lowest text-primary font-label-lg text-label-lg font-bold hover:bg-surface-container transition-colors">
       تعديل التسليم
