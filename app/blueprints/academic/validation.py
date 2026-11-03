@@ -19,7 +19,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import current_app
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DataError, IntegrityError
 
 from ...extensions import db
 
@@ -100,6 +100,11 @@ def commit(what: str) -> str | None:
     try:
         db.session.commit()
         return None
+    except DataError:
+        db.session.rollback()
+        current_app.logger.warning("academic save refused: value out of range (%s)", what, exc_info=True)
+        return (f"تعذّر حفظ {what}: قيمة رقمية خارج المدى المسموح. "
+                "راجع الترتيب وأدخل رقمًا أصغر.")
     except IntegrityError:
         db.session.rollback()
         current_app.logger.warning("academic save refused by the database (%s)", what, exc_info=True)

@@ -254,7 +254,7 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
     """
     try:
         name = v.text(form, "name", "اسم الفترة الدراسية", max_len=64)
-        order_index = v.whole(form, "order_index", "ترتيب الفترة")
+        order_index = v.whole(form, "order_index", "ترتيب الفترة", maximum=999)
         start = v.day(form, "start_date", "تاريخ البداية")
         end = v.day(form, "end_date", "تاريخ النهاية")
         weight = v.percent(form, "weight")
@@ -268,6 +268,15 @@ def _validate_term_dates_and_weight(year, form, editing_id=None):
     if taken:
         return None, (f"ترتيب الفترة ({order_index}) مستخدم بالفعل في فترة \"{taken.name}\"{v.deleted_note(taken)}، "
                       "اختر ترتيبًا آخر.")
+
+    # the term name is unique among the year's active terms (no DB constraint: checked here)
+    same_name = Term.query.filter_by(school_id=year.school_id, year_id=year.id).filter(
+        func.lower(func.trim(Term.name)) == name.strip().lower())
+    if editing_id is not None:
+        same_name = same_name.filter(Term.id != editing_id)
+    if same_name.first():
+        return None, (f"اسم الفترة الدراسية «{name}» مستخدم بالفعل في هذه السنة، "
+                      "اختر اسمًا آخر.")
 
     # TC-2.2.5: date overlap check
     overlap_q = Term.query.filter_by(school_id=year.school_id, year_id=year.id).filter(
@@ -487,7 +496,7 @@ def _grade_data(form, editing=None) -> dict:
     too); an existing grade keeps an order saved before the >= 1 rule."""
     name = v.text(form, "name", "اسم الصف", max_len=64)
     order_index = v.whole(form, "order_index", "ترتيب الصف",
-                          keep=editing.order_index if editing else None)
+                          keep=editing.order_index if editing else None, maximum=999)
     exclude = getattr(editing, "id", None)
     other = v.clash(Grade, exclude_id=exclude, school_id=_sid(), name=name)
     if other:
