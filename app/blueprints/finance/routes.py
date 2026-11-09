@@ -1303,6 +1303,11 @@ def bank_rec_import():
     if not account_id:
         flash("اختر الحساب البنكي أولاً.", "danger")
         return redirect(url_for("finance.bank_rec"))
+    acct = db.session.get(Account, account_id)
+    if (acct is None or acct.school_id != _sid()
+            or not acct.is_postable or acct.type != "asset"):
+        flash("الحساب المختار غير صالح للتسوية — اختر حسابًا بنكيًا نهائيًا وليس حسابًا تجميعيًا.", "danger")
+        return redirect(url_for("finance.bank_rec"))
     f = request.files.get("statement")
     if not f or not f.filename:
         flash("ارفع ملف الكشف (.csv).", "danger")
@@ -1314,23 +1319,38 @@ def bank_rec_import():
     if not rows:
         flash("الملف فارغ.", "danger")
         return redirect(url_for("finance.bank_rec", account_id=account_id))
-    inserted = 0
+    inserted = dup = bad = 0
+    existing = {
+        (l.statement_date, (l.description or ""), l.amount, (l.reference or ""))
+        for l in BankStatementLine.query.filter_by(
+            school_id=_sid(), bank_account_id=account_id)
+    }
     for i, row in enumerate(rows):
+        if not row or not any((c or "").strip() for c in row):
+            continue
         if i == 0:
             # Skip header if the first cell isn't parsable as a date.
             try:
-                _parse_date(row[0])
+                _parse_date((row[0] or "").strip())
             except Exception:
                 continue
         if len(row) < 3:
+            bad += 1
             continue
         try:
-            d = _parse_date(row[0])
+            d = _parse_date((row[0] or "").strip())
             desc = (row[1] or "").strip()
             amt = Decimal((row[2] or "0").replace(",", "").strip())
         except Exception:
+            bad += 1
+            continue
+        if d is None or not amt.is_finite():
+            bad += 1
             continue
         reference = (row[3].strip() if len(row) > 3 else "") or None
+        if (d, desc, amt, reference or "") in existing:
+            dup += 1
+            continue
         db.session.add(BankStatementLine(
             school_id=_sid(), bank_account_id=account_id,
             statement_date=d, description=desc, amount=amt,
@@ -1338,7 +1358,12 @@ def bank_rec_import():
         ))
         inserted += 1
     db.session.commit()
-    flash(f"تم استيراد {inserted} سطر من كشف الحساب.", "success")
+    msg = f"تم استيراد {inserted} سطر من كشف الحساب."
+    if dup:
+        msg += f" تم تخطي {dup} سطر مكرر (مستورد من قبل)."
+    if bad:
+        msg += f" تم تخطي {bad} سطر غير صالح (تاريخ أو مبلغ ناقص/خاطئ)."
+    flash(msg, "warning" if (dup or bad) else "success")
     return redirect(url_for("finance.bank_rec", account_id=account_id))
 
 
