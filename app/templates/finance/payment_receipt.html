@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="utf-8">
+  <title>{{ 'سند صرف' if v.voucher_type == 'payment' else 'سند قبض' }} {{ v.voucher_number }}</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    body { font-family: sans-serif; color: #111827; direction: rtl; background: white; }
+    .toolbar { padding: 10px; text-align: center; background: #F7F8FA; border-bottom: 1px solid #E5E7EB; margin-bottom: 24px; }
+    .toolbar button, .toolbar a { padding: 8px 20px; border-radius: 6px; border: 1px solid #E5E7EB; background: white; cursor: pointer; text-decoration: none; color: #111827; font-weight: 700; margin: 0 4px; }
+    @media print { .toolbar { display: none; } }
+    .doc { max-width: 680px; margin: 0 auto; border: 2px solid #1E3A8A; border-radius: 8px; padding: 24px; }
+    .head { display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 3px solid #D4AF37; padding-bottom: 14px; margin-bottom: 20px; }
+    .school { font-size: 18px; font-weight: 800; color: #1E3A8A; }
+    .title { text-align: left; font-size: 22px; font-weight: 800; color: #1E3A8A; }
+    .num { font-family: monospace; color: #D4AF37; margin-top: 4px; direction: ltr; }
+    .row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB; font-size: 14px; }
+    .row .k { color: #6B7280; }
+    .row .val { font-weight: 700; }
+    .amount { margin-top: 18px; padding: 14px; border: 2px solid #D4AF37; border-radius: 8px; display: flex; justify-content: space-between; font-size: 20px; font-weight: 800; color: #1E3A8A; }
+    .sign { display: flex; justify-content: space-between; margin-top: 48px; font-size: 13px; color: #6B7280; }
+  </style>
+</head>
+<body>
+  <div class="toolbar">
+    <button onclick="window.print()">طباعة</button>
+    <a href="{{ url_for('finance.invoice_detail', invoice_id=inv.id) }}">رجوع للفاتورة</a>
+  </div>
+  <div class="doc">
+    <div class="head">
+      <div class="school">{{ school.name if school else '' }}</div>
+      <div>
+        <div class="title">{{ 'سند صرف' if v.voucher_type == 'payment' else 'سند قبض' }}</div>
+        <div class="num">{{ v.voucher_number }}</div>
+      </div>
+    </div>
+    <div class="row"><span class="k">التاريخ</span><span class="val" dir="ltr">{{ v.voucher_date.strftime('%Y-%m-%d') if v.voucher_date else '' }}</span></div>
+    <div class="row"><span class="k">الطالب</span><span class="val">{{ inv.enrollment.student.full_name }}</span></div>
+    <div class="row"><span class="k">الفاتورة</span><span class="val" dir="ltr">{{ inv.number }}</span></div>
+    <div class="row"><span class="k">طريقة الدفع</span><span class="val">{{ pay.method or '—' }}</span></div>
+    {% if pay.reference %}<div class="row"><span class="k">المرجع</span><span class="val" dir="ltr">{{ pay.reference }}</span></div>{% endif %}
+    {% if v.notes %}<div class="row"><span class="k">ملاحظات</span><span class="val">{{ v.notes }}</span></div>{% endif %}
+    <div class="amount"><span>المبلغ</span><span dir="ltr">{{ v.amount|money }}</span></div>
+    <div class="sign"><span>توقيع المستلم</span><span>ختم المدرسة</span></div>
+  </div>
+</body>
+</html>

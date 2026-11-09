@@ -124,6 +124,7 @@
               <th class="p-2 text-center tabular-nums">المبلغ</th>
               <th class="p-2">المرجع</th>
               <th class="p-2 font-label-xs">ملاحظات</th>
+              <th class="p-2 font-label-xs">السند</th>
             </tr>
           </thead>
           <tbody>
@@ -144,6 +145,11 @@
               </td>
               <td class="p-2 font-label-sm" dir="ltr">{{ p.reference or '—' }}</td>
               <td class="p-2 font-label-xs text-outline">{{ p.notes or '' }}</td>
+              <td class="p-2 font-label-sm">
+                {% if endpoint_on('finance.payment_receipt') %}
+                <a href="{{ url_for('finance.payment_receipt', payment_id=p.id) }}" target="_blank" class="text-primary underline">{{ 'سند صرف' if p.is_refund else 'سند قبض' }}</a>
+                {% endif %}
+              </td>
             </tr>
             {% endfor %}
           </tbody>

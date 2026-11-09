@@ -663,6 +663,25 @@ def invoice_print(invoice_id):
                            inv=inv, school=school, download=False)
 
 
+@bp.route("/payments/<hid:payment_id>/receipt", endpoint="payment_receipt")
+@login_required
+@require_permission("finance", "view")
+def payment_receipt(payment_id):
+    """سند القبض (أو سند الصرف للاسترداد) الخاص بدفعة — صفحة طباعة."""
+    from ...models import School, ReceiptVoucher, Payment
+    pay = Payment.query.filter_by(id=payment_id, school_id=_sid()).first_or_404()
+    inv = _get(Invoice, pay.invoice_id)
+    _assert_invoice_viewer(inv)
+    voucher = ReceiptVoucher.query.filter_by(
+        payment_id=pay.id, school_id=_sid()).first()
+    if voucher is None:
+        flash("لا يوجد سند لهذه الدفعة (دفعة سابقة لميزة السندات).", "warning")
+        return redirect(url_for("finance.invoice_detail", invoice_id=inv.id))
+    school = db.session.get(School, inv.school_id)
+    return render_template("finance/payment_receipt.html",
+                           v=voucher, pay=pay, inv=inv, school=school)
+
+
 # ---------- Bulk payment (Ticket "Additional 5") ---------------------
 
 @bp.route("/bulk-payment", methods=["GET", "POST"], endpoint="bulk_payment")
