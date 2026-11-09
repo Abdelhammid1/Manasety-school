@@ -46,7 +46,7 @@
           <div class="flex flex-col">
             <span class="font-title-md text-title-md text-primary font-bold">{{ je.description }}</span>
             <span class="font-label-xs text-label-xs text-outline">
-              {{ je.entry_date.strftime('%Y-%m-%d') if je.entry_date else '' }}
+              {% if je.entry_no %}<code dir="ltr" class="font-bold">JE-{{ '%06d'|format(je.entry_no) }}</code> · {% endif %}{{ je.entry_date.strftime('%Y-%m-%d') if je.entry_date else '' }}
               {% if je.reference %} · مرجع: <code dir="ltr">{{ je.reference }}</code>{% endif %}
               {% if je.related_kind %} · {{ je.related_kind }}#{{ je.related_id }}{% endif %}
             </span>

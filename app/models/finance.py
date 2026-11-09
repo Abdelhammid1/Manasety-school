@@ -217,6 +217,14 @@ class JournalEntry(db.Model):
     related_id = db.Column(db.Integer)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     created_by_user_id = db.Column(db.Integer, db.ForeignKey("users.id"))
+    # Sequential per-school entry number (JE-000001). Nullable on purpose:
+    # a school restored from an older backup has no numbers; a NULL is shown
+    # as "no number". Assigned automatically by the before_insert hook below.
+    entry_no = db.Column(db.Integer, nullable=True)
+
+    __table_args__ = (
+        db.Index("uq_je_school_no", "school_id", "entry_no", unique=True),
+    )
 
     lines = db.relationship("JournalLine", backref="entry", cascade="all, delete-orphan")
 
@@ -227,6 +235,32 @@ class JournalEntry(db.Model):
     @property
     def total_credit(self) -> float:
         return float(sum((l.credit or 0) for l in self.lines))
+
+
+from sqlalchemy import event as _sa_event, text as _sa_text
+from sqlalchemy.orm import object_session as _object_session
+
+
+@_sa_event.listens_for(JournalEntry, "before_insert")
+def _assign_journal_entry_no(mapper, connection, target):
+    """Next number for this school: max(existing) + 1. On Postgres a
+    transaction-level advisory lock per school serialises concurrent
+    postings; entries pending in the same flush are counted too."""
+    if target.entry_no is not None:
+        return
+    sid = int(target.school_id)
+    if connection.dialect.name == "postgresql":
+        connection.execute(_sa_text("SELECT pg_advisory_xact_lock(7001, :s)"), {"s": sid})
+    top = connection.execute(
+        _sa_text("SELECT COALESCE(MAX(entry_no), 0) FROM journal_entries WHERE school_id = :s"),
+        {"s": sid}).scalar() or 0
+    sess = _object_session(target)
+    if sess is not None:
+        for o in list(sess.new):
+            if (isinstance(o, JournalEntry) and o is not target
+                    and o.school_id == target.school_id and o.entry_no is not None):
+                top = max(top, o.entry_no)
+    target.entry_no = int(top) + 1
 
 
 class JournalLine(db.Model):
