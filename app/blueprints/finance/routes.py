@@ -2348,8 +2348,12 @@ def expense_reject(eid):
     if e.approval_status != "pending":
         flash("لا يمكن الرفض إلا للمصروفات قيد المراجعة.", "warning")
         return redirect(url_for("finance.expenses_list"))
+    reason = (request.form.get("reason") or "").strip()
+    if not reason:
+        flash("اكتب سبب الرفض أولاً.", "danger")
+        return redirect(url_for("finance.expenses_list"))
     e.approval_status = "rejected"
-    e.reject_reason = (request.form.get("reason") or "").strip() or "بدون سبب"
+    e.reject_reason = reason
     from ...models import ReceiptVoucher
     for v in ReceiptVoucher.query.filter_by(expense_id=e.id):
         v.notes = f"ملغي — المصروف مرفوض: {e.reject_reason}"[:255]

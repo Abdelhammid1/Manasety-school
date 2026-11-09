@@ -192,7 +192,7 @@ FIELD_LABELS = {
     "scope_type": "نوع النطاق", "scope_value": "قيمة النطاق", "stage_value": "المرحلة",
     "state": "الحالة", "override_value": "قيمة بديلة",
     # who
-    "created_by_id": "أنشأه", "approved_by_id": "اعتمده", "reported_by_user_id": "سجّله",
+    "created_by_id": "أنشأه", "approved_by_id": "اعتمده / رفضه", "reported_by_user_id": "سجّله",
     "requested_by_user_id": "طلبه", "updated_by_user_id": "عدّله", "uploaded_by_user_id": "رفعه",
     "notified_at": "وقت الإشعار",
 }
