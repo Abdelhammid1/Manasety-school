@@ -1,0 +1,36 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}الدرجات والنتائج{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الدرجات والنتائج</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-5xl mx-auto space-y-6 pb-16">
+  <h1 class="font-headline-lg text-headline-lg text-primary font-bold">الدرجات والنتائج</h1>
+  {% include "portal/_parent_child_switch.html" %}
+  {% if children and child %}
+  {% for g in groups %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><h2 class="px-4 pt-4 font-title-md text-primary font-bold">{{ g.subject }} &middot; {{ g.term }}</h2><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">التقييم</th><th class="px-4 py-3 font-label-lg text-primary text-right">الدرجة</th></tr></thead>
+    <tbody>
+    {% for it in g["items"] %}
+    <tr class="border-t border-outline-variant"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ it.name }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%g'|format(it.score) }} / {{ '%g'|format(it.max) }}</td></tr>
+    {% endfor %}
+    <tr class="border-t border-outline-variant bg-surface-container-low font-bold"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">المجموع</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%g'|format(g.total) }} / {{ '%g'|format(g.max_total) }}</td></tr>
+    </tbody></table></div></section>
+  {% endfor %}
+  {% if subs %}
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><h2 class="px-4 pt-4 font-title-md text-primary font-bold">الواجبات المسلمة</h2><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">الواجب</th><th class="px-4 py-3 font-label-lg text-primary text-right">المقرر</th><th class="px-4 py-3 font-label-lg text-primary text-right">الدرجة</th></tr></thead>
+    <tbody>
+    {% for s in subs %}
+    <tr class="border-t border-outline-variant"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ s.assignment.title if s.assignment else '' }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ s.assignment.course.title if s.assignment and s.assignment.course else '' }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%g'|format(s.score) }} / {{ '%g'|format(s.assignment.max_score if s.assignment else 100) }}</td></tr>
+    {% endfor %}
+    </tbody></table></div></section>
+  {% endif %}
+  {% if not groups and not subs %}
+  <p class="text-center text-on-surface-variant py-8">لا درجات مسجلة بعد</p>
+  {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

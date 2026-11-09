@@ -92,7 +92,7 @@ def test_every_web_route_has_exactly_one_feature(app):
 
 def test_the_catalogue_is_the_approved_one():
     from app.services.modules import ESSENTIAL_FEATURES, FEATURES, FEATURES_BY_KEY
-    assert len(FEATURES) == 69 and len(FEATURES_BY_KEY) == 69
+    assert len(FEATURES) == 70 and len(FEATURES_BY_KEY) == 70
     assert ESSENTIAL_FEATURES == APPROVED_ESSENTIAL
     assert [f.key for f in FEATURES if not f.default_on] == ["lms.ai"]
 

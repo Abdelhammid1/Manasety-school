@@ -53,6 +53,7 @@
           <span class="material-symbols-outlined text-secondary">fact_check</span>
           حضور الأسبوع
         </h3>
+        {% if endpoint_on('portal.parent_attendance') %}<a href="{{ url_for('portal.parent_attendance', child_id=active_child.id) }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>{% endif %}
         {# Playwright-tour fix (2026-10-02) — attendance.index gates
            on `attendance.view` which a parent doesn't hold; dropping
            the broken link so this card stays a read-only summary. #}
@@ -86,8 +87,8 @@
           الرسوم والفواتير
         </h3>
         {# the full invoices page is for finance staff; a parent sees their child's invoices right here #}
-        {% if current_user.can('finance', 'view') and endpoint_on('finance.invoices_list') %}
-        <a href="{{ url_for('finance.invoices_list') }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
+        {% if endpoint_on('portal.parent_invoices') %}
+        <a href="{{ url_for('portal.parent_invoices', child_id=active_child.id) }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>
         {% endif %}
       </div>
       {% if invoices %}
@@ -95,7 +96,7 @@
         {% for inv in invoices %}
         <div class="p-2 rounded-lg bg-surface-container-low flex items-center justify-between">
           <div class="flex flex-col">
-            <span class="font-label-md text-label-md text-on-surface font-bold">فاتورة #{{ inv.id }}</span>
+            <span class="font-label-md text-label-md text-on-surface font-bold">{% if endpoint_on('portal.parent_invoice_detail') %}<a href="{{ url_for('portal.parent_invoice_detail', invoice_id=inv.id) }}" class="hover:underline" dir="ltr">{{ inv.number }}</a>{% else %}{{ inv.number }}{% endif %}</span>
             <span class="font-label-xs text-label-xs text-on-surface-variant">
               {% if inv.due_date %}يستحق: {{ inv.due_date.strftime('%Y-%m-%d') }}{% endif %}
             </span>
@@ -124,6 +125,7 @@
         <span class="material-symbols-outlined text-secondary">grade</span>
         آخر الدرجات
       </h3>
+      {% if endpoint_on('portal.parent_grades') %}<a href="{{ url_for('portal.parent_grades', child_id=active_child.id) }}" class="font-label-md text-label-md text-secondary hover:underline">التفاصيل</a>{% endif %}
       {# Playwright-tour fix (2026-10-02) — results.grades_index
          gates on results.view; dropping the broken link until a
          parent-portal grades route exists. #}

@@ -1,0 +1,20 @@
+{# parent follow-up: child switcher / no-children notice #}
+{% if not children %}
+<div class="p-space-lg rounded-2xl bg-amber-50 border border-amber-200 text-amber-900">
+  <div class="font-title-md font-bold flex items-center gap-2"><span class="material-symbols-outlined">info</span>لا يوجد أبناء مرتبطون</div>
+</div>
+{% elif children|length > 1 %}
+<div class="flex flex-wrap items-center gap-2">
+  <span class="font-label-md text-on-surface-variant">الابن:</span>
+  {% if allow_all %}
+  <a href="{{ url_for(request.endpoint) }}" class="px-3 py-1.5 rounded-full font-label-md {% if not child %}bg-primary text-on-primary font-bold{% else %}bg-surface-container text-on-surface{% endif %}">الكل</a>
+  {% endif %}
+  {% for c in children %}
+  {% if days is defined and days %}
+  <a href="{{ url_for(request.endpoint, child_id=c.id, days=days) }}" class="px-3 py-1.5 rounded-full font-label-md {% if child and child.id == c.id %}bg-primary text-on-primary font-bold{% else %}bg-surface-container text-on-surface{% endif %}">{{ c.full_name }}</a>
+  {% else %}
+  <a href="{{ url_for(request.endpoint, child_id=c.id) }}" class="px-3 py-1.5 rounded-full font-label-md {% if child and child.id == c.id %}bg-primary text-on-primary font-bold{% else %}bg-surface-container text-on-surface{% endif %}">{{ c.full_name }}</a>
+  {% endif %}
+  {% endfor %}
+</div>
+{% endif %}

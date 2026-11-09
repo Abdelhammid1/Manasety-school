@@ -1,0 +1,46 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}الرسوم والفواتير{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الرسوم والفواتير</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-5xl mx-auto space-y-6 pb-16">
+  <h1 class="font-headline-lg text-headline-lg text-primary font-bold">الرسوم والفواتير</h1>
+  <a href="{{ url_for('portal.parent_invoices') }}" class="inline-flex items-center gap-1 text-secondary font-label-md hover:underline"><span class="material-symbols-outlined text-base">arrow_forward</span>رجوع</a>
+  <section class="p-space-lg rounded-2xl bg-surface-container-lowest shadow-sm space-y-2">
+    <div class="font-headline-md text-primary font-bold" dir="ltr">{{ inv.number }}</div>
+    <div class="font-label-lg text-on-surface">الطالب: {{ student.full_name }}</div>
+    <div class="font-label-md text-on-surface-variant">التاريخ: {{ inv.issue_date.strftime('%Y-%m-%d') if inv.issue_date else '' }} &middot; الاستحقاق: {{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '' }}</div>
+    <div>{% if inv.status == 'paid' %}<span class="px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">مدفوعة</span>{% elif inv.status == 'partial' %}<span class="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">جزئية</span>{% elif inv.status == 'overdue' or (inv.due_date < today and inv.remaining > 0) %}<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">متأخرة</span>{% elif inv.status == 'refunded' %}<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs font-bold">مستردة</span>{% else %}<span class="px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">مرسلة</span>{% endif %}</div>
+    <div class="grid grid-cols-3 gap-3 pt-2"><div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm"><div class="font-label-md text-on-surface-variant">الإجمالي</div><div class="font-title-md text-primary font-bold tabular-nums">{{ '%.2f'|format(inv.total_amount or 0) }} {{ currency_symbol() }}</div></div><div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm"><div class="font-label-md text-on-surface-variant">المدفوع</div><div class="font-title-md text-[#10B981] font-bold tabular-nums">{{ '%.2f'|format(inv.paid_amount or 0) }} {{ currency_symbol() }}</div></div><div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm"><div class="font-label-md text-on-surface-variant">المتبقي</div><div class="font-title-md text-error font-bold tabular-nums">{{ '%.2f'|format((inv.total_amount - inv.paid_amount) or 0) }} {{ currency_symbol() }}</div></div></div>
+  </section>
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><h2 class="px-4 pt-4 font-title-md text-primary font-bold">البنود</h2><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">البيان</th><th class="px-4 py-3 font-label-lg text-primary text-right">المبلغ</th></tr></thead>
+    <tbody>
+    {% for line in inv.lines %}
+    <tr class="border-t border-outline-variant"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ line.description or (line.fee_type.name if line.fee_type else '') }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format(line.amount or 0) }} {{ currency_symbol() }}</td></tr>
+    {% else %}
+    <tr><td colspan="2" class="px-6 py-6 text-center text-on-surface-variant">لا فواتير</td></tr>
+    {% endfor %}
+    </tbody></table></div></section>
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><h2 class="px-4 pt-4 font-title-md text-primary font-bold">الأقساط</h2><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">الاستحقاق</th><th class="px-4 py-3 font-label-lg text-primary text-right">المبلغ</th><th class="px-4 py-3 font-label-lg text-primary text-right">المدفوع</th><th class="px-4 py-3 font-label-lg text-primary text-right">المتبقي</th><th class="px-4 py-3 font-label-lg text-primary text-right">الحالة</th></tr></thead>
+    <tbody>
+    {% for it in inv.installments %}
+    <tr class="border-t border-outline-variant"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ it.due_date.strftime('%Y-%m-%d') }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format(it.amount or 0) }} {{ currency_symbol() }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format(it.paid_amount or 0) }} {{ currency_symbol() }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format((it.amount - it.paid_amount) or 0) }} {{ currency_symbol() }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{% if it.status == 'paid' %}مدفوع{% elif it.status == 'overdue' or (it.due_date < today and it.remaining > 0) %}متأخر{% else %}معلق{% endif %}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="px-6 py-6 text-center text-on-surface-variant">لا توجد أقساط</td></tr>
+    {% endfor %}
+    </tbody></table></div></section>
+  <section class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><h2 class="px-4 pt-4 font-title-md text-primary font-bold">سجل المدفوعات</h2><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">التاريخ</th><th class="px-4 py-3 font-label-lg text-primary text-right">المبلغ</th><th class="px-4 py-3 font-label-lg text-primary text-right">الطريقة</th><th class="px-4 py-3 font-label-lg text-primary text-right">المرجع</th></tr></thead>
+    <tbody>
+    {% for p in payments %}
+    <tr class="border-t border-outline-variant"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ p.payment_date.strftime('%Y-%m-%d') }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format(p.amount or 0) }} {{ currency_symbol() }}{% if p.is_refund %} (استرداد){% endif %}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ p.method }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ p.reference or '' }}</td></tr>
+    {% else %}
+    <tr><td colspan="4" class="px-6 py-6 text-center text-on-surface-variant">لا توجد مدفوعات</td></tr>
+    {% endfor %}
+    </tbody></table></div></section>
+</div>
+{% endblock %}

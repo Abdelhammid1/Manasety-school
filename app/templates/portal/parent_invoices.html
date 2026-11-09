@@ -1,0 +1,32 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}الرسوم والفواتير{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الرسوم والفواتير</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-5xl mx-auto space-y-6 pb-16">
+  <h1 class="font-headline-lg text-headline-lg text-primary font-bold">الرسوم والفواتير</h1>
+  {% with allow_all=true %}{% include "portal/_parent_child_switch.html" %}{% endwith %}
+  {% if children %}
+  <div class="grid grid-cols-3 gap-3"><div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm"><div class="font-label-md text-on-surface-variant">الإجمالي</div><div class="font-title-md text-primary font-bold tabular-nums">{{ '%.2f'|format(totals.total or 0) }} {{ currency_symbol() }}</div></div><div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm"><div class="font-label-md text-on-surface-variant">المدفوع</div><div class="font-title-md text-[#10B981] font-bold tabular-nums">{{ '%.2f'|format(totals.paid or 0) }} {{ currency_symbol() }}</div></div><div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-sm"><div class="font-label-md text-on-surface-variant">المتبقي</div><div class="font-title-md text-error font-bold tabular-nums">{{ '%.2f'|format(totals.remaining or 0) }} {{ currency_symbol() }}</div></div></div>
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">رقم الفاتورة</th><th class="px-4 py-3 font-label-lg text-primary text-right">الطالب</th><th class="px-4 py-3 font-label-lg text-primary text-right">الاستحقاق</th><th class="px-4 py-3 font-label-lg text-primary text-right">الإجمالي</th><th class="px-4 py-3 font-label-lg text-primary text-right">المدفوع</th><th class="px-4 py-3 font-label-lg text-primary text-right">المتبقي</th><th class="px-4 py-3 font-label-lg text-primary text-right">الحالة</th></tr></thead>
+    <tbody>
+    {% for inv in invoices %}
+    <tr class="border-t border-outline-variant hover:bg-surface-container-low">
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums"><a href="{{ url_for('portal.parent_invoice_detail', invoice_id=inv.id) }}" class="font-mono text-primary font-bold underline" dir="ltr">{{ inv.number }}</a></td>
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ inv.enrollment.student.full_name }}</td>
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ inv.due_date.strftime('%Y-%m-%d') if inv.due_date else '' }}</td>
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format(inv.total_amount or 0) }} {{ currency_symbol() }}</td>
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format(inv.paid_amount or 0) }} {{ currency_symbol() }}</td>
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ '%.2f'|format((inv.total_amount - inv.paid_amount) or 0) }} {{ currency_symbol() }}</td>
+      <td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{% if inv.status == 'paid' %}<span class="px-2 py-0.5 rounded-full bg-[#ECFDF5] text-[#065F46] font-label-xs font-bold">مدفوعة</span>{% elif inv.status == 'partial' %}<span class="px-2 py-0.5 rounded-full bg-tertiary-fixed text-on-tertiary-fixed-variant font-label-xs font-bold">جزئية</span>{% elif inv.status == 'overdue' or (inv.due_date < today and inv.remaining > 0) %}<span class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container font-label-xs font-bold">متأخرة</span>{% elif inv.status == 'refunded' %}<span class="px-2 py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-xs font-bold">مستردة</span>{% else %}<span class="px-2 py-0.5 rounded-full bg-secondary-container/40 text-secondary font-label-xs font-bold">مرسلة</span>{% endif %}</td>
+    </tr>
+    {% else %}
+    <tr><td colspan="7" class="px-6 py-8 text-center text-on-surface-variant">لا فواتير</td></tr>
+    {% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+</div>
+{% endblock %}

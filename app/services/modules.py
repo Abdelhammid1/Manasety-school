@@ -486,7 +486,8 @@ FEATURES: tuple[Feature, ...] = (
     _f("finance.dashboard", "لوحة المالية", "finance.dashboard"),
     _f("finance.invoices", "الفواتير والمدفوعات",
        "finance.invoices_list", "finance.invoice_new", "finance.invoice_detail", "finance.invoice_pay",
-       "finance.invoice_print", "finance.invoice_void", "finance.invoice_unvoid", "finance.bulk_payment"),
+       "finance.invoice_print", "finance.invoice_void", "finance.invoice_unvoid", "finance.bulk_payment",
+       "finance.payment_receipt"),
     _f("finance.fees", "أنواع الرسوم وطرق الدفع",
        "finance.fee_types", "finance.fee_type_new", "finance.fee_type_edit", "finance.fee_type_delete",
        "finance.fee_type_toggle", "finance.payment_methods_list", "finance.payment_method_new",
@@ -541,6 +542,9 @@ FEATURES: tuple[Feature, ...] = (
     _f("portal.pickup", "نداء استلام الطالب",
        "portal.pickup_home", "portal.pickup_call", "portal.pickup_ack", "portal.pickup_release",
        "portal.pickup_active_json"),
+    _f("portal.parent_follow", "متابعة ولي الأمر",
+       "portal.parent_invoices", "portal.parent_invoice_detail",
+       "portal.parent_attendance", "portal.parent_grades"),
 )
 
 FEATURES_BY_KEY = {f.key: f for f in FEATURES}

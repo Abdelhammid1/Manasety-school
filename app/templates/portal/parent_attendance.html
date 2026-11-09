@@ -1,0 +1,33 @@
+{% extends "partials/stitch_base.html" %}
+{% block title %}الحضور والغياب{% endblock %}
+{% block topbar_crumb %}
+  <span class="material-symbols-outlined text-sm text-outline">chevron_left</span>
+  <span class="text-primary font-bold">الحضور والغياب</span>
+{% endblock %}
+{% block page_content %}
+<div class="w-full max-w-5xl mx-auto space-y-6 pb-16">
+  <h1 class="font-headline-lg text-headline-lg text-primary font-bold">الحضور والغياب</h1>
+  {% include "portal/_parent_child_switch.html" %}
+  {% if children and child %}
+  <div class="flex flex-wrap items-center gap-2">
+    <span class="font-label-md text-on-surface-variant">آخر:</span>
+    {% for d in ranges %}
+    <a href="{{ url_for('portal.parent_attendance', child_id=child.id, days=d) }}" class="px-3 py-1.5 rounded-full font-label-md {% if d == days %}bg-primary text-on-primary font-bold{% else %}bg-surface-container text-on-surface{% endif %}">{{ d }} يوم</a>
+    {% endfor %}
+  </div>
+  {% set L = {'present': 'حاضر', 'absent': 'غائب', 'late': 'متأخر', 'excused': 'غياب بعذر', 'left_early': 'انصراف مبكر'} %}
+  <div class="flex flex-wrap gap-2">
+    {% for k, v in counts.items() %}<span class="px-3 py-1 rounded-full bg-surface-container font-label-md text-on-surface">{{ L.get(k, k) }}: {{ v }}</span>{% endfor %}
+  </div>
+  <div class="bg-surface-container-lowest rounded-2xl shadow-sm overflow-hidden"><div class="overflow-x-auto"><table class="min-w-full">
+    <thead class="bg-surface-container-high"><tr><th class="px-4 py-3 font-label-lg text-primary text-right">التاريخ</th><th class="px-4 py-3 font-label-lg text-primary text-right">الحالة</th><th class="px-4 py-3 font-label-lg text-primary text-right">الحصة</th><th class="px-4 py-3 font-label-lg text-primary text-right">المادة</th><th class="px-4 py-3 font-label-lg text-primary text-right">سبب الغياب</th></tr></thead>
+    <tbody>
+    {% for r in rows %}
+    <tr class="border-t border-outline-variant"><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ r.date.strftime('%Y-%m-%d') }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums font-bold {% if r.status == 'absent' %}text-error{% elif r.status == 'present' %}text-[#10B981]{% endif %}">{{ L.get(r.status, r.status) }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ periods.get(r.period_id) if r.period_id else 'يوم كامل' }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ subjects.get(r.subject_id, '') if r.subject_id else '' }}</td><td class="px-4 py-3 font-label-md text-on-surface tabular-nums">{{ r.excuse_reason or '' }}</td></tr>
+    {% else %}
+    <tr><td colspan="5" class="px-6 py-8 text-center text-on-surface-variant">لا سجل حضور في هذه الفترة</td></tr>
+    {% endfor %}
+    </tbody></table></div></div>
+  {% endif %}
+</div>
+{% endblock %}

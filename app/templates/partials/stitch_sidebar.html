@@ -228,7 +228,9 @@
 
         {% call group('parent-updates', 'المتابعة والرسوم', 'campaign') %}
           {{ nav_item('lms.announcements_home','الإعلانات',      'campaign') }}
-          {{ nav_item('finance.invoices_list','الرسوم والفواتير','receipt_long', perm=('finance', 'view')) }}
+          {{ nav_item('portal.parent_invoices','الرسوم والفواتير','receipt_long', ['portal.parent_invoice_detail']) }}
+          {{ nav_item('portal.parent_attendance','الحضور والغياب','fact_check') }}
+          {{ nav_item('portal.parent_grades','الدرجات والنتائج','grading') }}
         {% endcall %}
 
       {% elif _role == 'student' %}
