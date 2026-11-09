@@ -362,6 +362,7 @@ def issue_employee_advance(employee, amount, payment_method_id: int,
         journal_entry_id=je.id, notes=notes,
     )
     db.session.add(adv); db.session.flush()
+    je.related_id = adv.id
     return adv
 
 
